@@ -1,0 +1,138 @@
+# This shell script library sets variables and supplies functions shared
+# between continuous integration build scripts.  It is intended to be
+# loaded, e.g.,  by scripts that are run by the Jenkins CI server.  The
+# working directory is assumed to be the root of a workspace where the
+# website code is checked out into a subdirectory.
+
+# First, define configuration options that may be overridden, e.g.:
+# $ APPENGINE_ROOT=/home/ci/google_appengine build-commit.sh
+
+# Commands:
+: ${BASE_PYTHON:=python}
+: ${MAKE:=make}
+: ${VIRTUALENV:=virtualenv}
+
+# Paths:
+: ${APPENGINE_ROOT:=/usr/local/google_appengine}
+: ${WEBSITE_ROOT:=webapp}
+: ${VIRTUALENV_ROOT:=env}
+: ${JENKINS_TMPDIR:=tmp}
+: ${SECRETS_DIR:=$HOME/secrets_py}
+
+# Make all the paths absolute, so clients can chdir with impunity.
+# We use the nice side-effect of readlink -f that it absolutizes.
+APPENGINE_ROOT=`readlink -f "$APPENGINE_ROOT"`
+WEBSITE_ROOT=`readlink -f "$WEBSITE_ROOT"`
+VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
+JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
+SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
+
+# Sanity check that we're in the right place, the working directory
+# above the website source directory.
+
+if [ ! -d "$WEBSITE_ROOT" ]; then
+    echo "Website root \"$WEBSITE_ROOT\" not found"
+    exit 1
+fi
+
+# Set up the environment for subprocesses.
+
+mkdir -p "$JENKINS_TMPDIR"
+find "$JENKINS_TMPDIR" -ctime +5 -mindepth 1 -maxdepth 1 -print0 \
+    | xargs -0 rm -rf                     # keep temp files for 5 days
+
+export TMPDIR="$JENKINS_TMPDIR"
+export PATH="$VIRTUALENV_ROOT/bin:$PATH:$APPENGINE_ROOT"
+
+# Set up a virtualenv and enter it.  If already in a virtualenv this
+# does nothing.
+
+function ensure_virtualenv {
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "You are already in a virtualenv"
+        return 0
+    elif [ -d "$VIRTUALENV_ROOT" ]; then
+        echo "Virtualenv already exists"
+    else
+        echo "Creating new virtualenv"
+        "$VIRTUALENV" --python="$BASE_PYTHON" "$VIRTUALENV_ROOT"
+    fi
+
+    source "$VIRTUALENV_ROOT/bin/activate"
+}
+
+# Decrypt secrets.py into a file outside of the Jenkins workspace, we use
+# $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
+# project. Then make it importable by setting PYTHONPATH.
+function decrypt_secrets_py_and_add_to_pythonpath {
+    # Copy the .cast5, which secrets.py uses to do a freshness check.
+    cp "$WEBSITE_ROOT"/secrets.py.cast5 "$SECRETS_DIR"
+    # The decryption command was copied from the make target "secrets_decrypt"
+    # in the webapp project.
+    openssl cast5-cbc -d -in "$SECRETS_DIR"/secrets.py.cast5 -out "$SECRETS_DIR"/secrets.py -kfile "$SECRETS_DIR"/secrets.py.cast5.password
+    chmod 600 "$SECRETS_DIR"/secrets.py
+    export PYTHONPATH="$SECRETS_DIR":$PYTHONPATH
+}
+
+## Some Git utilities
+
+# $1: directory to run the pull in (can be in a sub-repo)
+# NOTE: this does a git reset, and always changes the branch to master!
+safe_pull() {
+    cd "$1"
+    git reset --hard
+    git checkout master
+    git reset --hard
+    git pull --rebase || { git rebase --abort; exit 1; }
+    git submodule update --init --recursive
+    cd -
+}
+
+# $1: directory to run the push in (can be in a sub-repo)
+safe_push() {
+    cd "$1"
+    # In case there have been any changes since the script began, we
+    # do 'pull; push'.  On failure, we undo all our work.
+    git pull --rebase || {
+        git rebase --abort
+        git reset --hard HEAD^
+        exit 1
+    }
+    git push || {
+        git reset --hard HEAD^
+        exit 1
+    }
+    cd -
+}
+
+# $1 is the directory holding the subrepo to update (no trailing slash!)
+safe_subrepo_update() {
+    git add "$1"
+    if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
+        echo "No need to update substate for $1: no new content created"
+    else
+        git commit -m "$1 substate [auto]"
+        safe_push .
+    fi
+}
+
+# $1: the directory to commit in (can be in a sub-repo)
+# $2+: arguments to 'git commit' (don't need to specify -a)
+# NOTE: This 'git add's all new files in the commit-directory.
+safe_commit_and_push() {
+    dir="$1"
+    shift
+    cd "$dir"
+    if [ -z "$(git status --porcelain | head -n 1)" ]; then
+        echo "No changes, skipping commit"
+    else
+        git add .
+        git commit -a "$@"
+    fi
+    cd -
+    safe_push "$dir"
+    # If .git is a file and not a directory, we're a subrepo
+    if [ -f "$dir/.git" ]; then
+      safe_subrepo_update "$dir"
+    fi
+}
