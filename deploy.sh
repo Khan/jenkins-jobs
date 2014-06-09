@@ -80,7 +80,7 @@ popd
 
 echo "Deploying"
 # We always set --no-up: Jenkins checks out the right revision for us.
-DEPLOY_FLAGS="--no-browser --no-up"
+DEPLOY_FLAGS="--no-browser --no-up --clean-versions"
 if test -n "${SKIP_TESTS}"; then
     DEPLOY_FLAGS+=" --no-tests"
 fi
