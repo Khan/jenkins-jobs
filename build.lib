@@ -84,7 +84,9 @@ safe_pull() {
     git checkout master
     git reset --hard
     git pull --rebase || { git rebase --abort; exit 1; }
-    git submodule update --init --recursive
+    # Don't try to update submodule if we are ourselves a submodule.
+    [ -f "`git rev-parse --show-toplevel`/.git" ] || \
+        git submodule update --init --recursive
     cd -
 }
 
