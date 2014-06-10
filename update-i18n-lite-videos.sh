@@ -1,3 +1,5 @@
+#!/bin/bash -xe
+
 WORKSPACE_ROOT=`pwd -P`
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 
