@@ -17,6 +17,9 @@ cd "$WEBSITE_ROOT"
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
+echo "Updating intl/translations."
+safe_pull intl/translations
+
 echo "Updating the list of videos we have for 'lite' languages."
 tools/import_translations.py intl/translations
 
