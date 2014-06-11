@@ -1,5 +1,9 @@
 #!/bin/bash -xe
 
+# This script is run by the jenkins 'update-i18n-lite-videos' in order to 
+# query youtube to get the videos information from our i18n lite youtube 
+# channels and add them to intl/translations/videos_*.json
+
 WORKSPACE_ROOT=`pwd -P`
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 
