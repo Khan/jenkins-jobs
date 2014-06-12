@@ -9,6 +9,7 @@
 #
 # Environment variables:
 #   WITH_SECRETS - set to 1 to make secrets.py available to Python
+#   NO_DEPS - set to 1 to disable running 'make deps'
 
 : ${WITH_SECRETS:=}
 
@@ -19,7 +20,7 @@ source "${SCRIPT_DIR}/build.lib"
 # Run commit build verifications.
 
 ensure_virtualenv
-( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
+[ -n "$NO_DEPS" ] || ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
 
 if [ -n "$WITH_SECRETS" ]; then
     decrypt_secrets_py_and_add_to_pythonpath
