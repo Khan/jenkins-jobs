@@ -14,9 +14,10 @@
 
 # Paths:
 : ${APPENGINE_ROOT:=/usr/local/google_appengine}
-: ${WEBSITE_ROOT:=webapp}
-: ${VIRTUALENV_ROOT:=env}
-: ${JENKINS_TMPDIR:=tmp}
+: ${WORKSPACE_ROOT:=.}
+: ${WEBSITE_ROOT:=$WORKSPACE_ROOT/webapp}
+: ${VIRTUALENV_ROOT:=$WORKSPACE_ROOT/env}
+: ${JENKINS_TMPDIR:=$WORKSPACE_ROOT/tmp}
 : ${SECRETS_DIR:=$HOME/secrets_py}
 
 # Make all the paths absolute, so clients can chdir with impunity.
