@@ -70,6 +70,22 @@ appengine_tool_setup.fix_sys_path()
 from third_party import alertlib
 
 
+# We can run tests in a mode where a python tests runs jstests or lint
+# checks in a subshell.  This maps the python test name to a regexp
+# that extracts the jstest/lint output from the python xml output.
+_ALTERNATE_TESTS = {
+    'testutil.manual_test.LintTest':
+        ('lint',
+         re.compile('AssertionError: LINT ERRORS:\s*(.*)', re.MULTILINE)),
+    'testutil.manual_test.JsTest':
+        ('javascript',
+         re.compile('AssertionError: JSTEST ERRORS:\s*(.*)', re.MULTILINE)),
+}
+
+# Maps 'lint' to the alternate-test lint output.
+_ALTERNATE_TESTS_VALUES = {}
+
+
 def _alert(failures, test_type, truncate=10, num_errors=None):
     """Alert with the first truncate failures, adding a header.
 
@@ -107,7 +123,18 @@ def find_bad_testcases(test_reports_dir):
     for filename in os.listdir(test_reports_dir):
         doc = lxml.etree.parse(os.path.join(test_reports_dir, filename))
         for bad_testcase in doc.xpath("/testsuite/testcase[failure or error]"):
-            yield bad_testcase
+            if bad_testcase.get("classname") not in _ALTERNATE_TESTS:
+                yield bad_testcase
+            else:
+                # If we're an alternate test (we're the test that runs
+                # the linter, say), instead of reporting the error
+                # here, we store its value in a global, and report the
+                # error along with the lint failures.
+                error_text = bad_testcase.getchildren()[0].text.rstrip()
+                (type, regex) = _ALTERNATE_TESTS[bad_testcase.get("classname")]
+                m = regex.search(error_text)
+                assert m, error_text
+                _ALTERNATE_TESTS_VALUES[type] = m.group(1)
 
 
 def add_links(build_url, testcase):
@@ -187,12 +214,24 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     num_errors = 0
+
     if args.test_reports_dir:
         num_errors += report_test_failures(args.test_reports_dir,
                                            args.jenkins_build_url)
+
+    # If we ran any of the alternate-tests above, we'll fake having
+    # emitted otuput to the output file.
+
     if args.jstest_reports_file:
+        if 'javascript' in _ALTERNATE_TESTS_VALUES:
+            with open(args.jstest_reports_file, 'w') as f:
+                f.write(_ALTERNATE_TESTS_VALUES['javascript'])
         num_errors += report_jstest_failures(args.jstest_reports_file)
+
     if args.lint_reports_file:
+        if 'lint' in _ALTERNATE_TESTS_VALUES:
+            with open(args.lint_reports_file, 'w') as f:
+                f.write(_ALTERNATE_TESTS_VALUES['lint'])
         num_errors += report_lint_failures(args.lint_reports_file)
 
     return num_errors
