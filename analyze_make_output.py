@@ -155,6 +155,9 @@ def report_test_failures(test_reports_dir, jenkins_build_url):
 
     Returns the number of errors seen.
     """
+    if not os.path.exists(test_reports_dir):
+        return 0
+
     jenkins_build_url = jenkins_build_url.rstrip("/")
 
     # Sort output so it is easy to compare across runs.
@@ -168,6 +171,9 @@ def report_test_failures(test_reports_dir, jenkins_build_url):
 
 def report_jstest_failures(jstest_reports_file):
     """Alert for jstest (as opposed to python-test or lint) failures."""
+    if not os.path.exists(jstest_reports_file):
+        return 0
+
     failures = []
     num_errors = 0
     with open(jstest_reports_file, 'rU') as infile:
@@ -185,6 +191,9 @@ def report_jstest_failures(jstest_reports_file):
 
 def report_lint_failures(lint_reports_file):
     """Alert for lint (as opposed to python-test or jstest) failures."""
+    if not os.path.exists(lint_reports_file):
+        return 0
+
     with open(lint_reports_file, 'rU') as infile:
         failures = infile.readlines()
     _alert(failures, 'Lint check')
@@ -225,6 +234,7 @@ def main():
     if args.jstest_reports_file:
         if 'javascript' in _ALTERNATE_TESTS_VALUES:
             with open(args.jstest_reports_file, 'w') as f:
+                # TODO(csilvers): send a cStringIO to report_* instead.
                 f.write(_ALTERNATE_TESTS_VALUES['javascript'])
         num_errors += report_jstest_failures(args.jstest_reports_file)
 
