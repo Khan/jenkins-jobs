@@ -110,6 +110,7 @@ safe_push() {
 
 # $1 is the directory holding the subrepo to update (no trailing slash!)
 safe_subrepo_update() {
+    safe_pull .                      
     git add "$1"
     if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
         echo "No need to update substate for $1: no new content created"
