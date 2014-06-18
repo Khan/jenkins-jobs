@@ -111,6 +111,7 @@ def _alert(failures, test_type, truncate=10, num_errors=None):
     (alertlib.Alert('<br>\n'.join(alert_lines),
                     severity=logging.ERROR,
                     html=True)
+     .send_to_logs()
      .send_to_hipchat('1s and 0s', sender='Jenny Jenkins'))
 
 
