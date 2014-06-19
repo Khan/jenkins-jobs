@@ -48,7 +48,7 @@ export PATH="$VIRTUALENV_ROOT/bin:$PATH:$APPENGINE_ROOT"
 # Set up a virtualenv and enter it.  If already in a virtualenv this
 # does nothing.
 
-function ensure_virtualenv {
+ensure_virtualenv() {
     if [ -n "$VIRTUAL_ENV" ]; then
         echo "You are already in a virtualenv"
         return 0
@@ -59,13 +59,13 @@ function ensure_virtualenv {
         "$VIRTUALENV" --python="$BASE_PYTHON" "$VIRTUALENV_ROOT"
     fi
 
-    source "$VIRTUALENV_ROOT/bin/activate"
+    . "$VIRTUALENV_ROOT/bin/activate"
 }
 
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use
 # $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
 # project. Then make it importable by setting PYTHONPATH.
-function decrypt_secrets_py_and_add_to_pythonpath {
+decrypt_secrets_py_and_add_to_pythonpath() {
     # Copy the .cast5, which secrets.py uses to do a freshness check.
     cp "$WEBSITE_ROOT"/secrets.py.cast5 "$SECRETS_DIR"
     # The decryption command was copied from the make target "secrets_decrypt"
