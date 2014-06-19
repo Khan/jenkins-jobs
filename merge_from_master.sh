@@ -24,7 +24,7 @@ die() {
 }
 
 git_branch_or_commit="$1"
-master_commit=`git rev-parse master`
+master_commit=`git rev-parse origin/master`
 
 [ "$git_branch_or_commit" != "master" ] || {
     die "You must deploy from a branch; you can't deploy from master."
