@@ -16,11 +16,11 @@ die() {
 
 # Make sure that $git_commit is a sha1 pointing to the head of
 # a branch.
-git_branch=`git show-ref --heads | grep -e "^$git_commit " | cut -d/ -f3`
+git_branch=`git show-ref | grep "^$git_commit refs/remotes/origin/" | cut -d/ -f4`
 [ -z "$git_branch" ] && {
     echo "The git commit '$git_commit' is not the head of a branch"
     echo "These are the heads we know about:"
-    git show-ref --heads
+    git show-ref | grep refs/remotes/origin/
     die "The git commit '$git_commit' is not the head of a branch"
 }
 
