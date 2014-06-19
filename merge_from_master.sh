@@ -15,8 +15,9 @@ die() {
 }
 
 # Make sure that $git_commit is a sha1 pointing to the head of
-# a branch.
-git_branch=`git show-ref | grep "^$git_commit refs/remotes/origin/" | cut -d/ -f4`
+# a branch.  If two branches point to the same sha1, we pick
+# one arbitrarily.
+git_branch=`git show-ref | grep "^$git_commit refs/remotes/origin/" | cut -d/ -f4 | head -n1`
 [ -z "$git_branch" ] && {
     echo "The git commit '$git_commit' is not the head of a branch"
     echo "These are the heads we know about:"
@@ -24,7 +25,7 @@ git_branch=`git show-ref | grep "^$git_commit refs/remotes/origin/" | cut -d/ -f
     die "The git commit '$git_commit' is not the head of a branch"
 }
 
-[ "$git_branch" = "master" ] && {
+[ "$git_branch" = "master" -o "$git_branch" = "HEAD" ] && {
     die "You must deploy from a branch; you can't deploy from master"
 }
 
