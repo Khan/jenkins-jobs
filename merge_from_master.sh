@@ -17,11 +17,15 @@ die() {
 # Make sure that $git_commit is a sha1 pointing to the head of
 # a branch.
 git_branch=`git show-ref --heads | grep -e "^$git_commit " | cut -d/ -f3`
-[ -n "$git_branch" ] || {
+[ -z "$git_branch" ] && {
     echo "The git commit '$git_commit' is not the head of a branch"
     echo "These are the heads we know about:"
     git show-ref --heads
     die "The git commit '$git_commit' is not the head of a branch"
+}
+
+[ "$git_branch" = "master" ] && {
+    die "You must deploy from a branch; you can't deploy from master"
 }
 
 # If the current commit is not a super-set of master, try merging master in.
