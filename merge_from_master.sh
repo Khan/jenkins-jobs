@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # If the current revision that we're on is not already a superset of
 # 'master', merge master in via rebasing.  If this is not a trivial
