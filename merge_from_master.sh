@@ -1,48 +1,66 @@
-#!/bin/sh -x
+#!/bin/sh -xe
 
-# If the current revision that we're on is not already a superset of
-# 'master', merge master in via rebasing.  If this is not a trivial
-# merge, abort.  If the current revision is not the head of a branch,
-# (that is, 'git status' shows 'no branch'), also abort, since merging
-# in that situation is probably not a good idea.
-
-git_commit=`git rev-parse HEAD`
-master_commit=`git rev-parse master`
+# Given an argument that is either the name of a branch or a different
+# kind of commit-ish (sha1, tag, etc), does two things:
+#
+# 1) Ensures that HEAD matches that argument -- that is, that you're
+#    checked out where you expect to be -- and then does a
+#    git checkout <branch> so we are no longer in a detached-head
+#    state.
+#
+# 2) Check if the input sha1 is a superset of master (that is,
+#    everything in master is part of this sha1's history too).
+#    If not:
+# 2a) If the argument is a branch-name, merge master into the branch.
+# 2b) If the argument is another commit-ish, fail.
 
 die() {
     echo "FATAL ERROR: $@"
     exit 1
 }
 
-# Make sure that $git_commit is a sha1 pointing to the head of
-# a branch.  If two branches point to the same sha1, we pick
-# one arbitrarily.
-git_branch=`git show-ref | grep "^$git_commit refs/remotes/origin/" | cut -d/ -f4 | head -n1`
-[ -z "$git_branch" ] && {
-    echo "The git commit '$git_commit' is not the head of a branch"
-    echo "These are the heads we know about:"
-    git show-ref | grep refs/remotes/origin/
-    die "The git commit '$git_commit' is not the head of a branch"
+[ -n "$1" ] || {
+    die "USAGE: $1 <branch-name or other commit-ish, should equal HEAD>"
 }
 
-[ "$git_branch" = "master" -o "$git_branch" = "HEAD" ] && {
-    die "You must deploy from a branch; you can't deploy from master"
+git_branch_or_commit="$1"
+master_commit=`git rev-parse master`
+
+[ "$git_branch_or_commit" != "master" ] || {
+    die "You must deploy from a branch; you can't deploy from master."
 }
 
-# If the current commit is not a super-set of master, try merging master in.
-if [ `git merge-base $git_commit $master_commit` != $master_commit ]; then
-    echo "Merging master into $git_branch"
-    git checkout "$git_branch"     # we were a detached commit
-    # The merge exits with rc > 0 if there were conflicts
-    git merge master || {
-        git merge --abort
-        die "Merge conflicts: must merge master into $git_branch manually"
-    }
-    # There's a race condition if someone commits to this branch while
-    # this script is running, but oh well.
-    git push || {
-        git reset --hard "$git_commit"   # undo the merge
-        die "Someone committed to $git_branch while we've been deploying!"
-    }
-    echo "Done merging master into $git_branch"
+# Make sure that HEAD and branch-name are the same.
+[ "`git rev-parse HEAD`" = "`git rev-parse $git_branch_or_commit`" ] || {
+    die "HEAD unexpectedly at `git rev-parse HEAD`, not $git_branch_or_commit"
+}
+
+# If the current commit is a super-set of master, we're done, yay!
+if [ "`git merge-base $git_branch_or_commit $master_commit`" = "$master_commit" ]; then
+    exit 0
 fi
+
+# Now we need to merge master into our branch.  First, make sure we
+# *are* a branch.
+git show-ref | grep -q refs/remotes/origin/$git_branch_or_commit || {
+    die "$git_branch_or_commit is not a branch name on the remote, like these:" \
+        "`git show-ref | grep refs/remotes/origin/`"
+}
+
+# This is a no-op in terms of where we point, but it may move us from
+# a detached-head state to a head-at-branch state.
+git checkout "$git_branch_or_commit"
+
+echo "Merging master into $git_branch_or_commit"
+# The merge exits with rc > 0 if there were conflicts
+git merge master || {
+    git merge --abort
+    die "Merge conflict: must merge master into $git_branch_or_commit manually"
+}
+# There's a race condition if someone commits to this branch while
+# this script is running, so check for that.
+git push || {
+    git reset --hard "$git_branch_or_commit"   # undo the merge
+    die "Someone committed to $git_branch while we've been deploying!"
+}
+echo "Done merging master into $git_branch_or_commit"
