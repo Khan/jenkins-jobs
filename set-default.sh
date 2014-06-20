@@ -1,15 +1,9 @@
 #!/bin/bash -xe
 
 # This script calls set_default.py to make a specified deployed
-# version live.
-
-[ -n "$1" ] || {
-    echo "USAGE: $0 <appengine version name to set as default>"
-    exit 1
-}
-VERSION_NAME="$1"
-
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
+# version live.  It follows the golden rule: only exit with an
+# an error return-code if you want jenkins to release the build
+# lock.
 
 # Configuration options for set_default.
 
@@ -34,6 +28,13 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 : ${HIPCHAT_SENDER:=Mr Gorilla}
 
 
+[ -n "$1" ] || {
+    echo "USAGE: $0 <appengine version name to set as default>"
+    exit 1
+}
+VERSION_NAME="$1"
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 source "${SCRIPT_DIR}/build.lib"    # for ensure_virtualenv() and alert()
 ensure_virtualenv
 
@@ -71,16 +72,16 @@ fi
 if [ rc -eq 2 ]; then
     if [ "$AUTO_ROLLBACK" = "true" ]; then
         alert warning "(sadpanda) set_default monitoring detected problems!"
+        # This will also release the deploy lock.
         env ROLLBACK_TO="$old_default" "${SCRIPT_DIR}/finish_deploy.py" rollback
-        exit 2
     else
         alert warning \
             "(sadpanda) set_default monitoring detected problems!" \
             "<b>$(JENKINS_USER)</b>: make sure everything is ok, then click one of these:" \
             "<a href='$finish_base&STATUS=success'>OK! Release the deploy lock.</a> ~ " \
             "<a href='$finish_base&STATUS=rollback&ROLLBACK_TO=$old_default'>TROUBLE! Roll back.</a>"
-        exit 0
     fi
+    exit 0
 fi
 
 alert critical \
@@ -89,4 +90,4 @@ alert critical \
     "1) set the default to $VERSION_NAME manually, then" \
     "<a href='$finish_base&STATUS=success'>release the deploy lock</a>;" \
     "or 2) <a href='$finish_base&STATUS=failure'>just abort the deploy</a>."
-exit $rc
+exit 0

@@ -14,18 +14,16 @@
 : ${WITH_SECRETS:=}
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
 source "${SCRIPT_DIR}/build.lib"
-
-# Run commit build verifications.
-
 ensure_virtualenv
-[ -n "$NO_DEPS" ] || ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
-
 if [ -n "$WITH_SECRETS" ]; then
     decrypt_secrets_py_and_add_to_pythonpath
 fi
 
+# Run commit build verifications.
+[ -n "$NO_DEPS" ] || ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
+
 # Why not have the caller simply run make themselves? Because we may
 # modify the environment, e.g., by adding secrets.py to PYTHONPATH.
-( cd "$WEBSITE_ROOT" && "$MAKE" "$@" )
+cd "$WEBSITE_ROOT"
+"$MAKE" "$@"

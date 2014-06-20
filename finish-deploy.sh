@@ -4,22 +4,6 @@
 # release the deploy lock, but it also handles the rollback that
 # may happen if the build failed.
 
-[ -n "$1" ] || {
-    echo "USAGE: $0 <status of the deploy>"
-    echo "Status is one of:"
-    echo "   * unlock: Something went wrong somewhere and the lock is still"
-    echo "             held even though no deploy is currently in progress."
-    echo "   * success: The deploy succeeded and is stable."
-    echo "   * failure: The deploy failed before deploying to appengine."
-    echo "   * rollback: The deploy failed after deploying to appengine"
-    echo "               (e.g. during monitoring)."
-    exit 1
-}
-
-STATUS="$1"
-
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
 # Configuration options for finish_deploy.
 
 # If status is 'rollback', this is the gae version-name to roll back to.
@@ -40,6 +24,21 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 : ${HIPCHAT_ROOM:=HipChat Tests}
 : ${HIPCHAT_SENDER:=Mr Gorilla}
 
+
+[ -n "$1" ] || {
+    echo "USAGE: $0 <status of the deploy>"
+    echo "Status is one of:"
+    echo "   * unlock: Something went wrong somewhere and the lock is still"
+    echo "             held even though no deploy is currently in progress."
+    echo "   * success: The deploy succeeded and is stable."
+    echo "   * failure: The deploy failed before deploying to appengine."
+    echo "   * rollback: The deploy failed after deploying to appengine"
+    echo "               (e.g. during monitoring)."
+    exit 1
+}
+STATUS="$1"
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 source "${SCRIPT_DIR}/build.lib"    # for ensure_virtualenv() and alert()
 ensure_virtualenv
 
@@ -50,6 +49,11 @@ VERSION_NAME=`curl http://www.khanacademy.org/api/v1/dev/version | cut -d'"' -f4
 finish_base="${JENKINS_URL}/job/deploy-finish/parambuild?GIT_REVISION=$GIT_REVISION"
 
 cd "$WEBSITE_ROOT"
+
+if [ status = "rollback" -a "$VERSION_NAME" != "$ROLLBACK_TO" ]; then
+    # We don't need to roll back; we never actually rolled forward.
+    status="failure"
+fi
 
 if [ status = "unlock" ]; then
     alert info "Manually unlocking deploy lock.  Triggered by $JENKINS_USER."
@@ -87,4 +91,4 @@ else
 
 fi
 
-# TODO(csilvers): release the lock!
+${SCRIPT_DIR}/release_deploy_lock.sh

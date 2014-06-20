@@ -12,8 +12,6 @@
 # the token, see:
 # Dropbox/Khan Academy All Staff/Secrets/password-for-jenkins-ka.org-and-dropbox.txt
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
 # Configuration options for building the datastore.
 
 # The file containing the password to decrypt secrets.py.
@@ -25,14 +23,16 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 # If this flag is set to 1, DO NOT reuse the cached content from the last run (takes longer)
 : ${IGNORE_CACHED_CONTENT:=0}
 
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 source "${SCRIPT_DIR}/build.lib"
+ensure_virtualenv
 
 if [ ! -e $DROPBOX_SECRETS_FILE ]; then
     echo "Could not find Dropbox secrets file in $DROPBOX_SECRETS_FILE! Aborting."
     exit 1
 fi
 
-ensure_virtualenv
 ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
 
 # Decrypt secrets file

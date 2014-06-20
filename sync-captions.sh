@@ -1,15 +1,13 @@
 #!/bin/bash -xe
 
-WORKSPACE_ROOT="$(pwd -P)"
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
+WORKSPACE_ROOT="$(pwd -P)"
 source "${SCRIPT_DIR}/build.lib"
-
 ensure_virtualenv
-( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
-
 decrypt_secrets_py_and_add_to_pythonpath
 
+( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
 
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1

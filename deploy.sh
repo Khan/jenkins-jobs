@@ -8,10 +8,6 @@
 # secrets.py and to deploy to App Engine, see the configuration options
 # below.
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
-source "${SCRIPT_DIR}/build.lib"
-
 # Configuration options for deployment.
 
 # The AppEngine version name for this deployment. The special string "default"
@@ -51,6 +47,8 @@ fi
 # NOTE: deploy.py notifications ignore this and always go to "1s and 0s".
 : ${HIPCHAT_ROOM:=HipChat Tests}
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
+source "${SCRIPT_DIR}/build.lib"
 ensure_virtualenv
 
 # Clean out the working tree.

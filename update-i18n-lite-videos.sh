@@ -1,20 +1,18 @@
 #!/bin/bash -xe
 
-# This script is run by the jenkins 'update-i18n-lite-videos' in order to 
-# query youtube to get the videos information from our i18n lite youtube 
+# This script is run by the jenkins 'update-i18n-lite-videos' in order to
+# query youtube to get the videos information from our i18n lite youtube
 # channels and add them to intl/translations/videos_*.json
 
-WORKSPACE_ROOT=`pwd -P`
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-
+WORKSPACE_ROOT=`pwd -P`
 source "${SCRIPT_DIR}/build.lib"
-
 ensure_virtualenv
-( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
-
 decrypt_secrets_py_and_add_to_pythonpath
 
 cd "$WEBSITE_ROOT"
+
+"$MAKE" install_deps
 
 # --- The actual work:
 
