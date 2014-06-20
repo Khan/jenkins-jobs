@@ -115,13 +115,20 @@ def _alert(failures, test_type, truncate=10, num_errors=None):
      .send_to_hipchat('1s and 0s', sender='Jenny Jenkins'))
 
 
+def _find(rootdir):
+    """Yield every file under root."""
+    for (root, _, files) in os.walk(rootdir):
+        for f in files:
+            yield os.path.join(root, f)
+
+
 def find_bad_testcases(test_reports_dir):
     """Yield each failure or error testcase as lxml.etree.Element
 
     See the xUnit XML format described in the module docstring to see the
     testcase element tree in context.
     """
-    for filename in os.listdir(test_reports_dir):
+    for filename in _find(test_reports_dir):
         doc = lxml.etree.parse(os.path.join(test_reports_dir, filename))
         for bad_testcase in doc.xpath("/testsuite/testcase[failure or error]"):
             if bad_testcase.get("classname") not in _ALTERNATE_TESTS:

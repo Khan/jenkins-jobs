@@ -25,13 +25,22 @@ die() {
 
 git_branch_or_commit="$1"
 master_commit=`git rev-parse origin/master`
+head_commit=`git rev-parse HEAD`
+
+# This is a no-op in terms of where we point, but it may move us from
+# a detached-head state to a head-at-branch state, and will definitely
+# make sure the ref exists locally (so we can do 'git rev-parse
+# branch' rather than needing 'git rev-parse origin/branch').
+git checkout "$git_branch_or_commit"
+# This may fail if it's a commit and not a branch; that's ok.
+git pull origin "$git_branch_or_commit" || true
 
 [ "$git_branch_or_commit" != "master" ] || {
     die "You must deploy from a branch; you can't deploy from master."
 }
 
 # Make sure that HEAD and branch-name are the same.
-[ "`git rev-parse HEAD`" = "`git rev-parse $git_branch_or_commit`" ] || {
+[ "$head_commit" = "`git rev-parse $git_branch_or_commit`" ] || {
     die "HEAD unexpectedly at `git rev-parse HEAD`, not $git_branch_or_commit"
 }
 
@@ -47,20 +56,18 @@ git show-ref | grep -q refs/remotes/origin/$git_branch_or_commit || {
         "`git show-ref | grep refs/remotes/origin/`"
 }
 
-# This is a no-op in terms of where we point, but it may move us from
-# a detached-head state to a head-at-branch state.
-git checkout "$git_branch_or_commit"
-
 echo "Merging master into $git_branch_or_commit"
+pre_merge_commit=`git rev-parse HEAD`
+
 # The merge exits with rc > 0 if there were conflicts
-git merge master || {
+git merge origin/master || {
     git merge --abort
     die "Merge conflict: must merge master into $git_branch_or_commit manually"
 }
 # There's a race condition if someone commits to this branch while
 # this script is running, so check for that.
-git push || {
-    git reset --hard "$git_branch_or_commit"   # undo the merge
+git push origin "$git_branch_or_commit" || {
+    git reset --hard "$pre_merge_commit"   # undo the merge
     die "Someone committed to $git_branch while we've been deploying!"
 }
 echo "Done merging master into $git_branch_or_commit"
