@@ -70,7 +70,11 @@ ensure_virtualenv() {
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use
 # $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
 # project. Then make it importable by setting PYTHONPATH.
+# This is idempotent; it's a noop the second and subsequent calls.
 decrypt_secrets_py_and_add_to_pythonpath() {
+    if ! echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
+      return       # So it's safe to call this twice
+    fi
     # Copy the .cast5, which secrets.py uses to do a freshness check.
     cp "$WEBSITE_ROOT"/secrets.py.cast5 "$SECRETS_DIR"
     # The decryption command was copied from the make target "secrets_decrypt"
@@ -86,10 +90,8 @@ decrypt_secrets_py_and_add_to_pythonpath() {
 alert() {
     severity="$1"
     shift
-    if ! echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
-      decrypt_secrets_py_and_add_to_pythonpath
-    fi
-    if echo "$@" | grep -q '<'; then     # a hack, but a pretty good one
+    decrypt_secrets_py_and_add_to_pythonpath
+    if echo "$@" | grep -q '<[^ ].*>'; then    # a hack, but a pretty good one
        html=--html
     else
        html=

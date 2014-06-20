@@ -59,7 +59,7 @@ finish_base="${JENKINS_URL}/job/deploy-finish/parambuild?GIT_REVISION=$GIT_REVIS
 # set_default returns 2 if monitoring detected a problem.
 if [ rc -eq 0 ]; then
     alert warning \
-        "Default set: $old_version -> $VERSION_NAME ($JENKINS_USER)." \
+        "Default set: $old_default -> $VERSION_NAME ($JENKINS_USER)." \
         "<b>$(JENKINS_USER)</b>: Monitoring passed, but you should" \
         "<a href='https://www.khanacademy.org'>double-check</a>" \
         "everything is ok, then click one of these:" \

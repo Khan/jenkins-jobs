@@ -49,26 +49,6 @@ VERSION_NAME=`curl http://www.khanacademy.org/api/v1/dev/version | cut -d'"' -f4
 
 finish_base="${JENKINS_URL}/job/deploy-finish/parambuild?GIT_REVISION=$GIT_REVISION"
 
-roll_back() {
-    alert warning "Automatically rolling the default back to $ROLLBACK_TO" \
-                  "and deleting $VERSION_NAME from appengine" \
-                  "($JENKINS_USER)"
-    deploy/set_default.py "$ROLLBACK_TO" --no-priming \
-            --email="$DEPLOY_EMAIL" --passin <"$DEPLOY_PW_FILE" || {
-        alert critical \
-            "(sadpanda) (sadpanda) Auto-rollback failed!" \
-            "<b>$(JENKINS_USER)</b>: Roll back to $ROLLBACK_TO manually, then" \
-            "<a href='$finish_base&STATUS=failure'>release the deploy lock</a>."
-        exit 1
-    }
-    tools/delete_gae_version.py "$VERSION_NAME" \
-            --email="$DEPLOY_EMAIL" --passin <"$DEPLOY_PW_FILE" || {
-        alert warning "(sadpanda) (sadpanda) Appengine-delete failed!" \
-                      "<b>$(JENKINS_USER)</b>:" \
-                      "Delete $VERSION_NAME manually at your convenience."
-    }
-}
-
 cd "$WEBSITE_ROOT"
 
 if [ status = "unlock" ]; then
