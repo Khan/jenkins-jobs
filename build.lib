@@ -28,6 +28,11 @@ VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 
+# Default HipChat info to use for alerting:
+: ${HIPCHAT_ROOM:=HipChat Tests}
+: ${HIPCHAT_SENDER:=Testybot}
+
+
 # Sanity check that we're in the right place, the working directory
 # above the website source directory.
 
@@ -74,6 +79,28 @@ decrypt_secrets_py_and_add_to_pythonpath() {
     chmod 600 "$SECRETS_DIR"/secrets.py
     export PYTHONPATH="$SECRETS_DIR":$PYTHONPATH
 }
+
+# Send an alert to hipchat and the logs.  Decrypts secrets if necessary.
+# The alertlib subrepo in webapp must be checked out for this to work.
+# $1: severity level; $2+: message
+alert() {
+    severity="$1"
+    shift
+    if ! echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
+      decrypt_secrets_py_and_add_to_pythonpath
+    fi
+    if echo "$@" | grep -q '<'; then     # a hack, but a pretty good one
+       html=--html
+    else
+       html=
+    fi
+    echo "$@" \
+        | ${WEBSITE_ROOT}/third_party/alertlib-khansrc/alert.py \
+              --severity="$severity" $html \
+              --hipchat "$HIPCHAT_ROOM" --hipchat-sender "$HIPCHAT_SENDER" \
+              --logs
+}
+
 
 ## Some Git utilities
 
