@@ -54,7 +54,7 @@ set -e
 
 # The links to click on, for the next manual step, either indicating
 # the deploy is ok or the deploy is not ok.
-finish_base="${JENKINS_URL}/job/deploy-finish/parambuild?GIT_REVISION=$GIT_REVISION&ROLLBACK_TO=$old_default"
+finish_base="${JENKINS_URL}/job/deploy-finish/parambuild?GIT_REVISION=$GIT_REVISION"
 
 # set_default returns 2 if monitoring detected a problem.
 if [ rc -eq 0 ]; then
@@ -64,7 +64,7 @@ if [ rc -eq 0 ]; then
         "<a href='https://www.khanacademy.org'>double-check</a>" \
         "everything is ok, then click one of these:" \
         "<a href='$finish_base&STATUS=success'>OK! Release the deploy lock.</a> ~ " \
-        "<a href='$finish_base&STATUS=rollback'>TROUBLE! Roll back.</a>"
+        "<a href='$finish_base&STATUS=rollback&ROLLBACK_TO=$old_default'>TROUBLE! Roll back.</a>"
     exit 0
 fi
 
@@ -78,7 +78,7 @@ if [ rc -eq 2 ]; then
             "(sadpanda) set_default monitoring detected problems!" \
             "<b>$(JENKINS_USER)</b>: make sure everything is ok, then click one of these:" \
             "<a href='$finish_base&STATUS=success'>OK! Release the deploy lock.</a> ~ " \
-            "<a href='$finish_base&STATUS=rollback'>TROUBLE! Roll back.</a>"
+            "<a href='$finish_base&STATUS=rollback&ROLLBACK_TO=$old_default'>TROUBLE! Roll back.</a>"
         exit 0
     fi
 fi
