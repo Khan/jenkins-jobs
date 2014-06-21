@@ -72,7 +72,7 @@ ensure_virtualenv() {
 # project. Then make it importable by setting PYTHONPATH.
 # This is idempotent; it's a noop the second and subsequent calls.
 decrypt_secrets_py_and_add_to_pythonpath() {
-    if ! echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
+    if echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
       return       # So it's safe to call this twice
     fi
     # Copy the .cast5, which secrets.py uses to do a freshness check.
