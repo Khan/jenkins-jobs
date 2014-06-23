@@ -61,6 +61,10 @@ import deploy.set_default
 import tools.delete_gae_versions
 
 
+# Used for testing.  Does not set-default, does not delete.
+_DRY_RUN = True
+
+
 def _alert(text, props, severity=logging.INFO, html=True,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
@@ -328,7 +332,7 @@ def _rollback_deploy(props):
                                        passin=True,
                                        num_instances_to_prime=None,
                                        monitor=False,
-                                       dry_run=False) != 0:
+                                       dry_run=_DRY_RUN) != 0:
                 raise RuntimeError('set_default failed')
     except Exception:
         logging.exception('Auto-rollback failed')
@@ -344,7 +348,7 @@ def _rollback_deploy(props):
             if tools.delete_gae_versions.main(props['VERSION_NAME'],
                                               email=props['DEPLOY_EMAIL'],
                                               passin=True,
-                                              dry_run=False) != 0:
+                                              dry_run=_DRY_RUN) != 0:
                 raise RuntimeError('delete_gae_version failed')
     except Exception:
         logging.exception('Auto-delete failed')
@@ -389,7 +393,7 @@ def set_default(props, monitoring_time=10):
                                     passin=True,
                                     num_instances_to_prime=100,
                                     monitor=monitoring_time,
-                                    dry_run=False)
+                                    dry_run=_DRY_RUN)
             rc = 0
     except subprocess.CalledProcessError, why:
         logging.exception('set-default failed')
