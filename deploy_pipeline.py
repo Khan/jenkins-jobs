@@ -261,26 +261,24 @@ def merge_from_master(git_revision):
         raise ValueError("You must deploy from a branch, you can't deploy "
                          "from master")
 
-    # Make sure HEAD and branch-name are the same.
-    starting_head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
-    if (_pipe_command(['git', 'rev-parse', 'HEAD'])
-            != _pipe_command(['git', 'rev-parse', git_revision])):
-        raise RuntimeError('HEAD unexpectedly at %s, not %s'
-                           % (starting_head_commit, git_revision))
+    # Set our local branch to be the same as the origin branch.  This
+    # is needed in cases when a previous deploy set the local (jenkins)
+    # branch to commit X, but subsequent commits have moved the remote
+    # (github) version of the branch to commit Y.  This also moves us
+    # from a (potentially) detached-head state to a head-at-branch state.
+    # Finally, it makes sure the ref exists locally, so we can do
+    # 'git rev-parse branch' rather than 'git rev-parse origin/branch'.
+    # This will fail if we're given a commit and not a branch; that's ok.
+    _run_command(['git', 'checkout', '-B', git_revision,
+                  'origin/%s' % git_revision], failure_ok=True)
 
-    # This is a no-op in terms of where we point, but it may move us
-    # from a detached-head state to a head-at-branch state, and will
-    # definitely make sure the ref exists locally (so we can do 'git
-    # rev-parse branch' rather than needing 'git rev-parse
-    # origin/branch').
-    _run_command(['git', 'checkout', git_revision])
-
-    # This may fail if it's a commit and not a branch; that's ok.
-    _run_command(['git', 'pull', 'origin', git_revision], failure_ok=True)
-
-    # Now that we've pulled, let's store some useful variables.
-    master_commit = _pipe_command(['git', 'rev-parse', 'origin/master'])
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
+    master_commit = _pipe_command(['git', 'rev-parse', 'origin/master'])
+
+    # Sanity check: HEAD should be at the revision we want to deploy from.
+    if head_commit != _pipe_command(['git', 'rev-parse', git_revision]):
+        raise RuntimeError('HEAD unexpectedly at %s, not %s'
+                           % (head_commit, git_revision))
 
     # If the current commit is a super-set of master, we're done, yay!
     base = _pipe_command(['git', 'merge-base', git_revision, master_commit])
