@@ -129,7 +129,7 @@ def find_bad_testcases(test_reports_dir):
     testcase element tree in context.
     """
     for filename in _find(test_reports_dir):
-        doc = lxml.etree.parse(os.path.join(test_reports_dir, filename))
+        doc = lxml.etree.parse(filename)
         for bad_testcase in doc.xpath("/testsuite/testcase[failure or error]"):
             if bad_testcase.get("classname") not in _ALTERNATE_TESTS:
                 yield bad_testcase
