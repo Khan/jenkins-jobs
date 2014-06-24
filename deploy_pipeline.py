@@ -62,7 +62,7 @@ import tools.delete_gae_versions
 
 
 # Used for testing.  Does not set-default, does not delete.
-_DRY_RUN = True
+_DRY_RUN = False
 
 
 def _alert(props, text, severity=logging.INFO, html=True,
