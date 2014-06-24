@@ -154,6 +154,10 @@ def _write_properties(lockdir, props):
     with open(os.path.join(lockdir, 'deploy.prop'), 'w') as f:
         for (k, v) in sorted(props.iteritems()):
             print >>f, '%s=%s' % (k, v)
+        # Finally, add the time that we acquired the lock.
+        # We don't worry with timezones since the lock is always
+        # local to a single machine, which has a consistent timezone.
+        print >>f, "LOCK_ACQUIRE_TIME=%s" % int(time.time())
 
 
 def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
@@ -165,8 +169,8 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     properties file, so Jenkins rules can also use this as well:
     the properties file is <lockdir>/deploy.prop.
 
-    If we cannot acquire the lock after wait_sec, we print an appropriate
-    message to hipchat and exit.
+    Once the current lock-holder has held the lock for longer than
+    wait_sec, we print an appropriate message to hipchat and exit.
 
     Arguments:
         props: a map of property-name to value, stored with the lock.
@@ -181,10 +185,13 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     lockdir = props['LOCKDIR']
     try:
         current_props = _read_properties(lockdir)
+        # How long has the current lock-holder been holding this lock?
+        waited_sec = int(time.time()) - int(current_props['LOCK_ACQUIRE_TIME'])
     except (IOError, OSError):
         current_props = {}
+        waited_sec = 0
 
-    waited_sec = 0
+    done_first_alert = False
     while waited_sec < wait_sec:
         try:
             os.mkdir(lockdir)
@@ -196,16 +203,18 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
             logging.info("Lockdir %s acquired." % lockdir)
             return True
 
-        if waited_sec == 0:
+        if not done_first_alert:
             _alert(props,
                    "You're next in line to deploy! (branch %s.) "
-                   "Currently deploying: %s"
+                   "Currently deploying (%.0f minutes in so far): %s"
                    % (props['GIT_REVISION'],
+                      waited_sec / 60.0,
                       current_props.get('DEPLOYER_USERNAME', 'Unknown User')))
+            done_first_alert = True
         elif waited_sec % notify_sec == 0:
             _alert(props,
                    "You're still next in line to deploy, after %s. "
-                   "(Waited %.1g minutes so far)"
+                   "(Waited %.0f minutes so far)"
                    % (current_props['DEPLOYER_USERNAME'],
                       waited_sec / 60.0))
 
