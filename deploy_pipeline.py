@@ -53,7 +53,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
 
-import mock
 from third_party import alertlib
 
 import deploy.deploy
@@ -65,7 +64,7 @@ import tools.delete_gae_versions
 _DRY_RUN = True
 
 
-def _alert(text, props, severity=logging.INFO, html=True,
+def _alert(props, text, severity=logging.INFO, html=True,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
@@ -74,7 +73,7 @@ def _alert(text, props, severity=logging.INFO, html=True,
             text = '<b>%s</b>: %s' % (deployer, text)
         else:
             text = '@%s %s' % (deployer, text)
-    (alertlib.alert(text, severity=severity, html=html)
+    (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['HIPCHAT_SENDER']))
@@ -90,7 +89,9 @@ def _run_command(cmd, failure_ok=False):
 
 def _pipe_command(cmd):
     print 'Running pipe-command: %s' % cmd
-    return subprocess.check_output(cmd).rstrip()
+    retval = subprocess.check_output(cmd).rstrip()
+    print '>>>', retval
+    return retval
 
 
 @contextlib.contextmanager
@@ -101,13 +102,17 @@ def _password_on_stdin(pw_filename):
     # password directly, I just monkey-patch.
     with open(pw_filename) as f:
         password = f.read().strip()
-    with mock.patch('sys.stdin', cStringIO.StringIO(password)):
+    old_stdin = sys.stdin
+    sys.stdin = cStringIO.StringIO(password)
+    try:
         yield
+    finally:
+        sys.stdin = old_stdin
 
 
 def _set_default_url(props, **extra_params):
     """Return a URL that points to the set-default job."""
-    return ('%s/jobs/deploy-set-default/parambuild'
+    return ('%s/job/deploy-set-default/parambuild'
             '?GIT_REVISION=%s&VERSION_NAME=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
                props['GIT_REVISION'],
@@ -117,7 +122,7 @@ def _set_default_url(props, **extra_params):
 
 def _finish_url(props, **extra_params):
     """Return a URL that points to the deploy-finish job."""
-    return ('%s/jobs/deploy-finish/parambuild?GIT_REVISION=%s&%s'
+    return ('%s/job/deploy-finish/parambuild?GIT_REVISION=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
                props['GIT_REVISION'],
                urllib.urlencode(extra_params)))
@@ -127,7 +132,8 @@ def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
     r = urllib.urlopen('http://www.khanacademy.org/api/v1/dev/version')
     version_dict = json.load(r)
-    return version_dict['version_id']
+    # The version-id is <major>.<minor>.  We just care about <major>.
+    return version_dict['version_id'].split('.')[0]
 
 
 def _read_properties(lockdir):
@@ -144,7 +150,7 @@ def _read_properties(lockdir):
 def _write_properties(lockdir, props):
     """Write the given properties dict into lockdir/deploy.prop."""
     print 'Wrote properties to %s: %s' % (lockdir, props)
-    with open(os.path.join(lockdir, 'deploy.prop')) as f:
+    with open(os.path.join(lockdir, 'deploy.prop'), 'w') as f:
         for (k, v) in sorted(props.iteritems()):
             print >>f, '%s=%s' % (k, v)
 
@@ -175,7 +181,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     try:
         current_props = _read_properties(lockdir)
     except (IOError, OSError):
-        pass
+        current_props = {}
 
     waited_sec = 0
     while waited_sec < wait_sec:
@@ -186,24 +192,27 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
                 raise
         else:                        # lockdir acquired!
             _write_properties(lockdir, props)
-            print "Lockdir %s acquired." % os.path.abspath(lockdir)
+            print "Lockdir %s acquired." % lockdir
             return True
 
         if waited_sec == 0:
-            _alert("You're next in line to deploy! (branch %s). "
+            _alert(props,
+                   "You're next in line to deploy! (branch %s.) "
                    "Currently deploying: %s"
                    % (props['GIT_REVISION'],
-                      current_props['DEPLOYER_USERNAME']))
+                      current_props.get('DEPLOYER_USERNAME', 'Unknown User')))
         elif waited_sec % notify_sec == 0:
-            _alert("You're still next in line to deploy, after %s. "
-                   "(Waited %.1g minutes so far)",
-                   current_props['DEPLOYER_USERNAME'],
-                   waited_sec / 60.0)
+            _alert(props,
+                   "You're still next in line to deploy, after %s. "
+                   "(Waited %.1g minutes so far)"
+                   % (current_props['DEPLOYER_USERNAME'],
+                      waited_sec / 60.0))
 
         time.sleep(10)     # how often to busy-wait
         waited_sec += 10
 
-    _alert("%s has been deploying for over %s minutes. "
+    _alert(props,
+           "%s has been deploying for over %s minutes. "
            "Perhaps it's a stray lock?  If you are confident that "
            "no deploy is currently running (check the "
            "<a href='%s'>Jenkins dashboard</a>), you can "
@@ -211,18 +220,19 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
            % (current_props['DEPLOYER_USERNAME'],
               waited_sec / 60,
               props['JENKINS_URL'],
-              _finish_url(STATUS='unlock')),
+              _finish_url(props, STATUS='unlock')),
            severity=logging.ERROR)
     return False
 
 
-def release_deploy_lock(lockdir):
+def release_deploy_lock(props):
     try:
-        shutil.rmtree(lockdir)
+        shutil.rmtree(props['LOCKDIR'])
         return True
     except (IOError, OSError):
-        _alert("Could not release the deploy-lock (%s); it's not being held"
-               % lockdir,
+        _alert(props,
+               "Could not release the deploy-lock (%s); it's not being held"
+               % props['LOCKDIR'],
                severity=logging.ERROR)
         return False
 
@@ -322,7 +332,8 @@ def _rollback_deploy(props):
                   props['ROLLBACK_TO']))
         return True
 
-    _alert("Automatically rolling the default back to %s "
+    _alert(props,
+           "Automatically rolling the default back to %s "
            "and deleting %s from appengine"
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
@@ -336,10 +347,11 @@ def _rollback_deploy(props):
                 raise RuntimeError('set_default failed')
     except Exception:
         logging.exception('Auto-rollback failed')
-        _alert("(sadpanda) (sadpanda) Auto-rollback failed! "
+        _alert(props,
+               "(sadpanda) (sadpanda) Auto-rollback failed! "
                "Roll back to %s manually, then "
                "<a href='%s'>release the deploy lock</a>."
-               % (props['ROLLBACK_TO'], _finish_url(STATUS='failure')),
+               % (props['ROLLBACK_TO'], _finish_url(props, STATUS='failure')),
                severity=logging.CRITICAL)
         return False
 
@@ -352,7 +364,8 @@ def _rollback_deploy(props):
                 raise RuntimeError('delete_gae_version failed')
     except Exception:
         logging.exception('Auto-delete failed')
-        _alert("(sadpanda) (sadpanda) Auto-delete failed! "
+        _alert(props,
+               "(sadpanda) (sadpanda) Auto-delete failed! "
                "Delete %s manually at your convenience."
                % props['VERSION_NAME'],
                severity=logging.WARNING)
@@ -361,13 +374,14 @@ def _rollback_deploy(props):
 
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
-    _alert("Version <a href='http://%s.khan-academy.appspot.com/'>%s</a> "
+    _alert(props,
+           "Version <a href='http://%s.khan-academy.appspot.com/'>%s</a> "
            "(branch %s) is uploaded to appengine! "
            "Do some manual testing on it, "
            "then click to <a href='%s'>set it as default</a>."
            % (props['VERSION_NAME'], props['VERSION_NAME'],
               props['GIT_REVISION'],
-              _set_default_url(AUTO_ROLLBACK=props['AUTO_ROLLBACK'])))
+              _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK'])))
     return True
 
 
@@ -403,45 +417,50 @@ def set_default(props, monitoring_time=10):
         rc = 1
 
     if rc == 0:
-        _alert("Default set: %s -> %s (%s)."
+        _alert(props,
+               "Default set: %s -> %s (%s)."
                % (props['ROLLBACK_TO'],
                   props['VERSION_NAME'],
                   props['DEPLOYER_USERNAME']),
                prefix_with_username=False)
-        _alert("Monitoring passed, but you should "
+        _alert(props,
+               "Monitoring passed, but you should "
                "<a href='https://www.khanacademy.org'>double-check</a> "
                "everything is ok, then click one of these: "
                "<a href='%s'>OK! Release the deploy lock.</a> ~ "
                "<a href='%s'>TROUBLE! Roll back.</a>"
-               % (_finish_url(STATUS='success'),
-                  _finish_url(STATUS='rollback',
+               % (_finish_url(props, STATUS='success'),
+                  _finish_url(props, STATUS='rollback',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
                severity=logging.WARNING)
         return True
 
     if rc == 2:
         if props['AUTO_ROLLBACK']:
-            _alert("(sadpanda) set_default monitoring detected problems!")
+            _alert(props,
+                   "(sadpanda) set_default monitoring detected problems!")
             return _rollback_deploy(props)
         else:
-            _alert("(sadpanda) set_default monitoring detected problems! "
+            _alert(props,
+                   "(sadpanda) set_default monitoring detected problems! "
                    "Make sure everything is ok, then click one of these: "
                    "<a href='%s'>OK! Release the deploy lock.</a> ~ "
                    "<a href='%s'>TROUBLE! Roll back.</a>"
-                   % (_finish_url(STATUS='success'),
-                      _finish_url(STATUS='rollback',
+                   % (_finish_url(props, STATUS='success'),
+                      _finish_url(props, STATUS='rollback',
                                   ROLLBACK_TO=props['ROLLBACK_TO'])
                       ),
                    severity=logging.WARNING)
             return False
 
-    _alert("(sadpanda) (sadpanda) set-default failed! "
+    _alert(props,
+           "(sadpanda) (sadpanda) set-default failed! "
            "Either 1) set the default to %s manually, then "
            "<a href='%s'>release the deploy lock</a>; "
            "or 2) <a href='%s'>just abort the deploy</a>."
            % (props['VERSION_NAME'],
-              _finish_url(STATUS='success'),
-              _finish_url(STATUS='failure')),
+              _finish_url(props, STATUS='success'),
+              _finish_url(props, STATUS='failure')),
            severity=logging.CRITICAL)
     return False
 
@@ -452,30 +471,34 @@ def finish_with_unlock(props, caller):
     This is called when something is messed up and the lock is being
     held even though no deploy is going on.
     """
-    _alert("Manually unlocking deploy lock.  Triggered by %s" % caller)
-    return release_deploy_lock(props['LOCKDIR'])
+    _alert(props,
+           "%s has manually released the deploy lock." % caller)
+    return release_deploy_lock(props)
 
 
 def finish_with_success(props):
     """Release the deploy lock because the deploy succeeded."""
-    _alert("(gangnamstyle) Deploy of %s succeeded!  Time for a happy dance!"
-           % props['VERSION_NAME'])
-    return release_deploy_lock(props['LOCKDIR'])
+    _alert(props,
+           "(gangnamstyle) Deploy of %s (branch %s) succeeded! "
+           "Time for a happy dance!"
+           % (props['VERSION_NAME'], props['GIT_REVISION']))
+    return release_deploy_lock(props)
 
 
 def finish_with_failure(props):
     """Release the deploy lock after the deploy failed."""
-    _alert("(pokerface) Deploy of %s failed.  I'm sorry."
-           % props['VERSION_NAME'],
+    _alert(props,
+           "(pokerface) Deploy of %s (branch %s) failed.  I'm sorry."
+           % (props['VERSION_NAME'], props['GIT_REVISION']),
            severity=logging.ERROR)
-    return release_deploy_lock(props['LOCKDIR'])
+    return release_deploy_lock(props)
 
 
 def finish_with_rollback(props):
     """Does a rollback and releases the lock if it succeeds."""
     if not _rollback_deploy(props):
         return False
-    return release_deploy_lock(props['LOCKDIR'])
+    return release_deploy_lock(props)
 
 
 def _create_properties(lockdir, deployer_username, git_revision,
@@ -511,9 +534,10 @@ def _create_properties(lockdir, deployer_username, git_revision,
         'LOCKDIR': lockdir,
         'DEPLOYER_USERNAME': deployer_username,
         'GIT_REVISION': git_revision,
-        'VERSION_NAME': deploy.Git().dated_current_git_version(git_revision),
-        'AUTO_DEPLOY': auto_deploy,
-        'AUTO_ROLLBACK': auto_rollback,
+        'VERSION_NAME': deploy.deploy.Git().dated_current_git_version(
+            git_revision),
+        'AUTO_DEPLOY': str(auto_deploy).lower(),
+        'AUTO_ROLLBACK': str(auto_rollback).lower(),
         'ROLLBACK_TO': rollback_to,
         'JENKINS_URL': jenkins_url,
         'HIPCHAT_ROOM': hipchat_room,
@@ -526,7 +550,8 @@ def _create_properties(lockdir, deployer_username, git_revision,
     return retval
 
 
-def main(action, lockdir, acquire_lock_args, monitoring_time):
+def main(action, lockdir,
+         acquire_lock_args=(), monitoring_time=None, caller=None):
     """action is one of:
     * acquire-lock: acquire the deploy lock.
     * merge-from-master: merge master into current branch if necessary.
@@ -542,6 +567,8 @@ def main(action, lockdir, acquire_lock_args, monitoring_time):
 
     monitoring_time is ignored except by set_default.
 
+    caller is ignored except by finish-with-unlock.
+
     The commands either return False or raise an exception if we
     should stop the pipeline there (possibly requiring a manual step
     to continue).  We, likewise, return False if this pipeline step
@@ -550,7 +577,11 @@ def main(action, lockdir, acquire_lock_args, monitoring_time):
     if action == 'acquire-lock':
         props = _create_properties(*acquire_lock_args)
     else:
-        props = _read_properties(lockdir)
+        try:
+            props = _read_properties(lockdir)
+        except IOError:
+            logging.exception('Running without having acquired the lock?')
+            raise
 
     try:
         if action == 'acquire-lock':
@@ -566,8 +597,7 @@ def main(action, lockdir, acquire_lock_args, monitoring_time):
             return set_default(props, monitoring_time=monitoring_time)
 
         if action == 'finish-with-unlock':
-            return finish_with_unlock(props,
-                                      os.getenv('BUILD_USER_ID', 'unknown'))
+            return finish_with_unlock(props, caller or 'Unknown User')
 
         if action == 'finish-with-success':
             return finish_with_success(props)
@@ -646,8 +676,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    rc = main(args.action, args.lockdir,
-              acquire_lock_args=(args.lockdir,
+    # Make sure the _alert() logging shows up.
+    logging.getLogger().setLevel(logging.INFO)
+
+    rc = main(args.action, os.path.abspath(args.lockdir),
+              acquire_lock_args=(os.path.abspath(args.lockdir),
                                  args.deployer_username,
                                  args.git_revision,
                                  args.auto_deploy == 'true',
@@ -657,7 +690,7 @@ if __name__ == '__main__':
                                  args.hipchat_room,
                                  args.hipchat_sender,
                                  args.deploy_email,
-                                 args.deploy_pw_file,
-                                 args.monitoring_time),
-              monitoring_time=args.monitoring_time)
+                                 args.deploy_pw_file),
+              monitoring_time=args.monitoring_time,
+              caller=args.deployer_username)
     sys.exit(0 if rc else 1)
