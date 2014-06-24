@@ -76,11 +76,12 @@ def _alert(props, text, severity=logging.INFO, html=True,
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
-                      sender=props['HIPCHAT_SENDER']))
+                      sender=props['HIPCHAT_SENDER'],
+                      notify=True))
 
 
 def _run_command(cmd, failure_ok=False):
-    print 'Running command: %s' % cmd
+    logging.info('Running command: %s' % cmd)
     if failure_ok:
         subprocess.call(cmd)
     else:
@@ -88,9 +89,9 @@ def _run_command(cmd, failure_ok=False):
 
 
 def _pipe_command(cmd):
-    print 'Running pipe-command: %s' % cmd
+    logging.info('Running pipe-command: %s' % cmd)
     retval = subprocess.check_output(cmd).rstrip()
-    print '>>>', retval
+    logging.info('>>> %s' % retval)
     return retval
 
 
@@ -143,13 +144,13 @@ def _read_properties(lockdir):
         for l in f.readlines():
             (k, v) = l.strip().split('=', 1)
             retval[k] = v
-    print 'Read properties from %s: %s' % (lockdir, retval)
+    logging.info('Read properties from %s: %s' % (lockdir, retval))
     return retval
 
 
 def _write_properties(lockdir, props):
     """Write the given properties dict into lockdir/deploy.prop."""
-    print 'Wrote properties to %s: %s' % (lockdir, props)
+    logging.info('Wrote properties to %s: %s' % (lockdir, props))
     with open(os.path.join(lockdir, 'deploy.prop'), 'w') as f:
         for (k, v) in sorted(props.iteritems()):
             print >>f, '%s=%s' % (k, v)
@@ -192,7 +193,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
                 raise
         else:                        # lockdir acquired!
             _write_properties(lockdir, props)
-            print "Lockdir %s acquired." % lockdir
+            logging.info("Lockdir %s acquired." % lockdir)
             return True
 
         if waited_sec == 0:
@@ -228,6 +229,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
 def release_deploy_lock(props):
     try:
         shutil.rmtree(props['LOCKDIR'])
+        logging.info('Released the deploy lock: %s' % props['LOCKDIR'])
         return True
     except (IOError, OSError):
         _alert(props,
@@ -283,7 +285,8 @@ def merge_from_master(git_revision):
     # If the current commit is a super-set of master, we're done, yay!
     base = _pipe_command(['git', 'merge-base', git_revision, master_commit])
     if base == master_commit:
-        print '%s is a superset of master, no need to merge' % git_revision
+        logging.info('%s is a superset of master, no need to merge'
+                     % git_revision)
         return True
 
     # Now we need to merge master into our branch.  First, make sure
@@ -295,7 +298,7 @@ def merge_from_master(git_revision):
                          '\n  %s' % ('\n  '.join(sorted(all_branch_names))))
 
     # The merge exits with rc > 0 if there were conflicts
-    print "Merging master into %s" % git_revision
+    logging.info("Merging master into %s" % git_revision)
     try:
         _run_command(['git', 'merge', 'origin/master'])
     except subprocess.CalledProcessError:
@@ -312,7 +315,7 @@ def merge_from_master(git_revision):
         raise RuntimeError("Someone committed to %s while we've been "
                            "deploying!" % git_revision)
 
-    print "Done merging master into %s" % git_revision
+    logging.info("Done merging master into %s" % git_revision)
     return True
 
 
@@ -324,10 +327,10 @@ def _rollback_deploy(props):
     """
     current_gae_version = _current_gae_version()
     if current_gae_version != props['VERSION_NAME']:
-        print ("Skipping rollback: looks like our deploy never succeeded. "
-               "(Us: %s, current: %s, rollback-to: %s)"
-               % (props['VERSION_NAME'], current_gae_version,
-                  props['ROLLBACK_TO']))
+        logging.info("Skipping rollback: looks like our deploy never "
+                     "succeeded. (Us: %s, current: %s, rollback-to: %s)"
+                     % (props['VERSION_NAME'], current_gae_version,
+                        props['ROLLBACK_TO']))
         return True
 
     _alert(props,
@@ -396,8 +399,8 @@ def set_default(props, monitoring_time=10):
     should look into.  This function should 'never' raise an
     exception.
     """
-    print ("Changing default from %s to %s"
-           % (props['ROLLBACK_TO'], props['VERSION_NAME']))
+    logging.info("Changing default from %s to %s"
+                 % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
             deploy.set_default.main(props['VERSION_NAME'],
@@ -544,7 +547,7 @@ def _create_properties(lockdir, deployer_username, git_revision,
         'DEPLOY_PW_FILE': deploy_pw_file,
         # TODO(csilvers): add a random token? and use to verify lock.
         }
-    print 'Setting deploy-properties: %s' % retval
+    logging.info('Setting deploy-properties: %s' % retval)
     return retval
 
 
@@ -674,7 +677,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # Make sure the _alert() logging shows up.
+    # Make sure the _alert() logging shows up, and have the log-prefix
+    # be prettier.
+    logging.basicConfig(format="[%(levelname)s] %(message)s")
     logging.getLogger().setLevel(logging.INFO)
 
     rc = main(args.action, os.path.abspath(args.lockdir),
