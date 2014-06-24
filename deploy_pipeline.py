@@ -57,6 +57,7 @@ from third_party import alertlib
 
 import deploy.deploy
 import deploy.set_default
+import ka_secrets             # for (optional) email->hipchat
 import tools.delete_gae_versions
 
 
@@ -68,16 +69,32 @@ def _alert(props, text, severity=logging.INFO, html=True,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
-        deployer = props['DEPLOYER_USERNAME']
-        if html:
-            text = '<b>%s</b>: %s' % (deployer, text)
-        else:
-            text = '@%s %s' % (deployer, text)
+        text = '%s %s' % (props['DEPLOYER_HIPCHAT_NAME'], text)
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['HIPCHAT_SENDER'],
                       notify=True))
+
+
+def _email_to_hipchat_name(email):
+    """Given an email address, turn it into a @mention suitable for hipchat."""
+    if email is None:
+        return '<b>Unknown user:</b>'
+    try:
+        logging.info('Fetching email->hipchat mapping from hipchat')
+        r = urllib.urlopen('https://api.hipchat.com/v1/users/list'
+                           '?auth_token=%s' % ka_secrets.hipchat_deploy_token)
+        user_data = json.load(r)
+        email_to_mention_name = {user['email']: '@%s' % user['mention_name']
+                                 for user in user_data['users']}
+    except IOError:
+        # If we don't have secrets, we get back a 401.  Ah well.
+        logging.warning('Fetching email->hipchat mapping failed; will guess')
+        email_to_mention_name = {}
+    # If we can't map email to hipchat name, just guess that their
+    # hipchat name is @<email-name>.
+    return email_to_mention_name.get(email, '@%s' % email.split('@')[0])
 
 
 def _run_command(cmd, failure_ok=False):
@@ -434,7 +451,7 @@ def set_default(props, monitoring_time=10):
                "Default set: %s -> %s (%s)."
                % (props['ROLLBACK_TO'],
                   props['VERSION_NAME'],
-                  props['DEPLOYER_USERNAME']),
+                  props['DEPLOYER_HIPCHAT_NAME']),
                prefix_with_username=False)
         _alert(props,
                "Monitoring passed, but you should "
@@ -485,7 +502,7 @@ def finish_with_unlock(props, caller):
     held even though no deploy is going on.
     """
     _alert(props,
-           "%s has manually released the deploy lock." % caller)
+           ": %s has manually released the deploy lock." % caller)
     return release_deploy_lock(props)
 
 
@@ -514,7 +531,7 @@ def finish_with_rollback(props):
     return release_deploy_lock(props)
 
 
-def _create_properties(lockdir, deployer_username, git_revision,
+def _create_properties(lockdir, deployer_email, git_revision,
                        auto_deploy, auto_rollback, rollback_to,
                        jenkins_url, hipchat_room, hipchat_sender,
                        deploy_email, deploy_pw_file):
@@ -523,8 +540,9 @@ def _create_properties(lockdir, deployer_username, git_revision,
     Arguments:
         lockdir: the lock-directory, ideally an absolute path.  The
            existence of this directory indicates ownership of the lock.
-        deployer_username: the jenkins username of the person doing the
-           deploy.
+        deployer_email: the (gmail) email of the person doing the
+           deploy.  It's always the gmail email because that's how
+           users authenticate with jenkins.
         git_revision: the branch-name (it can also just be a commit id)
            being deployed.
         auto_deploy: If 'true', don't ask whether to set the new version
@@ -545,7 +563,7 @@ def _create_properties(lockdir, deployer_username, git_revision,
     """
     retval = {
         'LOCKDIR': lockdir,
-        'DEPLOYER_USERNAME': deployer_username,
+        'DEPLOYER_EMAIL': deployer_email,
         'GIT_REVISION': git_revision,
         'VERSION_NAME': deploy.deploy.Git().dated_current_git_version(
             git_revision),
@@ -559,12 +577,18 @@ def _create_properties(lockdir, deployer_username, git_revision,
         'DEPLOY_PW_FILE': deploy_pw_file,
         # TODO(csilvers): add a random token? and use to verify lock.
         }
+
+    # Set some useful properties that we can derive from the above.
+    retval['DEPLOYER_USERNAME'] = retval['DEPLOYER_EMAIL'].split('@')[0]
+    retval['DEPLOYER_HIPCHAT_NAME'] = (
+        _email_to_hipchat_name(retval['DEPLOYER_EMAIL']))
+
     logging.info('Setting deploy-properties: %s' % retval)
     return retval
 
 
 def main(action, lockdir,
-         acquire_lock_args=(), monitoring_time=None, caller=None):
+         acquire_lock_args=(), monitoring_time=None, caller_email=None):
     """action is one of:
     * acquire-lock: acquire the deploy lock.
     * merge-from-master: merge master into current branch if necessary.
@@ -580,7 +604,7 @@ def main(action, lockdir,
 
     monitoring_time is ignored except by set_default.
 
-    caller is ignored except by finish-with-unlock.
+    caller_email is ignored except by finish-with-unlock.
 
     The commands either return False or raise an exception if we
     should stop the pipeline there (possibly requiring a manual step
@@ -610,7 +634,8 @@ def main(action, lockdir,
             return set_default(props, monitoring_time=monitoring_time)
 
         if action == 'finish-with-unlock':
-            return finish_with_unlock(props, caller or 'Unknown User')
+            return finish_with_unlock(props,
+                                      _email_to_hipchat_name(caller_email))
 
         if action == 'finish-with-success':
             return finish_with_success(props)
@@ -646,10 +671,10 @@ if __name__ == '__main__':
                               "The existence of this directory indicates "
                               "ownership of the deploy lock."))
     # These flags are only needed for acquire-lock.
-    parser.add_argument('--deployer_username',
-                        default='unknown-user',
-                        help=("The jenkins username of the person doing the "
-                              "deploy."))
+    parser.add_argument('--deployer_email',
+                        default='unknown-user@khanacademy.org',
+                        help=("The (gmail) email address of the person "
+                              "doing the deploy."))
     parser.add_argument('--git_revision',
                         help=("The branch-name (it can also just be a "
                               "commit id) being deployed."))
@@ -696,7 +721,7 @@ if __name__ == '__main__':
 
     rc = main(args.action, os.path.abspath(args.lockdir),
               acquire_lock_args=(os.path.abspath(args.lockdir),
-                                 args.deployer_username,
+                                 args.deployer_email,
                                  args.git_revision,
                                  args.auto_deploy == 'true',
                                  args.auto_rollback == 'true',
@@ -707,5 +732,5 @@ if __name__ == '__main__':
                                  args.deploy_email,
                                  args.deploy_pw_file),
               monitoring_time=args.monitoring_time,
-              caller=args.deployer_username)
+              caller_email=args.deployer_email)
     sys.exit(0 if rc else 1)
