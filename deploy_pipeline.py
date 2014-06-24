@@ -206,16 +206,19 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
         if not done_first_alert:
             _alert(props,
                    "You're next in line to deploy! (branch %s.) "
-                   "Currently deploying (%.0f minutes in so far): %s"
+                   "Currently deploying (%.0f minutes in so far): "
+                   "%s (branch %s)"
                    % (props['GIT_REVISION'],
                       waited_sec / 60.0,
-                      current_props.get('DEPLOYER_USERNAME', 'Unknown User')))
+                      current_props.get('DEPLOYER_USERNAME', 'Unknown User'),
+                      current_props.get('GIT_REVISION', 'unknown')))
             done_first_alert = True
         elif waited_sec % notify_sec == 0:
             _alert(props,
-                   "You're still next in line to deploy, after %s. "
-                   "(Waited %.0f minutes so far)"
-                   % (current_props['DEPLOYER_USERNAME'],
+                   "You're still next in line to deploy, after %s (branch %s)."
+                   " (Waited %.0f minutes so far)"
+                   % (current_props.get('DEPLOYER_USERNAME', 'Unknown User'),
+                      current_props.get('GIT_REVISION', 'unknown'),
                       waited_sec / 60.0))
 
         time.sleep(10)     # how often to busy-wait
