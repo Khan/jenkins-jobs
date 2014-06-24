@@ -222,7 +222,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
 
         if not done_first_alert:
             _alert(props,
-                   "You're next in line to deploy! (branch %s.) "
+                   "You're next in line to deploy! (branch <b>%s</b>.) "
                    "Currently deploying (%.0f minutes in so far): "
                    "%s (branch %s)"
                    % (props['GIT_REVISION'],
@@ -406,12 +406,15 @@ def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
     _alert(props,
            "Version <a href='http://%s.khan-academy.appspot.com/'>%s</a> "
-           "(branch %s) is uploaded to appengine! "
+           "(branch <b>%s</b>) is uploaded to appengine! "
            "Do some manual testing on it, "
-           "then click to <a href='%s'>set it as default</a>."
+           "then click to either <a href='%s'>set it as default</a>, "
+           "or <a href='%s'>abort the deploy</a> due to found problems."
            % (props['VERSION_NAME'], props['VERSION_NAME'],
               props['GIT_REVISION'],
-              _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK'])))
+              _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK']),
+              _finish_url(props, STATUS='failure')))
+
     return True
 
 
@@ -509,7 +512,7 @@ def finish_with_unlock(props, caller):
 def finish_with_success(props):
     """Release the deploy lock because the deploy succeeded."""
     _alert(props,
-           "(gangnamstyle) Deploy of %s (branch %s) succeeded! "
+           "(gangnamstyle) Deploy of %s (branch <b>%s</b>) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']))
     return release_deploy_lock(props)
@@ -518,7 +521,7 @@ def finish_with_success(props):
 def finish_with_failure(props):
     """Release the deploy lock after the deploy failed."""
     _alert(props,
-           "(pokerface) Deploy of %s (branch %s) failed.  I'm sorry."
+           "(pokerface) Deploy of %s (branch <b>%s</b>) failed.  I'm sorry."
            % (props['VERSION_NAME'], props['GIT_REVISION']),
            severity=logging.ERROR)
     return release_deploy_lock(props)
