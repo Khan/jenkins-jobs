@@ -133,7 +133,7 @@ def _set_default_url(props, **extra_params):
     return ('%s/job/deploy-set-default/parambuild'
             '?GIT_REVISION=%s&VERSION_NAME=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
-               props['GIT_REVISION'],
+               props['GIT_SHA1'],
                props['VERSION_NAME'],
                urllib.urlencode(extra_params)))
 
@@ -142,8 +142,12 @@ def _finish_url(props, **extra_params):
     """Return a URL that points to the deploy-finish job."""
     return ('%s/job/deploy-finish/parambuild?GIT_REVISION=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
-               props['GIT_REVISION'],
+               props['GIT_SHA1'],
                urllib.urlencode(extra_params)))
+
+
+def _gae_version(git_revision):
+    return deploy.deploy.Git().dated_current_git_version(git_revision)
 
 
 def _current_gae_version():
@@ -268,7 +272,7 @@ def release_deploy_lock(props):
         return False
 
 
-def merge_from_master(git_revision):
+def merge_from_master(props):
     """Merge master into the current branch if necessary.
 
     Given an argument that is either the name of a branch or a
@@ -288,6 +292,7 @@ def merge_from_master(git_revision):
     Raises an exception if the merge from master failed for any reason.
     Returns True otherwise.
     """
+    git_revision = props['GIT_REVISION']
     if git_revision == 'master':
         raise ValueError("You must deploy from a branch, you can't deploy "
                          "from master")
@@ -305,9 +310,10 @@ def merge_from_master(git_revision):
 
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
     master_commit = _pipe_command(['git', 'rev-parse', 'origin/master'])
+    git_revision_commit = _pipe_command(['git', 'rev-parse', git_revision])
 
     # Sanity check: HEAD should be at the revision we want to deploy from.
-    if head_commit != _pipe_command(['git', 'rev-parse', git_revision]):
+    if head_commit != git_revision_commit:
         raise RuntimeError('HEAD unexpectedly at %s, not %s'
                            % (head_commit, git_revision))
 
@@ -345,6 +351,13 @@ def merge_from_master(git_revision):
                            "deploying!" % git_revision)
 
     logging.info("Done merging master into %s" % git_revision)
+
+    # Now we need to update the props file to indicate the new GIT_SHA1
+    # after merging.  This will also affect the VERSION_NAME.
+    props['GIT_SHA1'] = _pipe_command(['git', 'rev-parse', git_revision])
+    props['VERSION_NAME'] = _gae_version(props['GIT_SHA1'])
+    _write_properties(props['LOCKDIR'], props)
+
     return True
 
 
@@ -568,8 +581,6 @@ def _create_properties(lockdir, deployer_email, git_revision,
         'LOCKDIR': lockdir,
         'DEPLOYER_EMAIL': deployer_email,
         'GIT_REVISION': git_revision,
-        'VERSION_NAME': deploy.deploy.Git().dated_current_git_version(
-            git_revision),
         'AUTO_DEPLOY': str(auto_deploy).lower(),
         'AUTO_ROLLBACK': str(auto_rollback).lower(),
         'ROLLBACK_TO': rollback_to,
@@ -582,9 +593,14 @@ def _create_properties(lockdir, deployer_email, git_revision,
         }
 
     # Set some useful properties that we can derive from the above.
+    retval['GIT_SHA1'] = retval['GIT_REVISION']
+    retval['VERSION_NAME'] = _gae_version(retval['GIT_SHA1'])
     retval['DEPLOYER_USERNAME'] = retval['DEPLOYER_EMAIL'].split('@')[0]
     retval['DEPLOYER_HIPCHAT_NAME'] = (
         _email_to_hipchat_name(retval['DEPLOYER_EMAIL']))
+
+    # Note: GIT_SHA1 and VERSION_NAME will be updated after
+    # merge_from_master(), which modifies the branch.
 
     logging.info('Setting deploy-properties: %s' % retval)
     return retval
@@ -628,7 +644,7 @@ def main(action, lockdir,
             return acquire_deploy_lock(props)
 
         if action == 'merge-from-master':
-            return merge_from_master(props['GIT_REVISION'])
+            return merge_from_master(props)
 
         if action == 'manual-test':
             return manual_test(props)
