@@ -175,6 +175,7 @@ def _write_properties(lockdir, props):
     with open(os.path.join(lockdir, 'deploy.prop'), 'w') as f:
         for (k, v) in sorted(props.iteritems()):
             print >>f, '%s=%s' % (k, v)
+    return True
 
 
 def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
@@ -219,7 +220,6 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
             # We don't worry with timezones since the lock is always
             # local to a single machine, which has a consistent timezone.
             props['LOCK_ACQUIRE_TIME'] = int(time.time())
-            _write_properties(lockdir, props)
             logging.info("Lockdir %s acquired." % lockdir)
             return True
 
@@ -350,12 +350,6 @@ def merge_from_master(props):
                            "deploying!" % git_revision)
 
     logging.info("Done merging master into %s" % git_revision)
-
-    # Now we need to update the props file to indicate the new GIT_SHA1
-    # after merging.  This will also affect the VERSION_NAME.
-    props['GIT_SHA1'] = _pipe_command(['git', 'rev-parse', git_revision])
-    props['VERSION_NAME'] = _gae_version(props['GIT_SHA1'])
-    _write_properties(props['LOCKDIR'], props)
 
     return True
 
@@ -706,10 +700,19 @@ def main(action, lockdir,
 
     try:
         if action == 'acquire-lock':
-            return acquire_deploy_lock(props)
+            if not acquire_deploy_lock(props):
+                return False
+            return _write_properties(props['LOCKDIR'], props)
 
         if action == 'merge-from-master':
-            return merge_from_master(props)
+            if not merge_from_master(props):
+                return False
+            # Now we need to update the props file to indicate the new
+            # GIT_SHA1 after merging.  This also affects VERSION_NAME.
+            props['GIT_SHA1'] = (
+                _pipe_command(['git', 'rev-parse', props['GIT_REVISION']]))
+            props['VERSION_NAME'] = _gae_version(props['GIT_SHA1'])
+            return _write_properties(props['LOCKDIR'], props)
 
         if action == 'manual-test':
             return manual_test(props)
