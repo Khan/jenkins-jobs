@@ -175,10 +175,6 @@ def _write_properties(lockdir, props):
     with open(os.path.join(lockdir, 'deploy.prop'), 'w') as f:
         for (k, v) in sorted(props.iteritems()):
             print >>f, '%s=%s' % (k, v)
-        # Finally, add the time that we acquired the lock.
-        # We don't worry with timezones since the lock is always
-        # local to a single machine, which has a consistent timezone.
-        print >>f, "LOCK_ACQUIRE_TIME=%s" % int(time.time())
 
 
 def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
@@ -220,6 +216,9 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
             if why.errno != errno.EEXIST:      # file exists
                 raise
         else:                        # lockdir acquired!
+            # We don't worry with timezones since the lock is always
+            # local to a single machine, which has a consistent timezone.
+            props['LOCK_ACQUIRE_TIME'] = int(time.time())
             _write_properties(lockdir, props)
             logging.info("Lockdir %s acquired." % lockdir)
             return True
@@ -275,8 +274,9 @@ def release_deploy_lock(props):
 def merge_from_master(props):
     """Merge master into the current branch if necessary.
 
-    Given an argument that is either the name of a branch or a
-    different kind of commit-ish (sha1, tag, etc), does two things:
+    Given an argument that contains either the name of a branch or a
+    different kind of commit-ish (sha1, tag, etc) in GIT_REVISION,
+    does two things:
 
     1) Ensures that HEAD matches that argument -- that is, that you're
        checked out where you expect to be -- and then does a
@@ -358,6 +358,69 @@ def merge_from_master(props):
     props['VERSION_NAME'] = _gae_version(props['GIT_SHA1'])
     _write_properties(props['LOCKDIR'], props)
 
+    return True
+
+
+def merge_to_master(props):
+    """Merge from the current branch into master.
+
+    This is called after a successful deploy, right before releasing
+    the lock.  It maintains the invariant that master holds the code
+    for the latest successful deploy.
+
+    Given an argument that holds the deployed-sha1 in GIT_SHA1, merges
+    that into master and pushes.  In a perfect world -- that is, one
+    in which people don't commit to master manually, it only happens
+    via this function -- this will be a fast-forward merge, since we
+    already required that our branch be a superset of master in
+    merge_from_master().
+
+    Returns True if the merge succeeded, False else.  It should
+    'never' raise an exception.
+    """
+    if _DRY_RUN:
+        return True
+
+    branch_name = '%s (%s)' % (props['GIT_SHA1'], props['GIT_REVISION'])
+
+    # Set our local version of master to be the same as the origin
+    # master.  This is needed in cases when a previous deploy set the
+    # local (jenkins) master to commit X, but subsequent commits have
+    # moved the remote (github) version of master to commit Y.  It
+    # also makes sure the ref exists locally, so we can do the merge.
+    _run_command(['git', 'checkout', '-B', 'master', 'origin/master'])
+    head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
+
+    # The merge exits with rc > 0 if there were conflicts
+    logging.info("Merging %s into master" % branch_name)
+    try:
+        _run_command(['git', 'merge', props['GIT_SHA1']])
+    except subprocess.CalledProcessError:
+        _run_command(['git', 'merge', '--abort'], failure_ok=True)
+        _alert(props,
+               "(sadpanda) (sadpanda) Failed to merge %s into master. "
+               "Do so manually, then "
+               "<a href='%s'>release the deploy lock</a>."
+               % (branch_name, _finish_url(props, STATUS='unlock')),
+               severity=logging.CRITICAL)
+        return False
+
+    # There's a race condition if someone commits to master while this
+    # script is running, so check for that.
+    try:
+        _run_command(['git', 'push', 'origin', 'master'])
+    except subprocess.CalledProcessError:
+        _run_command(['git', 'reset', '--hard', head_commit],
+                     failure_ok=True)
+        _alert(props,
+               "(sadpanda) (sadpanda) Failed to push our update to master. "
+               "Manually merge %s to master, push master upstream, and then "
+               "<a href='%s'>release the deploy lock</a>."
+               % (branch_name, _finish_url(props, STATUS='unlock')),
+               severity=logging.CRITICAL)
+        return False
+
+    logging.info("Done merging %s into master" % branch_name)
     return True
 
 
@@ -523,7 +586,14 @@ def finish_with_unlock(props, caller):
 
 
 def finish_with_success(props):
-    """Release the deploy lock because the deploy succeeded."""
+    """Release the deploy lock because the deploy succeeded.
+
+    We also merge the deployed commit to master, to maintain the
+    invariant that 'master' holds the last successful deploy.
+    """
+    if not merge_to_master(props):
+        return False
+
     _alert(props,
            "(gangnamstyle) Deploy of %s (branch <b>%s</b>) succeeded! "
            "Time for a happy dance!"
