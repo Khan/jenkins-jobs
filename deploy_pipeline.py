@@ -478,12 +478,11 @@ def _rollback_deploy(props):
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
     _alert(props,
-           "%s (branch %s) is uploaded to appengine! "
-           "Do some manual testing on it, then click to either:\n"
+           "http://%s.khan-academy.appspot.com/ (branch %s) is uploaded to "
+           "appengine! Do some manual testing on it, then click to either:\n"
            "(successful) set it as default: %s\n"
            "(failed) abort the deploy: %s"
-           % (props['VERSION_NAME'], props['VERSION_NAME'],
-              props['GIT_REVISION'],
+           % (props['VERSION_NAME'], props['GIT_REVISION'],
               _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK']),
               _finish_url(props, STATUS='failure')))
 
