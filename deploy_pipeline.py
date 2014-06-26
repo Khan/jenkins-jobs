@@ -516,21 +516,16 @@ def set_default(props, monitoring_time=10):
 
     if rc == 0:
         _alert(props,
-               "Default set: %s -> %s (%s)."
-               % (props['ROLLBACK_TO'],
-                  props['VERSION_NAME'],
-                  props['DEPLOYER_HIPCHAT_NAME']),
-               prefix_with_username=False)
-        _alert(props,
-               "Monitoring passed, but you should double-check everything "
+               "Monitoring passed for the new default (%s)! "
+               "But you should double-check everything "
                "is ok at https://www.khanacademy.org. "
                "Then click one of these:\n"
                "(successful) finish up: %s\n"
                "(failed) abort and roll back: %s"
-               % (_finish_url(props, STATUS='success'),
+               % (props['VERSION_NAME'],
+                  _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])),
-               severity=logging.WARNING)
+                              ROLLBACK_TO=props['ROLLBACK_TO'])))
         return True
 
     if rc == 2:
