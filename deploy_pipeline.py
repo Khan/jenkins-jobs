@@ -65,7 +65,7 @@ import tools.delete_gae_versions
 _DRY_RUN = False
 
 
-def _alert(props, text, severity=logging.INFO, html=False,
+def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
@@ -74,7 +74,7 @@ def _alert(props, text, severity=logging.INFO, html=False,
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['HIPCHAT_SENDER'],
-                      notify=True))
+                      color=color, notify=True))
 
 
 def _email_to_hipchat_name(email):
@@ -237,7 +237,8 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
                    % (props['GIT_REVISION'],
                       waited_sec / 60.0,
                       current_props.get('DEPLOYER_USERNAME', 'Unknown User'),
-                      current_props.get('GIT_REVISION', 'unknown')))
+                      current_props.get('GIT_REVISION', 'unknown')),
+                   color='yellow')
             done_first_alert = True
         elif waited_sec % notify_sec == 0:
             _alert(props,
@@ -245,7 +246,8 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
                    " (Waited %.0f minutes so far)"
                    % (current_props.get('DEPLOYER_USERNAME', 'Unknown User'),
                       current_props.get('GIT_REVISION', 'unknown'),
-                      waited_sec / 60.0))
+                      waited_sec / 60.0),
+                   color='yellow')
 
         time.sleep(10)     # how often to busy-wait
         waited_sec += 10
@@ -521,7 +523,8 @@ def manual_test(props):
            "(failed) abort the deploy: %s"
            % (props['VERSION_NAME'], props['GIT_REVISION'],
               _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK']),
-              _finish_url(props, STATUS='failure')))
+              _finish_url(props, STATUS='failure')),
+           color='green')
 
     return True
 
@@ -568,13 +571,15 @@ def set_default(props, monitoring_time=10):
                % (props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])))
+                              ROLLBACK_TO=props['ROLLBACK_TO'])),
+               color='green')
         return True
 
     if rc == 2:
         if props['AUTO_ROLLBACK']:
             _alert(props,
-                   "(sadpanda) set_default monitoring detected problems!")
+                   "(sadpanda) set_default monitoring detected problems!",
+                   severity=logging.WARNING)
             return _rollback_deploy(props)
         else:
             _alert(props,
@@ -607,8 +612,12 @@ def finish_with_unlock(props, caller):
     This is called when something is messed up and the lock is being
     held even though no deploy is going on.
     """
-    _alert(props,
-           ": %s has manually released the deploy lock." % caller)
+    if caller == props['DEPLOYER_HIPCHAT_NAME']:
+        # You are releasing your own lock
+        _alert(props, "has manually released the deploy lock.")
+    else:
+        _alert(props,
+               ": %s has manually released the deploy lock." % caller)
     return release_deploy_lock(props)
 
 
@@ -624,7 +633,8 @@ def finish_with_success(props):
     _alert(props,
            "(gangnamstyle) Deploy of %s (branch %s) succeeded! "
            "Time for a happy dance!"
-           % (props['VERSION_NAME'], props['GIT_REVISION']))
+           % (props['VERSION_NAME'], props['GIT_REVISION']),
+           color='green')
     return release_deploy_lock(props, backup_lockfile=False)
 
 
