@@ -130,6 +130,12 @@ def find_bad_testcases(test_reports_dir):
     """
     for filename in _find(test_reports_dir):
         doc = lxml.etree.parse(filename)
+
+        for testcase in doc.xpath("/testsuite/testcase"):
+            if testcase.get("classname") in _ALTERNATE_TESTS:
+                (type, _) = _ALTERNATE_TESTS[testcase.get("classname")]
+                _ALTERNATE_TESTS_VALUES[type] = ""
+
         for bad_testcase in doc.xpath("/testsuite/testcase[failure or error]"):
             if bad_testcase.get("classname") not in _ALTERNATE_TESTS:
                 yield bad_testcase
@@ -208,7 +214,38 @@ def report_lint_failures(lint_reports_file):
     return len(failures)
 
 
-def main():
+def main(jenkins_build_url, test_reports_dir,
+         jstest_reports_file, lint_reports_file, dry_run):
+    if dry_run:
+        alertlib.enter_test_mode()
+        logging.getLogger().setLevel(logging.INFO)
+
+    num_errors = 0
+
+    if test_reports_dir:
+        num_errors += report_test_failures(test_reports_dir,
+                                           jenkins_build_url)
+
+    # If we ran any of the alternate-tests above, we'll fake having
+    # emitted otuput to the output file.
+
+    if jstest_reports_file:
+        if 'javascript' in _ALTERNATE_TESTS_VALUES:
+            with open(jstest_reports_file, 'w') as f:
+                # TODO(csilvers): send a cStringIO to report_* instead.
+                f.write(_ALTERNATE_TESTS_VALUES['javascript'])
+        num_errors += report_jstest_failures(jstest_reports_file)
+
+    if lint_reports_file:
+        if 'lint' in _ALTERNATE_TESTS_VALUES:
+            with open(lint_reports_file, 'w') as f:
+                f.write(_ALTERNATE_TESTS_VALUES['lint'])
+        num_errors += report_lint_failures(lint_reports_file)
+
+    return num_errors
+
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--jenkins_build_url',
                         help=('$BUILD_URL from the Jenkins environment; '
@@ -226,35 +263,7 @@ def main():
                         help='Log instead of sending to hipchat.')
     args = parser.parse_args()
 
-    if args.dry_run:
-        alertlib.enter_test_mode()
-        logging.getLogger().setLevel(logging.INFO)
-
-    num_errors = 0
-
-    if args.test_reports_dir:
-        num_errors += report_test_failures(args.test_reports_dir,
-                                           args.jenkins_build_url)
-
-    # If we ran any of the alternate-tests above, we'll fake having
-    # emitted otuput to the output file.
-
-    if args.jstest_reports_file:
-        if 'javascript' in _ALTERNATE_TESTS_VALUES:
-            with open(args.jstest_reports_file, 'w') as f:
-                # TODO(csilvers): send a cStringIO to report_* instead.
-                f.write(_ALTERNATE_TESTS_VALUES['javascript'])
-        num_errors += report_jstest_failures(args.jstest_reports_file)
-
-    if args.lint_reports_file:
-        if 'lint' in _ALTERNATE_TESTS_VALUES:
-            with open(args.lint_reports_file, 'w') as f:
-                f.write(_ALTERNATE_TESTS_VALUES['lint'])
-        num_errors += report_lint_failures(args.lint_reports_file)
-
-    return num_errors
-
-
-if __name__ == '__main__':
+    rc = main(args.jenkins_build_url, args.test_reports_dir,
+              args.jstest_reports_file, args.lint_reports_file, args.dry_run)
     # We cap num-errors at 127 because rc >= 128 is reserved for signals.
-    sys.exit(min(main(), 127))
+    sys.exit(min(rc, 127))
