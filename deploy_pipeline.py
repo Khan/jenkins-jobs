@@ -167,6 +167,10 @@ def _read_properties(lockdir):
         for l in f.readlines():
             (k, v) = l.strip().split('=', 1)
             retval[k] = v
+
+    # Do some sanity checking.
+    assert retval['LOCKDIR'] == lockdir, (retval['LOCKDIR'], lockdir)
+
     logging.info('Read properties from %s: %s' % (lockdir, retval))
     return retval
 
@@ -259,17 +263,52 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     return False
 
 
-def release_deploy_lock(props):
+def move_lockdir(old_lockdir, new_lockdir):
+    """Re-acquire the lock in new_lockdir with the values in old_lockdir.
+
+    new_lockdir must not exist (meaning that nobody else is holding the
+    lock there).  If new_lockdir does exist, raise an OSError.
+    """
+    if os.path.exists(new_lockdir):
+        raise OSError('Lock already held in "%s"' % new_lockdir)
+
+    props = _read_properties(old_lockdir)
+
+    logging.info('Renaming %s -> %s' % (old_lockdir, new_lockdir))
+    os.rename(old_lockdir, new_lockdir)
+
+    # Update the LOCKDIR property to point to the new location.
+    props['LOCKDIR'] = os.path.abspath(new_lockdir)
+    props['LOCK_ACQUIRE_TIME'] = int(time.time())
+    _write_properties(new_lockdir, props)
+
+
+def release_deploy_lock(props, backup_lockfile=True):
+    # We move the lockdir to a 'backup' lockdir in case it turns out
+    # we want to re-acquire this lock with the same parameters.
+    # (This might happen if we released the lockdir in error.)
+    lockdir = props['LOCKDIR']
+    old_lockdir = lockdir + '.last'
+
     try:
-        shutil.rmtree(props['LOCKDIR'])
-        logging.info('Released the deploy lock: %s' % props['LOCKDIR'])
-        return True
-    except (IOError, OSError):
+        shutil.rmtree(old_lockdir)
+    except OSError:        # probably 'dir does not exist'
+        pass
+
+    try:
+        if backup_lockfile:
+            move_lockdir(lockdir, old_lockdir)
+        else:
+            shutil.rmtree(lockdir)
+    except (IOError, OSError), why:
         _alert(props,
-               "Could not release the deploy-lock (%s); it's not being held"
-               % props['LOCKDIR'],
+               "Could not release the deploy-lock (%s); it's not being held? "
+               "(%s)" % (lockdir, why),
                severity=logging.ERROR)
         return False
+
+    logging.info('Released the deploy lock: %s' % lockdir)
+    return True
 
 
 def merge_from_master(props):
@@ -586,7 +625,7 @@ def finish_with_success(props):
            "(gangnamstyle) Deploy of %s (branch %s) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']))
-    return release_deploy_lock(props)
+    return release_deploy_lock(props, backup_lockfile=False)
 
 
 def finish_with_failure(props):
@@ -603,6 +642,38 @@ def finish_with_rollback(props):
     if not _rollback_deploy(props):
         return False
     return release_deploy_lock(props)
+
+
+def relock(props):
+    """Re-acquires the lockdir from a backup lockdir directory.
+
+    You call relock with --lockdir=<somedir>.last.  It then
+    renames <somedir>.last to <somedir>, thus re-acquiring
+    the lock in <somedir>.  We return True if this all goes
+    off without a hitch, or False if we can't do it because
+    somedir is already occupied, meaning someone acquired the
+    lock themselves before we could re-acquire it.
+    """
+    old_lockdir = props['LOCKDIR']
+    new_lockdir = old_lockdir[:-len('.last')]
+
+    if not old_lockdir.endswith('.last'):
+        logging.error('Unexpected value for --lockdir: "%s" does not end '
+                      'with ".last"' % props['LOCKDIR'])
+        return False
+
+    if os.path.exists(new_lockdir):
+        logging.error("Cannot relock %s -- someone else has already "
+                      "acquired the lock since you released it." % new_lockdir)
+        return False
+
+    try:
+        move_lockdir(old_lockdir, new_lockdir)
+    except (IOError, OSError), why:
+        logging.error("Cannot relock %s: %s" % (new_lockdir, why))
+        return False
+
+    return True
 
 
 def _create_properties(lockdir, deployer_email, git_revision,
@@ -675,6 +746,7 @@ def main(action, lockdir,
     * finish-with-success: ditto, but because the deploy succeeded.
     * finish-with-failure: ditto, but because the deploy failed (pre-set-dflt)
     * finish-with-rollback: ditto, because the deploy failed (post-set-default)
+    * relock: re-acquire the lock from lockdir.last, if possible.
 
     If action is acquire-lock, then acquire_lock_args should be
     specified as a list of the arguments to _create_properties().
@@ -694,8 +766,15 @@ def main(action, lockdir,
         try:
             props = _read_properties(lockdir)
         except IOError:
-            logging.exception('Running without having acquired the lock?')
-            raise
+            if action == 'relock':
+                logging.exception('There is no backup lock at %s to '
+                                  'recover from, sorry.' % lockdir)
+            else:
+                logging.exception('Running without having acquired the lock? '
+                                  '(You can try running the "deploy-finish" '
+                                  'job on jenkins, with STATUS="relock", and '
+                                  'then try again.)')
+            return False
 
     try:
         if action == 'acquire-lock':
@@ -732,6 +811,9 @@ def main(action, lockdir,
         if action == 'finish-with-rollback':
             return finish_with_rollback(props)
 
+        if action == 'relock':
+            return relock(props)
+
         raise RuntimeError("Unknown action '%s'" % action)
     except Exception:
         logging.exception(action)
@@ -749,6 +831,7 @@ if __name__ == '__main__':
                                  'finish-with-success',
                                  'finish-with-failure',
                                  'finish-with-rollback',
+                                 'relock',
                                  ),
                         help='Action to perform')
     parser.add_argument('--lockdir',
