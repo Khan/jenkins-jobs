@@ -98,11 +98,13 @@ def _email_to_hipchat_name(email):
 
 
 def _run_command(cmd, failure_ok=False):
+    """Return True if command succeeded, False else.  May raise on failure."""
     logging.info('Running command: %s' % cmd)
     if failure_ok:
-        subprocess.call(cmd)
+        return subprocess.call(cmd) == 0
     else:
         subprocess.check_call(cmd)
+        return True
 
 
 def _pipe_command(cmd):
@@ -304,6 +306,7 @@ def merge_from_master(props):
     # Finally, it makes sure the ref exists locally, so we can do
     # 'git rev-parse branch' rather than 'git rev-parse origin/branch'.
     # This will fail if we're given a commit and not a branch; that's ok.
+    _run_command(['git', 'fetch', 'origin', git_revision], failure_ok=True)
     _run_command(['git', 'checkout', '-B', git_revision,
                   'origin/%s' % git_revision], failure_ok=True)
 
@@ -381,6 +384,7 @@ def merge_to_master(props):
     # local (jenkins) master to commit X, but subsequent commits have
     # moved the remote (github) version of master to commit Y.  It
     # also makes sure the ref exists locally, so we can do the merge.
+    _run_command(['git', 'fetch', 'origin', 'master'])
     _run_command(['git', 'checkout', '-B', 'master', 'origin/master'])
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
 
