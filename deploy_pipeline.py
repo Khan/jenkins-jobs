@@ -347,16 +347,19 @@ def merge_from_master(props):
     # Finally, it makes sure the ref exists locally, so we can do
     # 'git rev-parse branch' rather than 'git rev-parse origin/branch'.
     # This will fail if we're given a commit and not a branch; that's ok.
-    _run_command(['git', 'fetch', 'origin', git_revision], failure_ok=True)
-    _run_command(['git', 'checkout', '-B', git_revision,
-                  'origin/%s' % git_revision], failure_ok=True)
+    _run_command(['git', 'fetch', 'origin',
+                  '+%s:%s' % (git_revision, git_revision)],
+                 failure_ok=True)
+    _run_command(['git', 'checkout', git_revision])
+
+    # Also make sure our local 'master' matches the remote.
+    _run_command(['git', 'fetch', 'origin', '+master:master'])
 
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
-    master_commit = _pipe_command(['git', 'rev-parse', 'origin/master'])
-    git_revision_commit = _pipe_command(['git', 'rev-parse', git_revision])
+    master_commit = _pipe_command(['git', 'rev-parse', 'master'])
 
     # Sanity check: HEAD should be at the revision we want to deploy from.
-    if head_commit != git_revision_commit:
+    if head_commit != _pipe_command(['git', 'rev-parse', git_revision]):
         raise RuntimeError('HEAD unexpectedly at %s, not %s'
                            % (head_commit, git_revision))
 
@@ -378,7 +381,7 @@ def merge_from_master(props):
     # The merge exits with rc > 0 if there were conflicts
     logging.info("Merging master into %s" % git_revision)
     try:
-        _run_command(['git', 'merge', 'origin/master'])
+        _run_command(['git', 'merge', 'master'])
     except subprocess.CalledProcessError:
         _run_command(['git', 'merge', '--abort'])
         raise RuntimeError('Merge conflict: must merge master into %s '
@@ -425,8 +428,8 @@ def merge_to_master(props):
     # local (jenkins) master to commit X, but subsequent commits have
     # moved the remote (github) version of master to commit Y.  It
     # also makes sure the ref exists locally, so we can do the merge.
-    _run_command(['git', 'fetch', 'origin', 'master'])
-    _run_command(['git', 'checkout', '-B', 'master', 'origin/master'])
+    _run_command(['git', 'fetch', 'origin', '+master:master'])
+    _run_command(['git', 'checkout', 'master'])
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
 
     # The merge exits with rc > 0 if there were conflicts
