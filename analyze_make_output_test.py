@@ -31,7 +31,7 @@ class TestBase(unittest.TestCase):
             lambda failures, *a, **kw: self.errors.extend(failures))
 
     def tearDown(self):
-#!!        shutil.rmtree(self.tmpdir)
+        shutil.rmtree(self.tmpdir)
         self.tmpdir = None
 
     def _analyze_make_output(self,
