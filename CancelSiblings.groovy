@@ -26,6 +26,8 @@ class CancelSiblings {
     Object hudson;
     Object build;
     Object printer;
+    Object upstreamProject;
+    Object upstreamBuild;
 
     public CancelSiblings(Object hudson, Object build, Object printer) {
         this.hudson = hudson;
