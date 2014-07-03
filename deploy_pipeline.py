@@ -555,30 +555,7 @@ def set_default(props, monitoring_time=10):
                                     num_instances_to_prime=100,
                                     monitor=monitoring_time,
                                     dry_run=_DRY_RUN)
-            rc = 0
-    except subprocess.CalledProcessError, why:
-        logging.exception('set-default failed')
-        rc = why.returncode
-    except Exception:
-        logging.exception('set-default failed')
-        rc = 1
-
-    if rc == 0:
-        _alert(props,
-               "Monitoring passed for the new default (%s)! "
-               "But you should double-check everything "
-               "is ok at https://www.khanacademy.org. "
-               "Then click one of these:\n"
-               "(successful) finish up: %s\n"
-               "(failed) abort and roll back: %s"
-               % (props['VERSION_NAME'],
-                  _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='rollback',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])),
-               color='green')
-        return True
-
-    if rc == 2:
+    except deploy.set_default.MonitoringError:
         if props['AUTO_ROLLBACK']:
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems!",
@@ -596,17 +573,32 @@ def set_default(props, monitoring_time=10):
                       ),
                    severity=logging.WARNING)
             return False
+    except Exception:
+        logging.exception('set-default failed')
+        _alert(props,
+               "(sadpanda) (sadpanda) set-default failed!  Either:\n"
+               "(continue) Set the default to %s manually, then "
+               "release the deploy lock via %s\n"
+               "(failed) abort and roll back %s"
+               % (props['VERSION_NAME'],
+                  _finish_url(props, STATUS='success'),
+                  _finish_url(props, STATUS='failure')),
+               severity=logging.CRITICAL)
+        return False
 
     _alert(props,
-           "(sadpanda) (sadpanda) set-default failed!  Either:\n"
-           "(continue) Set the default to %s manually, then "
-           "release the deploy lock via %s\n"
-           "(failed) abort and roll back %s"
+           "Monitoring passed for the new default (%s)! "
+           "But you should double-check everything "
+           "is ok at https://www.khanacademy.org. "
+           "Then click one of these:\n"
+           "(successful) finish up: %s\n"
+           "(failed) abort and roll back: %s"
            % (props['VERSION_NAME'],
               _finish_url(props, STATUS='success'),
-              _finish_url(props, STATUS='failure')),
-           severity=logging.CRITICAL)
-    return False
+              _finish_url(props, STATUS='rollback',
+                          ROLLBACK_TO=props['ROLLBACK_TO'])),
+           color='green')
+    return True
 
 
 def finish_with_unlock(props, caller):
