@@ -559,7 +559,7 @@ def set_default(props, monitoring_time=10):
                                     monitor=monitoring_time,
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError:
-        if props['AUTO_ROLLBACK']:
+        if props['AUTO_ROLLBACK'] == 'true':
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems!",
                    severity=logging.WARNING)
