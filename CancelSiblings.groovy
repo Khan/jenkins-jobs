@@ -1,9 +1,8 @@
-// Cancel all the immediate-downstream builds of the given build.
-// This is a helper class that the Groovy Postbuild plugin can use,
-// for example:
+// Cancel all the sibling builds of the given build.  This is a helper
+// class that the Groovy Postbuild plugin can use, for example:
 //
-//    new CancelDownstream(manager.hudson, manager.build,
-//                         manager.listener.logger).run()
+//    new CancelSiblings(manager.hudson, manager.build,
+//                       manager.listener.logger).run()
 //
 // That is the entire script you need to enter into the "groovy
 // postbuild" plugin, though you will need to set the classpath to
@@ -23,27 +22,42 @@
 // This returns the number of tasks canceled -- either from the queue
 // for while running.
 
-class CancelDownstream {
+class CancelSiblings {
     Object hudson;
-    Object upstreamBuild;
+    Object build;
     Object printer;
 
-    public CancelDownstream(Object hudson, Object upstreamBuild,
-                            Object printer) {
+    public CancelSiblings(Object hudson, Object build, Object printer) {
         this.hudson = hudson;
-        this.upstreamBuild = upstreamBuild;
+        this.build = build;
         this.printer = printer;
+
+        // Mark the upstream job that spawned us.  (If we weren't
+        // spawned by another job, we mark that fact, since that means
+        // we can't have any siblings.)
+        this.upstreamProject = null;
+        this.upstreamBuild = null;
+        if (this.build.hasProperty('causes')) {
+            for (cause in this.build.causes) {
+                if (cause.hasProperty('upstreamProject')) {
+                    this.upstreamProject = cause.upstreamProject;
+                    this.upstreamBuild = cause.upstreamBuild;  // the build #
+                    break;
+                }
+            }
+        }
     }
 
     public int cancelInQueue() {
         // Cancel builds waiting in the queue, so they never start.
         def numCancels = 0;
         for (build in this.hudson.queue.items) {
+            if (build == this.build) { continue; } // don't cancel ourself!
             if (!build.hasProperty('causes')) { continue; }
             for (cause in build.causes) {
                 if (!cause.hasProperty('upstreamProject')) { continue; }
-                if (cause.upstreamProject == this.upstreamBuild.project.name &&
-                        cause.upstreamBuild == this.upstreamBuild.number) {
+                if (cause.upstreamProject == this.upstreamProject &&
+                        cause.upstreamBuild == this.upstreamBuild) {
                     this.printer.println('Cancelling ' + build.toString());
                     this.hudson.queue.cancel(build.task);
                     numCancels++;
@@ -59,13 +73,13 @@ class CancelDownstream {
         def numCancels = 0;
         for (job in this.hudson.instance.items) {
             for (build in job.builds) {
+                if (build == this.build) { continue; } // don't cancel ourself!
                 if (!build.hasProperty('causes')) { continue; }
                 if (!build.isBuilding()) { continue; }
                 for (cause in build.causes) {
                     if (!cause.hasProperty('upstreamProject')) { continue; }
-                    if (cause.upstreamProject == 
-                        this.upstreamBuild.project.name &&
-                            cause.upstreamBuild == this.upstreamBuild.number) {
+                    if (cause.upstreamProject == this.upstreamProject &&
+                            cause.upstreamBuild == this.upstreamBuild) {
                         this.printer.println('Stopping ' + build.toString());
                         build.doStop();
                         numCancels++;
@@ -78,6 +92,11 @@ class CancelDownstream {
     }
 
     public int run() {
+        // Optimization when we know we can't have any siblings.
+        if (!this.upstreamProject) {
+            return 0;
+        }
+
         def numCancels = 0;
         numCancels += this.cancelInQueue();
         numCancels += this.cancelRunning();
