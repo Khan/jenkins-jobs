@@ -10,8 +10,18 @@
 // themselves are set up to run this as a post-build step, this will
 // recursively cancel *all* downstream jobs.
 //
-// The "groovy postbuild" plugin gives access to 'hudson' and to
-// 'manager.build', which is the current build.
+// The "groovy postbuild" plugin gives access to 'manager.hudson' and
+// to 'manager.build', which is the current build.  Unfortunately, it
+// only lets you cut-and-paste scripts, so you should cut-and-paste
+// this code there.
+//
+// IF YOU MAKE ANY CHANGES TO THIS SCRIPT, MAKE SURE THAT THE FOLLOWING
+// STAY IN SYNC:
+//     webapp/cancel_downstream.groovy
+//     The "groovy postbuild" script in make-check
+//     The "groovy postbuild" script in make-allcheck
+//     The "groovy postbuild" script in deploy-via-multijob
+//     The "groovy postbuild" script in deploy-set-default
 //
 // This returns the number of tasks canceled -- either from the queue
 // for while running.
@@ -23,13 +33,13 @@ def upstreamBuildNumber = manager.build.number;
 def numCancels = 0;
 
 // First, cancel builds waiting in the queue, so they never start.
-for (build in hudson.queue.items) {
+for (build in manager.hudson.queue.items) {
     for (cause in build.causes) {
         if (!cause.hasProperty('upstreamProject')) { continue; }
         if (cause.upstreamProject == upstreamProject &&
                 cause.upstreamBuild == upstreamBuildNumber) {
             println 'Cancelling ' + build.toString();
-            hudson.queue.cancel(build.task);
+            manager.hudson.queue.cancel(build.task);
             numCancels++;
             break;
         }
@@ -37,7 +47,7 @@ for (build in hudson.queue.items) {
 }
 
 // Now, cancel running builds.
-for (job in hudson.instance.items) {
+for (job in manager.hudson.instance.items) {
     for (build in job.builds) {
         if (!build.hasProperty('causes')) { continue; }
         if (!build.isBuilding()) { continue; }
