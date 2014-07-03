@@ -487,6 +487,7 @@ def _rollback_deploy(props):
            "and deleting %s from appengine"
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
+        logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
             if deploy.set_default.main(props['ROLLBACK_TO'],
                                        email=props['DEPLOY_EMAIL'],
@@ -504,8 +505,10 @@ def _rollback_deploy(props):
         return False
 
     try:
+        logging.info('Calling delete_gae_versions on %s'
+                     % props['VERSION_NAME'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            if tools.delete_gae_versions.main(props['VERSION_NAME'],
+            if tools.delete_gae_versions.main([props['VERSION_NAME']],
                                               email=props['DEPLOY_EMAIL'],
                                               passin=True,
                                               dry_run=_DRY_RUN) != 0:
