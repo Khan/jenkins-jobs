@@ -1,6 +1,13 @@
 // Cancel all the immediate-downstream builds of the given build.
-// The build is specified via commandline args: job name and build
-// number.  For instance: "$0 make-check 1234"
+// This is a helper class that the Groovy Postbuild plugin can use,
+// for example:
+//
+//    new CancelDownstream(manager.hudson, manager.build,
+//                         manager.listener.logger).run()
+//
+// That is the entire script you need to enter into the "groovy
+// postbuild" plugin, though you will need to set the classpath to
+// include the directory holding this file.
 //
 // This is meant to be run via the "groovy postbuild" plugin when the
 // build is canceled.  (It doesn't hurt to run it when the build
@@ -10,18 +17,8 @@
 // themselves are set up to run this as a post-build step, this will
 // recursively cancel *all* downstream jobs.
 //
-// The "groovy postbuild" plugin gives access to 'manager.hudson' and
-// to 'manager.build', which is the current build.  Unfortunately, it
-// only lets you cut-and-paste scripts, so you should cut-and-paste
-// this code there.
-//
-// IF YOU MAKE ANY CHANGES TO THIS SCRIPT, MAKE SURE THAT THE FOLLOWING
-// STAY IN SYNC:
-//     webapp/cancel_downstream.groovy
-//     The "groovy postbuild" script in make-check
-//     The "groovy postbuild" script in make-allcheck
-//     The "groovy postbuild" script in deploy-via-multijob
-//     The "groovy postbuild" script in deploy-set-default
+// The "groovy postbuild" plugin gives access to a 'manager' object;
+// you will pass parts of this manager object to this class.
 //
 // This returns the number of tasks canceled -- either from the queue
 // for while running.
@@ -29,10 +26,13 @@
 class CancelDownstream {
     Object hudson;
     Object upstreamBuild;
+    Object printer;
 
-    public CancelDownstream(Object hudson, Object upstreamBuild) {
+    public CancelDownstream(Object hudson, Object upstreamBuild,
+                            Object printer) {
         this.hudson = hudson;
         this.upstreamBuild = upstreamBuild;
+        this.printer = printer;
     }
 
     public int cancelInQueue() {
@@ -43,7 +43,7 @@ class CancelDownstream {
                 if (!cause.hasProperty('upstreamProject')) { continue; }
                 if (cause.upstreamProject == this.upstreamBuild.project.name &&
                         cause.upstreamBuild == this.upstreamBuild.number) {
-                    println 'Cancelling ' + build.toString();
+                    this.printer.println('Cancelling ' + build.toString());
                     this.hudson.queue.cancel(build.task);
                     numCancels++;
                     break;
@@ -65,7 +65,7 @@ class CancelDownstream {
                     if (cause.upstreamProject == 
                         this.upstreamBuild.project.name &&
                             cause.upstreamBuild == this.upstreamBuild.number) {
-                        println 'Stopping ' + build.toString();
+                        this.printer.println('Stopping ' + build.toString());
                         build.doStop();
                         numCancels++;
                         break;
