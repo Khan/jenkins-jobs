@@ -78,8 +78,8 @@ class CancelDownstream {
 
     public int run() {
         def numCancels = 0;
-        numCancels += cancelDownstreamInQueue(husdon, upstreamBuild);
-        numCancels += cancelDownstreamRunning(hudson, upstreamBuild);
+        numCancels += this.cancelInQueue();
+        numCancels += this.cancelRunning();
         return numCancels;
     }
 }
