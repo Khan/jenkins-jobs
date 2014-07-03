@@ -265,7 +265,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     return False
 
 
-def move_lockdir(old_lockdir, new_lockdir):
+def _move_lockdir(old_lockdir, new_lockdir):
     """Re-acquire the lock in new_lockdir with the values in old_lockdir.
 
     new_lockdir must not exist (meaning that nobody else is holding the
@@ -286,6 +286,7 @@ def move_lockdir(old_lockdir, new_lockdir):
 
 
 def release_deploy_lock(props, backup_lockfile=True):
+    """Return True if the release succeeded, False else."""
     # We move the lockdir to a 'backup' lockdir in case it turns out
     # we want to re-acquire this lock with the same parameters.
     # (This might happen if we released the lockdir in error.)
@@ -299,7 +300,7 @@ def release_deploy_lock(props, backup_lockfile=True):
 
     try:
         if backup_lockfile:
-            move_lockdir(lockdir, old_lockdir)
+            _move_lockdir(lockdir, old_lockdir)
         else:
             shutil.rmtree(lockdir)
     except (IOError, OSError), why:
@@ -331,8 +332,9 @@ def merge_from_master(props):
     2a) If the argument is a branch-name, merge master into the branch.
     2b) If the argument is another commit-ish, fail.
 
-    Raises an exception if the merge from master failed for any reason.
-    Returns True otherwise.
+    Raises an exception if the merge from master failed for any
+    reason.  This means we should abort the build and release the
+    lock.  Returns True otherwise, meaning the build can continue.
     """
     git_revision = props['GIT_REVISION']
     if git_revision == 'master':
@@ -415,8 +417,10 @@ def merge_to_master(props):
     already required that our branch be a superset of master in
     merge_from_master().
 
-    Returns True if the merge succeeded, False else.  It should
-    'never' raise an exception.
+    Returns False if the merge failed, meaning we should abort the
+    build and release the lock.  Returns True if the merge succeeded,
+    meaning the build should continue.  It should 'never' raise an
+    exception.
     """
     if _DRY_RUN:
         return True
@@ -467,8 +471,8 @@ def merge_to_master(props):
 def _rollback_deploy(props):
     """Roll back to ROLLBACK_TO and delete the new deploy from appengine.
 
-    Returns True if the rollback succeeded, False else.  It should
-    'never' raise an exception.
+    Returns True if rollback succeeded -- even if we failed to delete
+    the version after rolling back from it -- False else.
     """
     current_gae_version = _current_gae_version()
     if current_gae_version != props['VERSION_NAME']:
@@ -495,8 +499,7 @@ def _rollback_deploy(props):
         logging.exception('Auto-rollback failed')
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
-               "Roll back to %s manually, then release the deploy lock: %s"
-               % (props['ROLLBACK_TO'], _finish_url(props, STATUS='failure')),
+               "Roll back to %s manually." % props['ROLLBACK_TO'],
                severity=logging.CRITICAL)
         return False
 
@@ -538,12 +541,12 @@ def set_default(props, monitoring_time=10):
     If the user asked for monitoring, also do the monitoring, potentially
     rolling back if there's a problem.
 
-    Returns True if no more human intervention is required: the
-    set-default succeeded, or it failed and was successfully
-    auto-rolled back.  Return False otherwise: the set-default failed,
-    or it succeeded but monitoring detected problems that a human
-    should look into.  This function should 'never' raise an
-    exception.
+    Returns True if the build should continue, either because we
+    emitted a hipchat message telling the user to click on a link to
+    take us to the next step, or because set-default failed and was
+    successfully auto-rolled back.  Return False if the build should
+    abort and we should release the build lock.  This function should
+    'never' raise an exception.
     """
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
@@ -560,7 +563,12 @@ def set_default(props, monitoring_time=10):
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems!",
                    severity=logging.WARNING)
-            return _rollback_deploy(props)
+            # In automatic mode, we want to release the lock no matter
+            # what.  We either do that manually here, or else by returning
+            # False and letting the jenkins driver release the lock.
+            if not _rollback_deploy(props):
+                return False
+            return release_deploy_lock(props)
         else:
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems! "
@@ -572,7 +580,7 @@ def set_default(props, monitoring_time=10):
                                   ROLLBACK_TO=props['ROLLBACK_TO'])
                       ),
                    severity=logging.WARNING)
-            return False
+            return True
     except Exception:
         logging.exception('set-default failed')
         _alert(props,
@@ -584,7 +592,7 @@ def set_default(props, monitoring_time=10):
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='failure')),
                severity=logging.CRITICAL)
-        return False
+        return True
 
     _alert(props,
            "Monitoring passed for the new default (%s)! "
@@ -606,6 +614,8 @@ def finish_with_unlock(props, caller):
 
     This is called when something is messed up and the lock is being
     held even though no deploy is going on.
+
+    Returns True if we successfully released the lock, False else.
     """
     if caller == props['DEPLOYER_HIPCHAT_NAME']:
         # You are releasing your own lock
@@ -621,8 +631,17 @@ def finish_with_success(props):
 
     We also merge the deployed commit to master, to maintain the
     invariant that 'master' holds the last successful deploy.
+
+    Returns True if we successfully released the lock, False else.
     """
     if not merge_to_master(props):
+        _alert(props,
+               "(sadpanda) Deploy of %s (branch %s) succeeded, "
+               "but we did not successfully merge %s into master. "
+               "Merge and push, then release the lock: %s"
+               % (props['VERSION_NAME'], props['GIT_REVISION'],
+                  props['GIT_REVISION'], _finish_url(props, STATUS='unlock')),
+               severity=logging.ERROR)
         return False
 
     _alert(props,
@@ -645,6 +664,10 @@ def finish_with_failure(props):
 def finish_with_rollback(props):
     """Does a rollback and releases the lock if it succeeds."""
     if not _rollback_deploy(props):
+        _alert(props,
+               "Once you have manually rolled back, release the deploy "
+               "lock: " % _finish_url(props, STATUS='unlock'),
+               severity=logging.ERROR)
         return False
     return release_deploy_lock(props)
 
@@ -658,6 +681,8 @@ def relock(props):
     off without a hitch, or False if we can't do it because
     somedir is already occupied, meaning someone acquired the
     lock themselves before we could re-acquire it.
+
+    Returns True if we successfully relocked, False else.
     """
     old_lockdir = props['LOCKDIR']
     new_lockdir = old_lockdir[:-len('.last')]
@@ -673,7 +698,7 @@ def relock(props):
         return False
 
     try:
-        move_lockdir(old_lockdir, new_lockdir)
+        _move_lockdir(old_lockdir, new_lockdir)
     except (IOError, OSError), why:
         logging.error("Cannot relock %s: %s" % (new_lockdir, why))
         return False
@@ -762,8 +787,13 @@ def main(action, lockdir,
 
     The commands either return False or raise an exception if we
     should stop the pipeline there (possibly requiring a manual step
-    to continue).  We, likewise, return False if this pipeline step
-    failed, or True otherwise.
+    to continue).  In those cases, we pass along False, which will
+    cause the calling Jenkins job to abort and try to release the
+    lock.  (Except for the finish_* routines, where the Jenkins job
+    will just fail and be sad because False here means we couldn't
+    release the lock.)  Likewise, if the command returns True, we pass
+    that along, which will cause the Jenkins job to say that this step
+    succeeded.
     """
     if action == 'acquire-lock':
         props = _create_properties(*acquire_lock_args)
