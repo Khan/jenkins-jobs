@@ -113,7 +113,7 @@ safe_pull() {
     git reset --hard
     git checkout master
     git reset --hard
-    git pull --rebase || { git rebase --abort; exit 1; }
+    git pull --rebase origin master || { git rebase --abort; exit 1; }
     # Don't try to update submodule if we are ourselves a submodule.
     [ -f "`git rev-parse --show-toplevel`/.git" ] || \
         git submodule update --init --recursive
@@ -125,12 +125,12 @@ safe_push() {
     cd "$1"
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
-    git pull --rebase || {
+    git pull --rebase origin master || {
         git rebase --abort
         git reset --hard HEAD^
         exit 1
     }
-    git push || {
+    git push origin master || {
         git reset --hard HEAD^
         exit 1
     }
