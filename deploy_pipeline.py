@@ -403,6 +403,15 @@ def merge_from_master(props):
     return True
 
 
+def tag_release(props):
+    """Tag the github commit that was deployed with the deploy-name."""
+    return _run_command(
+        ['git', 'tag',
+         '-m', 'Deployed to appengine as %s' % props['VERSION_NAME'],
+         'gae-%s' % props['VERSION_NAME'],
+         props['GIT_SHA1']])
+
+
 def merge_to_master(props):
     """Merge from the current branch into master.
 
@@ -637,6 +646,7 @@ def finish_with_success(props):
 
     Returns True if we successfully released the lock, False else.
     """
+    tag_release(props)
     if not merge_to_master(props):
         _alert(props,
                "(sadpanda) Deploy of %s (branch %s) succeeded, "
