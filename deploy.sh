@@ -94,7 +94,7 @@ then
     if [ "${NOTIFY_HIPCHAT}" = "short" ]; then
         echo "Oh no, the ${JOB_NAME} build is broken (sadpanda). Will a kind" \
              "soul help me get back on my feet at ${BUILD_URL}console?" \
-             | tools/hipchat-cli/hipchat_room_message -x -r "$HIPCHAT_ROOM" -c red
+             | third_party/alertlib-khansrc/alert.py --hipchat="$HIPCHAT_ROOM" --severity=error
     fi
     exit 1
 fi
@@ -104,6 +104,6 @@ LAST_COMMIT_AUTHOR=`git log -n1 --format=format:"%ae"`
 if [ "${NOTIFY_HIPCHAT}" = "short" ]; then
     echo "Just deployed <a href=\"https://khanacademy.kilnhg.com/Code/Website/Group/webapp/History/${LAST_COMMIT_SHORT}\">${LAST_COMMIT_SHORT}</a>" \
          "by ${LAST_COMMIT_AUTHOR} to http://${DEPLOY_VERSION}.khan-academy.appspot.com" \
-         | tools/hipchat-cli/hipchat_room_message -r "$HIPCHAT_ROOM" -c gray
+         | third_party/alertlib-khansrc/alert.py --hipchat="$HIPCHAT_ROOM" --html --color=gray
 fi
 popd
