@@ -722,7 +722,7 @@ def relock(props):
 def _create_properties(lockdir, deployer_email, git_revision,
                        auto_deploy, auto_rollback, rollback_to,
                        jenkins_url, hipchat_room, hipchat_sender,
-                       deploy_email, deploy_pw_file):
+                       deploy_email, deploy_pw_file, token):
     """Return a dict of property-name to property value.
 
     Arguments:
@@ -746,8 +746,11 @@ def _create_properties(lockdir, deployer_email, git_revision,
         hipchat_sender: The name to use as the sender of hipchat
            notifications.
         deploy_email: The AppEngine user to deploy as.
-        deploy_pw_file: The file holding deploy_email's appengine
-           password.
+        deploy_pw_file: Filename of the file holding deploy_email's
+           appengine password.
+        token: a random string used to identify this deploy.  Future
+           operations can supply a token and will fail unless their
+           token value matches this one.
     """
     retval = {
         'LOCKDIR': lockdir,
@@ -761,7 +764,7 @@ def _create_properties(lockdir, deployer_email, git_revision,
         'HIPCHAT_SENDER': hipchat_sender,
         'DEPLOY_EMAIL': deploy_email,
         'DEPLOY_PW_FILE': deploy_pw_file,
-        # TODO(csilvers): add a random token? and use to verify lock.
+        'TOKEN': token,
         }
 
     # Set some useful properties that we can derive from the above.
@@ -778,8 +781,8 @@ def _create_properties(lockdir, deployer_email, git_revision,
     return retval
 
 
-def main(action, lockdir,
-         acquire_lock_args=(), monitoring_time=None, caller_email=None):
+def main(action, lockdir, acquire_lock_args=(),
+         monitoring_time=None, caller_email=None, token=None):
     """action is one of:
     * acquire-lock: acquire the deploy lock.
     * merge-from-master: merge master into current branch if necessary.
@@ -798,15 +801,21 @@ def main(action, lockdir,
 
     caller_email is ignored except by finish-with-unlock.
 
+    If token is non-empty, then whenever we do an operation we first
+    check that the specified token matches the TOKEN value from the
+    lockfile.  If not, then we know that this operation is not
+    associated with the current lock, and we fail it.
+
     The commands either return False or raise an exception if we
-    should stop the pipeline there (possibly requiring a manual step
-    to continue).  In those cases, we pass along False, which will
-    cause the calling Jenkins job to abort and try to release the
-    lock.  (Except for the finish_* routines, where the Jenkins job
-    will just fail and be sad because False here means we couldn't
-    release the lock.)  Likewise, if the command returns True, we pass
-    that along, which will cause the Jenkins job to say that this step
-    succeeded.
+    should stop the pipeline there, due to failure.  In those cases,
+    we pass along False, which will cause the calling Jenkins job to
+    abort and try to release the lock.  (Exception: the deploy-finish
+    Jenkins job does not try to release the lock when we return False,
+    though it does abort, because the usual reason a finish_* step
+    fails is because it tried to release the lock and couldn't, so why
+    try again?)  On the other hand, if the command returns True, we
+    pass that along, which will cause the Jenkins job to say that this
+    step succeeded.
     """
     if action == 'acquire-lock':
         props = _create_properties(*acquire_lock_args)
@@ -823,6 +832,16 @@ def main(action, lockdir,
                                   'job on jenkins, with STATUS="relock", and '
                                   'then try again.)')
             return False
+
+    # If the passed-in token doesn't match the token in props, then
+    # we are not the owners of this lock, so fail.  This is an
+    # optional check.
+    if token and props.get('TOKEN') and token != props['TOKEN']:
+        logging.error('You do not own the deploy lock (its token is %s, '
+                      'yours is %s); aborting' % (props['TOKEN'], token))
+        # We definitely don't want jenkins to release the lock, since
+        # we don't own it.  So we have to return True.
+        return True
 
     try:
         if action == 'acquire-lock':
@@ -922,6 +941,13 @@ if __name__ == '__main__':
                         default='%s/prod-deploy.pw' % os.environ['HOME'],
                         help=("The file holding deploy_email's "
                               "appengine password."))
+    # This is only needed for acquire-lock, but if passed into any other
+    # action, the action will ensure the token matches what's in the
+    # lockfile before doing anything.
+    parser.add_argument('--token',
+                        default='',
+                        help=("A random string to serve as a unique "
+                              "identifier for this deploy."))
 
     # These flags are only used by set-default.
     parser.add_argument('--monitoring_time', type=int,
@@ -947,7 +973,9 @@ if __name__ == '__main__':
                                  args.hipchat_room,
                                  args.hipchat_sender,
                                  args.deploy_email,
-                                 args.deploy_pw_file),
+                                 args.deploy_pw_file,
+                                 args.token),
+              token=args.token,
               monitoring_time=args.monitoring_time,
               caller_email=args.deployer_email)
     sys.exit(0 if rc else 1)
