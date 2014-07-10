@@ -36,11 +36,14 @@ safe_pull .
 GIT_TRACE=1 safe_pull "$CROWDIN_REPO"
 safe_pull intl/translations
 
-echo "Downloading the current translations from crowdin."
-deploy/download_i18n.py -v -s "$CROWDIN_REPO"/download_from_crowdin/ \
-   --send-lint-reports \
-   --export \
-   --crowdin-data-filename="$CROWDIN_REPO"/crowdin_data.pickle
+for lang in `tools/list_candidate_active_languages.py` ; do
+    echo "Downloading the current translations for $lang from crowdin."
+    deploy/download_i18n.py -v -s "$CROWDIN_REPO"/download_from_crowdin/ \
+       --send-lint-reports \
+       --export \
+       --crowdin-data-filename="$CROWDIN_REPO"/crowdin_data.pickle \
+       $lang
+done
 
 # download_i18n.py downloads all.zip in download_from_crowdin/.  Unzip
 # it so we can check in the actual files.
