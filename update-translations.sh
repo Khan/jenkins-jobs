@@ -94,10 +94,10 @@ deploy/upload_i18n.py -v --save-temps="$CROWDIN_REPO"/upload_to_crowdin/ \
 
 echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
 deploy/download_i18n.py -v -s "$CROWDIN_REPO"/download_from_crowdin/ \
-    --langs_to_download=en-PT \
     --export \
     --nolint \
-    --crowdin-data-filename="$CROWDIN_REPO"/crowdin_data.pickle
+    --crowdin-data-filename="$CROWDIN_REPO"/crowdin_data.pickle \
+    en-PT
 
 # TODO(csilvers): once kiln doesn't die on all these files, do this, not the cp
 #unzip -o -d "$CROWDIN_REPO"/download_from_crowdin \
