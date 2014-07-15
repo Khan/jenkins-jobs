@@ -149,6 +149,11 @@ def _finish_url(props, **extra_params):
 
 
 def _gae_version(git_revision):
+    # Make sure git_revision is available locally, so
+    # dated_current_git_version can reference it.
+    _run_command(['git', 'fetch', 'origin',
+                  '+%s:%s' % (git_revision, git_revision)],
+                 failure_ok=True)
     return deploy.deploy.Git().dated_current_git_version(git_revision)
 
 
