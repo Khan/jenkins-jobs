@@ -84,11 +84,6 @@ class CancelSiblings {
                             cause.upstreamBuild == this.upstreamBuild) {
                         this.printer.println('Stopping ' + build.toString());
                         build.doStop();
-                        // Wait for this build to finish, so it can do
-                        // clean-up of its own.
-                        while (build.isBuilding()) {
-                            sleep(1000);
-                        }
                         this.printer.println(build.toString() + ' stopped.');
                         numCancels++;
                         break;
