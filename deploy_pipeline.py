@@ -133,27 +133,29 @@ def _password_on_stdin(pw_filename):
 def _set_default_url(props, **extra_params):
     """Return a URL that points to the set-default job."""
     return ('%s/job/deploy-set-default/parambuild'
-            '?GIT_REVISION=%s&VERSION_NAME=%s&%s'
+            '?TOKEN=%s&VERSION_NAME=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
-               props['GIT_SHA1'],
+               props['TOKEN'],
                props['VERSION_NAME'],
                urllib.urlencode(extra_params)))
 
 
 def _finish_url(props, **extra_params):
     """Return a URL that points to the deploy-finish job."""
-    return ('%s/job/deploy-finish/parambuild?GIT_REVISION=%s&%s'
+    return ('%s/job/deploy-finish/parambuild?TOKEN=%s&%s'
             % (props['JENKINS_URL'].rstrip('/'),
-               props['GIT_SHA1'],
+               props['TOKEN'],
                urllib.urlencode(extra_params)))
 
 
 def _gae_version(git_revision):
-    # Make sure git_revision is available locally, so
-    # dated_current_git_version can reference it.
-    _run_command(['git', 'fetch', 'origin',
-                  '+%s:%s' % (git_revision, git_revision)],
-                 failure_ok=True)
+    # If git_revision is a branch, make sure it's available locally,
+    # so dated_current_git_version can reference it.
+    if _run_command(['git', 'ls-remote', '--exit-code',
+                     '.', 'origin/%s' % git_revision],
+                    failure_ok=True):
+        _run_command(['git', 'fetch', 'origin',
+                      '+%s:%s' % (git_revision, git_revision)])
     return deploy.deploy.Git().dated_current_git_version(git_revision)
 
 
@@ -261,11 +263,18 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
            "%s has been deploying for over %s minutes. "
            "Perhaps it's a stray lock?  If you are confident that "
            "no deploy is currently running (check %s), "
-           "you can manually unlock via %s.  Then re-deploy."
+           "you can manually finish the current deploy, and then "
+           "re-try your deploy:\n"
+           "(successful) finish with success: %s\n"
+           "(failed) abort and roll back: %s\n"
+           "(continue) just release the lock: %s"
            % (current_props['DEPLOYER_USERNAME'],
               waited_sec / 60,
-              props['JENKINS_URL'],
-              _finish_url(props, STATUS='unlock')),
+              current_props['JENKINS_URL'],
+              _finish_url(current_props, STATUS='success'),
+              _finish_url(current_props, STATUS='rollback',
+                          ROLLBACK_TO=current_props['ROLLBACK_TO']),
+              _finish_url(current_props, STATUS='unlock')),
            severity=logging.ERROR)
     return False
 
@@ -352,11 +361,13 @@ def merge_from_master(props):
     # (github) version of the branch to commit Y.  This also moves us
     # from a (potentially) detached-head state to a head-at-branch state.
     # Finally, it makes sure the ref exists locally, so we can do
-    # 'git rev-parse branch' rather than 'git rev-parse origin/branch'.
-    # This will fail if we're given a commit and not a branch; that's ok.
-    _run_command(['git', 'fetch', 'origin',
-                  '+%s:%s' % (git_revision, git_revision)],
-                 failure_ok=True)
+    # 'git rev-parse branch' rather than 'git rev-parse origin/branch'
+    # (though only if we're given a branch rather than a commit).
+    if _run_command(['git', 'ls-remote', '--exit-code',
+                     '.', 'origin/%s' % git_revision],
+                    failure_ok=True):
+        _run_command(['git', 'fetch', 'origin',
+                      '+%s:%s' % (git_revision, git_revision)])
     _run_command(['git', 'checkout', git_revision])
 
     # Also make sure our local 'master' matches the remote.
