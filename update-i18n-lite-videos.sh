@@ -23,7 +23,7 @@ echo "Updating intl/translations."
 safe_pull intl/translations
 
 echo "Updating the list of videos we have for 'lite' languages."
-tools/import_translations.py intl/translations
+tools/update_i18n_lite_videos.py intl/translations
 
 echo "Checking in new video-lists."
 safe_commit_and_push intl/translations \
