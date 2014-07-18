@@ -477,7 +477,7 @@ def merge_to_master(props):
     # There's a race condition if someone commits to master while this
     # script is running, so check for that.
     try:
-        _run_command(['git', 'push', 'origin', 'master'])
+        _run_command(['git', 'push', '--tags', 'origin', 'master'])
     except subprocess.CalledProcessError:
         _run_command(['git', 'reset', '--hard', head_commit],
                      failure_ok=True)
