@@ -54,7 +54,7 @@ DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
 [ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
-[ "$SKIP_I18n" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
+[ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
 [ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
 
