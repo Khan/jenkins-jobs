@@ -27,11 +27,11 @@ fi
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
-#    NOTIFY_HIPCHAT: which may set --no-hipchat
 : ${MODULES:=}         # --modules: if set, a comma-separated list to deploy
 : ${SKIP_TESTS:=}      # --no-tests: set to "1" to append --no-tests
 : ${SKIP_I18N:=}       # --no-i18n: set to "1" to append --no-i18n
 : ${PRIME:=}           # --force-priming: set to "1" to append --force-priming
+: ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
 
 # This controls how git cleans the working directory before running the build.
 # Valid values are:
@@ -40,17 +40,6 @@ fi
 #   most - Clean the workspaces and genfiles, excluding js/ruby/python deps.
 #   none - Don't clean (this is the default so that devs don't lose work).
 : ${CLEAN:=none}
-
-# This controls the HipChat notifications that are sent. Valid values include:
-#   long  - Send the normal deploy.py messages (this is the default).
-#   short - Send custom messages that are shorter than the verbose deploy.py
-#           messages. This is used, e.g., when Jenkins deploys to staging.
-#   none  - Suppress sending messages to HipChat.
-: ${NOTIFY_HIPCHAT:=long}
-# The HipChat room notified on success, failure, and refusal to deploy.
-# NOTE: deploy.py notifications ignore this and always go to "1s and 0s".
-: ${HIPCHAT_ROOM:=HipChat Tests}
-: ${HIPCHAT_SENDER:=Mr Monkey}
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 source "${SCRIPT_DIR}/build.lib"
@@ -62,13 +51,13 @@ cd "$WEBSITE_ROOT"
 # Set up the flags we pass to deploy.py
 # We always set --no-up: Jenkins checks out the right revision for us.
 # The '|| true's are to work around the fact we are running bash -e.
-DEPLOY_FLAGS="--version=$DEPLOY_VERSION"
+DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
-[ -n "$MODULES" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --modules=$MODULES" || true
+[ -n "$MODULES" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'" || true
 [ -n "$SKIP_TESTS" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests" || true
 [ -n "$SKIP_I18N" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n" || true
 [ -n "$PRIME" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming" || true
-[ "$NOTIFY_HIPCHAT" = "long" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-hipchat"
+DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
 
 # Clean out the working tree.
 case "$CLEAN" in
@@ -105,22 +94,6 @@ echo "Deploying"
 decrypt_secrets_py_and_add_to_pythonpath
 cp -p "$SECRETS_DIR/secrets.py" .
 
-if ! python -u deploy/deploy.py $DEPLOY_FLAGS \
-    --email="$DEPLOY_EMAIL" --passin <"$DEPLOY_PW_FILE"
-then
-    if [ "$NOTIFY_HIPCHAT" = "short" ]; then
-        alert error \
-            "Oh no, the $JOB_NAME build is broken (sadpanda). Will a kind" \
-            "soul help me get back on my feet at ${BUILD_URL}console?" \
-    fi
-    exit 1
-fi
-
-if [ "$NOTIFY_HIPCHAT" = "short" ]; then
-    LAST_COMMIT=`git rev-parse HEAD`
-    LAST_COMMIT_SHORT=`git rev-parse --short HEAD`
-    LAST_COMMIT_AUTHOR=`git log -n1 --format=format:"%ae"`
-    alert info \
-        "Just deployed <a href=\"https://github.com/Khan/webapp/commit/$LAST_COMMIT\">$LAST_COMMIT_SHORT</a>" \
-        "by $LAST_COMMIT_AUTHOR to http://$DEPLOY_VERSION.khan-academy.appspot.com" \
-fi
+# Use eval to properly handle quotes in $DEPLOY_FLAGS
+eval python -u deploy/deploy.py $DEPLOY_FLAGS \
+    "--email='$DEPLOY_EMAIL'" "--passin" <"$DEPLOY_PW_FILE"
