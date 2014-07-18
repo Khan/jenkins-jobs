@@ -27,10 +27,10 @@ fi
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
-: ${MODULES:=}         # --modules: if set, a comma-separated list to deploy
-: ${SKIP_TESTS:=}      # --no-tests: set to "1" to append --no-tests
-: ${SKIP_I18N:=}       # --no-i18n: set to "1" to append --no-i18n
-: ${PRIME:=}           # --force-priming: set to "1" to append --force-priming
+: ${MODULES:=}          # --modules: if set, a comma-separated list to deploy
+: ${SKIP_TESTS:=false}  # --no-tests: set to "true" to append --no-tests
+: ${SKIP_I18N:=false}   # --no-i18n: set to "true" to append --no-i18n
+: ${PRIME:=false}       # --force-priming: set to "true" to append
 : ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
 
 # This controls how git cleans the working directory before running the build.
@@ -50,13 +50,12 @@ cd "$WEBSITE_ROOT"
 
 # Set up the flags we pass to deploy.py
 # We always set --no-up: Jenkins checks out the right revision for us.
-# The '|| true's are to work around the fact we are running bash -e.
 DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
-[ -n "$MODULES" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'" || true
-[ -n "$SKIP_TESTS" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests" || true
-[ -n "$SKIP_I18N" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n" || true
-[ -n "$PRIME" ] && DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming" || true
+[ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
+[ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
+[ "$SKIP_I18n" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
+[ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
 
 # Clean out the working tree.
