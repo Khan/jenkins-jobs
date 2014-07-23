@@ -49,9 +49,7 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    } | git commit -a -F -
-
-    safe_push .
+    } | safe_commit_and_push . -a -F -
 }
 
 pngcrush
