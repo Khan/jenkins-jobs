@@ -592,12 +592,10 @@ def set_default(props, monitoring_time=10):
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems!",
                    severity=logging.WARNING)
-            # In automatic mode, we want to release the lock no matter
-            # what.  We either do that manually here, or else by returning
-            # False and letting the jenkins driver release the lock.
-            if not _rollback_deploy(props):
-                return False
-            return release_deploy_lock(props)
+            # By returning False, we trigger the deploy-set-default
+            # jenkins job to clean up by rolling back.  auto-rollback
+            # for free!
+            return False
         else:
             _alert(props,
                    "(sadpanda) set_default monitoring detected problems! "
@@ -619,7 +617,8 @@ def set_default(props, monitoring_time=10):
                "(failed) abort and roll back %s"
                % (props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='failure')),
+                  _finish_url(props, STATUS='rollback',
+                              ROLLBACK_TO=props['ROLLBACK_TO'])),
                severity=logging.CRITICAL)
         return True
 
