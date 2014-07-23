@@ -234,6 +234,11 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
             # local to a single machine, which has a consistent timezone.
             props['LOCK_ACQUIRE_TIME'] = int(time.time())
             logging.info("Lockdir %s acquired." % lockdir)
+            if done_first_alert:   # tell them they're no longer in line.
+                _alert(props,
+                       "Thank you for waiting! Starting deploy of branch %s."
+                       % props['GIT_REVISION'],
+                       color='green')
             return True
 
         if not done_first_alert:
