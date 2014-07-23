@@ -519,6 +519,7 @@ def _rollback_deploy(props):
                                        passin=True,
                                        num_instances_to_prime=None,
                                        monitor=False,
+                                       hipchat_room=props['HIPCHAT_ROOM'],
                                        dry_run=_DRY_RUN) != 0:
                 raise RuntimeError('set_default failed')
     except Exception:

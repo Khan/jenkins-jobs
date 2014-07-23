@@ -86,12 +86,15 @@ _ALTERNATE_TESTS = {
 _ALTERNATE_TESTS_VALUES = {}
 
 
-def _alert(failures, test_type, truncate=10, num_errors=None):
+def _alert(hipchat_room, failures, test_type, truncate=10, num_errors=None):
     """Alert with the first truncate failures, adding a header.
 
     If num_errors is not equal to len(failures), you can pass it in.
     (This happens when a system prints two error-lines for each file,
     for instance.)
+
+    If hipchat_room is None or the empty string, we suppress alerting
+    to hipchat, and only log.
     """
     if not failures:
         return
@@ -108,11 +111,12 @@ def _alert(failures, test_type, truncate=10, num_errors=None):
     if len(failures) > truncate:
         alert_lines.append('...')
 
-    (alertlib.Alert('<br>\n'.join(alert_lines),
-                    severity=logging.ERROR,
-                    html=True)
-     .send_to_logs()
-     .send_to_hipchat('1s and 0s', sender='Jenny Jenkins'))
+    alert = alertlib.Alert('<br>\n'.join(alert_lines),
+                           severity=logging.ERROR,
+                           html=True)
+    alert.send_to_logs()
+    if hipchat_room:
+        alert.send_to_hipchat(hipchat_room, sender='Jenny Jenkins')
 
 
 def _find(rootdir):
@@ -164,7 +168,8 @@ def add_links(build_url, testcase):
         build_url, module, classname, testcase.get("name"), display_name)
 
 
-def report_test_failures(test_reports_dir, jenkins_build_url):
+def report_test_failures(test_reports_dir, jenkins_build_url,
+                         hipchat_room):
     """Alert for test (as opposed to jstest or lint) failures.
 
     Returns the number of errors seen.
@@ -179,11 +184,11 @@ def report_test_failures(test_reports_dir, jenkins_build_url):
     for bad_testcase in find_bad_testcases(test_reports_dir):
         failures.append(add_links(jenkins_build_url, bad_testcase))
     failures.sort()
-    _alert(failures, 'Python test')
+    _alert(hipchat_room, failures, 'Python test')
     return len(failures)
 
 
-def report_jstest_failures(jstest_reports_file):
+def report_jstest_failures(jstest_reports_file, hipchat_room):
     """Alert for jstest (as opposed to python-test or lint) failures."""
     if not os.path.exists(jstest_reports_file):
         return 0
@@ -199,23 +204,23 @@ def report_jstest_failures(jstest_reports_file):
                              'with \d+ passes and (\d+) failures.', line)
                 assert m, line
                 num_errors = int(m.group(1))
-    _alert(failures, 'JavaScript test', num_errors=num_errors)
+    _alert(hipchat_room, failures, 'JavaScript test', num_errors=num_errors)
     return num_errors
 
 
-def report_lint_failures(lint_reports_file):
+def report_lint_failures(lint_reports_file, hipchat_room):
     """Alert for lint (as opposed to python-test or jstest) failures."""
     if not os.path.exists(lint_reports_file):
         return 0
 
     with open(lint_reports_file, 'rU') as infile:
         failures = infile.readlines()
-    _alert(failures, 'Lint check')
+    _alert(hipchat_room, failures, 'Lint check')
     return len(failures)
 
 
 def main(jenkins_build_url, test_reports_dir,
-         jstest_reports_file, lint_reports_file, dry_run):
+         jstest_reports_file, lint_reports_file, hipchat_room, dry_run):
     if dry_run:
         alertlib.enter_test_mode()
         logging.getLogger().setLevel(logging.INFO)
@@ -224,7 +229,8 @@ def main(jenkins_build_url, test_reports_dir,
 
     if test_reports_dir:
         num_errors += report_test_failures(test_reports_dir,
-                                           jenkins_build_url)
+                                           jenkins_build_url,
+                                           hipchat_room)
 
     # If we ran any of the alternate-tests above, we'll fake having
     # emitted otuput to the output file.
@@ -234,13 +240,15 @@ def main(jenkins_build_url, test_reports_dir,
             with open(jstest_reports_file, 'w') as f:
                 # TODO(csilvers): send a cStringIO to report_* instead.
                 f.write(_ALTERNATE_TESTS_VALUES['javascript'])
-        num_errors += report_jstest_failures(jstest_reports_file)
+        num_errors += report_jstest_failures(jstest_reports_file,
+                                             hipchat_room)
 
     if lint_reports_file:
         if 'lint' in _ALTERNATE_TESTS_VALUES:
             with open(lint_reports_file, 'w') as f:
                 f.write(_ALTERNATE_TESTS_VALUES['lint'])
-        num_errors += report_lint_failures(lint_reports_file)
+        num_errors += report_lint_failures(lint_reports_file,
+                                           hipchat_room)
 
     return num_errors
 
@@ -259,11 +267,17 @@ if __name__ == '__main__':
     parser.add_argument('--lint_reports_file',
                         default='genfiles/lint_errors.txt',
                         help='Where "make lint" puts the output report')
+    parser.add_argument('-c', '--hipchat-room',
+                        default="1s and 0s",
+                        help=("What room to send hipchat notifications to; "
+                              "set to the empty string to turn off hipchat "
+                              "notifications"))
     parser.add_argument('--dry-run', '-n', action='store_true',
                         help='Log instead of sending to hipchat.')
     args = parser.parse_args()
 
     rc = main(args.jenkins_build_url, args.test_reports_dir,
-              args.jstest_reports_file, args.lint_reports_file, args.dry_run)
+              args.jstest_reports_file, args.lint_reports_file,
+              args.hipchat_room, args.dry_run)
     # We cap num-errors at 127 because rc >= 128 is reserved for signals.
     sys.exit(min(rc, 127))
