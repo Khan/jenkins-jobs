@@ -28,7 +28,7 @@ class TestBase(unittest.TestCase):
 
         self.errors = []
         analyze_make_output._alert = (
-            lambda failures, *a, **kw: self.errors.extend(failures))
+            lambda _, failures, *a, **kw: self.errors.extend(failures))
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
@@ -54,7 +54,7 @@ class TestBase(unittest.TestCase):
 
         return analyze_make_output.main(jenkins_build_url, test_reports_dir,
                                         jstest_reports_file, lint_reports_file,
-                                        dry_run)
+                                        None, dry_run)
 
 
 class TestAlternateTest(TestBase):
