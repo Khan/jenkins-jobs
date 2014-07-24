@@ -524,6 +524,7 @@ def _rollback_deploy(props):
                                        passin=True,
                                        num_instances_to_prime=None,
                                        monitor=False,
+                                       set_default_message=None,
                                        hipchat_room=props['HIPCHAT_ROOM'],
                                        dry_run=_DRY_RUN) != 0:
                 raise RuntimeError('set_default failed')
@@ -569,7 +570,7 @@ def manual_test(props):
     return True
 
 
-def set_default(props, monitoring_time=10):
+def set_default(props, monitoring_time=10, jenkins_build_url=None):
     """Call set_default.py to make a specified deployed version live.
 
     If the user asked for monitoring, also do the monitoring, potentially
@@ -584,6 +585,18 @@ def set_default(props, monitoring_time=10):
     """
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
+    if monitoring_time and jenkins_build_url:
+        message = ("%s I've deployed to %s, and will be monitoring "
+                   "logs for %s minutes.  After that, I'll post "
+                   "next steps to HipChat.  If you detect a problem in the "
+                   "meantime you can cancel the deploy (note: this link "
+                   "will only work for the next %s minutes):\n"
+                   "(failed) abort and rollback: %/stop"
+                   % (props['DEPLOYER_HIPCHAT_NAME'], props['VERSION_NAME'],
+                      monitoring_time, monitoring_time,
+                      jenkins_build_url.rstrip('/')))
+    else:
+        message = None
     try:
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
             deploy.set_default.main(props['VERSION_NAME'],
@@ -591,6 +604,7 @@ def set_default(props, monitoring_time=10):
                                     passin=True,
                                     num_instances_to_prime=100,
                                     monitor=monitoring_time,
+                                    set_default_message=message,
                                     hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError:
@@ -804,7 +818,8 @@ def _create_properties(lockdir, deployer_email, git_revision,
 
 
 def main(action, lockdir, acquire_lock_args=(),
-         monitoring_time=None, caller_email=None, token=None):
+         token=None, monitoring_time=None, jenkins_build_url=None,
+         caller_email=None):
     """action is one of:
     * acquire-lock: acquire the deploy lock.
     * merge-from-master: merge master into current branch if necessary.
@@ -820,6 +835,7 @@ def main(action, lockdir, acquire_lock_args=(),
     specified as a list of the arguments to _create_properties().
 
     monitoring_time is ignored except by set_default.
+    jenkins_build_url is ignored except by set_default (for the moment).
 
     caller_email is ignored except by finish-with-unlock.
 
@@ -885,7 +901,8 @@ def main(action, lockdir, acquire_lock_args=(),
             return manual_test(props)
 
         if action == 'set-default':
-            return set_default(props, monitoring_time=monitoring_time)
+            return set_default(props, monitoring_time=monitoring_time,
+                               jenkins_build_url=jenkins_build_url)
 
         if action == 'finish-with-unlock':
             return finish_with_unlock(props,
@@ -976,6 +993,11 @@ if __name__ == '__main__':
                         default=10,
                         help=("How long to monitor in set-default, in "
                               "minutes (0 to disable monitoring)."))
+    # This is only used by set-default, but others *could* use it...
+    parser.add_argument('--jenkins-build-url',
+                        help=("The url of the job that is calling this: "
+                              "http://jenkins.khanacademy.org/job/testjob/723/"
+                              " or the like"))
 
     args = parser.parse_args()
 
@@ -999,5 +1021,6 @@ if __name__ == '__main__':
                                  args.token),
               token=args.token,
               monitoring_time=args.monitoring_time,
+              jenkins_build_url=args.jenkins_build_url,
               caller_email=args.deployer_email)
     sys.exit(0 if rc else 1)
