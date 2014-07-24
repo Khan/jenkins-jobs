@@ -591,6 +591,7 @@ def set_default(props, monitoring_time=10):
                                     passin=True,
                                     num_instances_to_prime=100,
                                     monitor=monitoring_time,
+                                    hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError:
         if props['AUTO_ROLLBACK'] == 'true':
