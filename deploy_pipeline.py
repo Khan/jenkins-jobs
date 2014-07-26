@@ -591,7 +591,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "next steps to HipChat.  If you detect a problem in the "
                    "meantime you can cancel the deploy (note: this link "
                    "will only work for the next %s minutes):\n"
-                   "(failed) abort and rollback: %/stop"
+                   "(failed) abort and rollback: %s/stop"
                    % (props['DEPLOYER_HIPCHAT_NAME'], props['VERSION_NAME'],
                       monitoring_time, monitoring_time,
                       jenkins_build_url.rstrip('/')))
