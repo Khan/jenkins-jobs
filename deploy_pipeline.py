@@ -158,7 +158,8 @@ def _gae_version(git_revision):
                     failure_ok=True):
         _run_command(['git', 'fetch', 'origin',
                       '+%s:%s' % (git_revision, git_revision)])
-    return deploy.deploy.Git().dated_current_git_version(git_revision)
+    return deploy.deploy.Git(_WEBAPP_ROOT).dated_current_git_version(
+        git_revision)
 
 
 def _current_gae_version():
