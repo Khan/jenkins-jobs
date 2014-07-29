@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """Tests for analyze_make_output.py"""
 
 import os
@@ -5,8 +7,7 @@ import shutil
 import tempfile
 import unittest
 
-import ka_root
-from tools.jenkins import analyze_make_output
+import analyze_make_output
 
 
 class TestBase(unittest.TestCase):
@@ -16,7 +17,7 @@ class TestBase(unittest.TestCase):
         self.reports_dir = os.path.join(self.tmpdir, 'test-reports')
         os.mkdir(self.reports_dir)
 
-        copy_from = ka_root.join('tools', 'jenkins',
+        copy_from = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  'analyze_make_output_test-files')
         for f in os.listdir(copy_from):
             if f.startswith('TEST'):
@@ -86,4 +87,8 @@ class TestAlternateTest(TestBase):
         actual = self._analyze_make_output()
         self.assertEqual(1, actual)
         self.assertIn('E999 lint error from txt-file.', self.errors[0])
+
+
+if __name__ == '__main__':
+    unittest.main()
 

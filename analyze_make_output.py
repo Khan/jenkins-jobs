@@ -63,11 +63,9 @@ import os
 import re
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import appengine_tool_setup
-appengine_tool_setup.fix_sys_path()
-
-from third_party import alertlib
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                             'alertlib'))
+import alertlib
 
 
 # We can run tests in a mode where a python tests runs jstests or lint
