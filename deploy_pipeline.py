@@ -49,11 +49,13 @@ import sys
 import time
 import urllib
 
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                             'alertlib'))
+import alertlib
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
-
-from third_party import alertlib
 
 import deploy.deploy
 import deploy.set_default
