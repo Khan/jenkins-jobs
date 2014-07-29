@@ -49,11 +49,12 @@ import sys
 import time
 import urllib
 
+# This requires having secrets.py (or ka_secrets.py) on your PYTHONPATH!
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
                              'alertlib'))
 import alertlib
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# This will fail unless you have webapp/tools on your PYTHONPATH!
 import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
 
