@@ -64,6 +64,8 @@ import tools.delete_gae_versions
 # Used for testing.  Does not set-default, does not delete.
 _DRY_RUN = False
 
+_WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
+
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
@@ -101,15 +103,15 @@ def _run_command(cmd, failure_ok=False):
     """Return True if command succeeded, False else.  May raise on failure."""
     logging.info('Running command: %s' % cmd)
     if failure_ok:
-        return subprocess.call(cmd) == 0
+        return subprocess.call(cmd, cwd=_WEBAPP_ROOT) == 0
     else:
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, cwd=_WEBAPP_ROOT)
         return True
 
 
 def _pipe_command(cmd):
     logging.info('Running pipe-command: %s' % cmd)
-    retval = subprocess.check_output(cmd).rstrip()
+    retval = subprocess.check_output(cmd, cwd=_WEBAPP_ROOT).rstrip()
     logging.info('>>> %s' % retval)
     return retval
 
