@@ -54,7 +54,9 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
                              'alertlib'))
 import alertlib
 
-# This will fail unless you have webapp/tools on your PYTHONPATH!
+# We assume that webapp is a sibling to the jenkins-tools repo.
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             '..', 'webapp', 'tools'))
 import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
 
