@@ -1004,6 +1004,7 @@ def main(action, lockdir, acquire_lock_args=(),
         else:
             raise RuntimeError("Unknown action '%s'" % action)
 
+        _update_properties(props, {'LAST_ERROR': ''})
         return True
     except Exception, why:
         logging.exception(action)
