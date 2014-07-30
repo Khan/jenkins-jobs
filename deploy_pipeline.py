@@ -723,21 +723,22 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                     set_default_message=message,
                                     hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
-    except deploy.set_default.MonitoringError:
+    except deploy.set_default.MonitoringError, why:
         if props['AUTO_ROLLBACK'] == 'true':
             _alert(props,
-                   "(sadpanda) set_default monitoring detected problems!",
+                   "(sadpanda) %s." % why,
                    severity=logging.WARNING)
             # By re-raising, we trigger the deploy-set-default jenkins
             # job to clean up by rolling back.  auto-rollback for free!
             raise
         else:
             _alert(props,
-                   "(sadpanda) set_default monitoring detected problems! "
+                   "(sadpanda) %s. "
                    "Make sure everything is ok, then click one of these:\n"
                    "(successful) finish up: %s\n"
                    "(failed) abort and roll back: %s"
-                   % (_finish_url(props, STATUS='success'),
+                   % (why,
+                      _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
                                   ROLLBACK_TO=props['ROLLBACK_TO'])
                       ),
