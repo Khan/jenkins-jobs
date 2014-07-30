@@ -230,6 +230,8 @@ def _create_properties(lockdir, deployer_email, git_revision,
 
     # These hold state about the deploy as it's going along.
     retval['LAST_ERROR'] = ''
+    # A comma-separated list of choices taken from the 'action' argparse arg.
+    retval['POSSIBLE_NEXT_STEPS'] = 'acquire-lock'
 
     # Note: GIT_SHA1 and VERSION_NAME will be updated after
     # merge_from_master(), which modifies the branch.
@@ -288,6 +290,17 @@ def _update_properties(props, new_values):
     if 'LOCKDIR' in new_values:
         new_values.setdefault(
             'LOCK_ACQUIRE_TIME', int(time.time()))
+
+    if 'POSSIBLE_NEXT_STEPS' in new_values:
+        # finish-with-failure is always possible; it is called when
+        # you manually cancel a jenkins job.  finish-with-rollback
+        # too, which is mostly a synonym.  And finish-with-unlock and
+        # relock, which are called manually when the script gets
+        # messed up, and which we never want to block.
+        next_steps = set(new_values['POSSIBLE_NEXT_STEPS'].split(','))
+        next_steps.update(set(['finish-with-failure', 'finish-with-rollback',
+                               'finish-with-unlock', 'relock']))
+        new_values['POSSIBLE_NEXT_STEPS'] = ','.join(sorted(next_steps))
 
     props.update(new_values)
     _write_properties(props)
@@ -366,22 +379,34 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
         time.sleep(10)     # how often to busy-wait
         waited_sec += 10
 
+    # Figure out where in the pipeline the previous job is, and
+    # suggest a course of action based on that.
+    next_steps = current_props['POSSIBLE_NEXT_STEPS'].split(',')
+    if 'merge-from-master' in next_steps or 'set-default' in next_steps:
+        # They haven't set the default yet, so we can just fail.
+        msg = ("(failed) cancel their deploy: %s"
+               % _finish_url(current_props, STATUS='failure'))
+    elif 'finish-with-success' in next_steps:
+        msg = ("(successful) finish their deploy with success: %s\n"
+               "(failed) abort their deploy and roll back: %s"
+               % (_finish_url(current_props, STATUS='success'),
+                  _finish_url(current_props, STATUS='rollback',
+                              ROLLBACK_TO=current_props['ROLLBACK_TO'])))
+    else:
+        msg = ("(continue) release the lock: %s"
+               % _finish_url(current_props, STATUS='unlock'))
+
     _alert(props,
            "%s has been deploying for over %s minutes. "
            "Perhaps it's a stray lock?  If you are confident that "
-           "no deploy is currently running (check %s), "
-           "you can manually finish the current deploy, and then "
-           "re-try your deploy:\n"
-           "(successful) finish with success: %s\n"
-           "(failed) abort and roll back: %s\n"
-           "(continue) just release the lock: %s"
+           "no deploy is currently running (check the dashboard at %s), "
+           "you can:\n"
+           "%s\n"
+           "Once you done this, you will need to re-start your own deploy."
            % (current_props['DEPLOYER_USERNAME'],
               waited_sec / 60,
               current_props['JENKINS_URL'],
-              _finish_url(current_props, STATUS='success'),
-              _finish_url(current_props, STATUS='rollback',
-                          ROLLBACK_TO=current_props['ROLLBACK_TO']),
-              _finish_url(current_props, STATUS='unlock')),
+              msg),
            severity=logging.ERROR)
     raise RuntimeError('Timed out waiting on the current lock-holder.')
 
@@ -792,8 +817,7 @@ def finish_with_success(props):
 
 def finish_with_failure(props):
     """Release the deploy lock after a failed deploy, or raise if we can't."""
-    # TODO(csilvers): change to props['LAST_ERROR'] anytime after 1 Sept 2014.
-    if props.get('LAST_ERROR'):
+    if props['LAST_ERROR']:
         why = ": %s" % props['LAST_ERROR']
     else:
         why = ". I'm sorry."
@@ -806,7 +830,7 @@ def finish_with_failure(props):
 
 def finish_with_rollback(props):
     """Does a rollback and releases the lock if it succeeds."""
-    if props.get('LAST_ERROR'):
+    if props['LAST_ERROR']:
         _alert(props,
                "Rolling back %s due to problems with the deploy: %s"
                % (props['VERSION_NAME'], props['LAST_ERROR']),
@@ -899,7 +923,6 @@ def main(action, lockdir, acquire_lock_args=(),
                                   '(You can try running the "deploy-finish" '
                                   'job on jenkins, with STATUS="relock", and '
                                   'then try again.)')
-            _update_properties(props, {'LAST_ERROR': str(why)})
             return False
 
     # If the passed-in token doesn't match the token in props, then
@@ -914,24 +937,48 @@ def main(action, lockdir, acquire_lock_args=(),
         # we don't own it.  So we have to return True.
         return True
 
+    # If the step we're taking doesn't match a legal next-step in the
+    # pipeline, fail.
+    if (action not in props['POSSIBLE_NEXT_STEPS'].split(',') and
+           props['POSSIBLE_NEXT_STEPS'] != '<all>'):
+        _alert(props,
+               'Expecting you to run %s, but you are running %s. '
+               'Perhaps you double-clicked on a link?  Ignoring.'
+               % (" or ".join(props['POSSIBLE_NEXT_STEPS'].split(",")),
+                  action),
+               severity=logging.ERROR)
+        # We just ignore this action, so we don't release the lock.
+        return True
+
     try:
         if action == 'acquire-lock':
             acquire_deploy_lock(props)
             _write_properties(props)
+            _update_properties(props,
+                               {'POSSIBLE_NEXT_STEPS': 'merge-from-master'})
 
         elif action == 'merge-from-master':
             merge_from_master(props)
             # Now we need to update the props file to indicate the new
             # GIT_SHA1 after merging.  (This also updates VERSION_NAME.)
             sha1 = _pipe_command(['git', 'rev-parse', props['GIT_REVISION']])
-            _update_properties(props, {'GIT_SHA1': sha1})
+            # We can go straight to set-default if the user ran with
+            # AUTO_DEPLOY, and straight to finish if they ran with DEPLOY=no.
+            next_steps = 'manual-test,set-default,finish-with-success'
+            _update_properties(props,
+                               {'GIT_SHA1': sha1,
+                                'POSSIBLE_NEXT_STEPS': next_steps})
 
         elif action == 'manual-test':
             manual_test(props)
+            _update_properties(props,
+                               {'POSSIBLE_NEXT_STEPS': 'set-default'})
 
         elif action == 'set-default':
             set_default(props, monitoring_time=monitoring_time,
                         jenkins_build_url=jenkins_build_url)
+            _update_properties(props,
+                               {'POSSIBLE_NEXT_STEPS': 'finish-with-success'})
 
         elif action == 'finish-with-unlock':
             finish_with_unlock(props, _email_to_hipchat_name(caller_email))
@@ -947,6 +994,10 @@ def main(action, lockdir, acquire_lock_args=(),
 
         elif action == 'relock':
             relock(props)
+            # You relock when something went wrong, so any step could
+            # legitimately go next.
+            _update_properties(props,
+                               {'POSSIBLE_NEXT_STEPS': '<all>'})
 
         else:
             raise RuntimeError("Unknown action '%s'" % action)
