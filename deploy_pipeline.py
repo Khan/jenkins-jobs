@@ -387,12 +387,12 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     if 'merge-from-master' in next_steps or 'set-default' in next_steps:
         # They haven't set the default yet, so we can just fail.
         msg = ("(failed) cancel their deploy: %s"
-               % _finish_url(current_props, STATUS='failure'))
+               % _finish_url(current_props, STATUS='failure', WHY='aborted'))
     elif 'finish-with-success' in next_steps:
         msg = ("(successful) finish their deploy with success: %s\n"
                "(failed) abort their deploy and roll back: %s"
                % (_finish_url(current_props, STATUS='success'),
-                  _finish_url(current_props, STATUS='rollback',
+                  _finish_url(current_props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=current_props['ROLLBACK_TO'])))
     else:
         msg = ("(continue) release the lock: %s"
@@ -679,7 +679,7 @@ def manual_test(props):
            "(failed) abort the deploy: %s"
            % (props['VERSION_NAME'], props['GIT_REVISION'],
               _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK']),
-              _finish_url(props, STATUS='failure')),
+              _finish_url(props, STATUS='failure', WHY='aborted')),
            color='green')
 
 
@@ -738,7 +738,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "(successful) finish up: %s\n"
                    "(failed) abort and roll back: %s"
                    % (_finish_url(props, STATUS='success'),
-                      _finish_url(props, STATUS='rollback',
+                      _finish_url(props, STATUS='rollback', WHY='aborted',
                                   ROLLBACK_TO=props['ROLLBACK_TO'])
                       ),
                    severity=logging.WARNING)
@@ -751,7 +751,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                "(failed) abort and roll back %s"
                % (props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='rollback',
+                  _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
                severity=logging.CRITICAL)
     else:
@@ -764,7 +764,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                "(failed) abort and roll back: %s"
                % (props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='rollback',
+                  _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
                color='green')
 
