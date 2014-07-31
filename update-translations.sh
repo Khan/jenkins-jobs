@@ -77,11 +77,7 @@ echo "Translating fake languages."
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
-echo "Checking it all in!"
-safe_commit_and_push intl/translations \
-   -m "Automatic update of crowdin .po files" \
-   -m "(at webapp commit `git rev-parse HEAD`)"
-
+echo "Checking it into crowdin repo"
 GIT_TRACE=1 safe_commit_and_push "$CROWDIN_REPO" \
    -m "Automatic update of all.pot and download_from_crowdin/" \
    -m "(at webapp commit `git rev-parse HEAD`)"
@@ -111,9 +107,5 @@ safe_commit_and_push "$CROWDIN_REPO" \
    -m "Automatic update of crowdin_data.pickle and upload_to_crowdin/" \
    -m "(at webapp commit `git rev-parse HEAD`)"
 
-echo "Checking in crowdin_stringids.pickle and en-PT.po"
-safe_commit_and_push intl/translations \
-   -m "Automatic update of crowdin_stringids.pickle" \
-   -m "(at webapp commit `git rev-parse HEAD`)"
-
-echo "DONE"
+echo "DONE with update-translations.sh"
+echo "Don't forget to run checkin-update-translations.sh to check this all in!"
