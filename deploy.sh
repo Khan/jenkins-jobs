@@ -33,6 +33,13 @@ fi
 : ${PRIME:=false}       # --force-priming: set to "true" to append
 : ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
 
+# If set, we look for this directory, and if it exists use it as our
+# genfiles directory before deploying (we do this by mv-ing it).  This
+# is used when we want to split up the work of the deploy process,
+# having someone else do the building of genfiles (or at least most of
+# it) for us.  Make sure the owner of this dir is ok with us mv-ing it!
+: ${GENFILES_DIR:=}
+
 # This controls how git cleans the working directory before running the build.
 # Valid values are:
 #   all  - Full clean that results in a pristine working copy.
@@ -82,6 +89,16 @@ case "$CLEAN" in
         echo "Unknown value for CLEAN: '$CLEAN'"
         exit 1
 esac
+
+# If we have a genfiles-dir to take from, try do to that.
+if [ -n "$GENFILES_DIR" -a -d "$GENFILES_DIR" ]; then
+    rm -rf ../tmp/genfiles.old          # almost certainly a noop
+    mv genfiles ../tmp/genfiles.old
+    mv "$GENFILES_DIR" genfiles
+    # We'll delete genfiles.old after the script is done running
+    # (so our file I/O doesn't compete with the actual deploy).
+    trap "rm -rf `dirname $PWD`/tmp/genfiles.old &" 0
+fi
 
 # Run the deploy.
 "$MAKE" install_deps
