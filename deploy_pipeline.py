@@ -1010,7 +1010,11 @@ def main(action, lockdir, acquire_lock_args=(),
         return True
     except Exception, why:
         logging.exception(action)
-        _update_properties(props, {'LAST_ERROR': str(why)})
+        if action != 'acquire-lock':
+            # Don't write the properties file if we failed in trying
+            # to acquire the lock! -- writing the properties file
+            # would then acquire the lock for us by accident.
+            _update_properties(props, {'LAST_ERROR': str(why)})
         return False
 
 
