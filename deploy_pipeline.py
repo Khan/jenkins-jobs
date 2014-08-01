@@ -233,7 +233,7 @@ def _create_properties(lockdir, deployer_email, git_revision,
     # These hold state about the deploy as it's going along.
     retval['LAST_ERROR'] = ''
     # A comma-separated list of choices taken from the 'action' argparse arg.
-    retval['POSSIBLE_NEXT_STEPS'] = 'acquire-lock'
+    retval['POSSIBLE_NEXT_STEPS'] = 'acquire-lock,finish-with-unlock,relock'
 
     # Note: GIT_SHA1 and VERSION_NAME will be updated after
     # merge_from_master(), which modifies the branch.
