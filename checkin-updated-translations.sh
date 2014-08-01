@@ -11,6 +11,8 @@ decrypt_secrets_py_and_add_to_pythonpath
 
 ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
 
+# Make sure we are in website root as make install_deps takes us out.
+cd "$WEBSITE_ROOT"
 
 # --- The actual work:
 
