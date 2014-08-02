@@ -105,6 +105,9 @@ decrypt_secrets_py_and_add_to_pythonpath() {
     export PYTHONPATH="$SECRETS_DIR":$PYTHONPATH
 }
 
+# ubuntu defines its own alert by default, that we don't care about.
+if type alert >/dev/null; then unalias alert; fi
+
 # Send an alert to hipchat and the logs.  Decrypts secrets if necessary.
 # The alertlib subrepo in webapp must be checked out for this to work.
 # $1: severity level; $2+: message
