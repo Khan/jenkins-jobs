@@ -67,6 +67,27 @@ ensure_virtualenv() {
     . "$VIRTUALENV_ROOT/bin/activate"
 }
 
+# Renames $1 to $2 quickly, even if $2 already exists.
+# (This is most useful if $2 is a directory.)  It does this by
+# registering an at-exit handler, using trap.  (We choose to
+# fully delete $2 at exit and not earlier so that the disk
+# I/O of deletion doesn't interfere with other tasks we're doing.)
+# WARNING: This overwrites other trap handlers, so be careful with it!
+
+DIRS_TO_DELETE=""
+trap '[ -z "$DIRS_TO_DELETE" ] || rm -rf $DIRS_TO_DELETE &' 0
+
+fast_mv_f() {
+    # This is almost certainly a noop, but needed if you run fast_mv_f
+    # twice in succession, or twice in the same script.
+    rm -rf "$2.to-delete"
+    if [ -e "$2" ]; then
+       mv "$2" "$2.to-delete"
+    fi
+    mv "$1" "$2"
+    DIRS_TO_DELETE="$DIRS_TO_DELETE $2.to-delete"
+}
+
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use
 # $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
 # project. Then make it importable by setting PYTHONPATH.
