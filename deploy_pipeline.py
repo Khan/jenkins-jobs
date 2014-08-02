@@ -190,10 +190,11 @@ def _create_properties(lockdir, deployer_email, git_revision,
         git_revision: the branch-name (it can also just be a commit id)
            being deployed.
         auto_deploy: If 'true', don't ask whether to set the new version
-           as the default, do so automatically.
+           as the default, do so automatically.  Implies auto_rollback.
         auto_rollback: If 'true', and set_default.py logs-monitoring
            indicates the new deploy may be problematic, automatically
            roll back to the old deploy.
+           TODO(csilvers): get rid of this by rolling it in with auto_deploy?
         rollback_to: the current appengine version before this deploy,
            that is, the appengine version-name we would roll back to
            if this deploy turned out to be problematic.
@@ -701,7 +702,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
     """
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
-    if monitoring_time and jenkins_build_url:
+    if (monitoring_time and jenkins_build_url and
+            props['AUTO_DEPLOY'] != 'true'):
         message = ("%s I've deployed to %s, and will be monitoring "
                    "logs for %s minutes.  After that, I'll post "
                    "next steps to HipChat.  If you detect a problem in the "
@@ -724,7 +726,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                     hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError, why:
-        if props['AUTO_ROLLBACK'] == 'true':
+        if props['AUTO_DEPLOY'] == 'true' or props['AUTO_ROLLBACK'] == 'true':
             _alert(props,
                    "(sadpanda) %s." % why,
                    severity=logging.WARNING)
@@ -745,6 +747,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    severity=logging.WARNING)
     except Exception:
         logging.exception('set-default failed')
+        if props['AUTO_DEPLOY'] == 'true' or props['AUTO_ROLLBACK'] == 'true':
+            _alert(props, "(sadpanda) (sadpanda) set-default failed!",
+                   severity=logging.ERROR)
+            raise
+
         _alert(props,
                "(sadpanda) (sadpanda) set-default failed!  Either:\n"
                "(continue) Set the default to %s manually, then "
@@ -756,18 +763,20 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
                severity=logging.CRITICAL)
     else:
-        _alert(props,
-               "Monitoring passed for the new default (%s)! "
-               "But you should double-check everything "
-               "is ok at https://www.khanacademy.org. "
-               "Then click one of these:\n"
-               "(successful) finish up: %s\n"
-               "(failed) abort and roll back: %s"
-               % (props['VERSION_NAME'],
-                  _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='rollback', WHY='aborted',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])),
-               color='green')
+        # No need for a hipchat message if the next step is automatic.
+        if props['AUTO_DEPLOY'] != 'true':
+            _alert(props,
+                   "Monitoring passed for the new default (%s)! "
+                   "But you should double-check everything "
+                   "is ok at https://www.khanacademy.org. "
+                   "Then click one of these:\n"
+                   "(successful) finish up: %s\n"
+                   "(failed) abort and roll back: %s"
+                   % (props['VERSION_NAME'],
+                      _finish_url(props, STATUS='success'),
+                      _finish_url(props, STATUS='rollback', WHY='aborted',
+                                  ROLLBACK_TO=props['ROLLBACK_TO'])),
+                   color='green')
 
 
 def finish_with_unlock(props, caller):
@@ -980,8 +989,13 @@ def main(action, lockdir, acquire_lock_args=(),
         elif action == 'set-default':
             set_default(props, monitoring_time=monitoring_time,
                         jenkins_build_url=jenkins_build_url)
-            _update_properties(props,
-                               {'POSSIBLE_NEXT_STEPS': 'finish-with-success'})
+            # If set_default didn't raise an exception, all is happy.
+            if props['AUTO_DEPLOY'] == 'true':
+                finish_with_success(props)
+            else:
+                _update_properties(props,
+                                   {'POSSIBLE_NEXT_STEPS':
+                                    'finish-with-success'})
 
         elif action == 'finish-with-unlock':
             finish_with_unlock(props, _email_to_hipchat_name(caller_email))
