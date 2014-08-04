@@ -92,12 +92,7 @@ esac
 
 # If we have a genfiles-dir to take from, try do to that.
 if [ -n "$GENFILES_DIR" -a -d "$GENFILES_DIR" ]; then
-    rm -rf ../tmp/genfiles.old          # almost certainly a noop
-    mv genfiles ../tmp/genfiles.old
-    mv "$GENFILES_DIR" genfiles
-    # We'll delete genfiles.old after the script is done running
-    # (so our file I/O doesn't compete with the actual deploy).
-    trap "rm -rf `dirname $PWD`/tmp/genfiles.old &" 0
+    fast_mv_f "$GENFILES_DIR" genfiles
 fi
 
 # Run the deploy.
