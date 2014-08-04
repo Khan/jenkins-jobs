@@ -78,14 +78,17 @@ DIRS_TO_DELETE=""
 trap '[ -z "$DIRS_TO_DELETE" ] || rm -rf $DIRS_TO_DELETE &' 0
 
 fast_mv_f() {
+    # Where we put the dest directory before we delete it.  By default
+    # it's just <destdir>.to-delete but you can override that with $3.
+    tmploc=${3-"$2.to-delete"}
     # This is almost certainly a noop, but needed if you run fast_mv_f
     # twice in succession, or twice in the same script.
-    rm -rf "$2.to-delete"
+    rm -rf "$tmploc"
     if [ -e "$2" ]; then
-       mv "$2" "$2.to-delete"
+       mv "$2" "$tmploc"
     fi
     mv "$1" "$2"
-    DIRS_TO_DELETE="$DIRS_TO_DELETE $2.to-delete"
+    DIRS_TO_DELETE="$DIRS_TO_DELETE $tmploc"
 }
 
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use

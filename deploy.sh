@@ -92,7 +92,7 @@ esac
 
 # If we have a genfiles-dir to take from, try do to that.
 if [ -n "$GENFILES_DIR" -a -d "$GENFILES_DIR" ]; then
-    fast_mv_f "$GENFILES_DIR" genfiles
+    fast_mv_f "$GENFILES_DIR" genfiles ../tmp/genfiles.to-delete
 fi
 
 # Run the deploy.
