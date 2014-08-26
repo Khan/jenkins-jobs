@@ -976,7 +976,12 @@ def main(action, lockdir, acquire_lock_args=(),
             sha1 = _pipe_command(['git', 'rev-parse', props['GIT_REVISION']])
             # We can go straight to set-default if the user ran with
             # AUTO_DEPLOY, and straight to finish if they ran with DEPLOY=no.
-            next_steps = 'manual-test,set-default,finish-with-success'
+            if props['AUTO_DEPLOY'] == 'true':
+                next_steps = 'set-default'
+            else:
+                next_steps = 'manual-test'
+            # We don't know if the user ran with DEPLOY=no, so always allow it.
+            next_steps += ',finish-with-success'
             _update_properties(props,
                                {'GIT_SHA1': sha1,
                                 'POSSIBLE_NEXT_STEPS': next_steps})
