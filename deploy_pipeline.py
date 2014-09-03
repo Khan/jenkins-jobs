@@ -63,7 +63,6 @@ appengine_tool_setup.fix_sys_path()
 import deploy.deploy
 import deploy.set_default
 import ka_secrets             # for (optional) email->hipchat
-import tools.delete_gae_versions
 
 
 # Used for testing.  Does not set-default, does not delete.
@@ -560,6 +559,16 @@ def _tag_release(props):
          props['GIT_SHA1']])
 
 
+def _tag_as_bad_version(props):
+    """Tag the currently deployed github commit as having problems."""
+    tag_name = 'gae-%s-bad' % props['VERSION_NAME']
+    _run_command(
+        ['git', 'tag',
+         '-m', 'Bad version (%s): rolled back' % props['VERSION_NAME'],
+         tag_name,
+         props['GIT_SHA1']])
+
+
 def merge_to_master(props):
     """Merge from the current branch into master.
 
@@ -631,6 +640,10 @@ def _rollback_deploy(props):
            "and deleting %s from appengine"
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
+        logging.info('Tagging %s as a bad version' % props['VERSION_NAME'])
+        _tag_as_bad_version(props)
+        _run_command(['git', 'push', '--tags'])
+
         logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
             if deploy.set_default.main(props['ROLLBACK_TO'],
@@ -642,6 +655,16 @@ def _rollback_deploy(props):
                                        hipchat_room=props['HIPCHAT_ROOM'],
                                        dry_run=_DRY_RUN) != 0:
                 raise RuntimeError('set_default failed')
+
+        # If the version we rolled back *to* is marked bad, warn about that.
+        if _pipe_command(['git', 'tag', '-l',
+                          '%s-bad' % props['ROLLBACK_TO']]):
+            _alert(props,
+                   "(poo) WARNING: Rolled back to %s, but that version "
+                   "has itself been marked as bad.  You may need to manually "
+                   "run set_default.py to roll back to a safe version.  (Run "
+                   "'git tag' to see all versions, good and bad.)"
+                   % props['ROLLBACK_TO'])
     except Exception:
         logging.exception('Auto-rollback failed')
         _alert(props,
@@ -650,22 +673,6 @@ def _rollback_deploy(props):
                severity=logging.CRITICAL)
         return False
 
-    try:
-        logging.info('Calling delete_gae_versions on %s'
-                     % props['VERSION_NAME'])
-        with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            if tools.delete_gae_versions.main([props['VERSION_NAME']],
-                                              email=props['DEPLOY_EMAIL'],
-                                              passin=True,
-                                              dry_run=_DRY_RUN) != 0:
-                raise RuntimeError('delete_gae_version failed')
-    except Exception:
-        logging.exception('Auto-delete failed')
-        _alert(props,
-               "(sadpanda) (sadpanda) Auto-delete failed! "
-               "Delete %s manually at your convenience."
-               % props['VERSION_NAME'],
-               severity=logging.WARNING)
     return True
 
 
