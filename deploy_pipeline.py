@@ -176,7 +176,7 @@ def _current_gae_version():
 
 
 def _create_properties(lockdir, deployer_email, git_revision,
-                       auto_deploy, auto_rollback, rollback_to,
+                       auto_deploy, rollback_to,
                        jenkins_url, hipchat_room, hipchat_sender,
                        deploy_email, deploy_pw_file, token):
     """Return a dict of property-name to property value.
@@ -190,11 +190,10 @@ def _create_properties(lockdir, deployer_email, git_revision,
         git_revision: the branch-name (it can also just be a commit id)
            being deployed.
         auto_deploy: If 'true', don't ask whether to set the new version
-           as the default, do so automatically.  Implies auto_rollback.
-        auto_rollback: If 'true', and set_default.py logs-monitoring
-           indicates the new deploy may be problematic, automatically
-           roll back to the old deploy.
-           TODO(csilvers): get rid of this by rolling it in with auto_deploy?
+           as the default, do so automatically.  Then does the
+           set-default.py logs-monitoring.  If the monitoring
+           indicates a potential problem, automatically roll back
+           to the old deploy.
         rollback_to: the current appengine version before this deploy,
            that is, the appengine version-name we would roll back to
            if this deploy turned out to be problematic.
@@ -214,7 +213,6 @@ def _create_properties(lockdir, deployer_email, git_revision,
         'DEPLOYER_EMAIL': deployer_email,
         'GIT_REVISION': git_revision,
         'AUTO_DEPLOY': str(auto_deploy).lower(),
-        'AUTO_ROLLBACK': str(auto_rollback).lower(),
         'ROLLBACK_TO': rollback_to,
         'JENKINS_URL': jenkins_url,
         'HIPCHAT_ROOM': hipchat_room,
@@ -679,7 +677,7 @@ def manual_test(props):
            "(successful) set it as default: %s\n"
            "(failed) abort the deploy: %s"
            % (props['VERSION_NAME'], props['GIT_REVISION'],
-              _set_default_url(props, AUTO_ROLLBACK=props['AUTO_ROLLBACK']),
+              _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
               _finish_url(props, STATUS='failure', WHY='aborted')),
            color='green')
 
@@ -726,7 +724,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                     hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError, why:
-        if props['AUTO_DEPLOY'] == 'true' or props['AUTO_ROLLBACK'] == 'true':
+        if props['AUTO_DEPLOY'] == 'true':
             _alert(props,
                    "(sadpanda) %s." % why,
                    severity=logging.WARNING)
@@ -747,7 +745,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    severity=logging.WARNING)
     except Exception:
         logging.exception('set-default failed')
-        if props['AUTO_DEPLOY'] == 'true' or props['AUTO_ROLLBACK'] == 'true':
+        if props['AUTO_DEPLOY'] == 'true':
             _alert(props, "(sadpanda) (sadpanda) set-default failed!",
                    severity=logging.ERROR)
             raise
@@ -1068,11 +1066,6 @@ if __name__ == '__main__':
                         default='false',
                         help=("If 'true', don't ask whether to set the new "
                               "version as the default, do so automatically."))
-    parser.add_argument('--auto_rollback',
-                        default='false',
-                        help=("If 'true', and set_default.py logs-monitoring "
-                              "indicates the new deploy may be problematic, "
-                              "automatically roll back to the old deploy."))
     parser.add_argument('--jenkins_url',
                         default='http://jenkins.khanacademy.org/',
                         help=("The url of the jenkins server."))
@@ -1122,7 +1115,6 @@ if __name__ == '__main__':
                                  args.deployer_email,
                                  args.git_revision,
                                  args.auto_deploy == 'true',
-                                 args.auto_rollback == 'true',
                                  _current_gae_version(),
                                  args.jenkins_url,
                                  args.hipchat_room,
