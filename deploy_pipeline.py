@@ -947,7 +947,12 @@ def main(action, lockdir, acquire_lock_args=(),
         _alert(props,
                'You do not own the deploy lock (its token is %s, '
                'yours is %s); aborting' % (props['TOKEN'], token),
-               severity=logging.ERROR)
+               severity=logging.ERROR,
+               # The username in props probably isn't right -- if we
+               # don't match prop's token, why would we match its
+               # username? -- so don't prepend it.
+               # TODO(csilvers): pass in the *right* username instead.
+               prefix_with_username=False)
         # We definitely don't want jenkins to release the lock, since
         # we don't own it.  So we have to return True.
         return True
