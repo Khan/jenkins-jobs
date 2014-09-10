@@ -411,7 +411,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
     raise RuntimeError('Timed out waiting on the current lock-holder.')
 
 
-def _move_lockdir(old_lockdir, new_lockdir):
+def _move_lockdir(props, old_lockdir, new_lockdir):
     """Re-acquire the lock in new_lockdir with the values in old_lockdir.
 
     new_lockdir must not exist (meaning that nobody else is holding the
@@ -422,8 +422,6 @@ def _move_lockdir(old_lockdir, new_lockdir):
     """
     if os.path.exists(new_lockdir):
         raise OSError('Lock already held in "%s"' % new_lockdir)
-
-    props = _read_properties(old_lockdir)
 
     logging.info('Renaming %s -> %s' % (old_lockdir, new_lockdir))
     os.rename(old_lockdir, new_lockdir)
@@ -447,7 +445,7 @@ def release_deploy_lock(props, backup_lockfile=True):
 
     try:
         if backup_lockfile:
-            _move_lockdir(lockdir, old_lockdir)
+            _move_lockdir(props, lockdir, old_lockdir)
         else:
             shutil.rmtree(lockdir)
     except (IOError, OSError), why:
@@ -886,7 +884,7 @@ def relock(props):
                       "acquired the lock since you released it." % new_lockdir)
         raise OSError('%s already exists' % new_lockdir)
 
-    _move_lockdir(old_lockdir, new_lockdir)
+    _move_lockdir(props, old_lockdir, new_lockdir)
 
 
 def main(action, lockdir, acquire_lock_args=(),
