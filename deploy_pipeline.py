@@ -551,7 +551,7 @@ def merge_from_master(props):
 def _tag_release(props):
     """Tag the github commit that was deployed with the deploy-name."""
     _run_command(
-        ['git', 'tag',
+        ['git', 'tag', '-f',
          '-m', 'Deployed to appengine as %s' % props['VERSION_NAME'],
          'gae-%s' % props['VERSION_NAME'],
          props['GIT_SHA1']])
@@ -561,7 +561,7 @@ def _tag_as_bad_version(props):
     """Tag the currently deployed github commit as having problems."""
     tag_name = 'gae-%s-bad' % props['VERSION_NAME']
     _run_command(
-        ['git', 'tag',
+        ['git', 'tag', '-f',
          '-m', 'Bad version (%s): rolled back' % props['VERSION_NAME'],
          tag_name,
          props['GIT_SHA1']])
