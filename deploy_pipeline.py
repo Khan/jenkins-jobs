@@ -853,7 +853,7 @@ def finish_with_rollback(props):
     if not _rollback_deploy(props):
         _alert(props,
                "Once you have manually rolled back, release the deploy "
-               "lock: " % _finish_url(props, STATUS='unlock'),
+               "lock: %s" % _finish_url(props, STATUS='unlock'),
                severity=logging.ERROR)
         raise RuntimeError('Failed to roll back to the previous deploy.')
     release_deploy_lock(props)
