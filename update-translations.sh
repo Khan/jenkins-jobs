@@ -72,8 +72,6 @@ echo "Sanity check: will fail if the new all.pot is missing stuff."
 [ `wc -l < "$CROWDIN_REPO"/all.pot` -gt 100000 ]
 grep -q 'intl/datastore:1' "$CROWDIN_REPO"/all.pot
 
-echo "Translating fake languages."
-"$MAKE" i18n_mo
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
