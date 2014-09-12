@@ -912,7 +912,8 @@ def main(action, lockdir, acquire_lock_args=(),
     monitoring_time is ignored except by set_default.
     jenkins_build_url is ignored except by set_default (for the moment).
 
-    caller_email is ignored except by finish-with-unlock.
+    caller_email is ignored except by finish-with-unlock (and also
+    if we can't acquire the lock).
 
     If token is non-empty, then whenever we do an operation we first
     check that the specified token matches the TOKEN value from the
@@ -939,10 +940,20 @@ def main(action, lockdir, acquire_lock_args=(),
                 logging.exception('There is no backup lock at %s to '
                                   'recover from, sorry.' % lockdir)
             else:
-                logging.exception('Running without having acquired the lock? '
-                                  '(You can try running the "deploy-finish" '
-                                  'job on jenkins, with STATUS="relock", and '
-                                  'then try again.)')
+                # We can't load the real props, so do the best we can.
+                fake_props = {'DEPLOYER_HIPCHAT_NAME':
+                                 _email_to_hipchat_name(caller_email),
+                              'HIPCHAT_ROOM': '1s/0s: deploys',
+                              'HIPCHAT_SENDER': 'Mr Gorilla',
+                              'JENKINS_URL': 'http://jenkins.khanacademy.org/',
+                              'TOKEN': '',
+                              }
+                _alert(fake_props,
+                       '(sadpanda) Trying to run without the lock. '
+                       'If you think you *should* have the lock, '
+                       'try to re-acquire it: %s. Then run your command again.'
+                       % _finish_url(fake_props, STATUS='relock'),
+                       severity=logging.ERROR)
             return False
 
     # If the passed-in token doesn't match the token in props, then
