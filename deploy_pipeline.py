@@ -620,7 +620,7 @@ def merge_to_master(props):
 
 
 def _rollback_deploy(props):
-    """Roll back to ROLLBACK_TO and delete the new deploy from appengine.
+    """Roll back to ROLLBACK_TO and tag the current deploy as bad.
 
     Returns True if rollback succeeded -- even if we failed to delete
     the version after rolling back from it -- False else.
@@ -635,7 +635,7 @@ def _rollback_deploy(props):
 
     _alert(props,
            "Automatically rolling the default back to %s "
-           "and deleting %s from appengine"
+           "and tagging %s as bad (in git)"
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
         logging.info('Tagging %s as a bad version' % props['VERSION_NAME'])
