@@ -65,7 +65,7 @@ import deploy.set_default
 import ka_secrets             # for (optional) email->hipchat
 
 
-# Used for testing.  Does not set-default, does not delete.
+# Used for testing.  Does not set-default, does not tag versions as bad.
 _DRY_RUN = False
 
 _WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
@@ -627,8 +627,8 @@ def merge_to_master(props):
 def _rollback_deploy(props):
     """Roll back to ROLLBACK_TO and tag the current deploy as bad.
 
-    Returns True if rollback succeeded -- even if we failed to delete
-    the version after rolling back from it -- False else.
+    Returns True if rollback succeeded -- even if we failed to tag the
+    version as bad after rolling back from it -- False else.
     """
     current_gae_version = _current_gae_version()
     if current_gae_version != props['VERSION_NAME']:
