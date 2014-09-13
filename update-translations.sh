@@ -67,6 +67,12 @@ rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
 kake/build_prod_main.py -v3 pot
 cp -vf genfiles/translations/all.pot.txt_for_debugging \
        "$CROWDIN_REPO"/all.pot
+# We put a smaller version of all.pot in the intl/translations repo.
+# We take out the comments-for-translators, which are like 70% of
+# the text, but leave in the strings and the location info.
+# This is used for fake-translating.
+grep -v '^#\.' genfiles/translations/all.pot.txt_for_debugging \
+    > intl/translations/all.pot
 
 echo "Sanity check: will fail if the new all.pot is missing stuff."
 [ `wc -l < "$CROWDIN_REPO"/all.pot` -gt 100000 ]
