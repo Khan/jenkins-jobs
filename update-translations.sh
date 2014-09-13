@@ -73,7 +73,9 @@ echo "Sanity check: will fail if the new all.pot is missing stuff."
 grep -q 'intl/datastore:1' "$CROWDIN_REPO"/all.pot
 
 echo "Translating fake languages."
-"$MAKE" i18n_mo
+# TODO(csilvers): uncomment this after we figure out how to break up
+# the po-files so they're less than 100M (the github limit).
+#"$MAKE" i18n_mo
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
