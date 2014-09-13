@@ -70,8 +70,9 @@ cp -vf genfiles/translations/all.pot.txt_for_debugging \
 # We put a smaller version of all.pot in the intl/translations repo.
 # We take out the comments-for-translators, which are like 70% of
 # the text, but leave in the strings and the location info.
-# This is used for fake-translating.
-grep -v '^#\.' genfiles/translations/all.pot.txt_for_debugging \
+# Actually, we *do* need to leave in a subset of comments, though:
+# those that say '(format: xxx)' -- fake_translate uses those.
+grep -v '^#\. [^(]' genfiles/translations/all.pot.txt_for_debugging \
     > intl/translations/all.pot
 
 echo "Sanity check: will fail if the new all.pot is missing stuff."
