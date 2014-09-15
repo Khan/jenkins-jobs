@@ -75,10 +75,10 @@ import alertlib
 _ALTERNATE_TESTS = {
     'testutil.manual_test.LintTest':
         ('lint',
-         re.compile('AssertionError: LINT ERRORS:\s*(.*)', re.MULTILINE)),
+         re.compile('AssertionError: LINT ERRORS:\s*(.*)', re.DOTALL)),
     'testutil.manual_test.JsTest':
         ('javascript',
-         re.compile('AssertionError: JSTEST ERRORS:\s*(.*)', re.MULTILINE)),
+         re.compile('AssertionError: JSTEST ERRORS:\s*(.*)', re.DOTALL)),
 }
 
 # Maps 'lint' to the alternate-test lint output.
