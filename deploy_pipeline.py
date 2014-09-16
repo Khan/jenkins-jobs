@@ -672,7 +672,8 @@ def _rollback_deploy(props):
         logging.exception('Auto-rollback failed')
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
-               "Roll back to %s manually." % props['ROLLBACK_TO'],
+               "Roll back to %s manually by running: deploy/set_default.py %s"
+               % (props['ROLLBACK_TO'], props['ROLLBACK_TO']),
                severity=logging.CRITICAL)
         return False
 
@@ -762,10 +763,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
 
         _alert(props,
                "(sadpanda) (sadpanda) set-default failed!  Either:\n"
-               "(continue) Set the default to %s manually, then "
-               "release the deploy lock via %s\n"
+               "(continue) Set the default to %s manually (by running "
+               "deploy/set_default.py %s), then release the deploy lock "
+               "via %s\n"
                "(failed) abort and roll back %s"
-               % (props['VERSION_NAME'],
+               % (props['VERSION_NAME'], props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
