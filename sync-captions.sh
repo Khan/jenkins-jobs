@@ -17,16 +17,16 @@ export FORCE_COMMIT=1
 error=""
 
 echo "Updating the repo holding historical data (old translations repo)"
-REPO=ssh://khanacademy@khanacademy.kilnhg.com/Website/translations/webapp
-[ -d translations ] && GIT_TRACE=1 safe_pull translations || git clone "$REPO" translations
+echo "Updating the repo storing historical data (old translations repo)"
+DATA_REPO=git@github.com:Khan/webapp-i18n-data
+DATA_REPO_DIR=`pwd`/webapp-i18n-data
+[ -d "$DATA_REPO_DIR" ] && safe_pull "$DATA_REPO_DIR" \
+   || git clone "$DATA_REPO" "$DATA_REPO_DIR"
 
-OLD_TRANSLATIONS_REPO="$(pwd)/translations"
-
-
-prof_incoming="$OLD_TRANSLATIONS_REPO/captions/professional_incoming/"
-incoming="$OLD_TRANSLATIONS_REPO/captions/incoming/"
-published="$OLD_TRANSLATIONS_REPO/captions/published/"
-published_prod="$OLD_TRANSLATIONS_REPO/captions/published_prod/"
+prof_incoming="$DATA_REPO_DIR/captions/professional_incoming/"
+incoming="$DATA_REPO_DIR/captions/incoming/"
+published="$DATA_REPO_DIR/captions/published/"
+published_prod="$DATA_REPO_DIR/captions/published_prod/"
 
 # Flow is something like:
 # hired             Amara
@@ -51,23 +51,23 @@ published_prod="$OLD_TRANSLATIONS_REPO/captions/published_prod/"
 # [uptp] = 4
 echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
 
-amara_progress="$OLD_TRANSLATIONS_REPO/captions/amara_progress.json"
+amara_progress="$DATA_REPO_DIR/captions/amara_progress.json"
 
 tools="$WEBSITE_ROOT/tools"
 # --- The actual work:
-cd "$OLD_TRANSLATIONS_REPO"
+cd "$DATA_REPO_DIR"
 
 if [ "$SKIP_TO_STAGE" -le 0 ]; then
     echo "Pulling from dropbox"
     # If it exits with nonzero code, stop the script, fix it.
     # There is no meaningful partial progress.
-    "$tools/dropbox_sync_source.py" "$OLD_TRANSLATIONS_REPO/captions"
+    "$tools/dropbox_sync_source.py" "$DATA_REPO_DIR/captions"
 
     if [ -z "$(git status --porcelain | head -n 1)" ];
     then
         echo "No new files from dropbox"
     else
-        GIT_TRACE=1 safe_commit_and_push "$OLD_TRANSLATIONS_REPO" \
+        safe_commit_and_push "$DATA_REPO_DIR" \
             -m "Automatic commit of dropbox sync" \
             -m "(at webapp commit $(git rev-parse HEAD))"
     fi
@@ -91,7 +91,7 @@ if [ "$SKIP_TO_STAGE" -le 1 ]; then
                 mv "$prof_incoming/$locale/$file" "$incoming/$locale/"
             done;
         done;
-        GIT_TRACE=1 safe_commit_and_push "$OLD_TRANSLATIONS_REPO" \
+        safe_commit_and_push "$DATA_REPO_DIR" \
             -m "Professional captions duly noted and moved to incoming" \
             -m "(at webapp commit $(git rev-parse HEAD))"
     else
@@ -120,7 +120,7 @@ if [ "$SKIP_TO_STAGE" -le 2 ]; then
     else
         # Even if it fails, it should have made some progress, save it
         # git add captions
-        GIT_TRACE=1 safe_commit_and_push "$OLD_TRANSLATIONS_REPO" \
+        safe_commit_and_push "$DATA_REPO_DIR" \
             -m "Automatic commit of Amara download" \
             -m "(at webapp commit $(git rev-parse HEAD))" \
             -m "$(cat $stats_file)"
@@ -144,7 +144,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
     then
         echo "No changes at all when uploading to youtube"
     else
-        GIT_TRACE=1 safe_commit_and_push "$OLD_TRANSLATIONS_REPO" \
+        safe_commit_and_push "$DATA_REPO_DIR" \
             -m "Automatic commit of Youtube upload" \
             -m "(at webapp commit $(git rev-parse HEAD))" \
             -m "$(cat $stats_file)";
@@ -167,7 +167,7 @@ if [ "$SKIP_TO_STAGE" -le 4 ]; then
     then
         echo "No changes at all when uploading to production"
     else
-        GIT_TRACE=1 safe_commit_and_push "$OLD_TRANSLATIONS_REPO" \
+        safe_commit_and_push "$DATA_REPO_DIR" \
             -m "Automatic commit of upload to production" \
             -m "(at webapp commit $(git rev-parse HEAD))" \
             -m "$(cat $stats_file)";
