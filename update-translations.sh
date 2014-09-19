@@ -80,7 +80,7 @@ ls -l intl/translations/pofiles/
 echo "Checking it into crowdin repo"
 # Store a compressed version of all.po (github thinks the raw version
 # is too big.)
-gzip -9 "$ALL_POT" > "$DATA_REPO_DIR"/all.pot.gz
+gzip -9 < "$ALL_POT" > "$DATA_REPO_DIR"/all.pot.gz
 safe_commit_and_push "$DATA_REPO_DIR" \
    -m "Automatic update of all.pot and download_from_crowdin/" \
    -m "(at webapp commit `git rev-parse HEAD`)"
