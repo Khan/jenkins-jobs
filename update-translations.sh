@@ -38,9 +38,10 @@ safe_pull intl/translations
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
+       --english-version-dir="$DATA_REPO_DIR"/upload_to_crowdin \
+       --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
        --send-lint-reports \
        --export \
-       --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
        $lang
 done
 
@@ -87,15 +88,16 @@ safe_commit_and_push "$DATA_REPO_DIR" \
 
 echo "Uploading the new all.pot to crowdin."
 deploy/upload_i18n.py -v --save-temps="$DATA_REPO_DIR"/upload_to_crowdin/ \
-   --popular-urls="$DATA_REPO_DIR"/popular_urls \
    --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
+   --popular-urls="$DATA_REPO_DIR"/popular_urls \
    --pot-filename="$ALL_POT"
 
 echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
 deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
+    --english-version-dir="$DATA_REPO_DIR"/upload_to_crowdin \
+    --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
     --export \
     --nolint \
-    --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
     en-PT
 
 echo "Checking in any newly added strings to crowdin_data.pickle."
