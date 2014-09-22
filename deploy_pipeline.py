@@ -735,6 +735,9 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                     hipchat_room=props['HIPCHAT_ROOM'],
                                     dry_run=_DRY_RUN)
     except deploy.set_default.MonitoringError, why:
+        # Wait a little to make sure this hipchat message comes after
+        # the "I've deployed to ..." message we emitted above above.
+        time.sleep(10)
         if props['AUTO_DEPLOY'] == 'true':
             _alert(props,
                    "(sadpanda) %s." % why,
