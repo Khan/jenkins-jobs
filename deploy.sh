@@ -31,6 +31,7 @@ fi
 : ${SKIP_TESTS:=false}  # --no-tests: set to "true" to append --no-tests
 : ${SKIP_I18N:=false}   # --no-i18n: set to "true" to append --no-i18n
 : ${PRIME:=false}       # --force-priming: set to "true" to append
+: ${SUBMODULE_REVERTS:=false}  # --allow-submodule-reverts: "true" to append
 : ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
 
 # If set, we look for this directory, and if it exists use it as our
@@ -63,6 +64,7 @@ DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
 [ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
+[ "$SUBMODULE_REVERTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --allow-submodule-reverts"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
 
 # Clean out the working tree.
