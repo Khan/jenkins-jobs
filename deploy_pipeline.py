@@ -866,7 +866,7 @@ def finish_with_rollback(props):
                "lock: %s" % _finish_url(props, STATUS='unlock'),
                severity=logging.ERROR)
         raise RuntimeError('Failed to roll back to the previous deploy.')
-    release_deploy_lock(props)
+    finish_with_failure(props)
 
 
 def relock(props):
