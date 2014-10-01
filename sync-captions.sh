@@ -112,7 +112,7 @@ if [ "$SKIP_TO_STAGE" -le 2 ]; then
         echo "Successfully exported from Amara"
     else
         echo "FAILED: Some problems exporting from Amara"
-        error+="Error exporting to Amara\n"
+        error+="Error exporting from Amara\n"
     fi
     if [ -z "$(git status --porcelain | head -n 1)" ];
     then
@@ -133,6 +133,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
     stats_file=/var/tmp/khantube_stats.txt
     if "$tools/khantube.py" "$incoming" "$published" \
         --data-file="$amara_progress" \
+        --english-caption-dir="$published_prod" \
         --stats-file="$stats_file";
     then
         echo "Competed upload to youtube"
