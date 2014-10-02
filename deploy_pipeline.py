@@ -981,7 +981,7 @@ def main(action, lockdir, acquire_lock_args=(),
     # If the step we're taking doesn't match a legal next-step in the
     # pipeline, fail.
     if (action not in props['POSSIBLE_NEXT_STEPS'].split(',') and
-           props['POSSIBLE_NEXT_STEPS'] != '<all>'):
+           '<all>' not in props['POSSIBLE_NEXT_STEPS'].split(',')):
         _alert(props,
                'Expecting you to run %s, but you are running %s. '
                'Perhaps you double-clicked on a link?  Ignoring.'
