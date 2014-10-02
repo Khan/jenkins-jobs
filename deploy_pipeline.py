@@ -94,7 +94,7 @@ def _email_to_hipchat_name(email):
         user_data = json.load(r)
         email_to_mention_name = {user['email']: '@%s' % user['mention_name']
                                  for user in user_data['users']}
-    except IOError:
+    except (IOError, ValueError):     # ValueError: bad response from hipchat
         # If we don't have secrets, we get back a 401.  Ah well.
         logging.warning('Fetching email->hipchat mapping failed; will guess')
         email_to_mention_name = {}
