@@ -9,6 +9,7 @@
 
 # Commands:
 : ${BASE_PYTHON:=python}
+: ${DBG_PYTHON:=python2.7-dbg}
 : ${MAKE:=make}
 : ${VIRTUALENV:=virtualenv}
 
@@ -60,8 +61,29 @@ ensure_virtualenv() {
     elif [ -d "$VIRTUALENV_ROOT" ]; then
         echo "Virtualenv already exists"
     else
-        echo "Creating new virtualenv"
-        "$VIRTUALENV" --python="$BASE_PYTHON" "$VIRTUALENV_ROOT"
+        echo "Creating new virtualenv(s)"
+        # We create a "normal" virtualenv we use most of the time, and
+        # a "dbg" virtualenv that uses python2.7-dbg and lets us debug
+        # running python processes using gdb.
+        "$VIRTUALENV" --python="$BASE_PYTHON" "$VIRTUALENV_ROOT".normal
+        if `which "$DBG_PYTHON" >/dev/null 2>&1`; then
+            "$VIRTUALENV" --python="$DBG_PYTHON" "$VIRTUALENV_ROOT".dbg
+            # Need one more fix, as per http://stackoverflow.com/questions/22931774/how-to-use-gdb-python-debugging-extension-inside-virtualenv
+            cp -a /usr/lib/debug/usr/bin/python*gdb.py \
+                "$VIRTUALENV_ROOT".dbg/bin
+        fi
+        # Have 'env' point to 'env.normal'.  To debug, you just manually
+        # change the symlink to point to env.dbg
+        ln -snf "`basename $VIRTUALENV_ROOT`".normal "$VIRTUALENV_ROOT"
+        echo <<EOF >"$WORKSPACE_ROOT/README.debugging'
+If you want to be able to debug a running python process using gdb
+(to debug hangs or segfaults, say), do the following:
+    ln -snf env.dbg env
+    <run your python process>
+    gdb -p <python process id, from 'ps' or similar>
+    (gdb) py-bt    # etc
+For more information, see https://wiki.python.org/moin/DebuggingWithGdb
+EOF
     fi
 
     . "$VIRTUALENV_ROOT/bin/activate"
