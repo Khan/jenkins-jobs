@@ -48,6 +48,7 @@ import subprocess
 import sys
 import time
 import urllib
+import urllib2  # urllib.urlopen accepts non-200 statuses, urllib2 errors
 
 # This requires having secrets.py (or ka_secrets.py) on your PYTHONPATH!
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
@@ -89,7 +90,7 @@ def _email_to_hipchat_name(email):
         return '<b>Unknown user:</b>'
     try:
         logging.info('Fetching email->hipchat mapping from hipchat')
-        r = urllib.urlopen('https://api.hipchat.com/v1/users/list'
+        r = urllib2.urlopen('https://api.hipchat.com/v1/users/list'
                            '?auth_token=%s' % ka_secrets.hipchat_deploy_token)
         user_data = json.load(r)
         email_to_mention_name = {user['email']: '@%s' % user['mention_name']
@@ -168,7 +169,7 @@ def _gae_version(git_revision):
 
 def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
-    r = urllib.urlopen('http://www.khanacademy.org/api/v1/dev/version')
+    r = urllib2.urlopen('http://www.khanacademy.org/api/v1/dev/version')
     version_dict = json.load(r)
     # The version-id is <major>.<minor>.  We just care about <major>.
     return version_dict['version_id'].split('.')[0]
