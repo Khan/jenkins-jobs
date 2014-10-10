@@ -766,7 +766,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             _alert(props,
                    "While that's going on, try the following manual tests!"
                    "<br><ul>%s</ul>"
-                   % '\n'.join('<a href="%s">%s</a>' % (url, title)
+                   % '\n'.join('<li> <a href="%s">%s</a> </li>' % (url, title)
                                for (title, url) in _MANUAL_TESTS),
                    html=True, prefix_with_username=False)
 
