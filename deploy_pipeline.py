@@ -650,15 +650,13 @@ def _rollback_deploy(props):
 
         logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            if deploy.set_default.main(props['ROLLBACK_TO'],
-                                       email=props['DEPLOY_EMAIL'],
-                                       passin=True,
-                                       num_instances_to_prime=None,
-                                       monitor=False,
-                                       set_default_message=None,
-                                       hipchat_room=props['HIPCHAT_ROOM'],
-                                       dry_run=_DRY_RUN) != 0:
-                raise RuntimeError('set_default failed')
+            deploy.set_default.main(props['ROLLBACK_TO'],
+                                    email=props['DEPLOY_EMAIL'],
+                                    passin=True,
+                                    num_instances_to_prime=None,
+                                    monitor_minutes=0,
+                                    hipchat_room=props['HIPCHAT_ROOM'],
+                                    dry_run=_DRY_RUN)
 
         # If the version we rolled back *to* is marked bad, warn about that.
         if _pipe_command(['git', 'tag', '-l',
@@ -710,31 +708,71 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         was successfully auto-rolled back.
 
     """
+    # Some links for manual testing, in approximate priority order.  From
+    # https://docs.google.com/a/khanacademy.org/document/d/1vsvy0Lh0_zJJNABfwNi20Ayn54WI1iiV-NyD_8YEpsU/edit
+    # The 'dev.khanacademy.org' links force visiting a logged-out homepage.
+    _MANUAL_TESTS = [
+        ('Home page', 'https://www.khanacademy.org/'),
+        ('Logged-out homepage', 'https://dev.khanacademy.org/'),
+        ('Mission dashboard', 'https://www.khanacademy.org/mission/cc-sixth-grade-math'),
+        ('Subject page', 'https://www.khanacademy.org/math/algebra/solving-linear-equations-and-inequalities'),
+        ('Video page', 'https://www.khanacademy.org/math/algebra/introduction-to-algebra/overview_hist_alg/v/origins-of-algebra'),
+        ('Exercise page', 'https://www.khanacademy.org/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/law_of_sines'),
+        ('New scratchpad', 'https://www.khanacademy.org/cs/new/pjs'),
+        ('Article page', 'https://www.khanacademy.org/science/discoveries-projects/simple-machines-explorations/a/simple-machines-and-how-to-use-this-article'),
+        ('Saved scratchpad', 'https://www.khanacademy.org/cs/metaballs/6209526669246464'),
+        ('Profile page', 'https://www.khanacademy.org/profile/kamens/'),
+        ('Login page', 'http://dev.khanacademy.org/login'),
+        ('Signup page', 'http://dev.khanacademy.org/signup'),
+        ('Coding talk-through', 'https://www.khanacademy.org/computing/cs/programming/drawing-basics/p/intro-to-drawing?mp-r-id=02PlsMU='),
+        ('Coding challenge', 'https://www.khanacademy.org/computing/cs/programming/drawing-basics/p/challenge-h-for-hopper'),
+        ('Coding project', 'https://www.khanacademy.org/computing/cs/programming/coloring/p/project-whats-for-dinner?mp-r-id=uop9TL4='),
+        ('CS power user programs page', 'https://www.khanacademy.org/profile/BobLyon/programs'),
+        ('Coach dashboard', 'https://www.khanacademy.org/coach/dashboard'),
+        ('Parent dashboard', 'https://www.khanacademy.org/parent'),
+        ('Search page', 'https://www.khanacademy.org/search?page_search_query=fractions'),
+    ]
+
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
-    if (monitoring_time and jenkins_build_url and
-            props['AUTO_DEPLOY'] != 'true'):
-        message = ("%s I've deployed to %s, and will be monitoring "
-                   "logs for %s minutes.  After that, I'll post "
-                   "next steps to HipChat.  If you detect a problem in the "
-                   "meantime you can cancel the deploy (note: this link "
-                   "will only work for the next %s minutes):\n"
-                   "(failed) abort and rollback: %s/stop"
-                   % (props['DEPLOYER_HIPCHAT_NAME'], props['VERSION_NAME'],
-                      monitoring_time, monitoring_time,
-                      jenkins_build_url.rstrip('/')))
-    else:
-        message = None
+    # I do the deploy steps one at a time so I can intersperse some
+    # hipchat mesasges.
     try:
+        pre_monitoring_data = deploy.set_default.get_predeploy_monitoring_data(
+            monitoring_time)
+
+        deploy.set_default.prime(version=props['VERSION_NAME'],
+                                 num_instances_to_prime=100,
+                                 dry_run=_DRY_RUN)
+
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            deploy.set_default.main(props['VERSION_NAME'],
-                                    email=props['DEPLOY_EMAIL'],
-                                    passin=True,
-                                    num_instances_to_prime=100,
-                                    monitor=monitoring_time,
-                                    set_default_message=message,
-                                    hipchat_room=props['HIPCHAT_ROOM'],
-                                    dry_run=_DRY_RUN)
+            deploy.set_default.set_default(version=props['VERSION_NAME'],
+                                           email=props['DEPLOY_EMAIL'],
+                                           passin=True,
+                                           dry_run=_DRY_RUN)
+
+        if (monitoring_time and jenkins_build_url and
+                props['AUTO_DEPLOY'] != 'true'):
+            _alert(props,
+                   "I've deployed to %s, and will be monitoring "
+                   "logs for %s minutes.  After that, I'll post "
+                   "next steps to HipChat.  If you detect a problem in "
+                   "the meantime you can cancel the deploy (note: this "
+                   "link will only work for the next %s minutes):\n"
+                   "(failed) abort and rollback: %s/stop"
+                   % (props['VERSION_NAME'], monitoring_time, monitoring_time,
+                      jenkins_build_url.rstrip('/')))
+            time.sleep(1)   # to help ensure this comes before the next alert
+            _alert(props,
+                   "While that's going on, try the following manual tests!"
+                   "<br><ul>%s</ul>"
+                   % '\n'.join('<a href="%s">%s</a>' % (url, title)
+                               for (title, url) in _MANUAL_TESTS),
+                   html=True, prefix_with_username=False)
+
+        deploy.set_default.monitor(monitoring_time, pre_monitoring_data,
+                                   hipchat_room=props['HIPCHAT_ROOM'])
+
     except deploy.set_default.MonitoringError, why:
         # Wait a little to make sure this hipchat message comes after
         # the "I've deployed to ..." message we emitted above above.
