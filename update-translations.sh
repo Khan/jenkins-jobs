@@ -38,7 +38,7 @@ safe_pull intl/translations
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
-       --lint_log_file "$DATA_REPO_DIR"/download_from_crowdin/"$lang"_lint.pickle
+       --lint_log_file "$DATA_REPO_DIR"/download_from_crowdin/"$lang"_lint.pickle \
        --use_temps_for_linting \
        --english-version-dir="$DATA_REPO_DIR"/upload_to_crowdin \
        --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
