@@ -70,6 +70,42 @@ _DRY_RUN = False
 
 _WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
 
+# The urls we suggest people do manual testing on, sorted in
+# approximate priority order, from
+#    https://docs.google.com/a/khanacademy.org/document/d/1vsvy0Lh0_zJJNABfwNi20Ayn54WI1iiV-NyD_8YEpsU/edit
+# If the page requires the user to be logged out or logged in, say so
+# in the descriptive text via "(logged out)" or "(logged in)".  We
+# look for that when constructing urls.
+_MANUAL_TESTS = [
+        ('Home page (logged in)', '/'),
+        ('Home page (logged out)', '/'),
+        ('Mission dashboard (logged in)', '/mission/cc-sixth-grade-math'),
+        ('Subject page',
+         '/math/algebra/solving-linear-equations-and-inequalities'),
+        ('Video page',
+         '/math/algebra/introduction-to-algebra/overview_hist_alg/v/origins-of-algebra'),   # @Nolint
+        ('Exercise page',
+         '/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/law_of_sines'),   # @Nolint
+        ('New scratchpad', '/cs/new/pjs'),
+        ('Article page',
+         '/science/discoveries-projects/simple-machines-explorations/a/simple-machines-and-how-to-use-this-article'),   # @Nolint
+        ('i18n homepage (logged out)', '/?lang=es'),
+        ('Saved scratchpad', '/cs/metaballs/6209526669246464'),
+        ('Profile page', '/profile/kamens/'),
+        ('Login page (logged out)', '/login'),
+        ('Signup page (logged out)', '/signup'),
+        ('Coding talk-through',
+         '/computing/cs/programming/drawing-basics/p/intro-to-drawing'),
+        ('Coding challenge',
+         '/computing/cs/programming/drawing-basics/p/challenge-h-for-hopper'),
+        ('Coding project',
+         '/computing/cs/programming/coloring/p/project-whats-for-dinner'),
+        ('CS power user programs page', '/profile/BobLyon/programs'),
+        ('Coach dashboard', '/coach/dashboard'),
+        ('Parent dashboard', '/parent'),
+        ('Search page', '/search?page_search_query=fractions'),
+    ]
+
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
@@ -102,6 +138,17 @@ def _email_to_hipchat_name(email):
     # If we can't map email to hipchat name, just guess that their
     # hipchat name is @<email-name>.
     return email_to_mention_name.get(email, '@%s' % email.split('@')[0])
+
+
+def _list_with_links(title_url_pairs):
+    """Given a list of title/url, create html of the urls in a list form."""
+    # I'll do five across.
+    retval = []
+    for i in xrange(0, len(title_url_pairs), 5):
+        this_row = title_url_pairs[i:(i + 5)]
+        retval.append(' ~ '.join('<a href="%s">%s</a>' % (url, title)
+                                 for (title, url) in this_row))
+    return '<br>\n'.join(retval)
 
 
 def _run_command(cmd, failure_ok=False):
@@ -681,15 +728,31 @@ def _rollback_deploy(props):
 
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
+    hostname = 'http://%s.khan-academy.appspot.com' % props['VERSION_NAME']
     _alert(props,
-           "http://%s.khan-academy.appspot.com/ (branch %s) is uploaded to "
-           "appengine! Do some manual testing on it, then click to either:\n"
+           "%s/ (branch %s) is uploaded to appengine! "
+           "Do some manual testing on it, then click to either:\n"
            "(successful) set it as default: %s\n"
            "(failed) abort the deploy: %s"
-           % (props['VERSION_NAME'], props['GIT_REVISION'],
+           % (hostname, props['GIT_REVISION'],
               _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
               _finish_url(props, STATUS='failure', WHY='aborted')),
            color='green')
+    time.sleep(1)   # to help the two hipchat alerts be ordered properly
+
+    # Suggest some urls to do for manual testing.  We need to add in
+    # our hostname.  Since this is a new host, the user will start
+    # logged out, so suggest those urls first, and the '(logged in)'
+    # urls last.
+    manual_tests = [(t, hostname + u) for (t, u) in _MANUAL_TESTS]
+    manual_tests.sort(key=lambda u: u[0].find('(logged in)'))
+    # First we'll provide links, then a commandline tool.
+    _alert(props,
+           ("Here are some pages to manually test:<br>%s<br>"
+            "Or open them all at once (cut-and-paste):<br><code>open %s</code>"
+            % (_list_with_links(manual_tests),
+               ' '.join('"%s"' % u for (_, u) in manual_tests))),
+           html=True, prefix_with_username=False)
 
 
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
@@ -708,31 +771,6 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         was successfully auto-rolled back.
 
     """
-    # Some links for manual testing, in approximate priority order.  From
-    # https://docs.google.com/a/khanacademy.org/document/d/1vsvy0Lh0_zJJNABfwNi20Ayn54WI1iiV-NyD_8YEpsU/edit
-    # The 'dev.khanacademy.org' links force visiting a logged-out homepage.
-    _MANUAL_TESTS = [
-        ('Home page', 'https://www.khanacademy.org/'),
-        ('Logged-out homepage', 'https://dev.khanacademy.org/'),
-        ('Mission dashboard', 'https://www.khanacademy.org/mission/cc-sixth-grade-math'),
-        ('Subject page', 'https://www.khanacademy.org/math/algebra/solving-linear-equations-and-inequalities'),
-        ('Video page', 'https://www.khanacademy.org/math/algebra/introduction-to-algebra/overview_hist_alg/v/origins-of-algebra'),
-        ('Exercise page', 'https://www.khanacademy.org/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/law_of_sines'),
-        ('New scratchpad', 'https://www.khanacademy.org/cs/new/pjs'),
-        ('Article page', 'https://www.khanacademy.org/science/discoveries-projects/simple-machines-explorations/a/simple-machines-and-how-to-use-this-article'),
-        ('Saved scratchpad', 'https://www.khanacademy.org/cs/metaballs/6209526669246464'),
-        ('Profile page', 'https://www.khanacademy.org/profile/kamens/'),
-        ('Login page', 'http://dev.khanacademy.org/login'),
-        ('Signup page', 'http://dev.khanacademy.org/signup'),
-        ('Coding talk-through', 'https://www.khanacademy.org/computing/cs/programming/drawing-basics/p/intro-to-drawing?mp-r-id=02PlsMU='),
-        ('Coding challenge', 'https://www.khanacademy.org/computing/cs/programming/drawing-basics/p/challenge-h-for-hopper'),
-        ('Coding project', 'https://www.khanacademy.org/computing/cs/programming/coloring/p/project-whats-for-dinner?mp-r-id=uop9TL4='),
-        ('CS power user programs page', 'https://www.khanacademy.org/profile/BobLyon/programs'),
-        ('Coach dashboard', 'https://www.khanacademy.org/coach/dashboard'),
-        ('Parent dashboard', 'https://www.khanacademy.org/parent'),
-        ('Search page', 'https://www.khanacademy.org/search?page_search_query=fractions'),
-    ]
-
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     # I do the deploy steps one at a time so I can intersperse some
@@ -762,12 +800,23 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "(failed) abort and rollback: %s/stop"
                    % (props['VERSION_NAME'], monitoring_time, monitoring_time,
                       jenkins_build_url.rstrip('/')))
-            time.sleep(1)   # to help ensure this comes before the next alert
+            time.sleep(1)  # to help the two hipchat alerts be ordered properly
+
+            # We have to add in the right hostname.  We use 'dev.ka.org'
+            # for pages that require us to be logged out (we're unlikely
+            # to be logged into that host).
+            manual_tests = []
+            for (title, url) in _MANUAL_TESTS:
+                if '(logged out)' in title:
+                    url = 'https://dev.khanacademy.org' + url
+                else:
+                    url = 'https://www.khanacademy.org' + url
+                manual_tests.append((title, url))
             _alert(props,
-                   "While that's going on, try the following manual tests!"
-                   "<br><ul>%s</ul>"
-                   % '\n'.join('<li> <a href="%s">%s</a> </li>' % (url, title)
-                               for (title, url) in _MANUAL_TESTS),
+                   ("While that's going on, manual-test on the live site!<br>"
+                    "%s<br>\n<code>open %s</code>"
+                    % (_list_with_links(manual_tests),
+                       ' '.join('"%s"' % u for (_, u) in manual_tests))),
                    html=True, prefix_with_username=False)
 
         deploy.set_default.monitor(monitoring_time, pre_monitoring_data,
