@@ -90,6 +90,7 @@ safe_commit_and_push "$DATA_REPO_DIR" \
 
 echo "Uploading the new all.pot to crowdin."
 deploy/upload_i18n.py -v --save-temps="$DATA_REPO_DIR"/upload_to_crowdin/ \
+   --use-temps-to-skip \
    --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
    --popular-urls="$DATA_REPO_DIR"/popular_urls \
    --pot-filename="$ALL_POT"
