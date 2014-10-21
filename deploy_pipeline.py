@@ -84,8 +84,10 @@ _MANUAL_TESTS = [
          '/math/algebra/solving-linear-equations-and-inequalities'),
         ('Video page',
          '/math/algebra/introduction-to-algebra/overview_hist_alg/v/origins-of-algebra'),   # @Nolint
-        ('Exercise page',
+        ('Exercise page (khan-exercises)',
          '/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/law_of_sines'),   # @Nolint
+        ('Exercise page (perseus)',
+         '/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/non-right-triangle-proofs'),   # @Nolint
         ('New scratchpad', '/cs/new/pjs'),
         ('Article page',
          '/science/discoveries-projects/simple-machines-explorations/a/simple-machines-and-how-to-use-this-article'),   # @Nolint
