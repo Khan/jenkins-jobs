@@ -693,7 +693,7 @@ def _rollback_deploy(props):
 
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
-    hostname = '%s.khan-academy.appspot.com' % props['VERSION_NAME']
+    hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
     _alert(props,
            "https://%s/ (branch %s) is uploaded to appengine! "
            "Do some manual testing on it, then click to either:\n"
