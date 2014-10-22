@@ -63,50 +63,13 @@ appengine_tool_setup.fix_sys_path()
 import deploy.deploy
 import deploy.set_default
 import ka_secrets             # for (optional) email->hipchat
+from tools import manual_webapp_testing
 
 
 # Used for testing.  Does not set-default, does not tag versions as bad.
 _DRY_RUN = False
 
 _WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
-
-# The urls we suggest people do manual testing on, sorted in
-# approximate priority order, from
-#    https://docs.google.com/a/khanacademy.org/document/d/1vsvy0Lh0_zJJNABfwNi20Ayn54WI1iiV-NyD_8YEpsU/edit
-# If the page requires the user to be logged out or logged in, say so
-# in the descriptive text via "(logged out)" or "(logged in)".  We
-# look for that when constructing urls.
-_MANUAL_TESTS = [
-        ('Home page (logged in)', '/'),
-        ('Home page (logged out)', '/'),
-        ('Mission dashboard (logged in)', '/mission/cc-sixth-grade-math'),
-        ('Subject page',
-         '/math/algebra/solving-linear-equations-and-inequalities'),
-        ('Video page',
-         '/math/algebra/introduction-to-algebra/overview_hist_alg/v/origins-of-algebra'),   # @Nolint
-        ('Exercise page (khan-exercises)',
-         '/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/law_of_sines'),   # @Nolint
-        ('Exercise page (perseus)',
-         '/math/trigonometry/less-basic-trigonometry/law-sines-cosines/e/non-right-triangle-proofs'),   # @Nolint
-        ('New scratchpad', '/cs/new/pjs'),
-        ('Article page',
-         '/science/discoveries-projects/simple-machines-explorations/a/simple-machines-and-how-to-use-this-article'),   # @Nolint
-        ('i18n homepage (logged out)', '/?lang=es'),
-        ('Saved scratchpad', '/cs/metaballs/6209526669246464'),
-        ('Profile page', '/profile/kamens/'),
-        ('Login page (logged out)', '/login'),
-        ('Signup page (logged out)', '/signup'),
-        ('Coding talk-through',
-         '/computing/cs/programming/drawing-basics/p/intro-to-drawing'),
-        ('Coding challenge',
-         '/computing/cs/programming/drawing-basics/p/challenge-h-for-hopper'),
-        ('Coding project',
-         '/computing/cs/programming/coloring/p/project-whats-for-dinner'),
-        ('CS power user programs page', '/profile/BobLyon/programs'),
-        ('Coach dashboard', '/coach/dashboard'),
-        ('Parent dashboard', '/parent'),
-        ('Search page', '/search?page_search_query=fractions'),
-    ]
 
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
@@ -730,9 +693,9 @@ def _rollback_deploy(props):
 
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
-    hostname = 'http://%s.khan-academy.appspot.com' % props['VERSION_NAME']
+    hostname = '%s.khan-academy.appspot.com' % props['VERSION_NAME']
     _alert(props,
-           "%s/ (branch %s) is uploaded to appengine! "
+           "https://%s/ (branch %s) is uploaded to appengine! "
            "Do some manual testing on it, then click to either:\n"
            "(successful) set it as default: %s\n"
            "(failed) abort the deploy: %s"
@@ -742,18 +705,14 @@ def manual_test(props):
            color='green')
     time.sleep(1)   # to help the two hipchat alerts be ordered properly
 
-    # Suggest some urls to do for manual testing.  We need to add in
-    # our hostname.  Since this is a new host, the user will start
-    # logged out, so suggest those urls first, and the '(logged in)'
-    # urls last.
-    manual_tests = [(t, hostname + u) for (t, u) in _MANUAL_TESTS]
-    manual_tests.sort(key=lambda u: u[0].find('(logged in)'))
-    # First we'll provide links, then a commandline tool.
+    # Suggest some urls to do for manual testing, as both links and a
+    # commandline tool.
     _alert(props,
            ("Here are some pages to manually test:<br>%s<br>"
-            "Or open them all at once (cut-and-paste):<br><code>open %s</code>"
-            % (_list_with_links(manual_tests),
-               ' '.join('"%s"' % u for (_, u) in manual_tests))),
+            "Or open them all at once (cut-and-paste): "
+            "<b>tools/manual_webapp_testing.py %s</b>"
+            % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
+               props['VERSION_NAME'])),
            html=True, prefix_with_username=False)
 
 
@@ -803,22 +762,13 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    % (props['VERSION_NAME'], monitoring_time, monitoring_time,
                       jenkins_build_url.rstrip('/')))
             time.sleep(1)  # to help the two hipchat alerts be ordered properly
-
-            # We have to add in the right hostname.  We use 'dev.ka.org'
-            # for pages that require us to be logged out (we're unlikely
-            # to be logged into that host).
-            manual_tests = []
-            for (title, url) in _MANUAL_TESTS:
-                if '(logged out)' in title:
-                    url = 'https://dev.khanacademy.org' + url
-                else:
-                    url = 'https://www.khanacademy.org' + url
-                manual_tests.append((title, url))
             _alert(props,
                    ("While that's going on, manual-test on the live site!<br>"
-                    "%s<br>\n<code>open %s</code>"
-                    % (_list_with_links(manual_tests),
-                       ' '.join('"%s"' % u for (_, u) in manual_tests))),
+                    "%s<br>\n"
+                    "Or open them all at once (cut-and-paste): "
+                    "<b>tools/manual_webapp_testing.py %s</b>"
+                    % (manual_webapp_testing.list_with_links('default'),
+                       'default')),
                    html=True, prefix_with_username=False)
 
         deploy.set_default.monitor(monitoring_time, pre_monitoring_data,
