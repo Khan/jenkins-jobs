@@ -181,7 +181,7 @@ def _gae_version(git_revision):
 
 def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
-    r = urllib.urlopen('http://www.khanacademy.org/api/v1/dev/version')
+    r = urllib.urlopen('http://www.khanacademy.org/api/internal/dev/version')
     version_dict = json.load(r)
     # The version-id is <major>.<minor>.  We just care about <major>.
     return version_dict['version_id'].split('.')[0]
