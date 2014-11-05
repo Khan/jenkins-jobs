@@ -859,7 +859,10 @@ def finish_with_success(props):
     to release the lock or if we failed to finish the deploy
     (e.g. failed to merge back into master.)
     """
-    _tag_release(props)
+    # We don't want to tag the release if the user ran with DEPLOY=no.
+    # We tell by checking if the current gae version is VERSION_NAME.
+    if _current_gae_version() == props['VERSION_NAME']:
+        _tag_release(props)
     try:
         merge_to_master(props)
     except Exception:
