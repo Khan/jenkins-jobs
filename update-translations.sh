@@ -72,13 +72,8 @@ echo "Splitting .po files"
 # We remove all the .rest.po and .datastore.po files that are there (Except 
 # empty.datastore.po and empty.rest.po) as we are about to rebuild them, and
 # we don't want to resplit them.
-for p in intl/translations/pofiles/*; do
-    if [[ $p != intl/translations/pofiles/empty.* ]] && 
-            ([[ $p == intl/translations/pofiles/*.rest.po* ]] || 
-            [[ $p == intl/translations/pofiles/*.datastore.po* ]]); then
-        echo "$p"
-    fi 
-done
+find intl/translations/pofiles -name '*empty*' -prune -o \( \
+    -name '*.rest.po*' -o -name '*.datastore.*' \) -print0 | xargs -0 rm
 
 # We split the po files into .datastore.po and .rest.po so that 
 # compile_small_mo can load a much smaller file which saves time.
