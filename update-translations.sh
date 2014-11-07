@@ -35,6 +35,14 @@ safe_pull .
 # We also make sure the translations sub-repo is up to date.
 safe_pull intl/translations
 
+# We remove all the po files that are there (Except empty.datastore.po and 
+# empty.rest.po) because all the others will be rebuilt.
+for p in intl/translations/pofiles/*; do
+    if [[ $p != intl/translations/pofiles/empty.* ]]; then
+        rm "$p"
+    fi 
+done
+
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
@@ -66,6 +74,14 @@ grep -q 'intl/datastore:1' "$ALL_POT"
 
 echo "Translating fake languages."
 "$MAKE" i18n_mo
+
+echo "Splitting .po files"
+
+# We split the po files into .datastore.po and .rest.po so that 
+# compile_small_mo can load a much smaller file which saves time.
+for p in intl/translations/pofiles/*; do
+    tools/split_po_files.py "$p" 
+done
 
 # github has a limit of 100M per file.  We split up the .po files to
 # stay under the limit.  For consistency with files that don't need
