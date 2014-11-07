@@ -35,14 +35,6 @@ safe_pull .
 # We also make sure the translations sub-repo is up to date.
 safe_pull intl/translations
 
-# We remove all the po files that are there (Except empty.datastore.po and 
-# empty.rest.po) because all the others will be rebuilt.
-for p in intl/translations/pofiles/*; do
-    if [[ $p != intl/translations/pofiles/empty.* ]]; then
-        rm "$p"
-    fi 
-done
-
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
@@ -76,6 +68,17 @@ echo "Translating fake languages."
 "$MAKE" i18n_mo
 
 echo "Splitting .po files"
+
+# We remove all the .rest.po and .datastore.po files that are there (Except 
+# empty.datastore.po and empty.rest.po) as we are about to rebuild them, and
+# we don't want to resplit them.
+for p in intl/translations/pofiles/*; do
+    if [[ $p != intl/translations/pofiles/empty.* ]] && 
+            ([[ $p == intl/translations/pofiles/*.rest.po* ]] || 
+            [[ $p == intl/translations/pofiles/*.datastore.po* ]]); then
+        echo "$p"
+    fi 
+done
 
 # We split the po files into .datastore.po and .rest.po so that 
 # compile_small_mo can load a much smaller file which saves time.
