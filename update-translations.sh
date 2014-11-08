@@ -78,7 +78,10 @@ find intl/translations/pofiles -name '*empty*' -prune -o \( \
 # We split the po files into .datastore.po and .rest.po so that 
 # compile_small_mo can load a much smaller file which saves time.
 for p in intl/translations/pofiles/*; do
-    tools/split_po_files.py "$p" 
+    if [ "$p" != "intl/translations/pofiles/empty.rest.po" ] && 
+            [ "$p" != "intl/translations/pofiles/empty.datastore.po" ]; then 
+        tools/split_po_files.py "$p"     
+    fi 
 done
 
 # github has a limit of 100M per file.  We split up the .po files to
