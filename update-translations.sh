@@ -15,6 +15,28 @@ decrypt_secrets_py_and_add_to_pythonpath
 ( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
 
 
+# After downloading a lang.po file from crowdin, splits it up like we want.
+# $1: the language to split (eg 'en-PT').
+split_po() {
+    # Remove the old .rest.po and .datastore.po files.
+    rm "intl/translations/pofiles/$1.rest.po"
+    rm "intl/translations/pofiles/$1.datastore.po"
+
+    # Split the po-file into datastore only strings and all other strings.
+    tools/split_po_files.py "intl/translations/pofiles/$1.po"
+
+    # github has a limit of 100M per file.  We split up the .po files to
+    # stay under the limit.  For consistency with files that don't need
+    # to be split up at all (and to make all_locales_for_mo() happy), we
+    # don't give the first chunk an extension but do for subsequent chunks.
+    # (Same as how /var/log/syslog works.)
+    for p in intl/translations/pofiles/"$1".*.po; do
+        split --suffix-length=1 --line-bytes=95M --numeric-suffixes "$p" "$p."
+        mv -f "$p.0" "$p"
+    done
+}
+
+
 # --- The actual work:
 
 # This lets us commit messages without a test plan
@@ -68,30 +90,11 @@ echo "Translating fake languages."
 "$MAKE" i18n_mo
 
 echo "Splitting .po files"
-
-# We remove all the .rest.po and .datastore.po files that are there (Except 
-# empty.datastore.po and empty.rest.po) as we are about to rebuild them, and
-# we don't want to resplit them.
-find intl/translations/pofiles -name '*empty*' -prune -o \( \
-    -name '*.rest.po*' -o -name '*.datastore.*' \) -print0 | xargs -0 rm
-
-# We split the po files into .datastore.po and .rest.po so that 
-# compile_small_mo can load a much smaller file which saves time.
-for p in intl/translations/pofiles/*; do
-    if [ "$p" != "intl/translations/pofiles/empty.rest.po" ] && 
-            [ "$p" != "intl/translations/pofiles/empty.datastore.po" ]; then 
-        tools/split_po_files.py "$p"     
-    fi 
-done
-
-# github has a limit of 100M per file.  We split up the .po files to
-# stay under the limit.  For consistency with files that don't need
-# to be split up at all (and to make all_locales_for_mo() happy), we
-# don't give the first chunk an extension but do for subsequent chunks.
-# (Same as how /var/log/syslog works.)
-for p in intl/translations/pofiles/*; do
-    split --suffix-length=1 --line-bytes=95M --numeric-suffixes "$p" "$p."
-    mv -f "$p.0" "$p"
+for lang in `ls -1 intl/translations/pofiles | sed 's/\..*//' | sort -u`; do
+    # Do not split empty.po, which is curated by hand.
+    if [ $lang != "empty" ]; then
+        split_po "$lang"
+    fi
 done
 
 echo "Done creating .po files:"
@@ -119,6 +122,9 @@ deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
     --export \
     --nolint \
     en-PT
+
+# Split up en-PT as well.
+split_po "en-PT"
 
 echo "Checking in any newly added strings to crowdin_data.pickle."
 safe_commit_and_push "$DATA_REPO_DIR" \
