@@ -67,8 +67,6 @@ for lang in `tools/list_candidate_active_languages.py` ; do
        --send-lint-reports \
        --export \
        $lang
-    echo "Splitting $lang into $lang.datastore.po and $lang.rest.po"
-    split_po "$lang"
 done
 
 echo "Creating a new, up-to-date all.pot."
