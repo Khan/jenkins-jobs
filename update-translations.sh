@@ -91,6 +91,11 @@ grep -q 'intl/datastore:1' "$ALL_POT"
 echo "Translating fake languages."
 "$MAKE" i18n_mo
 
+for lang in `tools/list_candidate_active_languages.py` ; do
+    echo "Splitting $lang into $lang.datastore.po and $lang.rest.po"
+    split_po "$lang"
+done
+
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
