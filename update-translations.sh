@@ -67,6 +67,8 @@ for lang in `tools/list_candidate_active_languages.py` ; do
        --send-lint-reports \
        --export \
        $lang
+    echo "Splitting $lang into $lang.datastore.po and $lang.rest.po"
+    split_po "$lang"
 done
 
 echo "Creating a new, up-to-date all.pot."
@@ -88,14 +90,6 @@ grep -q 'intl/datastore:1' "$ALL_POT"
 
 echo "Translating fake languages."
 "$MAKE" i18n_mo
-
-echo "Splitting .po files"
-for lang in `ls -1 intl/translations/pofiles | sed 's/\..*//' | sort -u`; do
-    # Do not split empty.po, which is curated by hand.
-    if [ $lang != "empty" ]; then
-        split_po "$lang"
-    fi
-done
 
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
