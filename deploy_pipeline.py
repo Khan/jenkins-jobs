@@ -710,9 +710,11 @@ def manual_test(props):
     _alert(props,
            ("Here are some pages to manually test:<br>%s<br>"
             "Or open them all at once (cut-and-paste): "
-            "<b>tools/manual_webapp_testing.py %s</b>"
+            "<b>tools/manual_webapp_testing.py %s</b><br>"
+            "Also run end-to-end testing (cut-and-paste): "
+            "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
             % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
-               props['VERSION_NAME'])),
+               props['VERSION_NAME'], props['VERSION_NAME'])),
            html=True, prefix_with_username=False)
 
 
@@ -766,9 +768,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    ("While that's going on, manual-test on the live site!<br>"
                     "%s<br>\n"
                     "Or open them all at once (cut-and-paste): "
-                    "<b>tools/manual_webapp_testing.py %s</b>"
+                    "<b>tools/manual_webapp_testing.py %s</b><br>"
+                    "Also run end-to-end testing (cut-and-paste): "
+                    "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
                     % (manual_webapp_testing.list_with_links('default'),
-                       'default')),
+                       'default', 'default')),
                    html=True, prefix_with_username=False)
 
         deploy.set_default.monitor(monitoring_time, pre_monitoring_data,
