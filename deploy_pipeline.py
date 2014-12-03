@@ -334,7 +334,10 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
 
     Arguments:
         props: a map of property-name to value, stored with the lock.
-        jenkins_build_url: !!
+        jenkins_build_url: the 'build url' of the jenkins job trying
+           to acquire the lock.  (This is $BUILD_URL inside jenkins,
+           and looks something like
+           http://jenkins.khanacademy.org/job/testjob/723/).
         wait_sec: how many seconds to busy-wait for the lock to free up.
         notify_sec: while waiting for the lock, how often to ping
            hipchat that we're still waiting.
