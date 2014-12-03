@@ -319,7 +319,8 @@ def _update_properties(props, new_values):
     _write_properties(props)
 
 
-def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
+def acquire_deploy_lock(props, jenkins_build_url=None,
+                        wait_sec=3600, notify_sec=600):
     """Acquire the deploy lock (a directory in the jenkins workspace).
 
     The deploy lock holds information about who is doing the deploy,
@@ -333,6 +334,7 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
 
     Arguments:
         props: a map of property-name to value, stored with the lock.
+        jenkins_build_url: !!
         wait_sec: how many seconds to busy-wait for the lock to free up.
         notify_sec: while waiting for the lock, how often to ping
            hipchat that we're still waiting.
@@ -362,11 +364,17 @@ def acquire_deploy_lock(props, wait_sec=3600, notify_sec=600):
             # local to a single machine, which has a consistent timezone.
             props['LOCK_ACQUIRE_TIME'] = int(time.time())
             logging.info("Lockdir %s acquired." % lockdir)
+            msg = ""
             if done_first_alert:   # tell them they're no longer in line.
-                _alert(props,
-                       "Thank you for waiting! Starting deploy of branch %s."
-                       % props['GIT_REVISION'],
-                       color='green')
+                msg += "Thank you for waiting! "
+            msg += ("Starting deploy of branch %s.  I'll post to HipChat when "
+                    "both a) tests are done and b) the deploy is finished."
+                    % props['GIT_REVISION'])
+            if jenkins_build_url and props['AUTO_DEPLOY'] != 'true':
+                msg += ("  If you wish to cancel before then:\n"
+                        "(failed) abort: %s/stop"
+                        % jenkins_build_url.rstrip('/'))
+            _alert(props, msg, color='green')
             return
 
         if not done_first_alert:
@@ -732,7 +740,6 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         emitted a hipchat message telling the user to click on a link
         to take us to the next step, or because set-default failed and
         was successfully auto-rolled back.
-
     """
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
@@ -962,7 +969,6 @@ def main(action, lockdir, acquire_lock_args=(),
     specified as a list of the arguments to _create_properties().
 
     monitoring_time is ignored except by set_default.
-    jenkins_build_url is ignored except by set_default (for the moment).
 
     caller_email is ignored except by finish-with-unlock (and also
     if we can't acquire the lock).
@@ -1040,7 +1046,7 @@ def main(action, lockdir, acquire_lock_args=(),
 
     try:
         if action == 'acquire-lock':
-            acquire_deploy_lock(props)
+            acquire_deploy_lock(props, jenkins_build_url)
             _write_properties(props)
             _update_properties(props,
                                {'POSSIBLE_NEXT_STEPS': 'merge-from-master'})
@@ -1175,7 +1181,7 @@ if __name__ == '__main__':
                         default=10,
                         help=("How long to monitor in set-default, in "
                               "minutes (0 to disable monitoring)."))
-    # This is only used by set-default, but others *could* use it...
+    # This is used to cancel running jobs
     parser.add_argument('--jenkins-build-url',
                         help=("The url of the job that is calling this: "
                               "http://jenkins.khanacademy.org/job/testjob/723/"
