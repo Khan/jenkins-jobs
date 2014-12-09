@@ -579,7 +579,8 @@ def _tag_release(props):
     if not _pipe_command(['git', 'tag', '-l', tag_name]):
         _run_command(
             ['git', 'tag',
-             '-m', 'Deployed to appengine as %s' % props['VERSION_NAME'],
+             '-m',
+             'Deployed to appengine from branch %s' % props['GIT_REVISION'],
              tag_name,
              props['GIT_SHA1']])
 
