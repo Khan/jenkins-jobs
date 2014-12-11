@@ -30,6 +30,7 @@ fi
 : ${MODULES:=}          # --modules: if set, a comma-separated list to deploy
 : ${SKIP_TESTS:=false}  # --no-tests: set to "true" to append --no-tests
 : ${SKIP_I18N:=false}   # --no-i18n: set to "true" to append --no-i18n
+: ${FORCE:=false}       # --force: deploy unconditionally
 : ${PRIME:=false}       # --force-priming: set to "true" to append
 : ${SUBMODULE_REVERTS:=false}  # --allow-submodule-reverts: "true" to append
 : ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
@@ -63,6 +64,7 @@ DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
 [ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
+[ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
 [ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
 [ "$SUBMODULE_REVERTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --allow-submodule-reverts"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
