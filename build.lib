@@ -38,8 +38,8 @@ SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 # Sanity check that we're in the right place, the working directory
 # above the website source directory.
 
-if [ ! -d "$WEBSITE_ROOT" ]; then
-    echo "Website root \"$WEBSITE_ROOT\" not found"
+if [ ! -d "$WORKSPACE_ROOT/../workspace" -o ! -d "$WORKSPACE_ROOT/../builds"]; then
+    echo "`readlink -f $WORKSPACE_ROOT` does not seem to be a workspace"
     exit 1
 fi
 
