@@ -174,7 +174,8 @@ def _gae_version(git_revision):
                      '.', 'origin/%s' % git_revision],
                     failure_ok=True):
         _run_command(['git', 'fetch', 'origin',
-                      '+%s:origin/%s' % (git_revision, git_revision)])
+                      '+refs/heads/%s:refs/remotes/origin/%s'
+                      % (git_revision, git_revision)])
     return deploy.deploy.Git(_WEBAPP_ROOT).dated_current_git_version(
         'origin/%s' % git_revision)
 
@@ -511,7 +512,8 @@ def merge_from_master(props):
                          "from master")
 
     # Make sure our local 'master' matches the remote.
-    _run_command(['git', 'fetch', 'origin', '+master:origin/master'])
+    _run_command(['git', 'fetch', 'origin',
+                  '+refs/heads/master:refs/remotes/origin/master'])
     _run_command(['git', 'checkout', 'master'])
     _run_command(['git', 'reset', '--hard', 'origin/master'])
 
@@ -527,7 +529,8 @@ def merge_from_master(props):
                      '.', 'origin/%s' % git_revision],
                     failure_ok=True):
         _run_command(['git', 'fetch', 'origin',
-                      '+%s:origin/%s' % (git_revision, git_revision)])
+                      '+refs/heads/%s:refs/remotes/origin/%s'
+                      % (git_revision, git_revision)])
         _run_command(['git', 'checkout', git_revision])
         _run_command(['git', 'reset', '--hard', 'origin/%s' % git_revision])
     else:
@@ -630,7 +633,8 @@ def merge_to_master(props):
     # local (jenkins) master to commit X, but subsequent commits have
     # moved the remote (github) version of master to commit Y.  It
     # also makes sure the ref exists locally, so we can do the merge.
-    _run_command(['git', 'fetch', 'origin', '+master:origin/master'])
+    _run_command(['git', 'fetch', 'origin',
+                  '+refs/heads/master:refs/remotes/origin/master'])
     _run_command(['git', 'checkout', 'master'])
     _run_command(['git', 'reset', '--hard', 'origin/master'])
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
