@@ -180,6 +180,7 @@ _safe_destructive_checkout() {
 
 # $* (optional): submodules to update.  If left out, update all submodules.
 #    If the string 'no_submodules', update no submodules.
+# NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
 _safe_update_subrepo() {
     if [ "$*" = "no_submodules" ]; then
         return
@@ -191,6 +192,10 @@ _safe_update_subrepo() {
 
     timeout 10m git submodule sync
     timeout 60m git submodule update --init --recursive -- "$@"
+
+    # Clear out untracked directories left behind when a submodule is
+    # removed.
+    timeout 10m git clean -ffd
 }
 
 # checks out the given commit-ish, fetching (or cloning) first.
