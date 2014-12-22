@@ -36,11 +36,14 @@ SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 
 
 # Sanity check that we're in the right place, the working directory
-# above the website source directory.
+# above the website source directory.  This is hard to do in general
+# -- the make-check-worker workspace, in particular, doesn't look like
+# any of the others -- so we try to catch the most common error, that
+# we're inside some git repo or another.
 
-if [ ! -d "$WORKSPACE_ROOT/../workspace" -o ! -d "$WORKSPACE_ROOT/../builds" ]
+if git rev-parse 2>/dev/null; then
 then
-    echo "`readlink -f $WORKSPACE_ROOT` does not seem to be a workspace"
+    echo "`readlink -f $WORKSPACE_ROOT` is a git repo, not the workspace dir"
     exit 1
 fi
 
