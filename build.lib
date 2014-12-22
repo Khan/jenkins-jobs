@@ -42,7 +42,6 @@ SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 # we're inside some git repo or another.
 
 if git rev-parse 2>/dev/null; then
-then
     echo "`readlink -f $WORKSPACE_ROOT` is a git repo, not the workspace dir"
     exit 1
 fi
