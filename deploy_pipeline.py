@@ -174,9 +174,9 @@ def _gae_version(git_revision):
                      '.', 'origin/%s' % git_revision],
                     failure_ok=True):
         _run_command(['git', 'fetch', 'origin',
-                      '+%s:%s' % (git_revision, git_revision)])
+                      '+%s:origin/%s' % (git_revision, git_revision)])
     return deploy.deploy.Git(_WEBAPP_ROOT).dated_current_git_version(
-        git_revision)
+        'origin/%s' % git_revision)
 
 
 def _current_gae_version():
@@ -510,6 +510,11 @@ def merge_from_master(props):
         raise ValueError("You must deploy from a branch, you can't deploy "
                          "from master")
 
+    # Make sure our local 'master' matches the remote.
+    _run_command(['git', 'fetch', 'origin', '+master:origin/master'])
+    _run_command(['git', 'checkout', 'master'])
+    _run_command(['git', 'reset', '--hard', 'origin/master'])
+
     # Set our local branch to be the same as the origin branch.  This
     # is needed in cases when a previous deploy set the local (jenkins)
     # branch to commit X, but subsequent commits have moved the remote
@@ -522,11 +527,11 @@ def merge_from_master(props):
                      '.', 'origin/%s' % git_revision],
                     failure_ok=True):
         _run_command(['git', 'fetch', 'origin',
-                      '+%s:%s' % (git_revision, git_revision)])
-    _run_command(['git', 'checkout', git_revision])
-
-    # Also make sure our local 'master' matches the remote.
-    _run_command(['git', 'fetch', 'origin', '+master:master'])
+                      '+%s:origin/%s' % (git_revision, git_revision)])
+        _run_command(['git', 'checkout', git_revision])
+        _run_command(['git', 'reset', '--hard', 'origin/%s' % git_revision])
+    else:
+        _run_command(['git', 'checkout', git_revision])
 
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
     master_commit = _pipe_command(['git', 'rev-parse', 'master'])
@@ -625,8 +630,9 @@ def merge_to_master(props):
     # local (jenkins) master to commit X, but subsequent commits have
     # moved the remote (github) version of master to commit Y.  It
     # also makes sure the ref exists locally, so we can do the merge.
-    _run_command(['git', 'fetch', 'origin', '+master:master'])
+    _run_command(['git', 'fetch', 'origin', '+master:origin/master'])
     _run_command(['git', 'checkout', 'master'])
+    _run_command(['git', 'reset', '--hard', 'origin/master'])
     head_commit = _pipe_command(['git', 'rev-parse', 'HEAD'])
 
     # The merge exits with rc > 0 if there were conflicts
