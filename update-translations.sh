@@ -43,10 +43,8 @@ split_po() {
 export FORCE_COMMIT=1
 
 echo "Updating the repo storing historical data (old translations repo)"
-DATA_REPO=git@github.com:Khan/webapp-i18n-data
+safe_sync_to "git@github.com:Khan/webapp-i18n-data" master
 DATA_REPO_DIR=`pwd`/webapp-i18n-data
-[ -d "$DATA_REPO_DIR" ] && safe_pull "$DATA_REPO_DIR" \
-   || git clone "$DATA_REPO" "$DATA_REPO_DIR"
 mkdir -p "$DATA_REPO_DIR"/upload_to_crowdin
 mkdir -p "$DATA_REPO_DIR"/download_from_crowdin
 

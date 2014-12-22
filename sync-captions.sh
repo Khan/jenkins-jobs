@@ -17,11 +17,8 @@ export FORCE_COMMIT=1
 error=""
 
 echo "Updating the repo holding historical data (old translations repo)"
-echo "Updating the repo storing historical data (old translations repo)"
-DATA_REPO=git@github.com:Khan/webapp-i18n-data
+safe_sync_to "git@github.com:Khan/webapp-i18n-data" master
 DATA_REPO_DIR=`pwd`/webapp-i18n-data
-[ -d "$DATA_REPO_DIR" ] && safe_pull "$DATA_REPO_DIR" \
-   || git clone "$DATA_REPO" "$DATA_REPO_DIR"
 
 prof_incoming="$DATA_REPO_DIR/captions/professional_incoming/"
 incoming="$DATA_REPO_DIR/captions/incoming/"
