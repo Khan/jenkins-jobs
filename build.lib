@@ -1,3 +1,4 @@
+#!/bin/sh
 # This shell script library sets variables and supplies functions shared
 # between continuous integration build scripts.  It is intended to be
 # loaded, e.g.,  by scripts that are run by the Jenkins CI server.  The
@@ -155,66 +156,141 @@ alert() {
 
 ## Some Git utilities
 
+# Call this from within the repo that you want to do the fetching.
+_safe_fetch() {
+    timeout 60m git fetch --tags --progress origin
+}
+
+# $1: the branch we're in.  We assume this branch also exists on the remote.
+_safe_rebase() {
+    timeout 10m git rebase "origin/$1" || {
+        timeout 10m git rebase --abort
+        exit 1
+    }
+}
+
+# $1: the commit-ish to check out to.
+# NOTE: this does a bunch of 'git reset --hard's.  Do not call this
+# if you have stuff you want to commit.
+_safe_destructive_checkout() {
+    timeout 10m git reset --hard
+    timeout 10m git checkout "$1"
+    timeout 10m git reset --hard
+}
+
+# $* (optional): submodules to update.  If left out, update all submodules.
+#    If the string 'no_submodules', update no submodules.
+_safe_update_subrepo() {
+    if [ "$*" = "no_submodules" ]; then
+        return
+    fi
+    # If we ourselves are a submodule, we don't have any submodules to update.
+    if git rev-parse --git-dir | fgrep -q .git/modules; then
+        return
+    fi
+
+    timeout 10m git submodule sync
+    timeout 60m git submodule update --init --recursive -- "$@"
+}
+
+# checks out the given commit-ish, fetching (or cloning) first.
+# The repo is always checked out under $WORKSPACE_ROOT and there
+# is no way to specially set the directory name.
+# $1: repo to clone
+# $2: commit-ish to check out at.  If necessary, does a pull from
+#     origin first.
+# $3+ (optional): submodules to update to that commit as well.  If
+#     left out, update all submodules.  If the string 'no_submodules',
+#     update no submodules.
+safe_sync_to() {
+    repo="$1"
+    shift
+    commit="$1"
+    shift
+    (
+    dirname="$WORKSPACE_ROOT/`basename "$repo"`"
+    if [ -d "$dirname" ]; then
+        cd "$dirname"
+        _safe_fetch
+    else
+        cd "$WORKSPACE_ROOT"
+        timeout 60m git clone "$repo"
+        cd "$dirname"
+    fi
+
+    _safe_destructive_checkout "$commit"
+
+    # Merge from origin if need be.
+    if timeout 10m git ls-remote -h origin | grep -q "refs/heads/$commit"'$'
+    then
+        _safe_rebase "$commit"
+    fi
+
+    _safe_update_subrepo "$@"
+    )
+}
+
 # $1: directory to run the pull in (can be in a sub-repo)
+# $2+ (optional): submodules to pull as well.  If left out, update all
+#     submodules.  If the string 'no_submodules', update no submodules.
 # NOTE: this does a git reset, and always changes the branch to master!
+# It also always inits and updates all subrepos.
 safe_pull() {
+    (
     cd "$1"
-    git reset --hard
-    git checkout master
-    git reset --hard
-    git pull --rebase origin master || { git rebase --abort; exit 1; }
-    # Don't try to update submodule if we are ourselves a submodule.
-    [ -f "`git rev-parse --show-toplevel`/.git" ] || \
-        git submodule update --init --recursive
-    cd -
+    shift
+    _safe_destructive_checkout "master"
+    _safe_fetch
+    _safe_rebase "master"
+    _safe_update_subrepo "$@"
+    )
 }
 
 # $1: directory to run the push in (can be in a sub-repo)
+# NOTE: you must be checked out at 'master' to call safe_push.
 safe_push() {
+    (
     cd "$1"
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
-    git pull --rebase origin master || {
-        git rebase --abort
-        git reset --hard HEAD^
+    _safe_fetch
+    _safe_rebase master || {
+        timeout 10m git reset --hard HEAD^
         exit 1
     }
-    git push origin master || {
-        git reset --hard HEAD^
+    timeout 60m git push origin master || {
+        timeout 10m git reset --hard HEAD^
         exit 1
     }
-    cd -
-}
-
-# $1 is the directory holding the subrepo to update (no trailing slash!)
-safe_subrepo_update() {
-    git checkout master
-    git add "$1"
-    if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
-        echo "No need to update substate for $1: no new content created"
-    else
-        git commit -m "$1 substate [auto]"
-        safe_push .
-    fi
+    )
 }
 
 # $1: the directory to commit in (can be in a sub-repo)
-# $2+: arguments to 'git commit' (don't need to specify -a)
+# $2+: arguments to 'git commit' (we add '-a' automatically)
 # NOTE: This 'git add's all new files in the commit-directory.
 safe_commit_and_push() {
     dir="$1"
     shift
+    (
     cd "$dir"
     if [ -z "$(git status --porcelain | head -n 1)" ]; then
         echo "No changes, skipping commit"
     else
-        git add .
-        git commit -a "$@"
+        timeout 10m git add .
+        timeout 10m git commit -a "$@"
     fi
-    cd -
+    )
     safe_push "$dir"
-    # If .git is a file and not a directory, we're a subrepo
-    if [ -f "$dir/.git" ]; then
-      safe_subrepo_update "$dir"
+
+    # If dir was a submodule, update the main repo's pointer to the submodule.
+    if git -C "$dir" rev-parse --git-dir | fgrep -q .git/modules; then
+        timeout 10m git checkout master
+        timeout 10m git add "$1"
+        if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
+            echo "No need to update substate for $1: no new content created"
+        else
+            timeout 10m git commit -m "$1 substate [auto]"
+            safe_push .
+        fi
     fi
 }
