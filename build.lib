@@ -292,11 +292,11 @@ safe_commit_and_push() {
     # If dir was a submodule, update the main repo's pointer to the submodule.
     if git -C "$dir" rev-parse --git-dir | fgrep -q .git/modules; then
         timeout 10m git checkout master
-        timeout 10m git add "$1"
+        timeout 10m git add "$dir"
         if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
-            echo "No need to update substate for $1: no new content created"
+            echo "No need to update substate for $dir: no new content created"
         else
-            timeout 10m git commit -m "$1 substate [auto]"
+            timeout 10m git commit -m "$dir substate [auto]"
             safe_push .
         fi
     fi
