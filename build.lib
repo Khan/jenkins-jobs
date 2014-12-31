@@ -196,6 +196,10 @@ _safe_update_subrepo() {
     timeout 10m git submodule sync
     timeout 60m git submodule update --init --recursive -- "$@"
 
+    # Clear out untracked directories left behind when a submodule
+    # changes its directory structure.
+    timeout 10m git submodule foreach git clean -ffd
+
     # Clear out untracked directories left behind when a submodule is
     # removed.
     timeout 10m git clean -ffd
@@ -241,7 +245,7 @@ safe_sync_to() {
 # $2+ (optional): submodules to pull as well.  If left out, update all
 #     submodules.  If the string 'no_submodules', update no submodules.
 # NOTE: this does a git reset, and always changes the branch to master!
-# It also always inits and updates all subrepos.
+# It also always inits and updates listed subrepos.
 safe_pull() {
     (
     cd "$1"
