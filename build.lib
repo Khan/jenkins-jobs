@@ -239,14 +239,6 @@ _safe_update_subrepo() {
               [ -d "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
           done
       else
-          # We have to use 'foreach', rather than just using "$@"
-          # explicitly, in case "$@" is a directory rather than a submodule.
-          git submodule foreach \
-              'if expr [ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
-
-
-          for path in "$@"; do
-      else
           git submodule foreach \
               '[ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
       fi
