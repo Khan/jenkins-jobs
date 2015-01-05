@@ -164,8 +164,8 @@ alert() {
 _safe_fetch() {
     # We use flock to protect against two clients trying to fetch in
     # the same dir at the same time.  This is because different
-    # clients will both, in the end, be fetching into $REPOS_DIR.
-    flock_file="`git rev-parse --git-dir`/flock.fetch"
+    # clients will both, in the end, be fetching into $REPOS_ROOT.
+    flock_file="$REPOS_ROOT/`git config remote.origin.url | xargs basename`/flock.fetch"
     flock -w 3630 "$flock_file" timeout 60m git fetch --tags --progress origin
 }
 
@@ -205,10 +205,10 @@ _safe_update_subrepo() {
     # support git submodule --init).  We then need to fetch and update
     # all submodules as well.  We make sure we own the fetch lock for
     # all of this.
-    flock_file="`git rev-parse --git-dir`/flock.fetch"
+    flock_file="$REPOS_ROOT/`git config remote.origin.url | xargs basename`/flock.fetch"
     repo_dir="`pwd`"
     ( flock 9        # use fd 9 for locking (see the end of this paren)
-      # Get to the shared repo (inside $REPOS_DIR).  We follow the
+      # Get to the shared repo (inside $REPOS_ROOT).  We follow the
       # existing symlinks inside main_repo/.git/ to get there.
       cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
       timeout 10m git submodule sync
