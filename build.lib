@@ -188,7 +188,8 @@ _safe_destructive_checkout() {
 }
 
 # $* (optional): submodules to update.  If left out, update all submodules.
-#    If the string 'no_submodules', update no submodules.
+#    If the string 'no_submodules', update no submodules.  Can be a
+#    directory, in which case we update all submodules under that dir.
 # NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
 _safe_update_subrepo() {
     if [ "$*" = "no_submodules" ]; then
@@ -224,9 +225,27 @@ _safe_update_subrepo() {
       # Now make sure every requested sub-repo exists in our workspace.
       # If not, create it.
       if [ -n "$*" ]; then      # explicitly listed subrepos
-          for path in "$@"; do
+          all_submodules="`git submodule foreach -q 'echo $path'`"
+          paths=""
+          for arg in "$@"; do
+              for path in $all_submodules; do
+                  # This captures the case the arg is a dir, not a path.
+                  if [ "$path" = "$arg" ] || expr $path : ^$arg/ >/dev/null; then
+                      paths="$paths$path "
+                  fi
+              done
+          done
+          for path in `echo "$paths" | tr " " "\012" | sort -u`; do
               [ -d "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
           done
+      else
+          # We have to use 'foreach', rather than just using "$@"
+          # explicitly, in case "$@" is a directory rather than a submodule.
+          git submodule foreach \
+              'if expr [ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
+
+
+          for path in "$@"; do
       else
           git submodule foreach \
               '[ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
