@@ -236,7 +236,7 @@ _safe_update_subrepo() {
               done
           done
           for path in `echo "$paths" | tr " " "\012" | sort -u`; do
-              [ -d "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
+              [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
           done
       else
           git submodule foreach \
