@@ -16,6 +16,7 @@
 
 # Paths:
 : ${APPENGINE_ROOT:=/usr/local/google_appengine}
+: ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
 : ${WORKSPACE_ROOT:=.}
 : ${WEBSITE_ROOT:=$WORKSPACE_ROOT/webapp}
 : ${VIRTUALENV_ROOT:=$WORKSPACE_ROOT/env}
@@ -135,7 +136,7 @@ decrypt_secrets_py_and_add_to_pythonpath() {
 }
 
 # ubuntu defines its own alert by default, that we don't care about.
-if type alert >/dev/null; then unalias alert; fi
+if type alert >/dev/null; then unalias alert 2>/dev/null; fi
 
 # Send an alert to hipchat and the logs.  Decrypts secrets if necessary.
 # The alertlib subrepo in webapp must be checked out for this to work.
@@ -161,7 +162,11 @@ alert() {
 
 # Call this from within the repo that you want to do the fetching.
 _safe_fetch() {
-    timeout 60m git fetch --tags --progress origin
+    # We use flock to protect against two clients trying to fetch in
+    # the same dir at the same time.  This is because different
+    # clients will both, in the end, be fetching into $REPOS_DIR.
+    flock_file="`git rev-parse --git-dir`/flock.fetch"
+    flock -w 3630 "$flock_file" timeout 60m git fetch --tags --progress origin
 }
 
 # $1: the branch we're in.  We assume this branch also exists on the remote.
@@ -176,6 +181,7 @@ _safe_rebase() {
 # NOTE: this does a bunch of 'git reset --hard's.  Do not call this
 # if you have stuff you want to commit.
 _safe_destructive_checkout() {
+    # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
     timeout 10m git reset --hard
     timeout 10m git checkout "$1"
     timeout 10m git reset --hard
@@ -193,16 +199,42 @@ _safe_update_subrepo() {
         return
     fi
 
-    timeout 10m git submodule sync
-    timeout 60m git submodule update --init --recursive -- "$@"
+    # This is tricky because we need to manually init each new subrepo
+    # by running git new-workdir on them (git new-workdir doesn't
+    # support git submodule --init).  We then need to fetch and update
+    # all submodules as well.  We make sure we own the fetch lock for
+    # all of this.
+    flock_file="`git rev-parse --git-dir`/flock.fetch"
+    repo_dir="`pwd`"
+    ( flock 9        # use fd 9 for locking (see the end of this paren)
+      # Get to the shared repo (inside $REPOS_DIR).  We follow the
+      # existing symlinks inside main_repo/.git/ to get there.
+      cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
+      timeout 10m git submodule sync
+      timeout 60m git submodule update --init --recursive -- "$@"
 
-    # Clear out untracked directories left behind when a submodule
-    # changes its directory structure.
-    timeout 10m git submodule foreach git clean -ffd
+      # Clear out untracked directories left behind when a submodule
+      # changes its directory structure.
+      timeout 10m git submodule foreach git clean -ffd
 
-    # Clear out untracked directories left behind when a submodule is
-    # removed.
-    timeout 10m git clean -ffd
+      # Clear out untracked directories left behind when a submodule is
+      # removed.
+      timeout 10m git clean -ffd
+
+      # Now make sure every requested sub-repo exists in our workspace.
+      # If not, create it.
+      if [ -n "$*" ]; then      # explicitly listed subrepos
+          for path in "$@"; do
+              [ -d "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
+          done
+      else
+          git submodule foreach \
+              '[ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
+      fi
+    ) 9>"$flock_file"
+
+    # Finally, we need to fix the submodule HEADs in the workdir.
+    timeout 10m git submodule update -- "$@"
 }
 
 # checks out the given commit-ish, fetching (or cloning) first.
@@ -220,21 +252,28 @@ safe_sync_to() {
     commit="$1"
     shift
     (
-    dirname="$WORKSPACE_ROOT/`basename "$repo"`"
-    if [ -d "$dirname" ]; then
-        cd "$dirname"
+    repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
+    if [ -d "$repo_workspace" ]; then
+        cd "$repo_workspace"
         _safe_fetch
+        _safe_destructive_checkout "$commit"
+        # Merge from origin if need be.
+        if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
+            _safe_rebase "$commit"
+        fi
     else
-        cd "$WORKSPACE_ROOT"
-        timeout 60m git clone "$repo"
-        cd "$dirname"
-    fi
-
-    _safe_destructive_checkout "$commit"
-
-    # Merge from origin if need be.
-    if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
-        _safe_rebase "$commit"
+        # The git objects/etc live under REPOS_ROOT (all workspaces
+        # share the same objects).
+        repo_dir="$REPOS_ROOT/`basename "$repo"`"
+        # Clone or update into repo-dir, the canonical home.
+        if [ -d "$repo_dir" ]; then
+            ( cd "$repo_dir" && git pull )
+        else
+            timeout 60m git clone "$repo" "$repo_dir"
+        fi
+        # Now create our workspace!
+        timeout 10m git new-workdir "$repo_dir" "$repo_workspace" "$commit"
+        cd "$repo_workspace"
     fi
 
     _safe_update_subrepo "$@"
