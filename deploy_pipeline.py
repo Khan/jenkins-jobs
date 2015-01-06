@@ -540,6 +540,12 @@ def merge_from_master(props):
                       '+refs/heads/%s:refs/remotes/origin/%s'
                       % (git_revision, git_revision)])
         _run_command(['git', 'checkout', git_revision])
+        # In theory this command shouldn't be necessary given the 'git
+        # checkout' and 'git reset --hard', but we found it was
+        # sometimes; 'git checkout sat' wasn't auto-creating a local
+        # 'sat' branch for some reason.
+        _run_command(['git', 'update-ref', 'refs/heads/%s' % git_revision,
+                      'origin/%s' % git_revision])
         _run_command(['git', 'reset', '--hard', 'origin/%s' % git_revision])
     else:
         _run_command(['git', 'checkout', git_revision])
