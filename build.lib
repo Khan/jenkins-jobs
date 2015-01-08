@@ -274,10 +274,6 @@ safe_sync_to() {
         cd "$repo_workspace"
         _safe_fetch
         _safe_destructive_checkout "$commit"
-        # Merge from origin if need be.
-        if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
-            _safe_rebase "$commit"
-        fi
     else
         # The git objects/etc live under REPOS_ROOT (all workspaces
         # share the same objects).
@@ -293,6 +289,10 @@ safe_sync_to() {
         cd "$repo_workspace"
     fi
 
+    # Merge from origin if need be.
+    if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
+        _safe_rebase "$commit"
+    fi
     _safe_update_subrepo "$@"
     )
 }
