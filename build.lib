@@ -228,10 +228,11 @@ _safe_update_subrepo() {
       # removed.
       timeout 10m git clean -ffd
 
-      # Now make sure every requested sub-repo exists in our workspace.
-      # If not, create it.
+      # Now make sure every requested sub-repo exists in our
+      # workspace.  If not, create it.  We can't use 'git submodule
+      # foreach' because that only works on 'checked out' submodules.
+      all_submodules="`git submodule status | cut -d" " -f2`"
       if [ -n "$*" ]; then      # explicitly listed subrepos
-          all_submodules="`git submodule foreach -q 'echo $path'`"
           paths=""
           for arg in "$@"; do
               for path in $all_submodules; do
@@ -243,9 +244,7 @@ _safe_update_subrepo() {
           done
           submodules="`echo "$paths" | tr " " "\012" | sort -u`"
       else
-          # We can't use 'git submodule foreach' because that only
-          # works on 'checked out' submodules.
-          submodules="`git submodule status | cut -d" " -f2`"
+          submodules="$all_submodules"
       fi
       for path in $submodules; do
           [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
