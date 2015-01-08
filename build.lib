@@ -231,7 +231,7 @@ _safe_update_subrepo() {
       # Now make sure every requested sub-repo exists in our
       # workspace.  If not, create it.  We can't use 'git submodule
       # foreach' because that only works on 'checked out' submodules.
-      all_submodules="`git submodule status | cut -d" " -f2`"
+      all_submodules="`git submodule status | awk '{print $2}'`"
       if [ -n "$*" ]; then      # explicitly listed subrepos
           paths=""
           for arg in "$@"; do
