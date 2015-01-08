@@ -241,13 +241,15 @@ _safe_update_subrepo() {
                   fi
               done
           done
-          for path in `echo "$paths" | tr " " "\012" | sort -u`; do
-              [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
-          done
+          submodules="`echo "$paths" | tr " " "\012" | sort -u`"
       else
-          git submodule foreach \
-              '[ -f "'"$repo_dir"'/$path/.git" ] || git new-workdir "$toplevel/$path" "'"$repo_dir"'/$path"'
+          # We can't use 'git submodule foreach' because that only
+          # works on 'checked out' submodules.
+          submodules="`git submodule status | cut -d" " -f2`"
       fi
+      for path in $submodules; do
+          [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
+      done
     ) 9>"`_flock_file`"
 
     # Finally, we need to fix the submodule HEADs in the workdir.
