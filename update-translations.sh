@@ -42,11 +42,17 @@ split_po() {
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
-echo "Updating the repo storing historical data (old translations repo)"
-safe_sync_to "git@github.com:Khan/webapp-i18n-data" master
-DATA_REPO_DIR=`pwd`/webapp-i18n-data
-mkdir -p "$DATA_REPO_DIR"/upload_to_crowdin
-mkdir -p "$DATA_REPO_DIR"/download_from_crowdin
+echo "Checking status of dropbox"
+DATA_DIR=/mnt/dropbox/Dropbox/webapp-i18n-data
+
+# Start dropbox service if it is not running
+! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
+
+busy_wait_on_dropbox "$DATA_DIR"/upload_to_crowdin
+busy_wait_on_dropbox "$DATA_DIR"/download_from_crowdin
+busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
+
+echo "Dropbox folders are ready and fully synched"
 
 cd "$WEBSITE_ROOT"
 
@@ -57,11 +63,11 @@ safe_pull intl/translations
 
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
-    deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
-       --lint_log_file "$DATA_REPO_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
        --use_temps_for_linting \
-       --english-version-dir="$DATA_REPO_DIR"/upload_to_crowdin \
-       --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
+       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
        --send-lint-reports \
        --export \
        $lang
@@ -71,8 +77,8 @@ echo "Creating a new, up-to-date all.pot."
 # Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,
 # but we also want to keep a version in source control for debugging purposes.
 # TODO(csilvers): uncomment once we get popular_pages up and using bigquery.
-#tools/popular_pages.py --limit 10000 > "$DATA_REPO_DIR"/popular_urls
-cp -f "$DATA_REPO_DIR"/popular_urls /tmp/
+#tools/popular_pages.py --limit 10000 > "$DATA_DIR"/popular_urls
+cp -f "$DATA_DIR"/popular_urls /tmp/
 # By removing genfiles/extracted_strings/en/intl/datastore.pot.pickle,
 # we force compile_all_pot to re-fetch nltext datastore info from prod.
 rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
@@ -97,36 +103,25 @@ done
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
-echo "Checking it into crowdin repo"
-# Store a compressed version of all.po (github thinks the raw version
-# is too big.)
-gzip -9 < "$ALL_POT" > "$DATA_REPO_DIR"/all.pot.gz
-safe_commit_and_push "$DATA_REPO_DIR" \
-   -m "Automatic update of all.pot and download_from_crowdin/" \
-   -m "(at webapp commit `git rev-parse HEAD`)"
+cp "$ALL_POT" "$DATA_DIR"/all.pot
 
 echo "Uploading the new all.pot to crowdin."
-deploy/upload_i18n.py -v --save-temps="$DATA_REPO_DIR"/upload_to_crowdin/ \
+deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
    --use-temps-to-skip \
-   --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
-   --popular-urls="$DATA_REPO_DIR"/popular_urls \
+   --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+   --popular-urls="$DATA_DIR"/popular_urls \
    --pot-filename="$ALL_POT"
 
 echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
-deploy/download_i18n.py -v -s "$DATA_REPO_DIR"/download_from_crowdin/ \
-    --english-version-dir="$DATA_REPO_DIR"/upload_to_crowdin \
-    --crowdin-data-filename="$DATA_REPO_DIR"/crowdin_data.pickle \
+deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+    --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+    --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
     --export \
     --nolint \
     en-PT
 
 # Split up en-PT as well.
 split_po "en-PT"
-
-echo "Checking in any newly added strings to crowdin_data.pickle."
-safe_commit_and_push "$DATA_REPO_DIR" \
-   -m "Automatic update of crowdin_data.pickle and upload_to_crowdin/" \
-   -m "(at webapp commit `git rev-parse HEAD`)"
 
 echo "DONE with update-translations.sh"
 echo "Don't forget to run checkin-update-translations.sh to check this all in!"

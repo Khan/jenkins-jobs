@@ -365,3 +365,11 @@ safe_commit_and_push() {
         fi
     fi
 }
+
+busy_wait_on_dropbox() {
+    dir="$1"
+    while HOME=/mnt/dropbox dropbox.py filestatus "$dir" | grep -v "up to date" ; do
+       echo Waiting for "$dir" to be up to date
+       sleep 30
+    done
+}

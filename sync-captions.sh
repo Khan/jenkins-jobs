@@ -16,14 +16,18 @@ export FORCE_COMMIT=1
 # It's a string that keeps growing
 error=""
 
-echo "Updating the repo holding historical data (old translations repo)"
-safe_sync_to "git@github.com:Khan/webapp-i18n-data" master
-DATA_REPO_DIR=`pwd`/webapp-i18n-data
+echo "Checking status of dropbox holding historical data"
+DATA_DIR=/mnt/dropbox/Dropbox/webapp-i18n-data
 
-prof_incoming="$DATA_REPO_DIR/captions/professional_incoming/"
-incoming="$DATA_REPO_DIR/captions/incoming/"
-published="$DATA_REPO_DIR/captions/published/"
-published_prod="$DATA_REPO_DIR/captions/published_prod/"
+# Start dropbox service if it is not running
+! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
+
+prof_incoming="$DATA_DIR/captions/professional_incoming/"
+incoming="$DATA_DIR/captions/incoming/"
+published="$DATA_DIR/captions/published/"
+published_prod="$DATA_DIR/captions/published_prod/"
+
+busy_wait_on_dropbox "$DATA_DIR/captions/"
 
 # Flow is something like:
 # hired             Amara
@@ -48,26 +52,19 @@ published_prod="$DATA_REPO_DIR/captions/published_prod/"
 # [uptp] = 4
 echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
 
-amara_progress="$DATA_REPO_DIR/captions/amara_progress.json"
+amara_progress="$DATA_DIR/captions/amara_progress.json"
 
 tools="$WEBSITE_ROOT/tools"
 # --- The actual work:
-cd "$DATA_REPO_DIR"
+cd "$DATA_DIR"
 
 if [ "$SKIP_TO_STAGE" -le 0 ]; then
     echo "Pulling from dropbox"
+    # TODO(james): Share professional captions folder with jenkins account and
+    # delete this script.
     # If it exits with nonzero code, stop the script, fix it.
     # There is no meaningful partial progress.
-    "$tools/dropbox_sync_source.py" "$DATA_REPO_DIR/captions"
-
-    if [ -z "$(git status --porcelain | head -n 1)" ];
-    then
-        echo "No new files from dropbox"
-    else
-        safe_commit_and_push "$DATA_REPO_DIR" \
-            -m "Automatic commit of dropbox sync" \
-            -m "(at webapp commit $(git rev-parse HEAD))"
-    fi
+    "$tools/dropbox_sync_source.py" "$DATA_DIR/captions"
 fi
 
 if [ "$SKIP_TO_STAGE" -le 1 ]; then
@@ -88,9 +85,6 @@ if [ "$SKIP_TO_STAGE" -le 1 ]; then
                 mv "$prof_incoming/$locale/$file" "$incoming/$locale/"
             done;
         done;
-        safe_commit_and_push "$DATA_REPO_DIR" \
-            -m "Professional captions duly noted and moved to incoming" \
-            -m "(at webapp commit $(git rev-parse HEAD))"
     else
         echo "None found"
     fi
@@ -111,17 +105,7 @@ if [ "$SKIP_TO_STAGE" -le 2 ]; then
         echo "FAILED: Some problems exporting from Amara"
         error+="Error exporting from Amara\n"
     fi
-    if [ -z "$(git status --porcelain | head -n 1)" ];
-    then
-        echo "No changes at all from Amara"
-    else
-        # Even if it fails, it should have made some progress, save it
-        # git add captions
-        safe_commit_and_push "$DATA_REPO_DIR" \
-            -m "Automatic commit of Amara download" \
-            -m "(at webapp commit $(git rev-parse HEAD))" \
-            -m "$(cat $stats_file)"
-    fi
+    cat "$stats_file"
 fi
 
 if [ "$SKIP_TO_STAGE" -le 3 ]; then
@@ -138,15 +122,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
         echo "FAILED: There were some problems uploading to youtube"
         error+="Error uploading to youtube\n"
     fi
-    if [ -z "$(git status --porcelain | head -n 1)" ];
-    then
-        echo "No changes at all when uploading to youtube"
-    else
-        safe_commit_and_push "$DATA_REPO_DIR" \
-            -m "Automatic commit of Youtube upload" \
-            -m "(at webapp commit $(git rev-parse HEAD))" \
-            -m "$(cat $stats_file)";
-    fi
+    cat "$stats_file"
 fi
 
 if [ "$SKIP_TO_STAGE" -le 4 ]; then
@@ -161,15 +137,7 @@ if [ "$SKIP_TO_STAGE" -le 4 ]; then
         echo "FAILED: Something went wrong when uploading to production"
         error+="Error uploading captions to production\n"
     fi
-    if [ -z "$(git status --porcelain | head -n 1)" ];
-    then
-        echo "No changes at all when uploading to production"
-    else
-        safe_commit_and_push "$DATA_REPO_DIR" \
-            -m "Automatic commit of upload to production" \
-            -m "(at webapp commit $(git rev-parse HEAD))" \
-            -m "$(cat $stats_file)";
-    fi
+    cat "$stats_file"
 fi
 
 if [ -n "$error" ]; then
