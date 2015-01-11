@@ -43,7 +43,7 @@ split_po() {
 export FORCE_COMMIT=1
 
 echo "Checking status of dropbox"
-DATA_DIR=/mnt/dropbox/Dropbox/webapp-i18n-data
+DATA_DIR=/mnt/dropbox/Dropbox\ \(Khan\ Academy\)/webapp-i18n-data
 
 # Start dropbox service if it is not running
 ! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
