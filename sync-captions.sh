@@ -17,7 +17,9 @@ export FORCE_COMMIT=1
 error=""
 
 echo "Checking status of dropbox holding historical data"
-DATA_DIR=/mnt/dropbox/Dropbox\ \(Khan\ Academy\)/webapp-i18n-data
+
+# dropbox.py doesn't like it when the directory is a symlink
+DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
 
 # Start dropbox service if it is not running
 ! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
