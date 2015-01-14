@@ -806,7 +806,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                        'default', 'default')),
                    html=True, prefix_with_username=False)
 
-        deploy.set_default.monitor(monitoring_time, pre_monitoring_data,
+        deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
+                                   pre_monitoring_data,
                                    hipchat_room=props['HIPCHAT_ROOM'])
 
     except deploy.set_default.MonitoringError, why:
