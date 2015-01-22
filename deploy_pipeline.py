@@ -386,7 +386,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
                        "is deploying, fix it by visiting "
                        "%s/job/deploy-finish/build, setting STATUS=unlock "
                        "and clicking 'Build'; then deploy again."
-                       % (jenkins_build_url or '').rstrip('/'))
+                       % (props['JENKINS_URL'].rstrip('/')))
         if not done_first_alert:
             _alert(props,
                    "You're next in line to deploy! (branch %s.) "
