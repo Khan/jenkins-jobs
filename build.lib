@@ -220,7 +220,8 @@ _safe_update_subrepo() {
       # Get to the shared repo (inside $REPOS_ROOT).  We follow the
       # existing symlinks inside main_repo/.git/ to get there.
       cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
-      timeout 10m git checkout "$commit"   # to pick up new submodules
+
+      _safe_destructive_checkout "$commit"   # to pick up new submodules
 
       timeout 10m git submodule sync
       timeout 60m git submodule update --init --recursive -- "$@"
@@ -234,7 +235,7 @@ _safe_update_subrepo() {
       # removed.
       timeout 10m git clean -ffd
 
-      timeout 10m git checkout -
+      _safe_destructive_checkout "-"   # undo the checkout we did above
 
       # Now make sure every requested sub-repo exists in our
       # workspace.  If not, create it.  We can't use 'git submodule
