@@ -194,11 +194,14 @@ _safe_destructive_checkout() {
     timeout 10m git reset --hard
 }
 
-# $* (optional): submodules to update.  If left out, update all submodules.
+# $1: the commit-ish to update submodules at.
+# $2+ (optional): submodules to update.  If left out, update all submodules.
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
 # NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
 _safe_update_subrepo() {
+    commit="$1"
+    shift
     if [ "$*" = "no_submodules" ]; then
         return
     fi
@@ -217,8 +220,11 @@ _safe_update_subrepo() {
       # Get to the shared repo (inside $REPOS_ROOT).  We follow the
       # existing symlinks inside main_repo/.git/ to get there.
       cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
+      timeout 10m git checkout "$commit"   # to pick up new submodules
+
       timeout 10m git submodule sync
       timeout 60m git submodule update --init --recursive -- "$@"
+      all_submodules="`git submodule status | awk '{print $2}'`"
 
       # Clear out untracked directories left behind when a submodule
       # changes its directory structure.
@@ -228,10 +234,11 @@ _safe_update_subrepo() {
       # removed.
       timeout 10m git clean -ffd
 
+      timeout 10m git checkout -
+
       # Now make sure every requested sub-repo exists in our
       # workspace.  If not, create it.  We can't use 'git submodule
       # foreach' because that only works on 'checked out' submodules.
-      all_submodules="`git submodule status | awk '{print $2}'`"
       if [ -n "$*" ]; then      # explicitly listed subrepos
           paths=""
           for arg in "$@"; do
@@ -294,7 +301,7 @@ safe_sync_to() {
     if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
         _safe_rebase "$commit"
     fi
-    _safe_update_subrepo "$@"
+    _safe_update_subrepo "$commit" "$@"
     )
 }
 
@@ -310,7 +317,7 @@ safe_pull() {
     _safe_destructive_checkout "master"
     _safe_fetch
     _safe_rebase "master"
-    _safe_update_subrepo "$@"
+    _safe_update_subrepo "master" "$@"
     )
 }
 
