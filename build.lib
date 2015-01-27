@@ -194,14 +194,11 @@ _safe_destructive_checkout() {
     timeout 10m git reset --hard
 }
 
-# $1: the commit-ish to update submodules at.
-# $2+ (optional): submodules to update.  If left out, update all submodules.
+# $* (optional): submodules to update.  If left out, update all submodules.
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
 # NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
-_safe_update_subrepo() {
-    commit="$1"
-    shift
+_safe_update_submodules() {
     if [ "$*" = "no_submodules" ]; then
         return
     fi
@@ -210,54 +207,48 @@ _safe_update_subrepo() {
         return
     fi
 
-    # This is tricky because we need to manually init each new subrepo
-    # by running git new-workdir on them (git new-workdir doesn't
-    # support git submodule --init).  We then need to fetch and update
-    # all submodules as well.  We make sure we own the fetch lock for
-    # all of this.
-    repo_dir="`pwd`"
-    ( flock 9        # use fd 9 for locking (see the end of this paren)
-      # Get to the shared repo (inside $REPOS_ROOT).  We follow the
-      # existing symlinks inside main_repo/.git/ to get there.
-      cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
+    # It's not really safe to call git new-workdir on each submodule,
+    # since it doesn't deal well with submodules appearing and
+    # disappearing between branches.  So we hard-code a few of the big
+    # submodules that have been around a long time and aren't going
+    # anywhere, and use git new-workdir on those, and use 'normal'
+    # submodules for everything else.
+    new_workdir_repos=""
+    normal_repos="$*"
+    if [ -z "$normal_repos" ]; then        # means 'all the repos'
+        normal_repos="`git submodule status | awk '{print $2}'`"
+    fi
 
-      _safe_destructive_checkout "$commit"   # to pick up new submodules
+    if echo "$normal_repos" | grep -e intl -e intl/translations; then
+       new_workdir_repos="intl/translations $new_workdir_repos"
+       normal_repos="`echo $normal_repos | tr " " "\012" | grep -v intl`"
+    fi
+    if echo "$normal_repos" | grep -e khan-exercises; then
+       new_workdir_repos="khan-exercises $new_workdir_repos"
+       normal_repos="`echo $normal_repos | tr " " "\012" | grep -v khan-exercises`"
+    fi
 
-      timeout 10m git submodule sync
-      timeout 60m git submodule update --init --recursive -- "$@"
-      all_submodules="`git submodule status | awk '{print $2}'`"
+    # Handle the repos we (possibly) need to make workdirs for.
+    if [ -n "$new_workdir_repos" ]; then
+        repo_dir="`pwd`"
+        ( flock 9        # use fd 9 for locking (see the end of this paren)
+          # Get to the shared repo (inside $REPOS_ROOT).  We follow the
+          # existing symlinks inside main_repo/.git/ to get there.
+          cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
 
-      # Clear out untracked directories left behind when a submodule
-      # changes its directory structure.
-      timeout 10m git submodule foreach git clean -ffd
-
-      # Clear out untracked directories left behind when a submodule is
-      # removed.
-      timeout 10m git clean -ffd
-
-      _safe_destructive_checkout "-"   # undo the checkout we did above
-
-      # Now make sure every requested sub-repo exists in our
-      # workspace.  If not, create it.  We can't use 'git submodule
-      # foreach' because that only works on 'checked out' submodules.
-      if [ -n "$*" ]; then      # explicitly listed subrepos
-          paths=""
-          for arg in "$@"; do
-              for path in $all_submodules; do
-                  # This captures the case the arg is a dir, not a path.
-                  if [ "$path" = "$arg" ] || expr $path : ^$arg/ >/dev/null; then
-                      paths="$paths$path "
-                  fi
-              done
+          timeout 10m git submodule sync
+          timeout 60m git submodule update --init --recursive -- $new_workdir_repos
+          for path in $new_workdir_repos; do
+              [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
           done
-          submodules="`echo "$paths" | tr " " "\012" | sort -u`"
-      else
-          submodules="$all_submodules"
-      fi
-      for path in $submodules; do
-          [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
-      done
-    ) 9>"`_flock_file`"
+        ) 9>"`_flock_file`"
+    fi
+
+    # Now update the 'normal' repos.
+    if [ -n "$normal_repos" ]; then
+        timeout 10m git submodule sync
+        timeout 60m git submodule update --init --recursive -- $normal_repos
+    fi
 
     # Finally, we need to fix the submodule HEADs in the workdir.
     timeout 10m git submodule update -- "$@"
@@ -302,7 +293,7 @@ safe_sync_to() {
     if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
         _safe_rebase "$commit"
     fi
-    _safe_update_subrepo "$commit" "$@"
+    _safe_update_submodules "$@"
     )
 }
 
@@ -318,7 +309,7 @@ safe_pull() {
     _safe_destructive_checkout "master"
     _safe_fetch
     _safe_rebase "master"
-    _safe_update_subrepo "master" "$@"
+    _safe_update_submodules "$@"
     )
 }
 
