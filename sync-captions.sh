@@ -72,7 +72,7 @@ fi
 if [ "$SKIP_TO_STAGE" -le 1 ]; then
     echo "Looking for high quality captions"
     if [ -d "$prof_incoming" ] && \
-       [ -n "$(find $prof_incoming -type f | head -n 1)" ]
+       [ -n "$(find "$prof_incoming" -type f | head -n 1)" ]
     then
         # Note that `[ -n "" ]` returns false, so there's at least one caption
         # to process and `|head -n 1` prints the first line and closes,
