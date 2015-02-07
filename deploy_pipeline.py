@@ -385,7 +385,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
         recover_msg = ("If this is a mistake and you are sure nobody else "
                        "is deploying, fix it by visiting "
                        "%s/job/deploy-finish/build, setting STATUS=unlock "
-                       "and clicking 'Build'; then deploy again."
+                       "and clicking 'Build'."
                        % (props['JENKINS_URL'].rstrip('/')))
         if not done_first_alert:
             _alert(props,
