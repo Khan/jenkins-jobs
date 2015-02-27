@@ -728,9 +728,10 @@ def manual_test(props):
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
     _alert(props,
            "https://%s/ (branch %s) is uploaded to appengine! "
-           "Do some manual testing on it, then click to either:\n"
-           "(successful) set it as default: %s\n"
-           "(failed) abort the deploy: %s"
+           "Do some manual testing on it, then either:\n"
+           "(successful) set it as default: type 'sun, set default' or "
+           "visit %s\n"
+           "(failed) abort the deploy: type 'sun, abort' or visit %s"
            % (hostname, props['GIT_REVISION'],
               _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
               _finish_url(props, STATUS='failure', WHY='aborted')),
@@ -824,9 +825,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         else:
             _alert(props,
                    "(sadpanda) %s. "
-                   "Make sure everything is ok, then click one of these:\n"
-                   "(successful) finish up: %s\n"
-                   "(failed) abort and roll back: %s"
+                   "Make sure everything is ok, then:\n"
+                   "(successful) finish up: type 'sun, finish up' "
+                   "or visit %s\n"
+                   "(failed) abort and roll back: type 'sun, abort' "
+                   "or visit %s"
                    % (why,
                       _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
@@ -858,9 +861,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "Monitoring passed for the new default (%s)! "
                    "But you should double-check everything "
                    "is ok at https://www.khanacademy.org. "
-                   "Then click one of these:\n"
-                   "(successful) finish up: %s\n"
-                   "(failed) abort and roll back: %s"
+                   "Then:\n"
+                   "(successful) finish up: type 'sun, finish up' "
+                   "or visit %s\n"
+                   "(failed) abort and roll back: type 'sun, abort' "
+                   "or visit %s"
                    % (props['VERSION_NAME'],
                       _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
