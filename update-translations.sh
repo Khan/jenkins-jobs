@@ -19,8 +19,8 @@ decrypt_secrets_py_and_add_to_pythonpath
 # $1: the language to split (eg 'en-PT').
 split_po() {
     # Remove the old .rest.po and .datastore.po files.
-    rm "intl/translations/pofiles/$1.rest.po"
-    rm "intl/translations/pofiles/$1.datastore.po"
+    rm -f "intl/translations/pofiles/$1.rest.po"
+    rm -f "intl/translations/pofiles/$1.datastore.po"
 
     # Split the po-file into datastore only strings and all other strings.
     tools/split_po_files.py "intl/translations/pofiles/$1.po"
@@ -120,10 +120,10 @@ deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
     --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
     --export \
     --nolint \
-    en-PT
+    en-pt
 
 # Split up en-PT as well.
-split_po "en-PT"
+split_po "en-pt"
 
 echo "DONE with update-translations.sh"
 echo "Don't forget to run checkin-update-translations.sh to check this all in!"
