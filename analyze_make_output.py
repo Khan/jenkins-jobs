@@ -202,7 +202,12 @@ def report_jstest_failures(jstest_reports_file, hipchat_room):
                 m = re.match('Finished running \d+ tests, '
                              'with \d+ passes and (\d+) failures.', line)
                 assert m, line
-                num_errors = int(m.group(1))
+                num_errors += int(m.group(1))
+            elif line.startswith('Timeout: tests did not start'):
+                failures.append(line)
+                # Timeouts are ignored in the "Finished running x tests"
+                # reports, so we have to count these errors manually.
+                num_errors += 1
     _alert(hipchat_room, failures, 'JavaScript test', num_errors=num_errors)
     return num_errors
 
