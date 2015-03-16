@@ -109,6 +109,17 @@ echo "Deploying"
 decrypt_secrets_py_and_add_to_pythonpath
 cp -p "$SECRETS_DIR/secrets.py" .
 
+# Increase the the maximum number of open file descriptors.
+# This avoids failures that look like this:
+#
+#   [Errno 24] Too many open files:
+#
+# This is necessary because kake keeps a lockfile open for every file it's
+# compiling, and that can easily be thousands of files.
+#
+# 4096 appears to be the maximum value linux allows.
+ulimit -S -n 4096
+
 # Use eval to properly handle quotes in $DEPLOY_FLAGS
 eval python -u deploy/deploy.py $DEPLOY_FLAGS \
     "--email='$DEPLOY_EMAIL'" "--passin" <"$DEPLOY_PW_FILE"
