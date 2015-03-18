@@ -208,6 +208,11 @@ def report_jstest_failures(jstest_reports_file, hipchat_room):
                 # Timeouts are ignored in the "Finished running x tests"
                 # reports, so we have to count these errors manually.
                 num_errors += 1
+            elif line.startswith('PhantomJS has crashed.'):
+                failures.append(line)
+                # Crashes are ignored in the "Finished running x tests"
+                # reports, so we have to count these errors manually.
+                num_errors += 1
     _alert(hipchat_room, failures, 'JavaScript test', num_errors=num_errors)
     return num_errors
 
