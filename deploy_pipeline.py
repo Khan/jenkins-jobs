@@ -415,7 +415,8 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
     # Figure out where in the pipeline the previous job is, and
     # suggest a course of action based on that.
     next_steps = current_props['POSSIBLE_NEXT_STEPS'].split(',')
-    if 'merge-from-master' in next_steps or 'set-default' in next_steps:
+    if ('merge-from-master' in next_steps or 'manual-test' in next_steps or
+            'set-default' in next_steps):
         # They haven't set the default yet, so we can just fail.
         msg = ("(failed) cancel their deploy: %s"
                % _finish_url(current_props, STATUS='failure', WHY='aborted'))
