@@ -56,6 +56,10 @@ busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
 
 echo "Dropbox folders are ready and fully synched"
 
+echo "Updating the version of intl/translations that stores data as bigfiles"
+safe_sync_to "git@github.com:Khan/webapp-i18n-bigfile" master
+BIGFILE_REPO_DIR="$WORKSPACE_ROOT"/webapp-i18n-bigfile
+
 cd "$WEBSITE_ROOT"
 
 echo "Updating the webapp repo."
@@ -125,5 +129,13 @@ deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
 # Split up en-PT as well.
 split_po "en-pt"
 
-echo "DONE with update-translations.sh"
-echo "Don't forget to run checkin-update-translations.sh to check this all in!"
+echo "Checking in crowdin_stringids.pickle and pofiles/*.po"
+safe_commit_and_push intl/translations \
+   -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+   -m "(at webapp commit `git rev-parse HEAD`)"
+
+echo "Checking in a copy of those files to the bigfile repo as well"
+rsync -av intl/translations/* "$BIGFILE_REPO_DIR"/
+safe_commit_and_push "$BIGFILE_REPO_DIR"
+
+echo "DONE"

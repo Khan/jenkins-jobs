@@ -176,6 +176,17 @@ _safe_fetch() {
     flock -w 7230 "`_flock_file`" timeout 120m git fetch --tags --progress origin
 }
 
+# Call this from within the repo that you want to do the fetching.
+# You must do this *after* you've checked out the commit you want
+# to be at (which is why we can't have a separate fetch step here).
+# This pulls bigfiles in both the main repo and all subrepos.
+_safe_pull_bigfiles() {
+    # 'bigfile pull' stores the objects in a shared dir in
+    # $REPOS_ROOT, so we need the lock for this.
+    flock -w 7230 "`_flock_file`" timeout 120m git bigfile pull
+    flock -w 7230 "`_flock_file`" timeout 120m git submodule foreach git bigfile pull
+}
+
 # $1: the branch we're in.  We assume this branch also exists on the remote.
 _safe_rebase() {
     timeout 10m git rebase "origin/$1" || {
@@ -192,6 +203,7 @@ _safe_destructive_checkout() {
     timeout 10m git reset --hard
     timeout 10m git checkout "$1"
     timeout 10m git reset --hard
+    _safe_pull_bigfiles
 }
 
 # $* (optional): submodules to update.  If left out, update all submodules.
@@ -293,7 +305,11 @@ safe_sync_to() {
     if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
         _safe_rebase "$commit"
     fi
+
     _safe_update_submodules "$@"
+
+    # If we are using bigfiles, fetch any new ones from the server.
+    _safe_pull_bigfiles
     )
 }
 
@@ -310,6 +326,7 @@ safe_pull() {
     _safe_fetch
     _safe_rebase "master"
     _safe_update_submodules "$@"
+    _safe_pull_bigfiles
     )
 }
 
@@ -325,6 +342,8 @@ safe_push() {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
+    # If this repo uses bigfiles, we have to push them to S3 now, as well.
+    timeout 60m git bigfile push
     timeout 60m git push origin master || {
         timeout 10m git reset --hard HEAD^
         exit 1
