@@ -55,6 +55,9 @@ find "$JENKINS_TMPDIR" -mindepth 1 -maxdepth 1 -ctime +5 -print0 \
 
 export TMPDIR="$JENKINS_TMPDIR"
 export PATH="$VIRTUALENV_ROOT/bin:$PATH:$APPENGINE_ROOT"
+# I have no idea why this isn't the default, but...
+# (Needed for boto, used by git-bigfiles.)
+export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
 
 # Make sure we do the things a login shell normally does.
 . ~/.profile
