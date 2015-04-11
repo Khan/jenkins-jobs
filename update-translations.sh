@@ -136,6 +136,8 @@ safe_commit_and_push intl/translations \
 
 echo "Checking in a copy of those files to the bigfile repo as well"
 rsync -av intl/translations/* "$BIGFILE_REPO_DIR"/
-safe_commit_and_push "$BIGFILE_REPO_DIR"
+safe_commit_and_push "$BIGFILE_REPO_DIR" \
+   -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+   -m "(at webapp commit `git rev-parse HEAD`)"
 
 echo "DONE"
