@@ -115,6 +115,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
 
     stats_file=/var/tmp/khantube_stats.txt
     if "$tools/khantube.py" "$incoming" "$published" \
+        --youtube-ids-file=<( "$tools/get_video_list.py" ) \
         --data-file="$amara_progress" \
         --english-caption-dir="$published_prod" \
         --stats-file="$stats_file";
