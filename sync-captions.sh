@@ -28,6 +28,10 @@ prof_incoming="$DATA_DIR/captions/professional_incoming/"
 incoming="$DATA_DIR/captions/incoming/"
 published="$DATA_DIR/captions/published/"
 published_prod="$DATA_DIR/captions/published_prod/"
+video_list_path="$DATA_DIR/captions/video_list.txt"
+
+# Download a list of videos that exist in production
+"$tools/get_video_list.py" > "$video_list_path"
 
 busy_wait_on_dropbox "$DATA_DIR/captions/"
 
@@ -96,7 +100,7 @@ if [ "$SKIP_TO_STAGE" -le 2 ]; then
     echo "Downloading from Amara"
     stats_file=/var/tmp/amara_stats.txt
     if "$tools/amara_exporter.py" \
-        --youtube-ids-file=<( "$tools/get_video_list.py" ) \
+        --youtube-ids-file="$video_list_path" \
         --dest-dir="$incoming" \
         --version-file="$amara_progress" \
         --stats-file="$stats_file" \
@@ -115,7 +119,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
 
     stats_file=/var/tmp/khantube_stats.txt
     if "$tools/khantube.py" "$incoming" "$published" \
-        --youtube-ids-file=<( "$tools/get_video_list.py" ) \
+        --youtube-ids-file="$video_list_path" \
         --data-file="$amara_progress" \
         --english-caption-dir="$published_prod" \
         --stats-file="$stats_file";
@@ -133,7 +137,8 @@ if [ "$SKIP_TO_STAGE" -le 4 ]; then
     stats_file=/var/tmp/upload_to_prod_stats.txt
     if "$tools/upload_captions_to_production.py" \
         "$published" "$published_prod" 'https://www.khanacademy.org'\
-        --stats-file="$stats_file";
+        --stats-file="$stats_file" \
+        --youtube-ids-file="$video_list_path";
     then
         echo "Completed upload to prod"
     else
