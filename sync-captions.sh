@@ -31,7 +31,7 @@ published_prod="$DATA_DIR/captions/published_prod/"
 video_list_path="$DATA_DIR/captions/video_list.txt"
 
 # Download a list of videos that exist in production
-"$tools/get_video_list.py" > "$video_list_path"
+tools/get_video_list.py > "$video_list_path"
 
 busy_wait_on_dropbox "$DATA_DIR/captions/"
 
