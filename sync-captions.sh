@@ -30,8 +30,10 @@ published="$DATA_DIR/captions/published/"
 published_prod="$DATA_DIR/captions/published_prod/"
 video_list_path="$DATA_DIR/captions/video_list.txt"
 
+tools="$WEBSITE_ROOT/tools"
+
 # Download a list of videos that exist in production
-tools/get_video_list.py > "$video_list_path"
+"$tools/get_video_list.py" > "$video_list_path"
 
 busy_wait_on_dropbox "$DATA_DIR/captions/"
 
@@ -60,7 +62,7 @@ echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
 
 amara_progress="$DATA_DIR/captions/amara_progress.json"
 
-tools="$WEBSITE_ROOT/tools"
+
 # --- The actual work:
 cd "$DATA_DIR"
 
