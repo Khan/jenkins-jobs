@@ -48,6 +48,7 @@ import subprocess
 import sys
 import time
 import urllib
+import urllib2
 
 # This requires having secrets.py (or ka_secrets.py) on your PYTHONPATH!
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
@@ -84,14 +85,29 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
                       color=color, notify=True))
 
 
+def _safe_urlopen(*args, **kwargs):
+    """Does a urlopen with retries on error."""
+    num_tries = 0
+    while True:
+        try:
+            return urllib2.urlopen(*args, **kwargs)
+        except Exception:
+            num_tries += 1
+            if num_tries == 3:
+                raise
+            else:
+                logging.warning('url-fetch of %s %s failed, retrying...'
+                                % (args, kwargs))
+
+
 def _email_to_hipchat_name(email):
     """Given an email address, turn it into a @mention suitable for hipchat."""
     if email is None:
         return '<b>Unknown user:</b>'
     try:
         logging.info('Fetching email->hipchat mapping from hipchat')
-        r = urllib.urlopen('https://api.hipchat.com/v1/users/list'
-                           '?auth_token=%s' % ka_secrets.hipchat_deploy_token)
+        r = _safe_urlopen('https://api.hipchat.com/v1/users/list'
+                          '?auth_token=%s' % ka_secrets.hipchat_deploy_token)
         user_data = json.load(r)
         email_to_mention_name = {user['email']: '@%s' % user['mention_name']
                                  for user in user_data['users']}
@@ -183,7 +199,7 @@ def _gae_version(git_revision):
 
 def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
-    r = urllib.urlopen('http://www.khanacademy.org/api/internal/dev/version')
+    r = _safe_urlopen('http://www.khanacademy.org/api/internal/dev/version')
     version_dict = json.load(r)
     # The version-id is <major>.<minor>.  We just care about <major>.
     return version_dict['version_id'].split('.')[0]
