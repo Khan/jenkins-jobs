@@ -787,14 +787,18 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     # I do the deploy steps one at a time so I can intersperse some
     # hipchat mesasges.
+    did_priming = False
     try:
         pre_monitoring_data = deploy.set_default.get_predeploy_monitoring_data(
             monitoring_time)
 
+        logging.info("Priming 100 instances")
         deploy.set_default.prime(version=props['VERSION_NAME'],
                                  num_instances_to_prime=100,
                                  dry_run=_DRY_RUN)
+        did_priming = True
 
+        logging.info("Setting default")
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
             deploy.set_default.set_default(version=props['VERSION_NAME'],
                                            email=props['DEPLOY_EMAIL'],
@@ -860,13 +864,18 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    severity=logging.ERROR)
             raise
 
+        if did_priming:
+            priming_flag = '--no-priming '
+        else:
+            priming_flag = ''
+
         _alert(props,
                "(sadpanda) (sadpanda) set-default failed!  Either:\n"
                "(continue) Set the default to %s manually (by running "
-               "deploy/set_default.py %s), then release the deploy lock "
+               "deploy/set_default.py %s%s), then release the deploy lock "
                "via %s\n"
                "(failed) abort and roll back %s"
-               % (props['VERSION_NAME'], props['VERSION_NAME'],
+               % (props['VERSION_NAME'], priming_flag, props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
