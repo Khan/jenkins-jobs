@@ -189,8 +189,14 @@ _safe_fetch() {
 _safe_pull_bigfiles() {
     # 'bigfile pull' stores the objects in a shared dir in
     # $REPOS_ROOT, so we need the lock for this.
-    flock -w 7230 "`_flock_file`" timeout 120m git bigfile pull
-    flock -w 7230 "`_flock_file`" timeout 120m git submodule foreach git bigfile pull
+    ( flock 9        # use fd 9 for locking (see the end of this paren)
+      # First, clear up some space if need be by getting rid of old bigfiles.
+      timeout 120m find "$REPOS_ROOT"/*/.git/bigfile/objects \
+          -mtime +2 -type f -print0 \
+          | xargs -r0 rm
+      timeout 120m git bigfile pull
+      timeout 120m git submodule foreach git bigfile pull
+    ) 9>"`_flock_file`"
 }
 
 # $1: the branch we're in.  We assume this branch also exists on the remote.
