@@ -186,6 +186,7 @@ _safe_fetch() {
 # You must do this *after* you've checked out the commit you want
 # to be at (which is why we can't have a separate fetch step here).
 # This pulls bigfiles in both the main repo and all subrepos.
+# $1+ (optional): specific files to pull
 _safe_pull_bigfiles() {
     # 'bigfile pull' stores the objects in a shared dir in
     # $REPOS_ROOT, so we need the lock for this.
@@ -194,8 +195,8 @@ _safe_pull_bigfiles() {
       timeout 120m find "$REPOS_ROOT"/*/.git/bigfile/objects \
           -mtime +2 -type f -print0 \
           | xargs -r0 rm
-      timeout 120m git bigfile pull
-      timeout 120m git submodule foreach git bigfile pull
+      timeout 120m git bigfile pull "$@"
+      timeout 120m git submodule foreach git bigfile pull "$@"
     ) 9>"`_flock_file`"
 }
 
@@ -215,7 +216,9 @@ _safe_destructive_checkout() {
     timeout 10m git reset --hard
     timeout 10m git checkout "$1"
     timeout 10m git reset --hard
-    _safe_pull_bigfiles
+    # We could also do _safe_pull_bigfiles here to fetch any new
+    # bigfiles from the server, but since it's slow we just punt and
+    # make clients call it directly if interested.
 }
 
 # $* (optional): submodules to update.  If left out, update all submodules.
@@ -320,8 +323,9 @@ safe_sync_to() {
 
     _safe_update_submodules "$@"
 
-    # If we are using bigfiles, fetch any new ones from the server.
-    _safe_pull_bigfiles
+    # We could also do _safe_pull_bigfiles here to fetch any new
+    # bigfiles from the server, but since it's slow we just punt and
+    # make clients call it directly if interested.
     )
 }
 
@@ -338,7 +342,9 @@ safe_pull() {
     _safe_fetch
     _safe_rebase "master"
     _safe_update_submodules "$@"
-    _safe_pull_bigfiles
+    # We could also do _safe_pull_bigfiles here to fetch any new
+    # bigfiles from the server, but since it's slow we just punt and
+    # make clients call it directly if interested.
     )
 }
 
