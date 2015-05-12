@@ -99,13 +99,6 @@ grep -q 'intl/datastore:1' "$ALL_POT"
 echo "Translating fake languages."
 "$MAKE" i18n_mo
 
-echo "Splitting .po files"
-# Just look at the lang.po files, ignoring lang.rest.po/etc.
-langs=`ls -1 intl/translations/pofiles | sed -n 's/^\([^.]*\)\.po$/\1/p'`
-for lang in $langs; do
-    split_po "$lang"
-done
-
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
 
