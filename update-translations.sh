@@ -24,16 +24,6 @@ split_po() {
 
     # Split the po-file into datastore only strings and all other strings.
     tools/split_po_files.py "intl/translations/pofiles/$1.po"
-
-    # github has a limit of 100M per file.  We split up the .po files to
-    # stay under the limit.  For consistency with files that don't need
-    # to be split up at all (and to make all_locales_for_mo() happy), we
-    # don't give the first chunk an extension but do for subsequent chunks.
-    # (Same as how /var/log/syslog works.)
-    for p in intl/translations/pofiles/"$1".*.po; do
-        split --suffix-length=1 --line-bytes=95M --numeric-suffixes "$p" "$p."
-        mv -f "$p.0" "$p"
-    done
 }
 
 
@@ -98,6 +88,13 @@ grep -q 'intl/datastore:1' "$ALL_POT"
 
 echo "Translating fake languages."
 "$MAKE" i18n_mo
+
+echo "Splitting .po files"
+# Just look at the lang.po files, ignoring lang.rest.po/etc.
+langs=`ls -1 intl/translations/pofiles | sed -n 's/^\([^.]*\)\.po$/\1/p'`
+for lang in $langs; do
+    split_po "$lang"
+done
 
 echo "Done creating .po files:"
 ls -l intl/translations/pofiles/
