@@ -58,6 +58,9 @@ safe_pull .
 safe_pull intl/translations
 
 echo "Updating the list of graphie images."
+# find_graphie_images_in_items.js caches items here, so we create the directory
+# for it.
+mkdir -p genfiles/assessment_items
 node tools/find_graphie_images_in_items.js
 
 for lang in `tools/list_candidate_active_languages.py` ; do
