@@ -57,6 +57,9 @@ safe_pull .
 # We also make sure the translations sub-repo is up to date.
 safe_pull intl/translations
 
+echo "Updating the list of graphie images."
+node tools/find_graphie_images_in_items.js
+
 for lang in `tools/list_candidate_active_languages.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
