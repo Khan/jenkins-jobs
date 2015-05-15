@@ -112,7 +112,8 @@ deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
    --use-temps-to-skip \
    --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
    --popular-urls="$DATA_DIR"/popular_urls \
-   --pot-filename="$ALL_POT"
+   --pot-filename="$ALL_POT" \
+   --automatically_delete_html_files
 
 echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
 deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
