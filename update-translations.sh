@@ -107,6 +107,11 @@ ls -l intl/translations/pofiles/
 
 cp "$ALL_POT" "$DATA_DIR"/all.pot
 
+echo "Calculating word counts."
+"$MAKE" i18n_word_counts
+
+cp genfiles/i18nstats/word_counts.json intl/translations/word_counts.json
+
 echo "Uploading the new all.pot to crowdin."
 deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
    --use-temps-to-skip \
