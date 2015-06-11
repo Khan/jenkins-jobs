@@ -16,14 +16,23 @@ decrypt_secrets_py_and_add_to_pythonpath
 
 
 # After downloading a lang.po file from crowdin, splits it up like we want.
-# $1: the language to split (eg 'en-PT').
+# $1: the directory the contains the unsplit po file.
+# We split up the file in this way so compile_small_mo kake rule can run more 
+# quickly.
 split_po() {
-    # Remove the old .rest.po and .datastore.po files.
-    rm -f "intl/translations/pofiles/$1.rest.po"
-    rm -f "intl/translations/pofiles/$1.datastore.po"
+    # Just look at the lang.po files, ignoring lang.rest.po/etc.
+    langs=`ls -1 "$1" | sed -n 's/^\([^.]*\)\.po$/\1/p'`
+    for lang in $langs; do
+        # Remove the old .rest.po and .datastore.po files.
+        rm -f "$1/$lang.rest.po"
+        rm -f "$1/$lang.datastore.po"
 
-    # Split the po-file into datastore only strings and all other strings.
-    tools/split_po_files.py "intl/translations/pofiles/$1.po"
+        # Split the po-file into datastore only strings and all other strings.
+        tools/split_po_files.py "$1/$lang.po"
+    done
+
+    echo "Done creating .po files:"
+    ls -l "$1"
 }
 
 
@@ -75,6 +84,20 @@ for lang in `tools/list_candidate_active_languages.py` ; do
        $lang
 done
 
+# Now download the approved entries.
+for lang in `tools/list_candidate_active_languages.py` ; do
+    echo "Downloading the approved translations for $lang from crowdin."
+    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+       --use_temps_for_linting \
+       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+       --send-lint-reports \
+       --export \
+       --approved-only \
+       $lang
+done
+
 echo "Creating a new, up-to-date all.pot."
 # Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,
 # but we also want to keep a version in source control for debugging purposes.
@@ -96,14 +119,12 @@ echo "Translating fake languages."
 "$MAKE" i18n_mo
 
 echo "Splitting .po files"
-# Just look at the lang.po files, ignoring lang.rest.po/etc.
-langs=`ls -1 intl/translations/pofiles | sed -n 's/^\([^.]*\)\.po$/\1/p'`
-for lang in $langs; do
-    split_po "$lang"
-done
+TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/pofiles
+split_po "$TRANSLATIONS_DIR"
 
-echo "Done creating .po files:"
-ls -l intl/translations/pofiles/
+echo "Splitting approved .po files"
+APPROVED_TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/approved_pofiles
+split_po "$APPROVED_TRANSLATIONS_DIR"
 
 cp "$ALL_POT" "$DATA_DIR"/all.pot
 
@@ -128,10 +149,14 @@ deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
     --nolint \
     en-pt
 
-# Split up en-PT as well.
-split_po "en-pt"
+# Split up en-PT as well.  The other langs will be ignored since they have 
+# already been split up.
+split_po "$TRANSLATIONS_DIR" 
+# We don't bother redownloading en-pt for approved as it is a fake language and
+# so approval doesn't make sense.  So we just copy the po files on over.
+cp "$TRANSLATIONS_DIR"/en-pt\.* "$APPROVED_TRANSLATIONS_DIR"
 
-echo "Checking in crowdin_stringids.pickle and pofiles/*.po"
+echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 safe_commit_and_push intl/translations \
    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
    -m "(at webapp commit `git rev-parse HEAD`)"
