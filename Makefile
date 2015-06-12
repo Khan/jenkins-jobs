@@ -3,5 +3,5 @@ check:
 
 # The security model of the groovy script runner now requires that all
 # scripts be in a jar. The following task creates said jar.
-groovy:
-	jar cvf Cancel.jar CancelDownstream.groovy CancelSiblings.groovy
+Cancel.jar: CancelDownstream.groovy CancelSiblings.groovy
+   jar cvf "$@" $^
