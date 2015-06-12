@@ -214,8 +214,10 @@ _safe_rebase() {
 _safe_destructive_checkout() {
     # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
     timeout 10m git reset --hard
+    timeout 10m git submodule foreach git reset --hard
     timeout 10m git checkout "$1"
     timeout 10m git reset --hard
+    timeout 10m git submodule foreach git reset --hard
     # We could also do _safe_pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
     # make clients call it directly if interested.
