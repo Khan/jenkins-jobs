@@ -77,20 +77,7 @@ NEW_STATUS_FILE=intl/translations/new_status_file.json
 
 tools/crowdin/output_status.py > "$NEW_STATUS_FILE"
 
-for lang in `tools/crowdin/list_ka_locales_to_download.py \
-        "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
-    echo "Downloading the current translations for $lang from crowdin."
-    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-       --use_temps_for_linting \
-       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-       --send-lint-reports \
-       --export \
-       $lang
-done
-
-# Now download the approved entries.
+# Download the approved entries.
 for lang in `tools/crowdin/list_ka_locales_to_download.py --approved \
         "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
     echo "Downloading the approved translations for $lang from crowdin."
@@ -102,6 +89,21 @@ for lang in `tools/crowdin/list_ka_locales_to_download.py --approved \
        --send-lint-reports \
        --export \
        --approved-only \
+       $lang
+done
+
+# Now download approved entries regardless as to whether they have been 
+# approved.
+for lang in `tools/crowdin/list_ka_locales_to_download.py \
+        "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
+    echo "Downloading the current translations for $lang from crowdin."
+    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+       --use_temps_for_linting \
+       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+       --send-lint-reports \
+       --export \
        $lang
 done
 
