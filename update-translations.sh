@@ -92,8 +92,7 @@ for lang in `tools/crowdin/list_ka_locales_to_download.py --approved \
        $lang
 done
 
-# Now download approved entries regardless as to whether they have been 
-# approved.
+# Now download entries regardless as to whether they have been approved.
 for lang in `tools/crowdin/list_ka_locales_to_download.py \
         "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
     echo "Downloading the current translations for $lang from crowdin."
