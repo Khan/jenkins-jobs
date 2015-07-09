@@ -732,7 +732,8 @@ def _rollback_deploy(props):
         logging.exception('Auto-rollback failed')
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
-               "Roll back to %s manually by running: deploy/set_default.py %s"
+               "Roll back to %s manually by running: "
+               "deploy/set_default.py --no-priming -m0 %s"
                % (props['ROLLBACK_TO'], props['ROLLBACK_TO']),
                severity=logging.CRITICAL)
         return False
