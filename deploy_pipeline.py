@@ -62,6 +62,7 @@ import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
 
 import deploy.deploy
+import deploy.rollback
 import deploy.set_default
 import ka_secrets             # for (optional) email->hipchat
 from tools import manual_webapp_testing
@@ -692,32 +693,34 @@ def _rollback_deploy(props):
     Returns True if rollback succeeded -- even if we failed to tag the
     version as bad after rolling back from it -- False else.
     """
-    current_gae_version = _current_gae_version()
-    if current_gae_version != props['VERSION_NAME']:
-        logging.info("Skipping rollback: looks like our deploy never "
-                     "succeeded. (Us: %s, current: %s, rollback-to: %s)"
-                     % (props['VERSION_NAME'], current_gae_version,
-                        props['ROLLBACK_TO']))
-        return True
+
+    try:
+        current_gae_version = _current_gae_version()
+    except Exception, why:
+        logging.info("Failed to get live site version.", exc_info=why)
+        logging.info("Proceeding with the assumption that the live site "
+                     "version is %s.", props['VERSION_NAME'])
+    else:
+        if current_gae_version != props['VERSION_NAME']:
+            logging.info("Skipping rollback: looks like our deploy never "
+                         "succeeded. (Us: %s, current: %s, rollback-to: %s)"
+                         % (props['VERSION_NAME'],
+                            current_gae_version,
+                            props['ROLLBACK_TO']))
+            return True
 
     _alert(props,
            "Automatically rolling the default back to %s "
            "and tagging %s as bad (in git)"
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
-        logging.info('Tagging %s as a bad version' % props['VERSION_NAME'])
-        _tag_as_bad_version(props)
-        _run_command(['git', 'push', '--tags'])
-
         logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            deploy.set_default.main(props['ROLLBACK_TO'],
-                                    email=props['DEPLOY_EMAIL'],
-                                    passin=True,
-                                    num_instances_to_prime=None,
-                                    monitor_minutes=0,
-                                    hipchat_room=props['HIPCHAT_ROOM'],
-                                    dry_run=_DRY_RUN)
+            deploy.rollback.main(bad_version=props['VERSION'],
+                                 good_version=props['ROLLBACK_TO'],
+                                 email=props['DEPLOY_EMAIL'],
+                                 passin=True,
+                                 dry_run=_DRY_RUN)
 
         # If the version we rolled back *to* is marked bad, warn about that.
         if _pipe_command(['git', 'tag', '-l',
@@ -733,8 +736,8 @@ def _rollback_deploy(props):
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
                "Roll back to %s manually by running: "
-               "deploy/set_default.py --no-priming -m0 %s"
-               % (props['ROLLBACK_TO'], props['ROLLBACK_TO']),
+               "deploy/rollback.py --bad '%s' --good '%s'"
+               % (props['VERSION'], props['ROLLBACK_TO']),
                severity=logging.CRITICAL)
         return False
 
