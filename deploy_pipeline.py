@@ -716,7 +716,7 @@ def _rollback_deploy(props):
     try:
         logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
         with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            deploy.rollback.main(bad_version=props['VERSION'],
+            deploy.rollback.main(bad_version=props['VERSION_NAME'],
                                  good_version=props['ROLLBACK_TO'],
                                  email=props['DEPLOY_EMAIL'],
                                  passin=True,
