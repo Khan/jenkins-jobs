@@ -340,8 +340,8 @@ safe_sync_to() {
 
 # Like safe_sync_to, but if the commit-ish exists on origin -- e.g.
 # it's a branch that's been pushed to github -- sync to origin/commit
-# instead of commit.  This is useful when we only care about what
-# exists on github, because no local changes are expected.
+# and set commit to be that.  This is useful when we only care about
+# what exists on github, because no local changes are expected.
 # $1: repo to clone
 # $2: commit-ish to check out at.  If origin/commit-ish exists,
 #     sync to that instead of commit-ish.  (This is usually true,
@@ -358,10 +358,12 @@ safe_sync_to_origin() {
     repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
     if timeout 10m \
        git ls-remote --exit-code "$repo_workspace" origin/"$commit"; then
-        commit=origin/"$commit"
+        safe_sync_to "$repo" "origin/$commit" "$@"
+        # Make it so our local branch matches what's on origin
+        git branch -f "$commit" origin/"$commit"
+    else
+        safe_sync_to "$repo" "$commit" "$@"
     fi
-
-    safe_sync_to "$repo" "$commit" "$@"
 }
 
 # $1: directory to run the pull in (can be in a sub-repo)
