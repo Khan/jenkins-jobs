@@ -361,7 +361,10 @@ safe_sync_to_origin() {
         orig_commit="$commit"    # safe_sync_to overwrites '$commit', ugh
         safe_sync_to "$repo" "origin/$commit" "$@"
         # Make it so our local branch matches what's on origin
-        git branch -f "$orig_commit" origin/"$orig_commit"
+        (
+            cd "$repo_workspace"
+            git branch -f "$orig_commit" origin/"$orig_commit"
+        )
     else
         safe_sync_to "$repo" "$commit" "$@"
     fi
