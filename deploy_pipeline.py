@@ -200,7 +200,7 @@ def _gae_version(git_revision):
 
 def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
-    r = _safe_urlopen('http://www.khanacademy.org/api/internal/dev/version')
+    r = _safe_urlopen('https://www.khanacademy.org/api/internal/dev/version')
     version_dict = json.load(r)
     # The version-id is <major>.<minor>.  We just care about <major>.
     return version_dict['version_id'].split('.')[0]
@@ -356,7 +356,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
         jenkins_build_url: the 'build url' of the jenkins job trying
            to acquire the lock.  (This is $BUILD_URL inside jenkins,
            and looks something like
-           http://jenkins.khanacademy.org/job/testjob/723/).
+           https://jenkins.khanacademy.org/job/testjob/723/).
         wait_sec: how many seconds to busy-wait for the lock to free up.
         notify_sec: while waiting for the lock, how often to ping
            hipchat that we're still waiting.
@@ -1064,7 +1064,7 @@ def main(action, lockdir, acquire_lock_args=(),
                                  _email_to_hipchat_name(caller_email),
                               'HIPCHAT_ROOM': '1s/0s: deploys',
                               'HIPCHAT_SENDER': 'Mr Gorilla',
-                              'JENKINS_URL': 'http://jenkins.khanacademy.org/',
+                              'JENKINS_URL': 'https://jenkins.khanacademy.org/',
                               'TOKEN': '',
                               }
                 _alert(fake_props,
@@ -1212,7 +1212,7 @@ if __name__ == '__main__':
                         help=("If 'true', don't ask whether to set the new "
                               "version as the default, do so automatically."))
     parser.add_argument('--jenkins_url',
-                        default='http://jenkins.khanacademy.org/',
+                        default='https://jenkins.khanacademy.org/',
                         help=("The url of the jenkins server."))
     parser.add_argument('--hipchat_room',
                         default='HipChat Tests',
@@ -1245,7 +1245,7 @@ if __name__ == '__main__':
     # This is used to cancel running jobs
     parser.add_argument('--jenkins-build-url',
                         help=("The url of the job that is calling this: "
-                              "http://jenkins.khanacademy.org/job/testjob/723/"
+                              "https://jenkins.khanacademy.org/job/testjob/723/"
                               " or the like"))
 
     args = parser.parse_args()
