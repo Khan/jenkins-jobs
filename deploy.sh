@@ -60,7 +60,9 @@ cd "$WEBSITE_ROOT"
 # Set up the flags we pass to deploy.py
 # We always set --no-up: Jenkins checks out the right revision for us.
 DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
-DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
+# --clean-versions removed temporarily until it is fixed.
+# TODO(benkraft): add back --clean-versions to the next line.
+DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
 [ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
