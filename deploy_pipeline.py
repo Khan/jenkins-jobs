@@ -112,7 +112,7 @@ def _email_to_hipchat_name(email):
         user_data = json.load(r)
         email_to_mention_name = {user['email']: '@%s' % user['mention_name']
                                  for user in user_data['users']}
-    except Exception, why:
+    except Exception as why:
         # If we don't have secrets, we get back a 401.  Ah well.
         logging.warning('Fetching email->hipchat mapping failed; will '
                         'guess. (%s: %s)' % (why.__class__.__name__, why))
@@ -376,7 +376,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
     while waited_sec < wait_sec:
         try:
             os.mkdir(lockdir)
-        except OSError, why:
+        except OSError as why:
             if why.errno != errno.EEXIST:      # file exists
                 raise
         else:                        # lockdir acquired!
@@ -497,7 +497,7 @@ def release_deploy_lock(props, backup_lockfile=True):
             _move_lockdir(props, lockdir, old_lockdir)
         else:
             shutil.rmtree(lockdir)
-    except (IOError, OSError), why:
+    except (IOError, OSError) as why:
         _alert(props,
                "Could not release the deploy-lock (%s); it's not being held? "
                "(%s)" % (lockdir, why),
@@ -694,7 +694,7 @@ def _rollback_deploy(props):
 
     try:
         current_gae_version = _current_gae_version()
-    except Exception, why:
+    except Exception as why:
         logging.info("Failed to get live site version.", exc_info=why)
         logging.info("Proceeding with the assumption that the live site "
                      "version is %s.", props['VERSION_NAME'])
@@ -834,7 +834,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                    pre_monitoring_data,
                                    hipchat_room=props['HIPCHAT_ROOM'])
 
-    except deploy.set_default.MonitoringError, why:
+    except deploy.set_default.MonitoringError as why:
         # Wait a little to make sure this hipchat message comes after
         # the "I've deployed to ..." message we emitted above above.
         time.sleep(10)
@@ -1168,7 +1168,7 @@ def main(action, lockdir, acquire_lock_args=(),
         if os.path.exists(os.path.join(props['LOCKDIR'], 'deploy.prop')):
             _update_properties(props, {'LAST_ERROR': ''})
         return True
-    except Exception, why:
+    except Exception as why:
         logging.exception(action)
         if action != 'acquire-lock':
             # Don't write the properties file if we failed in trying
@@ -1253,23 +1253,23 @@ def parse_args_and_invoke_main():
     logging.basicConfig(format="[%(levelname)s] %(message)s")
     logging.getLogger().setLevel(logging.INFO)
 
-    rc = main(args.action, os.path.abspath(args.lockdir),
-              acquire_lock_args=(os.path.abspath(args.lockdir),
-                                 args.deployer_email,
-                                 args.git_revision,
-                                 args.auto_deploy == 'true',
-                                 _current_gae_version(),
-                                 args.jenkins_url,
-                                 args.hipchat_room,
-                                 args.hipchat_sender,
-                                 args.deploy_email,
-                                 args.deploy_pw_file,
-                                 args.token),
-              token=args.token,
-              monitoring_time=args.monitoring_time,
-              jenkins_build_url=args.jenkins_build_url,
-              caller_email=args.deployer_email)
-    sys.exit(0 if rc else 1)
+    success = main(args.action, os.path.abspath(args.lockdir),
+                   acquire_lock_args=(os.path.abspath(args.lockdir),
+                                      args.deployer_email,
+                                      args.git_revision,
+                                      args.auto_deploy == 'true',
+                                      _current_gae_version(),
+                                      args.jenkins_url,
+                                      args.hipchat_room,
+                                      args.hipchat_sender,
+                                      args.deploy_email,
+                                      args.deploy_pw_file,
+                                      args.token),
+                   token=args.token,
+                   monitoring_time=args.monitoring_time,
+                   jenkins_build_url=args.jenkins_build_url,
+                   caller_email=args.deployer_email)
+    sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':
