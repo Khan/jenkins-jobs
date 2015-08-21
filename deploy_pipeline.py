@@ -731,13 +731,13 @@ def _rollback_deploy(props):
                    "run set_default.py to roll back to a safe version.  (Run "
                    "'git tag' to see all versions, good and bad.)"
                    % props['ROLLBACK_TO'])
-    except Exception:
+    except:
         logging.exception('Auto-rollback failed')
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
-               "Roll back to %s manually by running: "
-               "deploy/rollback.py --bad '%s' --good '%s'"
-               % (props['VERSION'], props['ROLLBACK_TO']),
+               "Roll back to %(good)s manually by running: "
+               "deploy/rollback.py --bad '%(bad)s' --good '%(good)s'"
+               % {'bad': props['VERSION'], 'good': props['ROLLBACK_TO']},
                severity=logging.CRITICAL)
         return False
 
