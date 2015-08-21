@@ -92,7 +92,7 @@ def _safe_urlopen(*args, **kwargs):
     while True:
         try:
             return urllib2.urlopen(*args, **kwargs)
-        except Exception:
+        except:
             num_tries += 1
             if num_tries == 3:
                 raise
@@ -242,7 +242,15 @@ def _create_properties(lockdir, deployer_email, git_revision,
     retval = {
         'LOCKDIR': lockdir,
         'DEPLOYER_EMAIL': deployer_email,
+        'DEPLOYER_USERNAME': deployer_email.split('@')[0],
+        'DEPLOYER_HIPCHAT_NAME': _email_to_hipchat_name(deployer_email),
         'GIT_REVISION': git_revision,
+
+        # Note: GIT_SHA1 and VERSION_NAME will be updated after
+        # merge_from_master(), which modifies the branch.
+        'GIT_SHA1': git_revision,
+        'VERSION_NAME': _gae_version(git_revision),
+
         'AUTO_DEPLOY': str(auto_deploy).lower(),
         'ROLLBACK_TO': rollback_to,
         'JENKINS_URL': jenkins_url,
@@ -251,22 +259,12 @@ def _create_properties(lockdir, deployer_email, git_revision,
         'DEPLOY_EMAIL': deploy_email,
         'DEPLOY_PW_FILE': deploy_pw_file,
         'TOKEN': token,
-        }
 
-    # Set some useful properties that we can derive from the above.
-    retval['GIT_SHA1'] = retval['GIT_REVISION']
-    retval['VERSION_NAME'] = _gae_version(retval['GIT_SHA1'])
-    retval['DEPLOYER_USERNAME'] = retval['DEPLOYER_EMAIL'].split('@')[0]
-    retval['DEPLOYER_HIPCHAT_NAME'] = (
-        _email_to_hipchat_name(retval['DEPLOYER_EMAIL']))
-
-    # These hold state about the deploy as it's going along.
-    retval['LAST_ERROR'] = ''
-    # A comma-separated list of choices taken from the 'action' argparse arg.
-    retval['POSSIBLE_NEXT_STEPS'] = 'acquire-lock,finish-with-unlock,relock'
-
-    # Note: GIT_SHA1 and VERSION_NAME will be updated after
-    # merge_from_master(), which modifies the branch.
+        # These hold state about the deploy as it's going along.
+        'LAST_ERROR': '',
+        # A comma-separated list of choices from the 'action' argparse arg.
+        'POSSIBLE_NEXT_STEPS': 'acquire-lock,finish-with-unlock,relock'
+    }
 
     logging.info('Setting deploy-properties: %s' % retval)
     return retval
@@ -330,8 +328,8 @@ def _update_properties(props, new_values):
         # relock, which are called manually when the script gets
         # messed up, and which we never want to block.
         next_steps = set(new_values['POSSIBLE_NEXT_STEPS'].split(','))
-        next_steps.update(set(['finish-with-failure', 'finish-with-rollback',
-                               'finish-with-unlock', 'relock']))
+        next_steps.update({'finish-with-failure', 'finish-with-rollback',
+                           'finish-with-unlock', 'relock'})
         new_values['POSSIBLE_NEXT_STEPS'] = ','.join(sorted(next_steps))
 
     props.update(new_values)
@@ -1054,7 +1052,7 @@ def main(action, lockdir, acquire_lock_args=(),
     else:
         try:
             props = _read_properties(lockdir)
-        except IOError, why:
+        except IOError:
             if action == 'relock':
                 logging.exception('There is no backup lock at %s to '
                                   'recover from, sorry.' % lockdir)
@@ -1095,7 +1093,7 @@ def main(action, lockdir, acquire_lock_args=(),
     # If the step we're taking doesn't match a legal next-step in the
     # pipeline, fail.
     if (action not in props['POSSIBLE_NEXT_STEPS'].split(',') and
-           '<all>' not in props['POSSIBLE_NEXT_STEPS'].split(',')):
+            '<all>' not in props['POSSIBLE_NEXT_STEPS'].split(',')):
         _alert(props,
                'Expecting you to run %s, but you are running %s. '
                'Perhaps you double-clicked on a link?  Ignoring.'
@@ -1180,7 +1178,7 @@ def main(action, lockdir, acquire_lock_args=(),
         return False
 
 
-if __name__ == '__main__':
+def parse_args_and_invoke_main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action',
                         choices=('acquire-lock',
@@ -1224,7 +1222,7 @@ if __name__ == '__main__':
                               "notifications."))
     parser.add_argument('--deploy_email',
                         default='prod-deploy@khanacademy.org',
-                        help=("The AppEngine user to deploy as."))
+                        help="The AppEngine user to deploy as.")
     parser.add_argument('--deploy_pw_file',
                         default='%s/prod-deploy.pw' % os.environ['HOME'],
                         help=("The file holding deploy_email's "
@@ -1272,3 +1270,7 @@ if __name__ == '__main__':
               jenkins_build_url=args.jenkins_build_url,
               caller_email=args.deployer_email)
     sys.exit(0 if rc else 1)
+
+
+if __name__ == '__main__':
+    parse_args_and_invoke_main()
