@@ -112,7 +112,8 @@ def _safe_urlopen(*args, **kwargs):
     num_tries = 0
     while True:
         try:
-            return urllib2.urlopen(*args, **kwargs)
+            with contextlib.closing(urllib2.urlopen(*args, **kwargs)) as req:
+                return req.read()
         except:
             num_tries += 1
             if num_tries == 3:
@@ -128,9 +129,9 @@ def _email_to_hipchat_name(email):
         return '<b>Unknown user:</b>'
     try:
         logging.info('Fetching email->hipchat mapping from hipchat')
-        r = _safe_urlopen('https://api.hipchat.com/v1/users/list'
-                          '?auth_token=%s' % ka_secrets.hipchat_deploy_token)
-        user_data = json.load(r)
+        data = _safe_urlopen('https://api.hipchat.com/v1/users/list?'
+                             'auth_token=%s' % ka_secrets.hipchat_deploy_token)
+        user_data = json.loads(data)
         email_to_mention_name = {user['email']: '@%s' % user['mention_name']
                                  for user in user_data['users']}
     except Exception as why:
@@ -141,17 +142,6 @@ def _email_to_hipchat_name(email):
     # If we can't map email to hipchat name, just guess that their
     # hipchat name is @<email-name>.
     return email_to_mention_name.get(email, '@%s' % email.split('@')[0])
-
-
-def _list_with_links(title_url_pairs):
-    """Given a list of title/url, create html of the urls in a list form."""
-    # I'll do five across.
-    retval = []
-    for i in xrange(0, len(title_url_pairs), 5):
-        this_row = title_url_pairs[i:(i + 5)]
-        retval.append(' ~ '.join('<a href="%s">%s</a>' % (url, title)
-                                 for (title, url) in this_row))
-    return '<br>\n'.join(retval)
 
 
 def _run_command(cmd, failure_ok=False):
@@ -221,8 +211,8 @@ def _gae_version(git_revision):
 
 def _current_gae_version():
     """The current default appengine version-name, according to appengine."""
-    r = _safe_urlopen('https://www.khanacademy.org/api/internal/dev/version')
-    version_dict = json.load(r)
+    data = _safe_urlopen('https://www.khanacademy.org/api/internal/dev/version')
+    version_dict = json.loads(data)
     # The version-id is <major>.<minor>.  We just care about <major>.
     return version_dict['version_id'].split('.')[0]
 
