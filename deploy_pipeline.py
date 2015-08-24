@@ -38,7 +38,6 @@ workspace, which will also hold the lockfile.
 
 import argparse
 import cStringIO
-import collections
 import contextlib
 import errno
 import json
@@ -95,24 +94,6 @@ DEPLOY_ACTIONS = frozenset({
     'relock',
 })
 
-AcquireLockArgs = collections.namedtuple(
-    'AcquireLockArgs',
-    [
-        'lockdir',
-        'deployer_email',
-        'git_revision',
-        'auto_deploy',
-        'gae_version',
-        'jenkins_url',
-        'hipchat_room',
-        'chat_sender',
-        'slack_channel',
-        'deploy_email',
-        'deploy_pw_file',
-        'token',
-    ]
-)
-
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
@@ -122,7 +103,7 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
-                      sender=props['CHAT_SENDER'],
+                      sender=props['HIPCHAT_SENDER'],
                       color=color, notify=True))
 
 
@@ -236,29 +217,59 @@ def _current_gae_version():
     return version_dict['version_id'].split('.')[0]
 
 
-def _create_properties(args):
-    """Return a dict of property-name to property value."""
+def _create_properties(lockdir, deployer_email, git_revision,
+                       auto_deploy, rollback_to,
+                       jenkins_url, hipchat_room, hipchat_sender,
+                       deploy_email, deploy_pw_file, token):
+    """Return a dict of property-name to property value.
+
+    Arguments:
+        lockdir: the lock-directory, ideally an absolute path.  The
+           existence of this directory indicates ownership of the lock.
+        deployer_email: the (gmail) email of the person doing the
+           deploy.  It's always the gmail email because that's how
+           users authenticate with jenkins.
+        git_revision: the branch-name (it can also just be a commit id)
+           being deployed.
+        auto_deploy: If 'true', don't ask whether to set the new version
+           as the default, do so automatically.  Then does the
+           set-default.py logs-monitoring.  If the monitoring
+           indicates a potential problem, automatically roll back
+           to the old deploy.
+        rollback_to: the current appengine version before this deploy,
+           that is, the appengine version-name we would roll back to
+           if this deploy turned out to be problematic.
+        jenkins_url: The url of the jenkins server.
+        hipchat_room: The room to send all hipchat notifications to.
+        hipchat_sender: The name to use as the sender of hipchat
+           notifications.
+        deploy_email: The AppEngine user to deploy as.
+        deploy_pw_file: Filename of the file holding deploy_email's
+           appengine password.
+        token: a random string used to identify this deploy.  Future
+           operations can supply a token and will fail unless their
+           token value matches this one.
+    """
     retval = {
-        'LOCKDIR': args.lockdir,
-        'DEPLOYER_EMAIL': args.deployer_email,
-        'DEPLOYER_USERNAME': args.deployer_email.split('@')[0],
-        'DEPLOYER_HIPCHAT_NAME': _email_to_hipchat_name(args.deployer_email),
-        'GIT_REVISION': args.git_revision,
+        'LOCKDIR': lockdir,
+        'DEPLOYER_EMAIL': deployer_email,
+        'DEPLOYER_USERNAME': deployer_email.split('@')[0],
+        'DEPLOYER_HIPCHAT_NAME': _email_to_hipchat_name(deployer_email),
+        'GIT_REVISION': git_revision,
 
         # Note: GIT_SHA1 and VERSION_NAME will be updated after
         # merge_from_master(), which modifies the branch.
-        'GIT_SHA1': args.git_revision,
-        'VERSION_NAME': _gae_version(args.git_revision),
+        'GIT_SHA1': git_revision,
+        'VERSION_NAME': _gae_version(git_revision),
 
-        'AUTO_DEPLOY': str(args.auto_deploy).lower(),
-        'ROLLBACK_TO': args.rollback_to,
-        'JENKINS_URL': args.jenkins_url,
-        'HIPCHAT_ROOM': args.hipchat_room,
-        'CHAT_SENDER': args.chat_sender,
-        'SLACK_CHANNEL': args.slack_channel,
-        'DEPLOY_EMAIL': args.deploy_email,
-        'DEPLOY_PW_FILE': args.deploy_pw_file,
-        'TOKEN': args.token,
+        'AUTO_DEPLOY': str(auto_deploy).lower(),
+        'ROLLBACK_TO': rollback_to,
+        'JENKINS_URL': jenkins_url,
+        'HIPCHAT_ROOM': hipchat_room,
+        'HIPCHAT_SENDER': hipchat_sender,
+        'DEPLOY_EMAIL': deploy_email,
+        'DEPLOY_PW_FILE': deploy_pw_file,
+        'TOKEN': token,
 
         # These hold state about the deploy as it's going along.
         'LAST_ERROR': '',
@@ -272,24 +283,25 @@ def _create_properties(args):
 
 def _read_properties(lockdir):
     """Read the properties from lockdir/deploy.prop into a dict."""
-    with open(os.path.join(lockdir, 'deploy.prop'), 'rb') as f:
-        properties = {k: v
-                      for l in f
-                      for k, v in l.strip().split('=')}
+    retval = {}
+    with open(os.path.join(lockdir, 'deploy.prop')) as f:
+        for l in f.readlines():
+            (k, v) = l.strip().split('=', 1)
+            retval[k] = v
 
     # Do some sanity checking.
-    assert properties['LOCKDIR'] == lockdir, (properties['LOCKDIR'], lockdir)
+    assert retval['LOCKDIR'] == lockdir, (retval['LOCKDIR'], lockdir)
 
-    logging.info('Read properties from %s: %s' % (lockdir, properties))
-    return properties
+    logging.info('Read properties from %s: %s' % (lockdir, retval))
+    return retval
 
 
 def _write_properties(props):
     """Write the given properties dict into lockdir/deploy.prop."""
     logging.info('Wrote properties to %s: %s' % (props['LOCKDIR'], props))
-    with open(os.path.join(props['LOCKDIR'], 'deploy.prop'), 'wb') as f:
-        for k, v in sorted(props.viewitems()):
-            f.write('%s=%s\n' % (k, v))
+    with open(os.path.join(props['LOCKDIR'], 'deploy.prop'), 'w') as f:
+        for (k, v) in sorted(props.iteritems()):
+            print >>f, '%s=%s' % (k, v)
 
 
 def _update_properties(props, new_values):
@@ -831,8 +843,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
 
         deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
                                    pre_monitoring_data,
-                                   hipchat_room=props['HIPCHAT_ROOM'],
-                                   slack_channel=props['SLACK_CHANNEL'])
+                                   hipchat_room=props['HIPCHAT_ROOM'])
 
     except deploy.set_default.MonitoringError as why:
         # Wait a little to make sure this hipchat message comes after
@@ -1028,7 +1039,7 @@ def main(action, lockdir, acquire_lock_args=(),
 
     :param str action: one of DEPLOY_ACTIONS; see documentation there
     :param str lockdir: the path for the lock file
-    :param AcquireLockArgs acquire_lock_args: arguments to be passed to
+    :param list acquire_lock_args: arguments to be passed to
         _create_properties(), if the action is acquire-lock
     :param str token: if specified, make sure the current lock ID matches this
         token
@@ -1043,7 +1054,7 @@ def main(action, lockdir, acquire_lock_args=(),
     assert action in DEPLOY_ACTIONS
 
     if action == 'acquire-lock':
-        props = _create_properties(acquire_lock_args)
+        props = _create_properties(*acquire_lock_args)
     else:
         try:
             props = _read_properties(lockdir)
@@ -1056,8 +1067,7 @@ def main(action, lockdir, acquire_lock_args=(),
                 fake_props = {'DEPLOYER_HIPCHAT_NAME':
                               _email_to_hipchat_name(caller_email),
                               'HIPCHAT_ROOM': '1s/0s: deploys',
-                              'CHAT_SENDER': 'Mr Gorilla',
-                              'SLACK_CHANNEL': '#1s-and-0s-deploys',
+                              'HIPCHAT_SENDER': 'Mr Gorilla',
                               'JENKINS_URL': 'https://jenkins.khanacademy.org/',
                               'TOKEN': '',
                               }
@@ -1216,9 +1226,6 @@ def parse_args_and_invoke_main():
                         default='Testybot',
                         help=("The name to use as the sender of hipchat "
                               "notifications."))
-    parser.add_argument('--slack_channel',
-                        default='#bot-testing',
-                        help='The Slack channel to receive all alerts')
     parser.add_argument('--deploy_email',
                         default='prod-deploy@khanacademy.org',
                         help="The AppEngine user to deploy as.")
@@ -1253,19 +1260,17 @@ def parse_args_and_invoke_main():
     logging.getLogger().setLevel(logging.INFO)
 
     success = main(args.action, os.path.abspath(args.lockdir),
-                   acquire_lock_args=AcquireLockArgs(
-                       lockdir=os.path.abspath(args.lockdir),
-                       deployer_email=args.deployer_email,
-                       git_revision=args.git_revision,
-                       auto_deploy='true',
-                       gae_version=_current_gae_version(),
-                       jenkins_url=args.jenkins_url,
-                       hipchat_room=args.hipchat_room,
-                       chat_sender=args.hipchat_sender,
-                       slack_channel=args.slack_channel,
-                       deploy_email=args.deploy_email,
-                       deploy_pw_file=args.deploy_pw_file,
-                       token=args.token),
+                   acquire_lock_args=(os.path.abspath(args.lockdir),
+                                      args.deployer_email,
+                                      args.git_revision,
+                                      args.auto_deploy == 'true',
+                                      _current_gae_version(),
+                                      args.jenkins_url,
+                                      args.hipchat_room,
+                                      args.hipchat_sender,
+                                      args.deploy_email,
+                                      args.deploy_pw_file,
+                                      args.token),
                    token=args.token,
                    monitoring_time=args.monitoring_time,
                    jenkins_build_url=args.jenkins_build_url,
