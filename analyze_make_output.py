@@ -136,8 +136,8 @@ def find_bad_testcases(test_reports_dir):
 
         for testcase in doc.xpath("/testsuite/testcase"):
             if testcase.get("classname") in _ALTERNATE_TESTS:
-                (type, _) = _ALTERNATE_TESTS[testcase.get("classname")]
-                _ALTERNATE_TESTS_VALUES[type] = ""
+                (test_type, _) = _ALTERNATE_TESTS[testcase.get("classname")]
+                _ALTERNATE_TESTS_VALUES[test_type] = ""
 
         for bad_testcase in doc.xpath("/testsuite/testcase[failure or error]"):
             if bad_testcase.get("classname") not in _ALTERNATE_TESTS:
@@ -148,10 +148,12 @@ def find_bad_testcases(test_reports_dir):
                 # here, we store its value in a global, and report the
                 # error along with the lint failures.
                 error_text = bad_testcase.getchildren()[0].text.rstrip()
-                (type, regex) = _ALTERNATE_TESTS[bad_testcase.get("classname")]
+                test_type, regex = _ALTERNATE_TESTS[
+                    bad_testcase.get("classname")
+                ]
                 m = regex.search(error_text)
                 assert m, error_text
-                _ALTERNATE_TESTS_VALUES[type] = m.group(1)
+                _ALTERNATE_TESTS_VALUES[test_type] = m.group(1)
 
 
 def add_links(build_url, testcase):

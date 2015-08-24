@@ -73,6 +73,27 @@ _DRY_RUN = False
 
 _WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
 
+DEPLOY_ACTIONS = frozenset({
+    # acquire the deploy lock.
+    'acquire-lock',
+    # merge master into current branch if necessary.
+    'merge-from-master',
+    # send a hipchat message saying to do pre-set-default testing.
+    'manual-test',
+    # set this version to GAE default after it's been uploaded.
+    'set-default',
+    # manually release the deploy lock.
+    'finish-with-unlock',
+    # ditto, but because the deploy succeeded.
+    'finish-with-success',
+    # ditto, but because the deploy failed (pre-set-default)
+    'finish-with-failure',
+    # ditto, because the deploy failed (post-set-default)
+    'finish-with-rollback',
+    # re-acquire the lock from lockdir.last, if possible.
+    'relock',
+})
+
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
@@ -1013,29 +1034,8 @@ def relock(props):
 def main(action, lockdir, acquire_lock_args=(),
          token=None, monitoring_time=None, jenkins_build_url=None,
          caller_email=None):
-    """action is one of:
-    * acquire-lock: acquire the deploy lock.
-    * merge-from-master: merge master into current branch if necessary.
-    * manual-test: send a hipchat message saying to do pre-set-default testing.
-    * set-default: set this version to GAE default after it's been uploaded.
-    * finish-with-unlock: manually release the deploy lock.
-    * finish-with-success: ditto, but because the deploy succeeded.
-    * finish-with-failure: ditto, but because the deploy failed (pre-set-dflt)
-    * finish-with-rollback: ditto, because the deploy failed (post-set-default)
-    * relock: re-acquire the lock from lockdir.last, if possible.
-
-    If action is acquire-lock, then acquire_lock_args should be
-    specified as a list of the arguments to _create_properties().
-
-    monitoring_time is ignored except by set_default.
-
-    caller_email is ignored except by finish-with-unlock (and also
-    if we can't acquire the lock).
-
-    If token is non-empty, then whenever we do an operation we first
-    check that the specified token matches the TOKEN value from the
-    lockfile.  If not, then we know that this operation is not
-    associated with the current lock, and we fail it.
+    """
+    Handles a given deploy sequence command.
 
     The commands raise an exception if we should stop the pipeline
     there, due to failure.  In those cases, we return False, which
@@ -1046,7 +1046,23 @@ def main(action, lockdir, acquire_lock_args=(),
     to release the lock and couldn't, so why try again?)  On the other
     hand, if the command does not raise an exception, we return True,
     which will cause the Jenkins job to say that this step succeeded.
+
+    :param str action: one of DEPLOY_ACTIONS; see documentation there
+    :param str lockdir: the path for the lock file
+    :param list acquire_lock_args: arguments to be passed to
+        _create_properties(), if the action is acquire-lock
+    :param str token: if specified, make sure the current lock ID matches this
+        token
+    :param monitoring_time: how long to monitor. Ignored except if action is
+        set-default
+    :param jenkins_build_url: the URL for this Jenkins job
+    :param caller_email: email of person who asked; ignored except by
+        finish-with-unlock
+    :return: Unix-style result code (nonzero means failure)
     """
+
+    assert action in DEPLOY_ACTIONS
+
     if action == 'acquire-lock':
         props = _create_properties(*acquire_lock_args)
     else:
@@ -1059,7 +1075,7 @@ def main(action, lockdir, acquire_lock_args=(),
             else:
                 # We can't load the real props, so do the best we can.
                 fake_props = {'DEPLOYER_HIPCHAT_NAME':
-                                 _email_to_hipchat_name(caller_email),
+                              _email_to_hipchat_name(caller_email),
                               'HIPCHAT_ROOM': '1s/0s: deploys',
                               'HIPCHAT_SENDER': 'Mr Gorilla',
                               'JENKINS_URL': 'https://jenkins.khanacademy.org/',
@@ -1211,7 +1227,7 @@ def parse_args_and_invoke_main():
                               "version as the default, do so automatically."))
     parser.add_argument('--jenkins_url',
                         default='https://jenkins.khanacademy.org/',
-                        help=("The url of the jenkins server."))
+                        help="The url of the jenkins server.")
     parser.add_argument('--hipchat_room',
                         default='HipChat Tests',
                         help=("The room to send all hipchat notifications "
