@@ -100,7 +100,7 @@ AcquireLockArgs = collections.namedtuple(
     [
         'lockdir',
         'deployer_email',
-        'git_version',
+        'git_revision',
         'auto_deploy',
         'gae_version',
         'jenkins_url',
