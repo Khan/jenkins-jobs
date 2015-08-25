@@ -1186,16 +1186,7 @@ def main(action, lockdir, acquire_lock_args=(),
 def parse_args_and_invoke_main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action',
-                        choices=('acquire-lock',
-                                 'merge-from-master',
-                                 'manual-test',
-                                 'set-default',
-                                 'finish-with-unlock',
-                                 'finish-with-success',
-                                 'finish-with-failure',
-                                 'finish-with-rollback',
-                                 'relock',
-                                 ),
+                        choices=DEPLOY_ACTIONS,
                         help='Action to perform')
     parser.add_argument('--lockdir',
                         default='tmp/deploy.lockdir',
@@ -1257,12 +1248,22 @@ def parse_args_and_invoke_main():
                               "https://jenkins.khanacademy.org/job/testjob/723/"
                               " or the like"))
 
+    parser.add_argument('--dry-run',
+                        action='store_true',
+                        default=False,
+                        help=('Output information, but do not actually run '
+                              'the deploy; should only be used for testing'))
+
     args = parser.parse_args()
 
     # Make sure the _alert() logging shows up, and have the log-prefix
     # be prettier.
     logging.basicConfig(format="[%(levelname)s] %(message)s")
     logging.getLogger().setLevel(logging.INFO)
+
+    # Handle _DRY_RUN being set
+    global _DRY_RUN
+    _DRY_RUN = args.dry_run
 
     success = main(args.action, os.path.abspath(args.lockdir),
                    acquire_lock_args=AcquireLockArgs(
