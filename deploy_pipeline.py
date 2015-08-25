@@ -106,6 +106,7 @@ AcquireLockArgs = collections.namedtuple(
         'jenkins_url',
         'hipchat_room',
         'chat_sender',
+        'icon_emoji',
         'slack_channel',
         'deploy_email',
         'deploy_pw_file',
@@ -123,7 +124,10 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['CHAT_SENDER'],
-                      color=color, notify=True))
+                      color=color, notify=True)
+     .send_to_slack(channel=props['SLACK_CHANNEL'],
+                    sender=props['CHAT_SENDER'],
+                    icon_emoji=props['ICON_EMOJI']))
 
 
 def _safe_urlopen(*args, **kwargs):
@@ -258,6 +262,7 @@ def _create_properties(args):
         'JENKINS_URL': args.jenkins_url,
         'HIPCHAT_ROOM': args.hipchat_room,
         'CHAT_SENDER': args.chat_sender,
+        'ICON_EMOJI': args.icon_emoji,
         'SLACK_CHANNEL': args.slack_channel,
         'DEPLOY_EMAIL': args.deploy_email,
         'DEPLOY_PW_FILE': args.deploy_pw_file,
@@ -1223,6 +1228,9 @@ def parse_args_and_invoke_main():
     parser.add_argument('--slack_channel',
                         default='#bot-testing',
                         help='The Slack channel to receive all alerts')
+    parser.add_argument('--icon_emoji',
+                        default=':crocodile:',
+                        help='The icon emoji to use, if any')
     parser.add_argument('--deploy_email',
                         default='prod-deploy@khanacademy.org',
                         help="The AppEngine user to deploy as.")
@@ -1266,6 +1274,7 @@ def parse_args_and_invoke_main():
                        jenkins_url=args.jenkins_url,
                        hipchat_room=args.hipchat_room,
                        chat_sender=args.hipchat_sender,
+                       icon_emoji=args.icon_emoji,
                        slack_channel=args.slack_channel,
                        deploy_email=args.deploy_email,
                        deploy_pw_file=args.deploy_pw_file,
