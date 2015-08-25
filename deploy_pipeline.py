@@ -278,7 +278,7 @@ def _read_properties(lockdir):
     with open(os.path.join(lockdir, 'deploy.prop'), 'rb') as f:
         properties = {k: v
                       for l in f
-                      for k, v in l.strip().split('=')}
+                      for k, v in l.strip().split('=', 1)}
 
     # Do some sanity checking.
     assert properties['LOCKDIR'] == lockdir, (properties['LOCKDIR'], lockdir)
