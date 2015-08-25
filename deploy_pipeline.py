@@ -275,10 +275,11 @@ def _create_properties(args):
 
 def _read_properties(lockdir):
     """Read the properties from lockdir/deploy.prop into a dict."""
+    properties = {}
     with open(os.path.join(lockdir, 'deploy.prop'), 'rb') as f:
-        properties = {k: v
-                      for l in f
-                      for k, v in l.strip().split('=', 1)}
+        for l in f:
+            k, v = l.strip().split('=', 1)
+            properties[k] = v
 
     # Do some sanity checking.
     assert properties['LOCKDIR'] == lockdir, (properties['LOCKDIR'], lockdir)
