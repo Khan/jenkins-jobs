@@ -1269,7 +1269,7 @@ def parse_args_and_invoke_main():
                        lockdir=os.path.abspath(args.lockdir),
                        deployer_email=args.deployer_email,
                        git_revision=args.git_revision,
-                       auto_deploy='true',
+                       auto_deploy=args.auto_deploy == 'true',
                        gae_version=_current_gae_version(),
                        jenkins_url=args.jenkins_url,
                        hipchat_room=args.hipchat_room,
