@@ -95,8 +95,8 @@ DEPLOY_ACTIONS = frozenset({
     'relock',
 })
 
-AcquireLockArgs = collections.namedtuple(
-    'AcquireLockArgs',
+InvocationDetails = collections.namedtuple(
+    'InvocationDetails',
     [
         'lockdir',
         'deployer_email',
@@ -1019,9 +1019,124 @@ def relock(props):
     _move_lockdir(props, old_lockdir, new_lockdir)
 
 
-def main(action, lockdir, acquire_lock_args=(),
-         token=None, monitoring_time=None, jenkins_build_url=None,
-         caller_email=None):
+def _create_or_read_properties(action, acquire_lock_args):
+    """
+    Initialize the lock structure and return the lock properties
+    :param str action: an action, which must be one of DEPLOY_ACTIONs
+    :param AcquireLockArgs acquire_lock_args: the arguments to be used for
+        acquiring the lock
+    :return: a dict of the props
+    """
+    if action == 'acquire-lock':
+        return _create_properties(acquire_lock_args)
+    else:
+        try:
+            return _read_properties(acquire_lock_args.lockdir)
+        except IOError:
+            if action == 'relock':
+                logging.exception('There is no backup lock at %s to recover '
+                                  'from, sorry.' % acquire_lock_args.lockdir)
+            else:
+                # We can't load the real props, so do the best we can.
+                minimally_viable_props = {
+                    'DEPLOYER_HIPCHAT_NAME':
+                        _email_to_hipchat_name(
+                            acquire_lock_args.deployer_email),
+                    'HIPCHAT_ROOM': '1s/0s: deploys',
+                    'CHAT_SENDER': 'Mr Gorilla',
+                    'SLACK_CHANNEL': '#1s-and-0s-deploys',
+                    'ICON_EMOJI': ':monkey_face:',
+                    'JENKINS_URL': 'https://jenkins.khanacademy.org/',
+                    'TOKEN': '',
+                }
+                _alert(minimally_viable_props,
+                       '(sadpanda) Trying to run without the lock. '
+                       'If you think you *should* have the lock, '
+                       'try to re-acquire it: %s. Then run your command again.'
+                       % _finish_url(minimally_viable_props, STATUS='relock'),
+                       severity=logging.ERROR)
+            return None
+
+
+def _action_acquire_lock(props):
+    acquire_deploy_lock(props, props['JENKINS_URL'])
+    _write_properties(props)
+    _update_properties(props,
+                       {'POSSIBLE_NEXT_STEPS': 'merge-from-master'})
+
+
+def _action_merge_from_master(props):
+    merge_from_master(props)
+    # Now we need to update the props file to indicate the new
+    # GIT_SHA1 after merging.  (This also updates VERSION_NAME.)
+    sha1 = _pipe_command(['git', 'rev-parse', props['GIT_REVISION']])
+    # We can go straight to set-default if the user ran with
+    # AUTO_DEPLOY, and straight to finish if they ran with DEPLOY=no.
+    if props['AUTO_DEPLOY'] == 'true':
+        next_steps = 'set-default'
+    else:
+        next_steps = 'manual-test'
+    # We don't know if the user ran with DEPLOY=no, so always allow it.
+    next_steps += ',finish-with-success'
+    _update_properties(props,
+                       {'GIT_SHA1': sha1,
+                        'POSSIBLE_NEXT_STEPS': next_steps})
+
+
+def _action_manual_test(props):
+    manual_test(props)
+    _update_properties(props,
+                       {'POSSIBLE_NEXT_STEPS': 'set-default'})
+
+
+def _action_set_default(props, monitoring_time):
+    set_default(props, monitoring_time=monitoring_time,
+                jenkins_build_url=props['JENKINS_URL'])
+    # If set_default didn't raise an exception, all is happy.
+    if props['AUTO_DEPLOY'] == 'true':
+        finish_with_success(props)
+    else:
+        _update_properties(props,
+                           {'POSSIBLE_NEXT_STEPS': 'finish-with-success'})
+
+
+def _action_finish_with_unlock(props):
+    finish_with_unlock(props, props['DEPLOYER_EMAIL'])
+
+
+def _action_finish_with_success(props):
+    finish_with_success(props)
+
+
+def _action_finish_with_failure(props):
+    finish_with_failure(props)
+
+
+def _action_finish_with_rollback(props):
+    finish_with_rollback(props)
+
+
+def _action_relock(props):
+    relock(props)
+    # You relock when something went wrong, so any step could
+    # legitimately go next.
+    _update_properties(props,
+                       {'POSSIBLE_NEXT_STEPS': '<all>'})
+
+
+KNOWN_ACTIONS = {
+    'acquire-lock': _action_acquire_lock,
+    'merge-from-master': _action_merge_from_master,
+    'manual-test': _action_manual_test,
+    'finish-with-unlock': _action_finish_with_unlock,
+    'finish-with-success': _action_finish_with_success,
+    'finish-with-failure': _action_finish_with_failure,
+    'finish-with-rollback': _action_finish_with_rollback,
+    'relock': _action_relock,
+}
+
+
+def main(action, monitoring_time=None, invocation_details=None):
     """
     Handles a given deploy sequence command.
 
@@ -1036,55 +1151,26 @@ def main(action, lockdir, acquire_lock_args=(),
     which will cause the Jenkins job to say that this step succeeded.
 
     :param str action: one of DEPLOY_ACTIONS; see documentation there
-    :param str lockdir: the path for the lock file
-    :param AcquireLockArgs acquire_lock_args: arguments to be passed to
-        _create_properties(), if the action is acquire-lock
-    :param str token: if specified, make sure the current lock ID matches this
-        token
     :param monitoring_time: how long to monitor. Ignored except if action is
         set-default
-    :param jenkins_build_url: the URL for this Jenkins job
-    :param caller_email: email of person who asked; ignored except by
-        finish-with-unlock
     :return: Unix-style result code (nonzero means failure)
     """
 
     assert action in DEPLOY_ACTIONS
 
-    if action == 'acquire-lock':
-        props = _create_properties(acquire_lock_args)
-    else:
-        try:
-            props = _read_properties(lockdir)
-        except IOError:
-            if action == 'relock':
-                logging.exception('There is no backup lock at %s to '
-                                  'recover from, sorry.' % lockdir)
-            else:
-                # We can't load the real props, so do the best we can.
-                fake_props = {'DEPLOYER_HIPCHAT_NAME':
-                              _email_to_hipchat_name(caller_email),
-                              'HIPCHAT_ROOM': '1s/0s: deploys',
-                              'CHAT_SENDER': 'Mr Gorilla',
-                              'SLACK_CHANNEL': '#1s-and-0s-deploys',
-                              'JENKINS_URL': 'https://jenkins.khanacademy.org/',
-                              'TOKEN': '',
-                              }
-                _alert(fake_props,
-                       '(sadpanda) Trying to run without the lock. '
-                       'If you think you *should* have the lock, '
-                       'try to re-acquire it: %s. Then run your command again.'
-                       % _finish_url(fake_props, STATUS='relock'),
-                       severity=logging.ERROR)
-            return False
+    props = _create_or_read_properties(action, invocation_details)
+    if props is None:
+        return False
 
     # If the passed-in token doesn't match the token in props, then
     # we are not the owners of this lock, so fail.  This is an
     # optional check.
-    if token and props.get('TOKEN') and token != props['TOKEN']:
+    if (invocation_details.token and props.get('TOKEN') and
+                invocation_details.token != props['TOKEN']):
         _alert(props,
                'You do not own the deploy lock (its token is %s, '
-               'yours is %s); aborting' % (props['TOKEN'], token),
+               'yours is %s); aborting' % (props['TOKEN'],
+                                           invocation_details.token),
                severity=logging.ERROR,
                # The username in props probably isn't right -- if we
                # don't match prop's token, why would we match its
@@ -1097,8 +1183,8 @@ def main(action, lockdir, acquire_lock_args=(),
 
     # If the step we're taking doesn't match a legal next-step in the
     # pipeline, fail.
-    if (action not in props['POSSIBLE_NEXT_STEPS'].split(',') and
-            '<all>' not in props['POSSIBLE_NEXT_STEPS'].split(',')):
+    allowed_steps = props['POSSIBLE_NEXT_STEPS'].split(',')
+    if action not in allowed_steps and '<all>' not in allowed_steps:
         _alert(props,
                'Expecting you to run %s, but you are running %s. '
                'Perhaps you double-clicked on a link?  Ignoring.'
@@ -1109,64 +1195,10 @@ def main(action, lockdir, acquire_lock_args=(),
         return True
 
     try:
-        if action == 'acquire-lock':
-            acquire_deploy_lock(props, jenkins_build_url)
-            _write_properties(props)
-            _update_properties(props,
-                               {'POSSIBLE_NEXT_STEPS': 'merge-from-master'})
-
-        elif action == 'merge-from-master':
-            merge_from_master(props)
-            # Now we need to update the props file to indicate the new
-            # GIT_SHA1 after merging.  (This also updates VERSION_NAME.)
-            sha1 = _pipe_command(['git', 'rev-parse', props['GIT_REVISION']])
-            # We can go straight to set-default if the user ran with
-            # AUTO_DEPLOY, and straight to finish if they ran with DEPLOY=no.
-            if props['AUTO_DEPLOY'] == 'true':
-                next_steps = 'set-default'
-            else:
-                next_steps = 'manual-test'
-            # We don't know if the user ran with DEPLOY=no, so always allow it.
-            next_steps += ',finish-with-success'
-            _update_properties(props,
-                               {'GIT_SHA1': sha1,
-                                'POSSIBLE_NEXT_STEPS': next_steps})
-
-        elif action == 'manual-test':
-            manual_test(props)
-            _update_properties(props,
-                               {'POSSIBLE_NEXT_STEPS': 'set-default'})
-
+        if action in KNOWN_ACTIONS:
+            KNOWN_ACTIONS[action](props)
         elif action == 'set-default':
-            set_default(props, monitoring_time=monitoring_time,
-                        jenkins_build_url=jenkins_build_url)
-            # If set_default didn't raise an exception, all is happy.
-            if props['AUTO_DEPLOY'] == 'true':
-                finish_with_success(props)
-            else:
-                _update_properties(props,
-                                   {'POSSIBLE_NEXT_STEPS':
-                                    'finish-with-success'})
-
-        elif action == 'finish-with-unlock':
-            finish_with_unlock(props, _email_to_hipchat_name(caller_email))
-
-        elif action == 'finish-with-success':
-            finish_with_success(props)
-
-        elif action == 'finish-with-failure':
-            finish_with_failure(props)
-
-        elif action == 'finish-with-rollback':
-            finish_with_rollback(props)
-
-        elif action == 'relock':
-            relock(props)
-            # You relock when something went wrong, so any step could
-            # legitimately go next.
-            _update_properties(props,
-                               {'POSSIBLE_NEXT_STEPS': '<all>'})
-
+            _action_set_default(props, monitoring_time)
         else:
             raise RuntimeError("Unknown action '%s'" % action)
 
@@ -1265,8 +1297,8 @@ def parse_args_and_invoke_main():
     global _DRY_RUN
     _DRY_RUN = args.dry_run
 
-    success = main(args.action, os.path.abspath(args.lockdir),
-                   acquire_lock_args=AcquireLockArgs(
+    success = main(args.action,
+                   invocation_details=InvocationDetails(
                        lockdir=os.path.abspath(args.lockdir),
                        deployer_email=args.deployer_email,
                        git_revision=args.git_revision,
@@ -1280,10 +1312,7 @@ def parse_args_and_invoke_main():
                        deploy_email=args.deploy_email,
                        deploy_pw_file=args.deploy_pw_file,
                        token=args.token),
-                   token=args.token,
-                   monitoring_time=args.monitoring_time,
-                   jenkins_build_url=args.jenkins_build_url,
-                   caller_email=args.deployer_email)
+                   monitoring_time=args.monitoring_time)
     sys.exit(0 if success else 1)
 
 
