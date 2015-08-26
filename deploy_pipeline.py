@@ -891,7 +891,6 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                   _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
                severity=logging.CRITICAL)
-        raise
     else:
         # No need for a hipchat message if the next step is automatic.
         if props['AUTO_DEPLOY'] != 'true':
