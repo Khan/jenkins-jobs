@@ -137,7 +137,7 @@ def _safe_urlopen(*args, **kwargs):
         try:
             with contextlib.closing(urllib2.urlopen(*args, **kwargs)) as req:
                 return req.read()
-        except:
+        except Exception:
             num_tries += 1
             if num_tries == 3:
                 raise
@@ -737,7 +737,7 @@ def _rollback_deploy(props):
                    "run set_default.py to roll back to a safe version.  (Run "
                    "'git tag' to see all versions, good and bad.)"
                    % props['ROLLBACK_TO'])
-    except:
+    except Exception:
         logging.exception('Auto-rollback failed')
         _alert(props,
                "(sadpanda) (sadpanda) Auto-rollback failed! "
