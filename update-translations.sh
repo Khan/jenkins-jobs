@@ -68,14 +68,8 @@ echo "Updating the list of graphie images."
 mkdir -p genfiles/assessment_items
 node tools/find_graphie_images_in_items.js
 
-OLD_STATUS_FILE=intl/translations/status_file.json
-NEW_STATUS_FILE=intl/translations/new_status_file.json
-
-tools/crowdin/output_status.py > "$NEW_STATUS_FILE"
-
 # Download the approved entries.
-for lang in `tools/crowdin/list_ka_locales_to_download.py --approved \
-        "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
+for lang in `tools/crowdin/list_ka_locales_to_download.py --approved` ; do
     echo "Downloading the approved translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
        --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
@@ -89,8 +83,7 @@ for lang in `tools/crowdin/list_ka_locales_to_download.py --approved \
 done
 
 # Now download entries regardless as to whether they have been approved.
-for lang in `tools/crowdin/list_ka_locales_to_download.py \
-        "$OLD_STATUS_FILE" "$NEW_STATUS_FILE"` ; do
+for lang in `tools/crowdin/list_ka_locales_to_download.py` ; do
     echo "Downloading the current translations for $lang from crowdin."
     deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
        --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
@@ -154,8 +147,6 @@ split_po "$TRANSLATIONS_DIR"
 # We don't bother redownloading en-pt for approved as it is a fake language and
 # so approval doesn't make sense.  So we just copy the po files on over.
 cp "$TRANSLATIONS_DIR"/en-pt\.* "$APPROVED_TRANSLATIONS_DIR"
-
-mv -f "$NEW_STATUS_FILE" "$OLD_STATUS_FILE"
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 safe_commit_and_push intl/translations \
