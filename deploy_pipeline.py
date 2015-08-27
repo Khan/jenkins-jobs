@@ -920,7 +920,7 @@ def finish_with_failure(props):
 
 
 def finish_with_rollback(props):
-    """Does a rollback and releases the lock if it succeeds."""
+    """Do a rollback and releases the lock if it succeeds."""
     if props['LAST_ERROR']:
         _alert(props,
                "Rolling back %s due to problems with the deploy: %s"
@@ -936,7 +936,7 @@ def finish_with_rollback(props):
 
 
 def relock(props):
-    """Re-acquires the lockdir from a backup lockdir directory.
+    """Re-acquire the lockdir from a backup lockdir directory.
 
     You call relock with --lockdir=<somedir>.last.  It then renames
     <somedir>.last to <somedir>, thus re-acquiring the lock in
@@ -964,7 +964,7 @@ def relock(props):
 
 
 def _create_or_read_properties(action, invocation_details):
-    """Initializes the lock structure and returns the lock properties.
+    """Initialize the lock structure and returns the lock properties.
 
     :param str action: an action, which must be one of DEPLOY_ACTIONs
     :param InvocationDetails invocation_details: the arguments to be used for
@@ -1003,7 +1003,7 @@ def _create_or_read_properties(action, invocation_details):
 
 
 def _action_acquire_lock(props):
-    """Acquires the deploy lock with the specified properties."""
+    """Acquire the deploy lock with the specified properties."""
     acquire_deploy_lock(props, props['JENKINS_URL'])
     _write_properties(props)
     _update_properties(props,
@@ -1011,7 +1011,7 @@ def _action_acquire_lock(props):
 
 
 def _action_merge_from_master(props):
-    """Merges master into the current branch if necessary."""
+    """Merge master into the current branch if necessary."""
     merge_from_master(props)
     # Now we need to update the props file to indicate the new
     # GIT_SHA1 after merging.  (This also updates VERSION_NAME.)
@@ -1030,14 +1030,14 @@ def _action_merge_from_master(props):
 
 
 def _action_manual_test(props):
-    """Sends a chat message telling users to do pre-set-default testing."""
+    """Send a chat message telling users to do pre-set-default testing."""
     manual_test(props)
     _update_properties(props,
                        {'POSSIBLE_NEXT_STEPS': 'set-default'})
 
 
 def _action_set_default(props, monitoring_time):
-    """Sets the default GAE generation after it's been uploaded."""
+    """Set the default GAE generation after it's been uploaded."""
     set_default(props, monitoring_time=monitoring_time,
                 jenkins_build_url=props['JENKINS_URL'])
     # If set_default didn't raise an exception, all is happy.
@@ -1049,7 +1049,7 @@ def _action_set_default(props, monitoring_time):
 
 
 def _action_finish_with_unlock(props):
-    """Manually releases the deploy lock."""
+    """Manually release the deploy lock."""
     finish_with_unlock(props, props['DEPLOYER_USERNAME'])
 
 
@@ -1059,17 +1059,17 @@ def _action_finish_with_success(props):
 
 
 def _action_finish_with_failure(props):
-    """Releases the deploy lock and aborts, pre-set-default."""
+    """Release the deploy lock and aborts, pre-set-default."""
     finish_with_failure(props)
 
 
 def _action_finish_with_rollback(props):
-    """Releases the deploy lock and rolls back, post-set-default."""
+    """Release the deploy lock and rolls back, post-set-default."""
     finish_with_rollback(props)
 
 
 def _action_relock(props):
-    """Re-acquires the lock from lockdir.last, if possible."""
+    """Re-acquire the lock from lockdir.last, if possible."""
 
     relock(props)
     # You relock when something went wrong, so any step could
@@ -1085,8 +1085,8 @@ KNOWN_ACTIONS = {
     'merge-from-master': _action_merge_from_master,
     # send a chat message saying to do pre-set-default testing
     'manual-test': _action_manual_test,
-    # MUST BE CALLED MANUALLY: set this version to GAE default after it's
-    #  been uploaded.
+    # MUST BE CALLED MANUALLY DUE TO EXTRA ARGUMENT
+    # set this version to GAE default after it's been uploaded.
     'set-default': _action_set_default,
     # manually release the deploy lock
     'finish-with-unlock': _action_finish_with_unlock,
@@ -1102,7 +1102,7 @@ KNOWN_ACTIONS = {
 
 
 def main(action, monitoring_time=None, invocation_details=None):
-    """Handles a given deploy sequence command.
+    """Handle a given deploy sequence command.
 
     The commands raise an exception if we should stop the pipeline
     there, due to failure.  In those cases, we return False, which
@@ -1162,7 +1162,7 @@ def main(action, monitoring_time=None, invocation_details=None):
         # set-default needs to be handled manually because monitoring_time
         #  doesn't meaningfully make sense as a props value
         if action == 'set-default':
-            _action_set_default(props, monitoring_time)
+            KNOWN_ACTIONS[action](props, monitoring_time)
         else:
             KNOWN_ACTIONS[action](props)
 
