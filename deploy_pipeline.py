@@ -98,7 +98,7 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
-        text = '%s %s' % (props['DEPLOYER_HIPCHAT_NAME'], text)
+        text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
@@ -206,7 +206,6 @@ def _create_properties(args):
     retval = {
         'LOCKDIR': args.lockdir,
         'DEPLOYER_USERNAME': args.deployer_username,
-        'DEPLOYER_HIPCHAT_NAME': args.deployer_username,
         'GIT_REVISION': args.git_revision,
 
         # Note: GIT_SHA1 and VERSION_NAME will be updated after
@@ -262,20 +261,13 @@ def _update_properties(props, new_values):
     """Update props from the new_values dict, and write the result to disk.
 
     This routine also automatically updates dependent property values.
-    For instance, whenever you change DEPLOYER_USERNAME, you also want
-    to change DEPLOYER_HIPCHAT_NAME.  (You might ask: why store both
-    when one can be derived from the other?  The answer is documentation:
-    users can look at the properties file on disk and understand better
-    what was going on.)
+    For instance, whenever you change GIT_SHA, you also want to change
+    VERSION_NAME.
     """
     new_values = new_values.copy()
     if 'GIT_SHA1' in new_values:
         new_values.setdefault(
             'VERSION_NAME', _gae_version(new_values['GIT_SHA1']))
-
-    if 'DEPLOYER_USERNAME' in new_values:
-        new_values.setdefault(
-            'DEPLOYER_HIPCHAT_NAME', new_values['DEPLOYER_USERNAME'])
 
     if 'LOCKDIR' in new_values:
         new_values.setdefault(
@@ -870,7 +862,7 @@ def finish_with_unlock(props, caller=None):
 
     Raises RuntimeError if we failed to release the lock.
     """
-    if caller == props['DEPLOYER_HIPCHAT_NAME']:
+    if caller == props['DEPLOYER_USERNAME']:
         # You are releasing your own lock
         _alert(props, "has manually released the deploy lock.")
     else:
@@ -992,7 +984,7 @@ def _create_or_read_properties(action, invocation_details):
             else:
                 # We can't load the real props, so do the best we can.
                 minimally_viable_props = {
-                    'DEPLOYER_HIPCHAT_NAME':
+                    'DEPLOYER_USERNAME':
                         invocation_details.deployer_username,
                     'HIPCHAT_ROOM': '1s/0s: deploys',
                     'CHAT_SENDER': 'Mr Gorilla',
