@@ -83,6 +83,8 @@ InvocationDetails = collections.namedtuple(
         'auto_deploy',
         'gae_version',
         'jenkins_url',
+        'jenkins_job_url',
+        'monitoring_time',
         'hipchat_room',
         'chat_sender',
         'icon_emoji',
@@ -98,7 +100,7 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
-        text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
+        text = '@%s %s' % (props['DEPLOYER_USERNAME'], text)
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
@@ -968,15 +970,27 @@ def _create_or_read_properties(action, invocation_details):
 
     :param str action: an action, which must be one of DEPLOY_ACTIONs
     :param InvocationDetails invocation_details: the arguments to be used for
-        acquiring the lock
+        acquiring the lock, or augmenting an existing lock
     :return: a dict of the props
     :rtype: dict
     """
+
+    # Some properties are by definition invocation-specific, but are still
+    # very useful to keep in the main props dict (and, for debugging
+    # reasons, even handy to have on disk in the lock file). This function
+    # injects invocation-specific values into the props dict.
+    def enrich_props_with_invocation(lock_props):
+        lock_props['JENKINS_JOB_URL'] = invocation_details.jenkins_job_url
+        lock_props['MONITORING_TIME'] = invocation_details.monitoring_time
+        return lock_props
+
     if action == 'acquire-lock':
-        return _create_properties(invocation_details)
+        return enrich_props_with_invocation(
+            _create_properties(invocation_details))
     else:
         try:
-            return _read_properties(invocation_details.lockdir)
+            return enrich_props_with_invocation(
+                _read_properties(invocation_details.lockdir))
         except IOError:
             if action == 'relock':
                 logging.exception('There is no backup lock at %s to recover '
@@ -1004,7 +1018,7 @@ def _create_or_read_properties(action, invocation_details):
 
 def _action_acquire_lock(props):
     """Acquire the deploy lock with the specified properties."""
-    acquire_deploy_lock(props, props['JENKINS_URL'])
+    acquire_deploy_lock(props, props['JENKINS_JOB_URL'])
     _write_properties(props)
     _update_properties(props,
                        {'POSSIBLE_NEXT_STEPS': 'merge-from-master'})
@@ -1036,10 +1050,10 @@ def _action_manual_test(props):
                        {'POSSIBLE_NEXT_STEPS': 'set-default'})
 
 
-def _action_set_default(props, monitoring_time):
+def _action_set_default(props):
     """Set the default GAE generation after it's been uploaded."""
-    set_default(props, monitoring_time=monitoring_time,
-                jenkins_build_url=props['JENKINS_URL'])
+    set_default(props, monitoring_time=props['MONITORING_TIME'],
+                jenkins_build_url=props['JENKINS_JOB_URL'])
     # If set_default didn't raise an exception, all is happy.
     if props['AUTO_DEPLOY'] == 'true':
         finish_with_success(props)
@@ -1085,7 +1099,6 @@ KNOWN_ACTIONS = {
     'merge-from-master': _action_merge_from_master,
     # send a chat message saying to do pre-set-default testing
     'manual-test': _action_manual_test,
-    # MUST BE CALLED MANUALLY DUE TO EXTRA ARGUMENT
     # set this version to GAE default after it's been uploaded.
     'set-default': _action_set_default,
     # manually release the deploy lock
@@ -1101,7 +1114,7 @@ KNOWN_ACTIONS = {
 }
 
 
-def main(action, monitoring_time=None, invocation_details=None):
+def main(action, invocation_details):
     """Handle a given deploy sequence command.
 
     The commands raise an exception if we should stop the pipeline
@@ -1115,9 +1128,10 @@ def main(action, monitoring_time=None, invocation_details=None):
     which will cause the Jenkins job to say that this step succeeded.
 
     :param str action: one of DEPLOY_ACTIONS; see documentation there
-    :param monitoring_time: how long to monitor. Ignored except if action is
-        set-default
-    :return: Unix-style result code (nonzero means failure)
+    :param InvocationDetails invocation_details: all the details of this
+        deploy; see the InvocationDetails and KNOWN_ACTIONS structure for
+        more information
+    :return: Unix-style command result code (nonzero means failure)
     """
 
     assert action in KNOWN_ACTIONS, 'Unknown action: %s' % action
@@ -1159,13 +1173,7 @@ def main(action, monitoring_time=None, invocation_details=None):
         return True
 
     try:
-        # set-default needs to be handled manually because monitoring_time
-        #  doesn't meaningfully make sense as a props value
-        if action == 'set-default':
-            KNOWN_ACTIONS[action](props, monitoring_time)
-        else:
-            KNOWN_ACTIONS[action](props)
-
+        KNOWN_ACTIONS[action](props)
         if os.path.exists(os.path.join(props['LOCKDIR'], 'deploy.prop')):
             _update_properties(props, {'LAST_ERROR': ''})
         return True
@@ -1193,7 +1201,7 @@ def parse_args_and_invoke_main():
     parser.add_argument('--deployer_email',
                         help=("Obsolete; use --deployer-username instead"))
     parser.add_argument('--deployer-username',
-                        default='Anonymous Coward',
+                        default='AnonymousCoward',
                         help='The chat handle of the user initiating this '
                              'deploy request')
     parser.add_argument('--git_revision',
@@ -1287,14 +1295,15 @@ def parse_args_and_invoke_main():
                        auto_deploy=args.auto_deploy == 'true',
                        gae_version=_current_gae_version(),
                        jenkins_url=args.jenkins_url,
+                       jenkins_job_url=args.jenkins_build_url,
+                       monitoring_time=args.monitoring_time,
                        hipchat_room=args.hipchat_room,
                        chat_sender=chat_sender,
                        icon_emoji=args.icon_emoji,
                        slack_channel=args.slack_channel,
                        deploy_email=args.deploy_email,
                        deploy_pw_file=args.deploy_pw_file,
-                       token=args.token),
-                   monitoring_time=args.monitoring_time)
+                       token=args.token))
     sys.exit(0 if success else 1)
 
 
