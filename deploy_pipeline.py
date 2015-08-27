@@ -74,27 +74,6 @@ _DRY_RUN = False
 
 _WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
 
-DEPLOY_ACTIONS = frozenset({
-    # acquire the deploy lock.
-    'acquire-lock',
-    # merge master into current branch if necessary.
-    'merge-from-master',
-    # send a hipchat message saying to do pre-set-default testing.
-    'manual-test',
-    # set this version to GAE default after it's been uploaded.
-    'set-default',
-    # manually release the deploy lock.
-    'finish-with-unlock',
-    # ditto, but because the deploy succeeded.
-    'finish-with-success',
-    # ditto, but because the deploy failed (pre-set-default)
-    'finish-with-failure',
-    # ditto, because the deploy failed (post-set-default)
-    'finish-with-rollback',
-    # re-acquire the lock from lockdir.last, if possible.
-    'relock',
-})
-
 InvocationDetails = collections.namedtuple(
     'InvocationDetails',
     [
@@ -1019,12 +998,13 @@ def relock(props):
 
 
 def _create_or_read_properties(action, acquire_lock_args):
-    """
-    Initialize the lock structure and return the lock properties
+    """Initializes the lock structure and returns the lock properties.
+
     :param str action: an action, which must be one of DEPLOY_ACTIONs
     :param AcquireLockArgs acquire_lock_args: the arguments to be used for
         acquiring the lock
     :return: a dict of the props
+    :rtype: dict
     """
     if action == 'acquire-lock':
         return _create_properties(acquire_lock_args)
@@ -1058,6 +1038,7 @@ def _create_or_read_properties(action, acquire_lock_args):
 
 
 def _action_acquire_lock(props):
+    """Acquires the deploy lock with the specified properties."""
     acquire_deploy_lock(props, props['JENKINS_URL'])
     _write_properties(props)
     _update_properties(props,
@@ -1065,6 +1046,7 @@ def _action_acquire_lock(props):
 
 
 def _action_merge_from_master(props):
+    """Merges master into the current branch if necessary."""
     merge_from_master(props)
     # Now we need to update the props file to indicate the new
     # GIT_SHA1 after merging.  (This also updates VERSION_NAME.)
@@ -1083,12 +1065,14 @@ def _action_merge_from_master(props):
 
 
 def _action_manual_test(props):
+    """Sends a chat message telling users to do pre-set-default testing."""
     manual_test(props)
     _update_properties(props,
                        {'POSSIBLE_NEXT_STEPS': 'set-default'})
 
 
 def _action_set_default(props, monitoring_time):
+    """Sets the default GAE generation after it's been uploaded."""
     set_default(props, monitoring_time=monitoring_time,
                 jenkins_build_url=props['JENKINS_URL'])
     # If set_default didn't raise an exception, all is happy.
@@ -1100,22 +1084,28 @@ def _action_set_default(props, monitoring_time):
 
 
 def _action_finish_with_unlock(props):
+    """Manually releases the deploy lock."""
     finish_with_unlock(props, props['DEPLOYER_EMAIL'])
 
 
 def _action_finish_with_success(props):
+    """Release the deploy lock after a successful deploy."""
     finish_with_success(props)
 
 
 def _action_finish_with_failure(props):
+    """Releases the deploy lock and aborts, pre-set-default."""
     finish_with_failure(props)
 
 
 def _action_finish_with_rollback(props):
+    """Releases the deploy lock and rolls back, post-set-default."""
     finish_with_rollback(props)
 
 
 def _action_relock(props):
+    """Re-acquires the lock from lockdir.last, if possible."""
+
     relock(props)
     # You relock when something went wrong, so any step could
     # legitimately go next.
@@ -1124,20 +1114,30 @@ def _action_relock(props):
 
 
 KNOWN_ACTIONS = {
+    # acquire the deploy lock
     'acquire-lock': _action_acquire_lock,
+    # merge master into the current branch if necessary
     'merge-from-master': _action_merge_from_master,
+    # send a chat message saying to do pre-set-default testing
     'manual-test': _action_manual_test,
+    # MUST BE CALLED MANUALLY: set this version to GAE default after it's
+    #  been uploaded.
+    'set-default': _action_set_default,
+    # manually release the deploy lock
     'finish-with-unlock': _action_finish_with_unlock,
+    # manually release the deploy lock because the deploy succeeded
     'finish-with-success': _action_finish_with_success,
+    # manually release the deploy lock b/c the deploy failed (pre-set-default)
     'finish-with-failure': _action_finish_with_failure,
+    # manually release the deploy lock b/c the deploy failed (post-set-default)
     'finish-with-rollback': _action_finish_with_rollback,
+    # re-acquire the lock from lockdir.last, if possible
     'relock': _action_relock,
 }
 
 
 def main(action, monitoring_time=None, invocation_details=None):
-    """
-    Handles a given deploy sequence command.
+    """Handles a given deploy sequence command.
 
     The commands raise an exception if we should stop the pipeline
     there, due to failure.  In those cases, we return False, which
@@ -1155,7 +1155,7 @@ def main(action, monitoring_time=None, invocation_details=None):
     :return: Unix-style result code (nonzero means failure)
     """
 
-    assert action in DEPLOY_ACTIONS
+    assert action in KNOWN_ACTIONS, 'Unknown action: %s' % action
 
     props = _create_or_read_properties(action, invocation_details)
     if props is None:
@@ -1165,7 +1165,7 @@ def main(action, monitoring_time=None, invocation_details=None):
     # we are not the owners of this lock, so fail.  This is an
     # optional check.
     if (invocation_details.token and props.get('TOKEN') and
-                invocation_details.token != props['TOKEN']):
+            invocation_details.token != props['TOKEN']):
         _alert(props,
                'You do not own the deploy lock (its token is %s, '
                'yours is %s); aborting' % (props['TOKEN'],
@@ -1194,12 +1194,12 @@ def main(action, monitoring_time=None, invocation_details=None):
         return True
 
     try:
-        if action in KNOWN_ACTIONS:
-            KNOWN_ACTIONS[action](props)
-        elif action == 'set-default':
+        # set-default needs to be handled manually because monitoring_time
+        #  doesn't meaningfully make sense as a props value
+        if action == 'set-default':
             _action_set_default(props, monitoring_time)
         else:
-            raise RuntimeError("Unknown action '%s'" % action)
+            KNOWN_ACTIONS[action](props)
 
         if os.path.exists(os.path.join(props['LOCKDIR'], 'deploy.prop')):
             _update_properties(props, {'LAST_ERROR': ''})
@@ -1217,7 +1217,7 @@ def main(action, monitoring_time=None, invocation_details=None):
 def parse_args_and_invoke_main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action',
-                        choices=DEPLOY_ACTIONS,
+                        choices=KNOWN_ACTIONS,
                         help='Action to perform')
     parser.add_argument('--lockdir',
                         default='tmp/deploy.lockdir',
@@ -1244,15 +1244,18 @@ def parse_args_and_invoke_main():
                         help=("The room to send all hipchat notifications "
                               "to."))
     parser.add_argument('--hipchat_sender',
+                        help=("Obsolete; use --chat-sender instead"))
+    parser.add_argument('--chat-sender',
                         default='Testybot',
-                        help=("The name to use as the sender of hipchat "
-                              "notifications."))
+                        help='The user name to show for messages posted to'
+                             ' chat')
     parser.add_argument('--slack_channel',
                         default='#bot-testing',
                         help='The Slack channel to receive all alerts')
     parser.add_argument('--icon_emoji',
                         default=':crocodile:',
-                        help='The icon emoji to use, if any')
+                        help=('The emoji to use as a bot avatar for messages'
+                              ' posted to Slack'))
     parser.add_argument('--deploy_email',
                         default='prod-deploy@khanacademy.org',
                         help="The AppEngine user to deploy as.")
@@ -1279,7 +1282,7 @@ def parse_args_and_invoke_main():
                               "https://jenkins.khanacademy.org/job/testjob/723/"
                               " or the like"))
 
-    parser.add_argument('--dry-run',
+    parser.add_argument('-n', '--dry-run',
                         action='store_true',
                         default=False,
                         help=('Output information, but do not actually run '
@@ -1296,6 +1299,13 @@ def parse_args_and_invoke_main():
     global _DRY_RUN
     _DRY_RUN = args.dry_run
 
+    # Handle --hipchat_sender deprecation
+    chat_sender = args.chat_sender
+    if args.hipchat_sender:
+        logging.warn("The --hipchat_sender argument is deprecated; please use "
+                     "--chat-sender instead")
+        chat_sender = args.hipchat_sender
+
     success = main(args.action,
                    invocation_details=InvocationDetails(
                        lockdir=os.path.abspath(args.lockdir),
@@ -1305,7 +1315,7 @@ def parse_args_and_invoke_main():
                        gae_version=_current_gae_version(),
                        jenkins_url=args.jenkins_url,
                        hipchat_room=args.hipchat_room,
-                       chat_sender=args.hipchat_sender,
+                       chat_sender=chat_sender,
                        icon_emoji=args.icon_emoji,
                        slack_channel=args.slack_channel,
                        deploy_email=args.deploy_email,
