@@ -125,27 +125,6 @@ def _safe_urlopen(*args, **kwargs):
                                 % (args, kwargs))
 
 
-def _email_to_hipchat_name(email):
-    """Given an email address, turn it into a @mention suitable for hipchat."""
-    if email is None:
-        return '<b>Unknown user:</b>'
-    try:
-        logging.info('Fetching email->hipchat mapping from hipchat')
-        data = _safe_urlopen('https://api.hipchat.com/v1/users/list?'
-                             'auth_token=%s' % ka_secrets.hipchat_deploy_token)
-        user_data = json.loads(data)
-        email_to_mention_name = {user['email']: '@%s' % user['mention_name']
-                                 for user in user_data['users']}
-    except Exception as why:
-        # If we don't have secrets, we get back a 401.  Ah well.
-        logging.warning('Fetching email->hipchat mapping failed; will '
-                        'guess. (%s: %s)' % (why.__class__.__name__, why))
-        email_to_mention_name = {}
-    # If we can't map email to hipchat name, just guess that their
-    # hipchat name is @<email-name>.
-    return email_to_mention_name.get(email, '@%s' % email.split('@')[0])
-
-
 def _run_command(cmd, failure_ok=False):
     """Return True if command succeeded, False else.  May raise on failure."""
     logging.info('Running command: %s' % cmd)
@@ -228,7 +207,7 @@ def _create_properties(args):
         'LOCKDIR': args.lockdir,
         'DEPLOYER_EMAIL': args.deployer_email,
         'DEPLOYER_USERNAME': args.deployer_email.split('@')[0],
-        'DEPLOYER_HIPCHAT_NAME': _email_to_hipchat_name(args.deployer_email),
+        'DEPLOYER_HIPCHAT_NAME': args.deployer_email.split('@')[0],
         'GIT_REVISION': args.git_revision,
 
         # Note: GIT_SHA1 and VERSION_NAME will be updated after
@@ -301,8 +280,7 @@ def _update_properties(props, new_values):
 
     if 'DEPLOYER_USERNAME' in new_values:
         new_values.setdefault(
-            'DEPLOYER_HIPCHAT_NAME',
-            _email_to_hipchat_name(new_values['DEPLOYER_USERNAME']))
+            'DEPLOYER_HIPCHAT_NAME', new_values['DEPLOYER_USERNAME'])
 
     if 'LOCKDIR' in new_values:
         new_values.setdefault(
@@ -997,30 +975,29 @@ def relock(props):
     _move_lockdir(props, old_lockdir, new_lockdir)
 
 
-def _create_or_read_properties(action, acquire_lock_args):
+def _create_or_read_properties(action, invocation_details):
     """Initializes the lock structure and returns the lock properties.
 
     :param str action: an action, which must be one of DEPLOY_ACTIONs
-    :param AcquireLockArgs acquire_lock_args: the arguments to be used for
+    :param InvocationDetails invocation_details: the arguments to be used for
         acquiring the lock
     :return: a dict of the props
     :rtype: dict
     """
     if action == 'acquire-lock':
-        return _create_properties(acquire_lock_args)
+        return _create_properties(invocation_details)
     else:
         try:
-            return _read_properties(acquire_lock_args.lockdir)
+            return _read_properties(invocation_details.lockdir)
         except IOError:
             if action == 'relock':
                 logging.exception('There is no backup lock at %s to recover '
-                                  'from, sorry.' % acquire_lock_args.lockdir)
+                                  'from, sorry.' % invocation_details.lockdir)
             else:
                 # We can't load the real props, so do the best we can.
                 minimally_viable_props = {
                     'DEPLOYER_HIPCHAT_NAME':
-                        _email_to_hipchat_name(
-                            acquire_lock_args.deployer_email),
+                        invocation_details.deployer_email.split('@')[0],
                     'HIPCHAT_ROOM': '1s/0s: deploys',
                     'CHAT_SENDER': 'Mr Gorilla',
                     'SLACK_CHANNEL': '#1s-and-0s-deploys',
