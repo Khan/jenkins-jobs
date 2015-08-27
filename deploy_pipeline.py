@@ -78,7 +78,7 @@ InvocationDetails = collections.namedtuple(
     'InvocationDetails',
     [
         'lockdir',
-        'deployer_email',
+        'deployer_username',
         'git_revision',
         'auto_deploy',
         'gae_version',
@@ -201,13 +201,12 @@ def _current_gae_version():
 def _create_properties(args):
     """Return a dict of property-name to property value.
 
-    :param AcquireLockArgs args: the lock arguments to dictify
+    :param InvocationDetails args: the lock arguments to dictify
     """
     retval = {
         'LOCKDIR': args.lockdir,
-        'DEPLOYER_EMAIL': args.deployer_email,
-        'DEPLOYER_USERNAME': args.deployer_email.split('@')[0],
-        'DEPLOYER_HIPCHAT_NAME': args.deployer_email.split('@')[0],
+        'DEPLOYER_USERNAME': args.deployer_username,
+        'DEPLOYER_HIPCHAT_NAME': args.deployer_username,
         'GIT_REVISION': args.git_revision,
 
         # Note: GIT_SHA1 and VERSION_NAME will be updated after
@@ -273,10 +272,6 @@ def _update_properties(props, new_values):
     if 'GIT_SHA1' in new_values:
         new_values.setdefault(
             'VERSION_NAME', _gae_version(new_values['GIT_SHA1']))
-
-    if 'DEPLOYER_EMAIL' in new_values:
-        new_values.setdefault(
-            'DEPLOYER_USERNAME', new_values['DEPLOYER_EMAIL'].split('@')[0])
 
     if 'DEPLOYER_USERNAME' in new_values:
         new_values.setdefault(
@@ -867,7 +862,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    color='green')
 
 
-def finish_with_unlock(props, caller):
+def finish_with_unlock(props, caller=None):
     """Manually release the deploy lock.  Caller is the 'manual' person.
 
     This is called when something is messed up and the lock is being
@@ -880,7 +875,8 @@ def finish_with_unlock(props, caller):
         _alert(props, "has manually released the deploy lock.")
     else:
         _alert(props,
-               ": %s has manually released the deploy lock." % caller)
+               ": %s has manually released the deploy lock." %
+               (caller or props['DEPLOYER_USERNAME']))
     release_deploy_lock(props)
 
 
@@ -997,7 +993,7 @@ def _create_or_read_properties(action, invocation_details):
                 # We can't load the real props, so do the best we can.
                 minimally_viable_props = {
                     'DEPLOYER_HIPCHAT_NAME':
-                        invocation_details.deployer_email.split('@')[0],
+                        invocation_details.deployer_username,
                     'HIPCHAT_ROOM': '1s/0s: deploys',
                     'CHAT_SENDER': 'Mr Gorilla',
                     'SLACK_CHANNEL': '#1s-and-0s-deploys',
@@ -1062,7 +1058,7 @@ def _action_set_default(props, monitoring_time):
 
 def _action_finish_with_unlock(props):
     """Manually releases the deploy lock."""
-    finish_with_unlock(props, props['DEPLOYER_EMAIL'])
+    finish_with_unlock(props, props['DEPLOYER_USERNAME'])
 
 
 def _action_finish_with_success(props):
@@ -1203,9 +1199,11 @@ def parse_args_and_invoke_main():
                               "ownership of the deploy lock."))
     # These flags are only needed for acquire-lock.
     parser.add_argument('--deployer_email',
-                        default='unknown-user@khanacademy.org',
-                        help=("The (gmail) email address of the person "
-                              "doing the deploy."))
+                        help=("Obsolete; use --deployer-username instead"))
+    parser.add_argument('--deployer-username',
+                        default='Anonymous Coward',
+                        help='The chat handle of the user initiating this '
+                             'deploy request')
     parser.add_argument('--git_revision',
                         help=("The branch-name (it can also just be a "
                               "commit id) being deployed."))
@@ -1276,17 +1274,23 @@ def parse_args_and_invoke_main():
     global _DRY_RUN
     _DRY_RUN = args.dry_run
 
-    # Handle --hipchat_sender deprecation
+    # Handle deprecated options --hipchat_sender and --deployer-email
     chat_sender = args.chat_sender
     if args.hipchat_sender:
         logging.warn("The --hipchat_sender argument is deprecated; please use "
                      "--chat-sender instead")
         chat_sender = args.hipchat_sender
 
+    deployer_username = args.deployer_username
+    if args.deployer_email:
+        logging.warn('The --deployer_email argument is deprecated; please use '
+                     '--deployer-username instead')
+        deployer_username = args.deployer_email.split('@')[0]
+
     success = main(args.action,
                    invocation_details=InvocationDetails(
                        lockdir=os.path.abspath(args.lockdir),
-                       deployer_email=args.deployer_email,
+                       deployer_username=deployer_username,
                        git_revision=args.git_revision,
                        auto_deploy=args.auto_deploy == 'true',
                        gae_version=_current_gae_version(),
