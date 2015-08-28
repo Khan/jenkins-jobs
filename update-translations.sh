@@ -4,6 +4,24 @@
 # 1) download up-to-date translations from crowdin
 # 2) sanity-check the results and check them in
 # 3) upload the latest all.pot to crowdin
+#
+# Environment variables:
+#
+# One of the following must be set for this script to do any work:
+#
+#   DOWNLOAD_TRANSLATIONS - set to 1 to download language translations,
+#       which is (1) and (2) above.
+#   UPDATE_STRINGS - set to 1 to upload new strings to Crowdin,
+#       regenerating all.pot, fake languages, and JIPT strings,
+#       which is (3) above.
+
+: ${DOWNLOAD_TRANSLATIONS:=}
+: ${UPDATE_STRINGS:=}
+
+if [ -z "$DOWNLOAD_TRANSLATIONS" -a -z "$UPDATE_STRINGS" ]; then
+    echo "One of DOWNLOAD_TRANSLATIONS or UPDATE_STRINGS must be set" >&2
+    exit 1
+fi
 
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
@@ -38,9 +56,6 @@ split_po() {
 
 # --- The actual work:
 
-# This lets us commit messages without a test plan
-export FORCE_COMMIT=1
-
 echo "Checking status of dropbox"
 
 # dropbox.py doesn't like it when the directory is a symlink
@@ -62,91 +77,104 @@ safe_pull .
 # We also make sure the translations sub-repo is up to date.
 safe_pull intl/translations
 
-echo "Updating the list of graphie images."
-# find_graphie_images_in_items.js caches items here, so we create the directory
-# for it.
-mkdir -p genfiles/assessment_items
-node tools/find_graphie_images_in_items.js
-
-# Download the approved entries.
-for lang in `tools/crowdin/list_ka_locales_to_download.py --approved` ; do
-    echo "Downloading the approved translations for $lang from crowdin."
-    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-       --use_temps_for_linting \
-       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-       --send-lint-reports \
-       --export \
-       --approved-only \
-       $lang
-done
-
-# Now download entries regardless as to whether they have been approved.
-for lang in `tools/crowdin/list_ka_locales_to_download.py` ; do
-    echo "Downloading the current translations for $lang from crowdin."
-    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-       --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-       --use_temps_for_linting \
-       --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-       --send-lint-reports \
-       --export \
-       $lang
-done
-
-echo "Creating a new, up-to-date all.pot."
-# Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,
-# but we also want to keep a version in source control for debugging purposes.
-# TODO(csilvers): uncomment once we get popular_pages up and using bigquery.
-#tools/popular_pages.py --limit 10000 > "$DATA_DIR"/popular_urls
-cp -f "$DATA_DIR"/popular_urls /tmp/
-# By removing genfiles/extracted_strings/en/intl/datastore.pot.pickle,
-# we force compile_all_pot to re-fetch nltext datastore info from prod.
-rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
-kake/build_prod_main.py -v3 pot
-# This is where build_prod_main.py puts the output all.pot
-ALL_POT="$PWD"/genfiles/translations/all.pot.txt_for_debugging
-
-echo "Sanity check: will fail if the new all.pot is missing stuff."
-[ `wc -l < "$ALL_POT"` -gt 100000 ]
-grep -q 'intl/datastore:1' "$ALL_POT"
-
-echo "Translating fake languages."
-"$MAKE" i18n_mo
-
-echo "Splitting .po files"
 TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/pofiles
-split_po "$TRANSLATIONS_DIR"
-
-echo "Splitting approved .po files"
 APPROVED_TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/approved_pofiles
-split_po "$APPROVED_TRANSLATIONS_DIR"
 
-cp "$ALL_POT" "$DATA_DIR"/all.pot
+if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
-echo "Uploading the new all.pot to crowdin."
-deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
-   --use-temps-to-skip \
-   --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-   --popular-urls="$DATA_DIR"/popular_urls \
-   --pot-filename="$ALL_POT" \
-   --automatically_delete_html_files
+    # Download the approved entries.
+    for lang in `tools/crowdin/list_ka_locales_to_download.py --approved` ; do
+        echo "Downloading the approved translations for $lang from crowdin."
+        deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+           --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+           --use_temps_for_linting \
+           --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+           --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+           --send-lint-reports \
+           --export \
+           --approved-only \
+           $lang
+    done
 
-echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
-deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-    --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-    --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-    --export \
-    --nolint \
-    en-pt
+    # Now download entries regardless as to whether they have been approved.
+    for lang in `tools/crowdin/list_ka_locales_to_download.py` ; do
+        echo "Downloading the current translations for $lang from crowdin."
+        deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+           --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+           --use_temps_for_linting \
+           --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+           --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+           --send-lint-reports \
+           --export \
+           $lang
+    done
 
-# Split up en-PT as well.  The other langs will be ignored since they have 
-# already been split up.
-split_po "$TRANSLATIONS_DIR" 
-# We don't bother redownloading en-pt for approved as it is a fake language and
-# so approval doesn't make sense.  So we just copy the po files on over.
-cp "$TRANSLATIONS_DIR"/en-pt\.* "$APPROVED_TRANSLATIONS_DIR"
+    echo "Splitting .po files"
+    split_po "$TRANSLATIONS_DIR"
+
+    echo "Splitting approved .po files"
+    split_po "$APPROVED_TRANSLATIONS_DIR"
+
+fi
+
+if [ -n "$UPDATE_STRINGS" ]; then
+
+    echo "Updating the list of graphie images."
+    # find_graphie_images_in_items.js caches items here, so we create the directory
+    # for it.
+    mkdir -p genfiles/assessment_items
+    node tools/find_graphie_images_in_items.js
+
+    echo "Creating a new, up-to-date all.pot."
+    # Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,
+    # but we also want to keep a version in source control for debugging purposes.
+    # TODO(csilvers): uncomment once we get popular_pages up and using bigquery.
+    #tools/popular_pages.py --limit 10000 > "$DATA_DIR"/popular_urls
+    cp -f "$DATA_DIR"/popular_urls /tmp/
+    # By removing genfiles/extracted_strings/en/intl/datastore.pot.pickle,
+    # we force compile_all_pot to re-fetch nltext datastore info from prod.
+    rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
+    kake/build_prod_main.py -v3 pot
+    # This is where build_prod_main.py puts the output all.pot
+    ALL_POT="$PWD"/genfiles/translations/all.pot.txt_for_debugging
+
+    echo "Sanity check: will fail if the new all.pot is missing stuff."
+    [ `wc -l < "$ALL_POT"` -gt 100000 ]
+    grep -q 'intl/datastore:1' "$ALL_POT"
+
+    echo "Translating fake languages."
+    "$MAKE" i18n_mo
+
+    cp "$ALL_POT" "$DATA_DIR"/all.pot
+
+    echo "Uploading the new all.pot to crowdin."
+    deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
+       --use-temps-to-skip \
+       --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+       --popular-urls="$DATA_DIR"/popular_urls \
+       --pot-filename="$ALL_POT" \
+       --automatically_delete_html_files
+
+    echo "Downloading the new en-PT jipt tags from crowdin for translate.ka.org."
+    deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+        --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+        --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+        --export \
+        --nolint \
+        en-pt
+
+    # Split up en-PT and the fake languages as well.  The other langs will be
+    # ignored since they have already been split up.
+    split_po "$TRANSLATIONS_DIR"
+    split_po "$APPROVED_TRANSLATIONS_DIR"
+    # We don't bother redownloading en-pt for approved as it is a fake language and
+    # so approval doesn't make sense.  So we just copy the po files on over.
+    cp "$TRANSLATIONS_DIR"/en-pt\.* "$APPROVED_TRANSLATIONS_DIR"
+
+fi
+
+# This lets us commit messages without a test plan
+export FORCE_COMMIT=1
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 safe_commit_and_push intl/translations \
