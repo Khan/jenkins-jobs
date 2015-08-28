@@ -748,7 +748,7 @@ def manual_test(props):
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
     # FIXME: When HipChat dies, this can be one alert with two attachments
     deploy_attachments = [{
-        'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s` (branch '
+        'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s>` (branch '
                    '`%(branch)s`) is uploaded to AppEngine!' % {
                        'url': hostname,
                        'appengine_id': props['VERSION_NAME'],
@@ -796,13 +796,13 @@ def manual_test(props):
         'fields': [
             {
                 'title': 'Open them all at once:',
-                'value': '`tools/manual_webapp_testing.py %s' %
+                'value': '`tools/manual_webapp_testing.py %s`' %
                          props['VERSION_NAME'],
                 'short': False,
             },
             {
                 'title': 'Run end-to-end testing',
-                'value': '`tools/end_to_end_webapp_testing.py --version %s' %
+                'value': '`tools/end_to_end_webapp_testing.py --version %s`' %
                          props['VERSION_NAME'],
                 'short': False,
             }
@@ -903,7 +903,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'fields': [
                     {
                         'title': 'Open them all at once:',
-                        'value': '`tools/manual_webapp_testing.py %s' %
+                        'value': '`tools/manual_webapp_testing.py %s`' %
                                  props['VERSION_NAME'],
                         'short': False,
                     },
