@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 
 """Runs the various steps of our github-style deploy pipeline.
 
@@ -746,8 +748,19 @@ def _rollback_deploy(props):
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
-    # TODO(bmp): When HipChat dies, this can be one alert with two attachments
-    deploy_attachments = [{
+
+    deploymsg_plaintext = (
+        'Hey %s, https://%s/ (branch %s) is uploaded to appengine! '
+        'Do some manual testing on it, then either:'
+        '\n- set it as default: type "sun, set default" or visit %s\n'
+        '\n- abort the deploy: type "sun, abort" or visit %s'
+        % (props['DEPLOYER_USERNAME'], hostname, props['GIT_REVISION'],
+           _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
+           _finish_url(props, STATUS='failure', WHY='aborted'))
+    )
+
+    deploymsg_attachment = {
+        'fallback': deploymsg_plaintext,
         'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s>` (branch '
                    '`%(branch)s`) is uploaded to AppEngine!' % {
                        'url': hostname,
@@ -758,38 +771,56 @@ def manual_test(props):
         'fields': [
             {
                 'title': 'all looks good :rocket:',
-                'value': ':speech_balloon: "_sun, set default_" '
-                         '(or <%s|click me>' % (_set_default_url(
+                'value': u':speech_balloon: _“sun, set default”_ '
+                         u'(or <%s|click me>)' % (_set_default_url(
                              props, AUTO_DEPLOY=props['AUTO_DEPLOY'])),
                 'short': True
             },
             {
                 'title': 'abort the deploy :skull:',
-                'value': ':speech_balloon: "_sun, abort_" '
-                         '(or <%s|click me>)' % (_finish_url(
+                'value': u':speech_balloon: _“sun, set abort”_ '
+                         u'(or <%s|click me>)' % (_finish_url(
                              props, STATUS='failure', WHY='aborted')),
                 'short': True
             }],
         'color': 'good',
         'mrkdwn_in': ['pretext', 'text', 'fields'],
-    }]
-    _alert(props,
-           'https://%s/ (branch %s) is uploaded to appengine! '
-           'Do some manual testing on it, then either:\n'
-           ':+1: set it as default: type "sun, set default" or '
-           'visit %s\n'
-           ':no_good: abort the deploy: type "sun, abort" or visit %s'
-           % (hostname, props['GIT_REVISION'],
-              _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
-              _finish_url(props, STATUS='failure', WHY='aborted')),
-           color='green', attachments=deploy_attachments)
-    time.sleep(1)   # to help the two hipchat alerts be ordered properly
+    }
 
     # Suggest some urls to do for manual testing, as both links and a
     # commandline tool.
-    test_attachments = [{
+    testmsg_plaintext = (
+        "Here are some pages to manually test:\n"
+        "%(pages)s\n"
+        "Or open them all at once (cut-and-paste): "
+        "  $ tools/manual_webapp_testing.py %(version)s\n\n"
+        "Also run end-to-end testing (cut-and-paste): "
+        "  $ tools/end_to_end_webapp_testing.py --version %(version)s</b>"
+        % {
+            'pages': '\n'.join('%s: %s' % (title, url)
+                               for title, url
+                               in manual_webapp_testing.pages_to_test(
+                               props['VERSION_NAME'])),
+            'version': props['VERSION_NAME']
+        }
+    )
+
+    # TODO(mroth): the HTML mesasge is used only for HipChat and can be removed
+    # when hipchat is fully deprecated.
+    testmsg_html = (
+        "Here are some pages to manually test:<br>%s<br>"
+        "Or open them all at once (cut-and-paste): "
+        "<b>tools/manual_webapp_testing.py %s\n\n"
+        "Also run end-to-end testing (cut-and-paste): "
+        "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
+        % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
+           props['VERSION_NAME'], props['VERSION_NAME'])
+    )
+
+    testmsg_attachment = {
+        'fallback': testmsg_plaintext,
         'pretext': 'Before deciding, here are some pages to manually test:',
-        'text': ' '.join('`<%s|%s>`' % (title, url)
+        'text': ' '.join('`<%s|%s>`' % (url, title)
                          for title, url
                          in manual_webapp_testing.pages_to_test(
             props['VERSION_NAME'])),
@@ -808,17 +839,28 @@ def manual_test(props):
             }
         ],
         'mrkdwn_in': ['fields', 'text']
-    }]
-    _alert(props,
-           ("Here are some pages to manually test:<br>%s<br>"
-            "Or open them all at once (cut-and-paste): "
-            "<b>tools/manual_webapp_testing.py %s\n\n"
-            "Also run end-to-end testing (cut-and-paste): "
-            "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
-            % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
-               props['VERSION_NAME'], props['VERSION_NAME'])),
-           html=True, prefix_with_username=False,
-           attachments=test_attachments)
+    }
+
+    alert = alertlib.Alert(deploymsg_plaintext + "\n\n" + testmsg_plaintext,
+                           severity=logging.INFO)
+    alert.send_to_logs()
+    _alert_to_slack(
+        props, alert,
+        attachments=[deploymsg_attachment, testmsg_attachment])
+
+    # hipchat requires two messages to be sent seperately, with a delay so they
+    # are not out of order.
+    # TODO: remove me once HipChat is deprecated
+    _alert_to_hipchat(
+        props,
+        alertlib.Alert(deploymsg_plaintext, severity=logging.INFO),
+        html=False,
+        color='green')
+    time.sleep(1)
+    _alert_to_hipchat(
+        props,
+        alertlib.Alert(testmsg_html, severity=logging.INFO),
+        html=True)
 
 
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
