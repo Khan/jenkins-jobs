@@ -96,16 +96,34 @@ InvocationDetails = collections.namedtuple(
 )
 
 
+def _hipchatify(s):
+    """Return the string s with Slack emoji replaced by HipChat emoticons."""
+    # FIXME(bmp): Kill this whole function when HipChat dies
+    hipchat_substitutions = {
+        ':+1:': '(successful)',
+        ':white_check_mark:': '(continue)',
+        ':worried:': '(sadpanda)',
+        ':no_good:': '(failed)',
+        ':poop:': '(poo)',  # not a line of code I thought I'd ever write
+        ':smile_cat:': '(gangnamstyle)',
+        ':flushed:': '(pokerface)',
+    }
+    for emoji, emoticon in hipchat_substitutions.viewitems():
+        s = s.replace(emoji, emoticon)
+
+    return s
+
+
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
         text = '@%s %s' % (props['DEPLOYER_USERNAME'], text)
     (alertlib.Alert(text, severity=severity, html=html)
-     .send_to_logs()
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['CHAT_SENDER'],
-                      color=color, notify=True)
+                      color=color, notify=True))
+    (alertlib.Alert(_hipchatify(text), severity=severity)
      .send_to_slack(channel=props['SLACK_CHANNEL'],
                     sender=props['CHAT_SENDER'],
                     icon_emoji=props['ICON_EMOJI']))
@@ -346,7 +364,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
                     % props['GIT_REVISION'])
             if jenkins_build_url and props['AUTO_DEPLOY'] != 'true':
                 msg += ("  If you wish to cancel before then:\n"
-                        "(failed) abort: %s/stop"
+                        ":no_good: abort: %s/stop"
                         % jenkins_build_url.rstrip('/'))
             _alert(props, msg, color='green')
             return
@@ -387,16 +405,16 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
     if ('merge-from-master' in next_steps or 'manual-test' in next_steps or
             'set-default' in next_steps):
         # They haven't set the default yet, so we can just fail.
-        msg = ("(failed) cancel their deploy: %s"
+        msg = (":no_good: cancel their deploy: %s"
                % _finish_url(current_props, STATUS='failure', WHY='aborted'))
     elif 'finish-with-success' in next_steps:
-        msg = ("(successful) finish their deploy with success: %s\n"
-               "(failed) abort their deploy and roll back: %s"
+        msg = (":+1: finish their deploy with success: %s\n"
+               ":no_good: abort their deploy and roll back: %s"
                % (_finish_url(current_props, STATUS='success'),
                   _finish_url(current_props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=current_props['ROLLBACK_TO'])))
     else:
-        msg = ("(continue) release the lock: %s"
+        msg = (":white_check_mark: release the lock: %s"
                % _finish_url(current_props, STATUS='unlock'))
 
     _alert(props,
@@ -678,7 +696,7 @@ def _rollback_deploy(props):
         if _pipe_command(['git', 'tag', '-l',
                           '%s-bad' % props['ROLLBACK_TO']]):
             _alert(props,
-                   "(poo) WARNING: Rolled back to %s, but that version "
+                   ":poop: WARNING: Rolled back to %s, but that version "
                    "has itself been marked as bad.  You may need to manually "
                    "run set_default.py to roll back to a safe version.  (Run "
                    "'git tag' to see all versions, good and bad.)"
@@ -686,7 +704,7 @@ def _rollback_deploy(props):
     except Exception:
         logging.exception('Auto-rollback failed')
         _alert(props,
-               "(sadpanda) (sadpanda) Auto-rollback failed! "
+               ":worried: :worried: Auto-rollback failed! "
                "Roll back to %(good)s manually by running: "
                "deploy/rollback.py --bad '%(bad)s' --good '%(good)s'"
                % {'bad': props['VERSION'], 'good': props['ROLLBACK_TO']},
@@ -702,9 +720,9 @@ def manual_test(props):
     _alert(props,
            "https://%s/ (branch %s) is uploaded to appengine! "
            "Do some manual testing on it, then either:\n"
-           "(successful) set it as default: type 'sun, set default' or "
+           ":+1: set it as default: type 'sun, set default' or "
            "visit %s\n"
-           "(failed) abort the deploy: type 'sun, abort' or visit %s"
+           ":no_good: abort the deploy: type 'sun, abort' or visit %s"
            % (hostname, props['GIT_REVISION'],
               _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
               _finish_url(props, STATUS='failure', WHY='aborted')),
@@ -769,7 +787,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "next steps to HipChat.  If you detect a problem in "
                    "the meantime you can cancel the deploy (note: this "
                    "link will only work for the next %s minutes):\n"
-                   "(failed) abort and rollback: %s/stop"
+                   ":no_good: abort and rollback: %s/stop"
                    % (props['VERSION_NAME'], monitoring_time, monitoring_time,
                       jenkins_build_url.rstrip('/')))
             time.sleep(1)  # to help the two hipchat alerts be ordered properly
@@ -795,19 +813,19 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         time.sleep(10)
         if props['AUTO_DEPLOY'] == 'true':
             _alert(props,
-                   "(sadpanda) %s." % why,
+                   ":worried: %s." % why,
                    severity=logging.WARNING)
             # By re-raising, we trigger the deploy-set-default jenkins
             # job to clean up by rolling back.  auto-rollback for free!
             raise
         else:
             _alert(props,
-                   "(sadpanda) %s. "
-                   "Make sure everything is ok, then:\n"
-                   "(successful) finish up: type 'sun, finish up' "
-                   "or visit %s\n"
-                   "(failed) abort and roll back: type 'sun, abort' "
-                   "or visit %s"
+                   ':worried: %s. '
+                   'Make sure everything is ok, then:\n'
+                   ':+1: finish up: type "sun, finish up" '
+                   'or visit %s\n'
+                   ':no_good: abort and roll back: type "sun, abort" '
+                   'or visit %s'
                    % (why,
                       _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
@@ -817,7 +835,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
     except Exception:
         logging.exception('set-default failed')
         if props['AUTO_DEPLOY'] == 'true':
-            _alert(props, "(sadpanda) (sadpanda) set-default failed!",
+            _alert(props, ":worried: :worried: set-default failed!",
                    severity=logging.ERROR)
             raise
 
@@ -827,11 +845,11 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             priming_flag = ''
 
         _alert(props,
-               "(sadpanda) (sadpanda) set-default failed!  Either:\n"
-               "(continue) Set the default to %s manually (by running "
+               ":worried: :worried: set-default failed!  Either:\n"
+               ":white_check_mark: Set the default to %s manually (by running "
                "deploy/set_default.py %s%s), then release the deploy lock "
                "via %s\n"
-               "(failed) abort and roll back %s"
+               ":no_good: abort and roll back %s"
                % (props['VERSION_NAME'], priming_flag, props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback', WHY='aborted',
@@ -841,14 +859,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         # No need for a hipchat message if the next step is automatic.
         if props['AUTO_DEPLOY'] != 'true':
             _alert(props,
-                   "Monitoring passed for the new default (%s)! "
-                   "But you should double-check everything "
-                   "is ok at https://www.khanacademy.org. "
-                   "Then:\n"
-                   "(successful) finish up: type 'sun, finish up' "
-                   "or visit %s\n"
-                   "(failed) abort and roll back: type 'sun, abort' "
-                   "or visit %s"
+                   'Monitoring passed for the new default (%s)! '
+                   'But you should double-check everything '
+                   'is ok at https://www.khanacademy.org. '
+                   'Then:\n'
+                   ':+1: finish up: type "sun, finish up" '
+                   'or visit %s\n'
+                   ':no_good: abort and roll back: type "sun, abort" '
+                   'or visit %s'
                    % (props['VERSION_NAME'],
                       _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
@@ -892,7 +910,7 @@ def finish_with_success(props):
         merge_to_master(props)
     except Exception:
         _alert(props,
-               "(sadpanda) Deploy of %s (branch %s) succeeded, "
+               ":worried: Deploy of %s (branch %s) succeeded, "
                "but we did not successfully merge %s into master. "
                "Merge and push manually, then release the lock: %s"
                % (props['VERSION_NAME'], props['GIT_REVISION'],
@@ -901,7 +919,7 @@ def finish_with_success(props):
         raise
 
     _alert(props,
-           "(gangnamstyle) Deploy of %s (branch %s) succeeded! "
+           ":smile_cat: Deploy of %s (branch %s) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']),
            color='green')
@@ -915,7 +933,7 @@ def finish_with_failure(props):
     else:
         why = ". I'm sorry."
     _alert(props,
-           "(pokerface) Deploy of %s (branch %s) failed%s"
+           ":flushed: Deploy of %s (branch %s) failed%s"
            % (props['VERSION_NAME'], props['GIT_REVISION'], why),
            severity=logging.ERROR)
     release_deploy_lock(props)
@@ -1008,7 +1026,7 @@ def _create_or_read_properties(action, invocation_details):
                     'TOKEN': '',
                 }
                 _alert(minimally_viable_props,
-                       '(sadpanda) Trying to run without the lock. '
+                       ':worried: Trying to run without the lock. '
                        'If you think you *should* have the lock, '
                        'try to re-acquire it: %s. Then run your command again.'
                        % _finish_url(minimally_viable_props, STATUS='relock'),
