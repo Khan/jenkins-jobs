@@ -9,6 +9,9 @@ setup(
     packages=find_packages(),
     scripts=['deploy_pipeline.py'],
     description='Khan Academy deployment system library',
+    install_requires=[
+        'lxml>=3.4,<3.5',
+    ],
     classifiers=[
         'License :: OSI Approved :: MIT License',
     ],
