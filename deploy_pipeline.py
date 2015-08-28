@@ -114,20 +114,48 @@ def _hipchatify(s):
     return s
 
 
+def _alert_to_hipchat(props, alert, color=None, notify=True):
+    """Send the Alert to Hipchat with default sender and destination."""
+    alert.send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
+                          sender=props['CHAT_SENDER'],
+                          color=color,
+                          notify=notify)
+
+
+def _alert_to_slack(props, alert, simple_message=False, attachments=None):
+    """Send the Alert to Slack with default sender and destination."""
+    alert.send_to_slack(channel=props['SLACK_CHANNEL'],
+                        sender=props['CHAT_SENDER'],
+                        icon_emoji=props['ICON_EMOJI'],
+                        simple_message=simple_message,
+                        attachments=attachments)
+
+
+def _prefix_with_username(props, text):
+    """Prefix the give text with the deployer's username."""
+    return '%s %s' % (props['DEPLOYER_USERNAME'], text)
+
+
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True, attachments=None):
-    """Send the given text to hipchat and the logs."""
+    """Send the given text to HipChat, Slack and the logs all at once.
+
+    Expects slack emoji and attempts to automatically translate them to HipChat
+    style. No other translations are attempted.
+
+    NOTE: This is a transition method and it's signature will likely change
+    once HipChat is deprecated.
+    """
     if prefix_with_username:
-        text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
-    (alertlib.Alert(_hipchatify(text), severity=severity, html=html)
-     .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
-                      sender=props['CHAT_SENDER'],
-                      color=color, notify=True))
-    (alertlib.Alert(text, severity=severity)
-     .send_to_slack(channel=props['SLACK_CHANNEL'],
-                    sender=props['CHAT_SENDER'],
-                    icon_emoji=props['ICON_EMOJI'],
-                    attachments=attachments))
+        text = _prefix_with_username(props, text)
+
+    hc_alert = alertlib.Alert(_hipchatify(text), severity=severity, html=html)
+    _alert_to_hipchat(hc_alert, color=color, notify=True)
+
+    slack_alert = alertlib.Alert(text, severity=severity, html=html)
+    _alert_to_slack(slack_alert, attachments=attachments)
+
+    slack_alert.send_to_logs()
 
 
 def _safe_urlopen(*args, **kwargs):
