@@ -115,7 +115,7 @@ def _hipchatify(s):
 
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
-           prefix_with_username=True):
+           prefix_with_username=True, attachments=None):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
         text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
@@ -126,7 +126,8 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
     (alertlib.Alert(_hipchatify(text), severity=severity)
      .send_to_slack(channel=props['SLACK_CHANNEL'],
                     sender=props['CHAT_SENDER'],
-                    icon_emoji=props['ICON_EMOJI']))
+                    icon_emoji=props['ICON_EMOJI'],
+                    attachments=attachments))
 
 
 def _safe_urlopen(*args, **kwargs):
@@ -696,17 +697,17 @@ def _rollback_deploy(props):
         if _pipe_command(['git', 'tag', '-l',
                           '%s-bad' % props['ROLLBACK_TO']]):
             _alert(props,
-                   ":poop: WARNING: Rolled back to %s, but that version "
-                   "has itself been marked as bad.  You may need to manually "
-                   "run set_default.py to roll back to a safe version.  (Run "
-                   "'git tag' to see all versions, good and bad.)"
+                   ':poop: WARNING: Rolled back to %s, but that version '
+                   'has itself been marked as bad.  You may need to manually '
+                   'run set_default.py to roll back to a safe version.  (Run '
+                   '"git tag" to see all versions, good and bad.)'
                    % props['ROLLBACK_TO'])
     except Exception:
         logging.exception('Auto-rollback failed')
         _alert(props,
-               ":worried: :worried: Auto-rollback failed! "
-               "Roll back to %(good)s manually by running: "
-               "deploy/rollback.py --bad '%(bad)s' --good '%(good)s'"
+               ':worried: :worried: Auto-rollback failed! '
+               'Roll back to %(good)s manually by running: '
+               'deploy/rollback.py --bad "%(bad)s" --good "%(good)s"'
                % {'bad': props['VERSION'], 'good': props['ROLLBACK_TO']},
                severity=logging.CRITICAL)
         return False
@@ -717,29 +718,79 @@ def _rollback_deploy(props):
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
+    # FIXME: When HipChat dies, this can be one alert with two attachments
+    deploy_attachments = [{
+        'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s` (branch '
+                   '`%(branch)s`) is uploaded to AppEngine!' % {
+                       'url': hostname,
+                       'appengine_id': props['VERSION_NAME'],
+                       'user': props['DEPLOYER_USERNAME'],
+                       'branch': props['GIT_REVISION'],
+                   },
+        'fields': [
+            {
+                'title': 'all looks good :rocket:',
+                'value': ':speech_balloon: "_sun, set default_" '
+                         '(or <%s|click me>' % (_set_default_url(
+                             props, AUTO_DEPLOY=props['AUTO_DEPLOY'])),
+                'short': True
+            },
+            {
+                'title': 'abort the deploy :skull:',
+                'value': ':speech_balloon: "_sun, abort_" '
+                         '(or <%s|click me>)' % (_finish_url(
+                             props, STATUS='failure', WHY='aborted')),
+                'short': True
+            }],
+        'color': 'good',
+        'mrkdwn_in': ['pretext', 'text', 'fields'],
+    }]
     _alert(props,
-           "https://%s/ (branch %s) is uploaded to appengine! "
-           "Do some manual testing on it, then either:\n"
-           ":+1: set it as default: type 'sun, set default' or "
-           "visit %s\n"
-           ":no_good: abort the deploy: type 'sun, abort' or visit %s"
+           'https://%s/ (branch %s) is uploaded to appengine! '
+           'Do some manual testing on it, then either:\n'
+           ':+1: set it as default: type "sun, set default" or '
+           'visit %s\n'
+           ':no_good: abort the deploy: type "sun, abort" or visit %s'
            % (hostname, props['GIT_REVISION'],
               _set_default_url(props, AUTO_DEPLOY=props['AUTO_DEPLOY']),
               _finish_url(props, STATUS='failure', WHY='aborted')),
-           color='green')
+           color='green', attachments=deploy_attachments)
     time.sleep(1)   # to help the two hipchat alerts be ordered properly
 
     # Suggest some urls to do for manual testing, as both links and a
     # commandline tool.
+    test_attachments = [{
+        'pretext': 'Before deciding, here are some pages to manually test:',
+        'text': ' '.join('`<%s|%s>`' % (title, url)
+                         for title, url
+                         in manual_webapp_testing.pages_to_test(
+            props['VERSION_NAME'])),
+        'fields': [
+            {
+                'title': 'Open them all at once:',
+                'value': '`tools/manual_webapp_testing.py %s' %
+                         props['VERSION_NAME'],
+                'short': False,
+            },
+            {
+                'title': 'Run end-to-end testing',
+                'value': '`tools/end_to_end_webapp_testing.py --version %s' %
+                         props['VERSION_NAME'],
+                'short': False,
+            }
+        ],
+        'mrkdwn_in': ['fields', 'text']
+    }]
     _alert(props,
            ("Here are some pages to manually test:<br>%s<br>"
             "Or open them all at once (cut-and-paste): "
-            "<b>tools/manual_webapp_testing.py %s</b><br>"
+            "<b>tools/manual_webapp_testing.py %s\n\n"
             "Also run end-to-end testing (cut-and-paste): "
             "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
             % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
                props['VERSION_NAME'], props['VERSION_NAME'])),
-           html=True, prefix_with_username=False)
+           html=True, prefix_with_username=False,
+           attachments=test_attachments)
 
 
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
@@ -781,6 +832,28 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
 
         if (monitoring_time and jenkins_build_url and
                 props['AUTO_DEPLOY'] != 'true'):
+            # FIXME(bmp): When HipChat dies, this can be one alert with
+            # two attachments
+            deploy_attachments = [{
+                'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the'
+                           "default generation! I'll be monitoring the logs "
+                           'for %(minutes)s minutes, and then will post the '
+                           'results. If you detect a problem in the meantime,'
+                           'you can cancel the deploy.' % {
+                               'appengine_id': props['VERSION_NAME'],
+                               'user': props['DEPLOYER_USERNAME'],
+                               'minutes': monitoring_time,
+                    },
+                'fields': [{
+                    'title': 'abort the deploy :skull:',
+                    'value': '<%s/stop|Abort>)' % (
+                        jenkins_build_url.rstrip('/')
+                    ),
+                    'short': True
+                }],
+                'color': 'good',
+                'mrkdwn_in': ['pretext', 'fields'],
+            }]
             _alert(props,
                    "I've deployed to %s, and will be monitoring "
                    "logs for %s minutes.  After that, I'll post "
@@ -789,8 +862,32 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    "link will only work for the next %s minutes):\n"
                    ":no_good: abort and rollback: %s/stop"
                    % (props['VERSION_NAME'], monitoring_time, monitoring_time,
-                      jenkins_build_url.rstrip('/')))
+                      jenkins_build_url.rstrip('/')),
+                   attachments=deploy_attachments)
             time.sleep(1)  # to help the two hipchat alerts be ordered properly
+            test_attachments = [{
+                'pretext': "While that's going on, here are some pages to "
+                           'manually test:',
+                'text': ' '.join('`<%s|%s>`' % (title, url)
+                                 for title, url
+                                 in manual_webapp_testing.pages_to_test(
+                    props['VERSION_NAME'])),
+                'fields': [
+                    {
+                        'title': 'Open them all at once:',
+                        'value': '`tools/manual_webapp_testing.py %s' %
+                                 props['VERSION_NAME'],
+                        'short': False,
+                    },
+                    {
+                        'title': 'Run end-to-end testing',
+                        'value': '`tools/end_to_end_webapp_testing.py '
+                                 '--version %s`' % props['VERSION_NAME'],
+                        'short': False,
+                    }
+                ],
+                'mrkdwn_in': ['fields', 'text']
+            }]
             _alert(props,
                    ("While that's going on, manual-test on the live site!<br>"
                     "%s<br>\n"
@@ -800,7 +897,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                     "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
                     % (manual_webapp_testing.list_with_links('default'),
                        'default', 'default')),
-                   html=True, prefix_with_username=False)
+                   html=True, prefix_with_username=False,
+                   attachments=test_attachments)
 
         deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
                                    pre_monitoring_data,
