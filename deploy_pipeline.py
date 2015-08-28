@@ -118,7 +118,7 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
            prefix_with_username=True):
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
-        text = '@%s %s' % (props['DEPLOYER_USERNAME'], text)
+        text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
     (alertlib.Alert(text, severity=severity, html=html)
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['CHAT_SENDER'],
@@ -1299,11 +1299,13 @@ def parse_args_and_invoke_main():
                      "--chat-sender instead")
         chat_sender = args.hipchat_sender
 
-    deployer_username = args.deployer_username
+    # FIXME(bmp): To avoid a lockstep Jenkins/tools upgrade, manually inject
+    # an "@" in front of the username
+    deployer_username = '@' + args.deployer_username
     if args.deployer_email:
         logging.warn('The --deployer_email argument is deprecated; please use '
                      '--deployer-username instead')
-        deployer_username = args.deployer_email.split('@')[0]
+        deployer_username = '@' + args.deployer_email.split('@')[0]
 
     success = main(args.action,
                    invocation_details=InvocationDetails(
