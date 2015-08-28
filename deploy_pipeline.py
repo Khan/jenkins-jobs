@@ -119,11 +119,11 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
     """Send the given text to hipchat and the logs."""
     if prefix_with_username:
         text = '%s %s' % (props['DEPLOYER_USERNAME'], text)
-    (alertlib.Alert(text, severity=severity, html=html)
+    (alertlib.Alert(_hipchatify(text), severity=severity, html=html)
      .send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
                       sender=props['CHAT_SENDER'],
                       color=color, notify=True))
-    (alertlib.Alert(_hipchatify(text), severity=severity)
+    (alertlib.Alert(text, severity=severity)
      .send_to_slack(channel=props['SLACK_CHANNEL'],
                     sender=props['CHAT_SENDER'],
                     icon_emoji=props['ICON_EMOJI'],
