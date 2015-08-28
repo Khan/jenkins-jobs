@@ -98,7 +98,7 @@ InvocationDetails = collections.namedtuple(
 
 def _hipchatify(s):
     """Return the string s with Slack emoji replaced by HipChat emoticons."""
-    # FIXME(bmp): Kill this whole function when HipChat dies
+    # TODO(bmp): Kill this whole function when HipChat dies
     hipchat_substitutions = {
         ':+1:': '(successful)',
         ':white_check_mark:': '(continue)',
@@ -746,7 +746,7 @@ def _rollback_deploy(props):
 def manual_test(props):
     """Send a message to hipchat saying to do pre-set-default manual tests."""
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
-    # FIXME: When HipChat dies, this can be one alert with two attachments
+    # TODO(bmp): When HipChat dies, this can be one alert with two attachments
     deploy_attachments = [{
         'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s>` (branch '
                    '`%(branch)s`) is uploaded to AppEngine!' % {
@@ -860,7 +860,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
 
         if (monitoring_time and jenkins_build_url and
                 props['AUTO_DEPLOY'] != 'true'):
-            # FIXME(bmp): When HipChat dies, this can be one alert with
+            # TODO(bmp): When HipChat dies, this can be one alert with
             # two attachments
             deploy_attachments = [{
                 'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the'
@@ -1425,7 +1425,7 @@ def parse_args_and_invoke_main():
                      "--chat-sender instead")
         chat_sender = args.hipchat_sender
 
-    # FIXME(bmp): To avoid a lockstep Jenkins/tools upgrade, manually inject
+    # TODO(bmp): To avoid a lockstep Jenkins/tools upgrade, manually inject
     # an "@" in front of the username
     deployer_username = '@' + args.deployer_username
     if args.deployer_email:
