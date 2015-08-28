@@ -150,10 +150,10 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
         text = _prefix_with_username(props, text)
 
     hc_alert = alertlib.Alert(_hipchatify(text), severity=severity, html=html)
-    _alert_to_hipchat(hc_alert, color=color, notify=True)
+    _alert_to_hipchat(props, hc_alert, color=color, notify=True)
 
     slack_alert = alertlib.Alert(text, severity=severity, html=html)
-    _alert_to_slack(slack_alert, attachments=attachments)
+    _alert_to_slack(props, slack_alert, attachments=attachments)
 
     slack_alert.send_to_logs()
 
