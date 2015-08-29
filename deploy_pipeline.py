@@ -304,14 +304,14 @@ def _write_properties(props):
     """Write the given properties dict into lockdir/deploy.prop.
 
     Also writes lockdir/state.json, with the same information in a more
-    Sun-readable form.
+    Hubot-readable form.
     """
     logging.info('Wrote properties to %s: %s' % (props['LOCKDIR'], props))
     with open(os.path.join(props['LOCKDIR'], 'deploy.prop'), 'wb') as f:
         for k, v in sorted(props.viewitems()):
             f.write('%s=%s\n' % (k, v))
-    with open(os.path.join(props['LOCKDIR'], 'state.json'), 'wb') as f:
-        json.dump(props, f, indent=2)
+    with open(os.path.join(props['LOCKDIR'], 'deploy.json'), 'wb') as f:
+        json.dump(props, f, indent=4, sort_keys=True)
 
 
 def _update_properties(props, new_values):
