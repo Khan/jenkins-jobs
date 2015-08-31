@@ -14,9 +14,15 @@
 #   UPDATE_STRINGS - set to 1 to upload new strings to Crowdin,
 #       regenerating all.pot, fake languages, and JIPT strings,
 #       which is (3) above.
+#
+# These environment variables are optional:
+#
+#   NUM_LANGS_TO_DOWNLOAD - update at most this many languages. The
+#       default is to process all languages that have updates.
 
 : ${DOWNLOAD_TRANSLATIONS:=}
 : ${UPDATE_STRINGS:=}
+: ${NUM_LANGS_TO_DOWNLOAD:=1000}
 
 if [ -z "$DOWNLOAD_TRANSLATIONS" -a -z "$UPDATE_STRINGS" ]; then
     echo "One of DOWNLOAD_TRANSLATIONS or UPDATE_STRINGS must be set" >&2
@@ -83,7 +89,7 @@ APPROVED_TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/approved_pofiles
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
     # Download the approved entries.
-    for lang in `tools/crowdin/list_ka_locales_to_download.py --approved` ; do
+    for lang in `deploy/order_download_i18n.py --verbose --approved-only | head -n "$NUM_LANGS_TO_DOWNLOAD"` ; do
         echo "Downloading the approved translations for $lang from crowdin."
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
@@ -97,7 +103,7 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
     done
 
     # Now download entries regardless as to whether they have been approved.
-    for lang in `tools/crowdin/list_ka_locales_to_download.py` ; do
+    for lang in `deploy/order_download_i18n.py --verbose | head -n "$NUM_LANGS_TO_DOWNLOAD"` ; do
         echo "Downloading the current translations for $lang from crowdin."
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
