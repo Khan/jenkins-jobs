@@ -909,7 +909,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             # TODO(bmp): When HipChat dies, this can be one alert with
             # two attachments
             deploy_attachments = [{
-                'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the'
+                'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the '
                            "default generation! I'll be monitoring the logs "
                            'for %(minutes)s minutes, and then will post the '
                            'results. If you detect a problem in the meantime,'
@@ -920,7 +920,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                     },
                 'fields': [{
                     'title': 'abort the deploy :skull:',
-                    'value': '<%s/stop|Abort>)' % (
+                    'value': '<%s/stop|click to abort>' % (
                         jenkins_build_url.rstrip('/')
                     ),
                     'short': True
@@ -942,7 +942,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             test_attachments = [{
                 'pretext': "While that's going on, here are some pages to "
                            'manually test:',
-                'text': ' '.join('`<%s|%s>`' % (title, url)
+                'text': ' '.join('`<%s|%s>`' % (url, title)
                                  for title, url
                                  in manual_webapp_testing.pages_to_test(
                     props['VERSION_NAME'])),
@@ -994,7 +994,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             finish_attachments = [{
                 'pretext': u":worried: Jenkins says, “`%s`”. "
                            u"Please double-check manually that everything "
-                           u"is okay.",
+                           u"is okay." % why,
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
