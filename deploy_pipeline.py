@@ -859,14 +859,12 @@ def manual_test(props):
     # TODO: remove me once HipChat is deprecated
     _alert_to_hipchat(
         props,
-        alertlib.Alert(deploymsg_plaintext, severity=logging.INFO),
-        html=False,
+        alertlib.Alert(deploymsg_plaintext, severity=logging.INFO, html=False),
         color='green')
     time.sleep(1)
     _alert_to_hipchat(
         props,
-        alertlib.Alert(testmsg_html, severity=logging.INFO),
-        html=True)
+        alertlib.Alert(testmsg_html, severity=logging.INFO, html=True))
 
 
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
