@@ -745,7 +745,7 @@ def _rollback_deploy(props):
                ':worried: :worried: Auto-rollback failed! '
                'Roll back to %(good)s manually by running: '
                'deploy/rollback.py --bad "%(bad)s" --good "%(good)s"'
-               % {'bad': props['VERSION'], 'good': props['ROLLBACK_TO']},
+               % {'bad': props['VERSION_NAME'], 'good': props['ROLLBACK_TO']},
                severity=logging.CRITICAL)
         return False
 
