@@ -991,6 +991,30 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             # job to clean up by rolling back.  auto-rollback for free!
             raise
         else:
+            finish_attachments = [{
+                'pretext': u":worried: Jenkins says, “`%s`”. "
+                           u"Please double-check manually that everything "
+                           u"is okay.",
+                'fields': [
+                    {
+                        'title': 'deploy anyway :yolo:',
+                        'value': u'speech_balloon: _“sun, finish up”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='success'),
+                        'short': True,
+                    },
+                    {
+                        'title': 'abort the deploy :skull:',
+                        'value': u':speech_balloon: _“sun, abort”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='rollback',
+                                             WHY='aborted',
+                                             ROLLBACK_TO=props['ROLLBACK_TO']),
+                        'short': True,
+                    }
+                ],
+                'mrkdwn_in': ['fields', 'text']
+            }]
             _alert(props,
                    ':worried: %s. '
                    'Make sure everything is ok, then:\n'
@@ -1003,7 +1027,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                       _finish_url(props, STATUS='rollback', WHY='aborted',
                                   ROLLBACK_TO=props['ROLLBACK_TO'])
                       ),
-                   severity=logging.WARNING)
+                   severity=logging.WARNING,
+                   attachments=finish_attachments)
     except Exception:
         logging.exception('set-default failed')
         if props['AUTO_DEPLOY'] == 'true':
