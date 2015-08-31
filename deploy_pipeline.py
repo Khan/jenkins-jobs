@@ -592,7 +592,8 @@ def merge_from_master(props):
     all_branch_names = [l.split()[1] for l in all_branches]
     if ('refs/remotes/origin/%s' % git_revision) not in all_branch_names:
         raise ValueError('%s is not a branch name on the remote, like these:'
-                         '\n  %s' % ('\n  '.join(sorted(all_branch_names))))
+                         '\n  %s' % (git_revision,
+                                     '\n  '.join(sorted(all_branch_names))))
 
     # The merge exits with rc > 0 if there were conflicts
     logging.info("Merging master into %s" % git_revision)
