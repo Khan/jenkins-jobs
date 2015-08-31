@@ -784,7 +784,7 @@ def manual_test(props):
             },
             {
                 'title': 'abort the deploy :skull:',
-                'value': u':speech_balloon: _“sun, set abort”_ '
+                'value': u':speech_balloon: _“sun, abort”_ '
                          u'(or <%s|click me>)' % (_finish_url(
                              props, STATUS='failure', WHY='aborted')),
                 'short': True
