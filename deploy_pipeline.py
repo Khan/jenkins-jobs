@@ -254,7 +254,7 @@ def _create_properties(args):
 
     :param InvocationDetails args: the lock arguments to dictify
     """
-    properties = {
+    retval = {
         'LOCKDIR': args.lockdir,
         'DEPLOYER_USERNAME': args.deployer_username,
         'GIT_REVISION': args.git_revision,
@@ -278,14 +278,11 @@ def _create_properties(args):
         # These hold state about the deploy as it's going along.
         'LAST_ERROR': '',
         # A comma-separated list of choices from the 'action' argparse arg.
-        'POSSIBLE_NEXT_STEPS': 'acquire-lock,finish-with-unlock,relock',
-        # The current job state; 'true' or 'false' (N.B., strings, because
-        # this dict is saved as a Java props file)
-        'RUNNING': 'false',
+        'POSSIBLE_NEXT_STEPS': 'acquire-lock,finish-with-unlock,relock'
     }
 
-    logging.info('Setting deploy-properties: %s' % properties)
-    return properties
+    logging.info('Setting deploy-properties: %s' % retval)
+    return retval
 
 
 def _read_properties(lockdir):
@@ -1392,16 +1389,9 @@ def main(action, invocation_details):
         return True
 
     try:
-        if action != 'acquire-lock':
-            _update_properties(props, {'RUNNING': 'true'})
-        try:
-            KNOWN_ACTIONS[action](props)
-        finally:
-            if os.path.exists(os.path.join(props['LOCKDIR'], 'deploy.prop')):
-                _update_properties(props, {
-                    'LAST_ERROR': '',
-                    'RUNNING': 'false'
-                })
+        KNOWN_ACTIONS[action](props)
+        if os.path.exists(os.path.join(props['LOCKDIR'], 'deploy.prop')):
+            _update_properties(props, {'LAST_ERROR': ''})
         return True
     except Exception as why:
         logging.exception(action)
