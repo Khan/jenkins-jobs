@@ -823,7 +823,7 @@ def manual_test(props):
     testmsg_html = (
         "Here are some pages to manually test:<br>%s<br>"
         "Or open them all at once (cut-and-paste): "
-        "<b>tools/manual_webapp_testing.py %s\n\n"
+        "<b>tools/manual_webapp_testing.py %s</b><br>"
         "Also run end-to-end testing (cut-and-paste): "
         "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
         % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
