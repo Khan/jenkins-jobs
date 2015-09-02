@@ -1137,7 +1137,7 @@ def finish_with_failure(props):
     else:
         why = ". I'm sorry."
     _alert(props,
-           ":flushed: Deploy of %s (branch %s) failed%s"
+           ":ohnoes: Deploy of `%s` (branch `%s`) failed%s"
            % (props['VERSION_NAME'], props['GIT_REVISION'], why),
            severity=logging.ERROR)
     release_deploy_lock(props)
@@ -1147,7 +1147,7 @@ def finish_with_rollback(props):
     """Do a rollback and releases the lock if it succeeds."""
     if props['LAST_ERROR']:
         _alert(props,
-               "Rolling back %s due to problems with the deploy: %s"
+               "Rolling back `%s` due to problems with the deploy: %s"
                % (props['VERSION_NAME'], props['LAST_ERROR']),
                severity=logging.ERROR)
     if not _rollback_deploy(props):
