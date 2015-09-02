@@ -139,11 +139,13 @@ def _prefix_with_username(props, text):
 
 
 def _alert(props, text, severity=logging.INFO, color=None, html=False,
-           prefix_with_username=True, attachments=None):
+           prefix_with_username=True, attachments=None, simple_message=False):
     """Send the given text to HipChat, Slack and the logs all at once.
 
     Expects slack emoji and attempts to automatically translate them to HipChat
     style. No other translations are attempted.
+
+    By default this will also prefix an @mention for the relevant user.
 
     NOTE: This is a transition method and it's signature will likely change
     once HipChat is deprecated.
@@ -152,10 +154,14 @@ def _alert(props, text, severity=logging.INFO, color=None, html=False,
         text = _prefix_with_username(props, text)
 
     hc_alert = alertlib.Alert(_hipchatify(text), severity=severity, html=html)
-    _alert_to_hipchat(props, hc_alert, color=color, notify=True)
+    _alert_to_hipchat(props, hc_alert,
+                      color=color,
+                      notify=True)
 
     slack_alert = alertlib.Alert(text, severity=severity, html=html)
-    _alert_to_slack(props, slack_alert, attachments=attachments)
+    _alert_to_slack(props, slack_alert,
+                    simple_message=simple_message,
+                    attachments=attachments)
 
     slack_alert.send_to_logs()
 
@@ -1108,8 +1114,8 @@ def finish_with_success(props):
         merge_to_master(props)
     except Exception:
         _alert(props,
-               ":ohnoes: Deploy of %s (branch %s) succeeded, "
-               "but we did not successfully merge %s into master. "
+               ":ohnoes: Deploy of `%s` (branch `%s`) succeeded, "
+               "but we did not successfully merge `%s` into `master`. "
                "Merge and push manually, then release the lock: %s"
                % (props['VERSION_NAME'], props['GIT_REVISION'],
                   props['GIT_REVISION'], _finish_url(props, STATUS='unlock')),
@@ -1117,10 +1123,10 @@ def finish_with_success(props):
         raise
 
     _alert(props,
-           ":smile_cat: Deploy of %s (branch %s) succeeded! "
+           ":smile_cat: Deploy of `%s` (branch `%s`) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']),
-           color='green')
+           color='green', simple_message=True)
     release_deploy_lock(props, backup_lockfile=False)
 
 
