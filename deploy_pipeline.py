@@ -104,7 +104,7 @@ def _hipchatify(s):
     hipchat_substitutions = {
         ':+1:': '(successful)',
         ':white_check_mark:': '(continue)',
-        ':worried:': '(sadpanda)',
+        ':ohnoes:': '(sadpanda)',
         ':no_good:': '(failed)',
         ':poop:': '(poo)',  # not a line of code I thought I'd ever write
         ':smile_cat:': '(gangnamstyle)',
@@ -742,7 +742,7 @@ def _rollback_deploy(props):
     except Exception:
         logging.exception('Auto-rollback failed')
         _alert(props,
-               ':worried: :worried: Auto-rollback failed! '
+               ':ohnoes: :ohnoes: Auto-rollback failed! '
                'Roll back to %(good)s manually by running: '
                'deploy/rollback.py --bad "%(bad)s" --good "%(good)s"'
                % {'bad': props['VERSION_NAME'], 'good': props['ROLLBACK_TO']},
@@ -986,14 +986,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         time.sleep(10)
         if props['AUTO_DEPLOY'] == 'true':
             _alert(props,
-                   ":worried: %s." % why,
+                   ":ohnoes: %s." % why,
                    severity=logging.WARNING)
             # By re-raising, we trigger the deploy-set-default jenkins
             # job to clean up by rolling back.  auto-rollback for free!
             raise
         else:
             finish_attachments = [{
-                'pretext': u":worried: Jenkins says, “`%s`”. "
+                'pretext': u":ohnoes: Jenkins says, “`%s`”. "
                            u"Please double-check manually that everything "
                            u"is okay." % why,
                 'fields': [
@@ -1017,7 +1017,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'mrkdwn_in': ['fields', 'text']
             }]
             _alert(props,
-                   ':worried: %s. '
+                   ':ohnoes: %s. '
                    'Make sure everything is ok, then:\n'
                    ':+1: finish up: type "sun, finish up" '
                    'or visit %s\n'
@@ -1033,7 +1033,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
     except Exception:
         logging.exception('set-default failed')
         if props['AUTO_DEPLOY'] == 'true':
-            _alert(props, ":worried: :worried: set-default failed!",
+            _alert(props, ":ohnoes: :ohnoes: set-default failed!",
                    severity=logging.ERROR)
             raise
 
@@ -1043,7 +1043,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             priming_flag = ''
 
         _alert(props,
-               ":worried: :worried: set-default failed!  Either:\n"
+               ":ohnoes: :ohnoes: set-default failed!  Either:\n"
                ":white_check_mark: Set the default to %s manually (by running "
                "deploy/set_default.py %s%s), then release the deploy lock "
                "via %s\n"
@@ -1108,7 +1108,7 @@ def finish_with_success(props):
         merge_to_master(props)
     except Exception:
         _alert(props,
-               ":worried: Deploy of %s (branch %s) succeeded, "
+               ":ohnoes: Deploy of %s (branch %s) succeeded, "
                "but we did not successfully merge %s into master. "
                "Merge and push manually, then release the lock: %s"
                % (props['VERSION_NAME'], props['GIT_REVISION'],
@@ -1224,7 +1224,7 @@ def _create_or_read_properties(action, invocation_details):
                     'TOKEN': '',
                 }
                 _alert(minimally_viable_props,
-                       ':worried: Trying to run without the lock. '
+                       ':ohnoes: Trying to run without the lock. '
                        'If you think you *should* have the lock, '
                        'try to re-acquire it: %s. Then run your command again.'
                        % _finish_url(minimally_viable_props, STATUS='relock'),
