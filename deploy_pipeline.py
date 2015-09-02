@@ -993,9 +993,9 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             raise
         else:
             finish_attachments = [{
-                'pretext': u":ohnoes: Jenkins says, “`%s`”. "
-                           u"Please double-check manually that everything "
-                           u"is okay." % why,
+                'pretext': ':ohnoes: Jenkins says: `%s`. '
+                           'Please double-check manually that everything '
+                           'is okay.' % why,
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
@@ -1014,7 +1014,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                         'short': True,
                     }
                 ],
-                'mrkdwn_in': ['fields', 'text']
+                'mrkdwn_in': ['fields', 'text', 'pretext']
             }]
             _alert(props,
                    ':ohnoes: %s. '
