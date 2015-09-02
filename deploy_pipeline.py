@@ -812,7 +812,7 @@ def manual_test(props):
         }
     )
 
-    # TODO(mroth): the HTML mesasge is used only for HipChat and can be removed
+    # TODO(mroth): the HTML message is used only for HipChat and can be removed
     # when hipchat is fully deprecated.
     testmsg_html = (
         "Here are some pages to manually test:<br>%s<br>"
@@ -857,7 +857,7 @@ def manual_test(props):
 
     # hipchat requires two messages to be sent seperately, with a delay so they
     # are not out of order.
-    # TODO: remove me once HipChat is deprecated
+    # TODO(mroth): remove me once HipChat is deprecated
     _alert_to_hipchat(
         props,
         alertlib.Alert(deploymsg_plaintext, severity=logging.INFO, html=False),
