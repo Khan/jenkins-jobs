@@ -769,7 +769,7 @@ def manual_test(props):
     deploymsg_attachment = {
         'fallback': deploymsg_plaintext,
         'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s>` (branch '
-                   '`%(branch)s`) is uploaded to AppEngine!' % {
+                   '`%(branch)s`) is uploaded to App Engine!' % {
                        'url': hostname,
                        'appengine_id': props['VERSION_NAME'],
                        'user': props['DEPLOYER_USERNAME'],
@@ -1449,7 +1449,7 @@ def parse_args_and_invoke_main():
                               ' posted to Slack'))
     parser.add_argument('--deploy_email',
                         default='prod-deploy@khanacademy.org',
-                        help="The AppEngine user to deploy as.")
+                        help="The App Engine user to deploy as.")
     parser.add_argument('--deploy_pw_file',
                         default='%s/prod-deploy.pw' % os.environ['HOME'],
                         help=("The file holding deploy_email's "
