@@ -399,17 +399,34 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
             # local to a single machine, which has a consistent timezone.
             props['LOCK_ACQUIRE_TIME'] = int(time.time())
             logging.info("Lockdir %s acquired." % lockdir)
-            msg = ""
+
+            msg = (
+                "Starting deploy of branch %s.  I'll post again when "
+                "tests are done and the deploy is finished."
+                % props['GIT_REVISION'])
+            slack_msg = (
+                "*Starting deploy of branch `%s`.* :treeeee:\n"
+                "I'll post again when tests are done & the deploy is finished."
+                % props['GIT_REVISION'])
+
             if done_first_alert:   # tell them they're no longer in line.
-                msg += "Thank you for waiting! "
-            msg += ("Starting deploy of branch %s.  I'll post to HipChat when "
-                    "both a) tests are done and b) the deploy is finished."
-                    % props['GIT_REVISION'])
+                msg = "Thank you for waiting! " + msg
+                slack_msg = "Thank you for waiting! " + slack_msg
+
             if jenkins_build_url and props['AUTO_DEPLOY'] != 'true':
-                msg += ("  If you wish to cancel before then:\n"
-                        ":no_good: abort: %s/stop"
-                        % jenkins_build_url.rstrip('/'))
-            _alert(props, msg, color='green')
+                _stop_url = "{}/stop".format(jenkins_build_url.rstrip('/'))
+
+                msg += (" If you wish to cancel before then:\n"
+                        "abort: %s" % _stop_url)
+                slack_msg += (" If you wish to cancel before then you can "
+                              "*<%s|abort the deploy>*." % _stop_url)
+
+            hc_alert = alertlib.Alert(_prefix_with_username(props, msg))
+            sl_alert = alertlib.Alert(_prefix_with_username(props, slack_msg))
+
+            hc_alert.send_to_logs()
+            _alert_to_hipchat(props, hc_alert, color='green')
+            _alert_to_slack(props, sl_alert, simple_message=True)
             return
 
         recover_msg = ("If this is a mistake and you are sure nobody else "
