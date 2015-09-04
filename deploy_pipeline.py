@@ -1016,9 +1016,9 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             raise
         else:
             finish_attachments = [{
-                'pretext': ':ohnoes: Jenkins says: `%s`. '
+                'pretext': 'Hey %s, :ohnoes: Jenkins says: `%s`. '
                            'Please double-check manually that everything '
-                           'is okay.' % why,
+                           'is okay.' % (props['DEPLOYER_USERNAME'], why),
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
