@@ -133,8 +133,9 @@ def _alert(hipchat_room, slack_channel, failures, test_type, truncate=10,
     slack_alert.send_to_logs()
 
     if slack_channel:
+        # TODO(benkraft): find a retina-quality :lilturtle: and use that here
         slack_alert.send_to_slack(slack_channel, sender='Testing Turtle',
-                                  icon_emoji=':lilturtle:')
+                                  icon_emoji=':turtle:')
 
 
 def _find(rootdir):
