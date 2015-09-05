@@ -934,7 +934,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             # two attachments
             deploy_attachments = [{
                 'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the '
-                           "default generation! I'll be monitoring the logs "
+                           "default version! I'll be monitoring the logs "
                            'for %(minutes)s minutes, and then will post the '
                            'results. If you detect a problem in the meantime, '
                            'you can cancel the deploy.' % {
