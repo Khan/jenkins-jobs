@@ -103,6 +103,7 @@ def _hipchatify(s):
     # TODO(bmp): Kill this whole function when HipChat dies
     hipchat_substitutions = {
         ':+1:': '(successful)',
+        ':unlock:': '(successful)',
         ':white_check_mark:': '(continue)',
         ':ohnoes:': '(sadpanda)',
         ':no_good:': '(failed)',
@@ -941,7 +942,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                'appengine_id': props['VERSION_NAME'],
                                'user': props['DEPLOYER_USERNAME'],
                                'minutes': monitoring_time,
-                    },
+                           },
                 'fields': [{
                     'title': 'abort the deploy :skull:',
                     'value': '<%s/stop|click to abort>' % (
@@ -1065,6 +1066,35 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         else:
             priming_flag = ''
 
+        set_default_failed_attachments = [{
+            'pretext': ':ohnoes: :ohnoes: Sorry %s, but `set-default` failed!'
+                       % props['DEPLOYER_USERNAME'],
+            'fallback': 'Sorry %s, but "set-default" failed! Either set the '
+                        'default manually and release the deploy lock, or '
+                        'abort.',
+            'text': ' Either set the default manually by running '
+                    '`deploy/set_default.py %s%s` and release the deploy '
+                    'lock, or abort.' % (priming_flag,
+                                         props['VERSION_NAME']),
+            'fields': [
+                {
+                    'title': 'release the deploy lock :unlock:',
+                    'value': u'<%s|click to unlock>)' %
+                             _finish_url(props, STATUS='success'),
+                    'short': True,
+                },
+                {
+                    'title': 'abort the deploy :skull:',
+                    'value': u':speech_balloon: _“sun, abort”_ '
+                             u'(or <%s|click me>)' %
+                             _finish_url(props, STATUS='rollback',
+                                         WHY='aborted',
+                                         ROLLBACK_TO=props['ROLLBACK_TO']),
+                    'short': True,
+                }
+            ],
+            'mrkdwn_in': ['fields', 'text', 'pretext'],
+        }]
         _alert(props,
                ":ohnoes: :ohnoes: set-default failed!  Either:\n"
                ":white_check_mark: Set the default to %s manually (by running "
@@ -1075,7 +1105,10 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback', WHY='aborted',
                               ROLLBACK_TO=props['ROLLBACK_TO'])),
-               severity=logging.CRITICAL)
+               severity=logging.CRITICAL,
+               color='red',
+               attachments=set_default_failed_attachments
+               )
     else:
         # No need for a hipchat message if the next step is automatic.
         if props['AUTO_DEPLOY'] != 'true':
