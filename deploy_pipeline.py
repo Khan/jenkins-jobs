@@ -108,7 +108,7 @@ def _hipchatify(s):
         ':ohnoes:': '(sadpanda)',
         ':no_good:': '(failed)',
         ':poop:': '(poo)',  # not a line of code I thought I'd ever write
-        ':smile_cat:': '(gangnamstyle)',
+        ':party_dino:': '(gangnamstyle)',
         ':flushed:': '(pokerface)',
     }
     for emoji, emoticon in hipchat_substitutions.viewitems():
@@ -1172,7 +1172,7 @@ def finish_with_success(props):
         raise
 
     _alert(props,
-           ":smile_cat: Deploy of `%s` (branch `%s`) succeeded! "
+           ":party_dino: Deploy of `%s` (branch `%s`) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']),
            color='green', simple_message=True)
