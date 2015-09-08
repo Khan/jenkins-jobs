@@ -970,18 +970,17 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'text': ' '.join('`<%s|%s>`' % (url, title)
                                  for title, url
                                  in manual_webapp_testing.pages_to_test(
-                    props['VERSION_NAME'])),
+                    'default')),
                 'fields': [
                     {
                         'title': 'Open them all at once:',
-                        'value': '`tools/manual_webapp_testing.py %s`' %
-                                 props['VERSION_NAME'],
+                        'value': '`tools/manual_webapp_testing.py default`',
                         'short': False,
                     },
                     {
                         'title': 'Run end-to-end testing',
                         'value': '`tools/end_to_end_webapp_testing.py '
-                                 '--version %s`' % props['VERSION_NAME'],
+                                 '--version default`',
                         'short': False,
                     }
                 ],
