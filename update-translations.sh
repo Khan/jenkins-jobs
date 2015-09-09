@@ -93,23 +93,11 @@ UPDATED_LOCALES_FILE="$WORKSPACE_ROOT"/updated_locales.txt
 
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
-    # Download the approved entries.
-    for lang in `deploy/order_download_i18n.py --verbose --approved-only | head -n "$NUM_LANGS_TO_DOWNLOAD"` ; do
-        echo "Downloading the approved translations for $lang from crowdin."
-        deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-           --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-           --use_temps_for_linting \
-           --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-           --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-           --send-lint-reports \
-           --export \
-           --approved-only \
-           $lang
-    done
-
-    # Now download entries regardless as to whether they have been approved.
+    # Download the next NUM_LANGS_TO_DOWNLOAD most important langs pofiles and 
+    # stats files in parallel and create the combined intl/translations/pofiles
+    # and intl/translations/approved_pofiles 
     for lang in `deploy/order_download_i18n.py --verbose | head -n "$NUM_LANGS_TO_DOWNLOAD"` ; do
-        echo "Downloading the current translations for $lang from crowdin."
+        echo "Downloading translations and stats for $lang from crowdin & making combined pofile."
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
            --use_temps_for_linting \
