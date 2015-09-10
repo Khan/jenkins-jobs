@@ -22,7 +22,6 @@ if [ "${DEPLOY_VERSION}" = "default" ]; then
 fi
 # The AppEngine user to deploy as and the file containing the user's password.
 : ${DEPLOY_EMAIL:=prod-deploy@khanacademy.org}
-: ${DEPLOY_PW_FILE:="$HOME"/prod-deploy.pw}
 
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
@@ -122,5 +121,4 @@ cp -p "$SECRETS_DIR/secrets.py" .
 ulimit -S -n 4096
 
 # Use eval to properly handle quotes in $DEPLOY_FLAGS
-eval python -u deploy/deploy.py $DEPLOY_FLAGS \
-    "--email='$DEPLOY_EMAIL'" "--passin" <"$DEPLOY_PW_FILE"
+eval python -u deploy/deploy.py $DEPLOY_FLAGS

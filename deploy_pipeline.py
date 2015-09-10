@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
-"""Runs the various steps of our github-style deploy pipeline.
+"""Run the various steps of our github-style deploy pipeline.
 
 We use jenkins to implement a github-style deploy:
    https://docs.google.com/a/khanacademy.org/document/d/1s7qvACA4Uq4ON6F4PWJ_eyBz9EJeTk-DJ6SysRrJcTI/edit
@@ -39,7 +38,6 @@ workspace, which will also hold the lockfile.
 """
 
 import argparse
-import cStringIO
 import collections
 import contextlib
 import errno
@@ -91,8 +89,6 @@ InvocationDetails = collections.namedtuple(
         'chat_sender',
         'icon_emoji',
         'slack_channel',
-        'deploy_email',
-        'deploy_pw_file',
         'token',
     ]
 )
@@ -200,22 +196,6 @@ def _pipe_command(cmd):
     return retval
 
 
-@contextlib.contextmanager
-def _password_on_stdin(pw_filename):
-    """Run the context with stdin set to pw_filename's contents."""
-    # Some code was originally written to read the password from
-    # stdin.  Rather than refactoring so we can (also) pass in a
-    # password directly, I just monkey-patch.
-    with open(pw_filename) as f:
-        password = f.read().strip()
-    old_stdin = sys.stdin
-    sys.stdin = cStringIO.StringIO(password)
-    try:
-        yield
-    finally:
-        sys.stdin = old_stdin
-
-
 def _set_default_url(props, **extra_params):
     """Return a URL that points to the set-default job."""
     return ('%s/job/deploy-set-default/parambuild'
@@ -278,8 +258,6 @@ def _create_properties(args):
         'CHAT_SENDER': args.chat_sender,
         'ICON_EMOJI': args.icon_emoji,
         'SLACK_CHANNEL': args.slack_channel,
-        'DEPLOY_EMAIL': args.deploy_email,
-        'DEPLOY_PW_FILE': args.deploy_pw_file,
         'TOKEN': args.token,
 
         # These hold state about the deploy as it's going along.
@@ -747,12 +725,9 @@ def _rollback_deploy(props):
            % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     try:
         logging.info('Calling set_default to %s' % props['ROLLBACK_TO'])
-        with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            deploy.rollback.main(bad_version=props['VERSION_NAME'],
-                                 good_version=props['ROLLBACK_TO'],
-                                 email=props['DEPLOY_EMAIL'],
-                                 passin=True,
-                                 dry_run=_DRY_RUN)
+        deploy.rollback.main(bad_version=props['VERSION_NAME'],
+                             good_version=props['ROLLBACK_TO'],
+                             dry_run=_DRY_RUN)
 
         # If the version we rolled back *to* is marked bad, warn about that.
         if _pipe_command(['git', 'tag', '-l',
@@ -923,11 +898,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         did_priming = True
 
         logging.info("Setting default")
-        with _password_on_stdin(props['DEPLOY_PW_FILE']):
-            deploy.set_default.set_default(version=props['VERSION_NAME'],
-                                           email=props['DEPLOY_EMAIL'],
-                                           passin=True,
-                                           dry_run=_DRY_RUN)
+        deploy.set_default.set_default(version=props['VERSION_NAME'],
+                                       dry_run=_DRY_RUN)
 
         if (monitoring_time and jenkins_build_url and
                 props['AUTO_DEPLOY'] != 'true'):
@@ -1503,12 +1475,10 @@ def parse_args_and_invoke_main():
                         help=('The emoji to use as a bot avatar for messages'
                               ' posted to Slack'))
     parser.add_argument('--deploy_email',
-                        default='prod-deploy@khanacademy.org',
-                        help="The App Engine user to deploy as.")
+                        help="Obsolete; ignored.")
     parser.add_argument('--deploy_pw_file',
-                        default='%s/prod-deploy.pw' % os.environ['HOME'],
-                        help=("The file holding deploy_email's "
-                              "appengine password."))
+                        help="Obsolete; ignored.")
+
     # This is only needed for acquire-lock, but if passed into any other
     # action, the action will ensure the token matches what's in the
     # lockfile before doing anything.
@@ -1574,8 +1544,6 @@ def parse_args_and_invoke_main():
                        chat_sender=chat_sender,
                        icon_emoji=args.icon_emoji,
                        slack_channel=args.slack_channel,
-                       deploy_email=args.deploy_email,
-                       deploy_pw_file=args.deploy_pw_file,
                        token=args.token))
     sys.exit(0 if success else 1)
 
