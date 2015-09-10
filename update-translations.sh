@@ -86,6 +86,11 @@ safe_pull intl/translations
 TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/pofiles
 APPROVED_TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/approved_pofiles
 
+# Locales whose .po files have been updated from running this script
+# are listed here, one per line. This is used by the Jenkins job to
+# determine which languages need to be uploaded to production.
+UPDATED_LOCALES_FILE="$WORKSPACE_ROOT"/updated_locales.txt
+
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
     # Download the approved entries.
@@ -179,12 +184,39 @@ if [ -n "$UPDATE_STRINGS" ]; then
 
 fi
 
+(
+    # Let's determine which locales have updated .po files. We use
+    # `git add` so that untracked files will list as 'A' in `git
+    # status`. Then, we convert the output of `git status` for
+    # modified and added files to one locale per line.
+    #
+    #   M  approved_pofiles/bn.datastore.po
+    #   A  pofiles/ck.rest.po
+    #
+    # becomes
+    #
+    #   bn
+    #   ck
+    cd intl/translations
+    timeout 10m git add pofiles approved_pofiles
+    git status --porcelain \
+        | grep -e '^M' -e '^A' \
+        | grep --only-matching '\(approved_\)\{0,1\}pofiles/[^.]\{1,\}' \
+        | xargs basename \
+        | sort -u \
+      >"$UPDATED_LOCALES_FILE"
+)
+
+# e.g., "de fr zh-hans" for the commit message.
+updated_locales=`<"$UPDATED_LOCALES_FILE" tr -s '\n\t ' ' ' | sed 's/ $//'`
+
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 safe_commit_and_push intl/translations \
    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+   -m "(locales: $updated_locales)" \
    -m "(at webapp commit `git rev-parse HEAD`)"
 
 echo "DONE"
