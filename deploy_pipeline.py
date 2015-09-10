@@ -99,6 +99,7 @@ def _hipchatify(s):
     # TODO(bmp): Kill this whole function when HipChat dies
     hipchat_substitutions = {
         ':+1:': '(successful)',
+        ':checkered_flag:': '(successful)',
         ':unlock:': '(successful)',
         ':white_check_mark:': '(continue)',
         ':ohnoes:': '(sadpanda)',
@@ -1083,12 +1084,39 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
     else:
         # No need for a hipchat message if the next step is automatic.
         if props['AUTO_DEPLOY'] != 'true':
+            success_attachments = [{
+                'pretext': 'Hey %s, monitoring passed for the new default '
+                           '(`%s`)!  But you should double-check that '
+                           'everything is okay on '
+                           '<https://www.khanacademy.org|the site>.' %
+                               (props['DEPLOYER_USERNAME'],
+                                props['VERSION_NAME']),
+                'fields': [
+                    {
+                        'title': 'finish up :checkered_flag:',
+                        'value': u':speech_balloon: _“sun, finish up”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='success'),
+                        'short': True,
+                    },
+                    {
+                        'title': 'abort and roll back :skull:',
+                        'value': u':speech_balloon: _“sun, abort”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='rollback',
+                                             WHY='aborted',
+                                             ROLLBACK_TO=props['ROLLBACK_TO']),
+                        'short': True,
+                    }
+                ],
+                'mrkdwn_in': ['fields', 'text', 'pretext']
+            }]
             _alert(props,
                    'Monitoring passed for the new default (%s)! '
                    'But you should double-check everything '
                    'is ok at https://www.khanacademy.org. '
                    'Then:\n'
-                   ':+1: finish up: type "sun, finish up" '
+                   ':checkered_flag: finish up: type "sun, finish up" '
                    'or visit %s\n'
                    ':no_good: abort and roll back: type "sun, abort" '
                    'or visit %s'
@@ -1096,7 +1124,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                       _finish_url(props, STATUS='success'),
                       _finish_url(props, STATUS='rollback', WHY='aborted',
                                   ROLLBACK_TO=props['ROLLBACK_TO'])),
-                   color='green')
+                   color='green',
+                   attachments=success_attachments)
 
 
 def finish_with_unlock(props, caller=None):
