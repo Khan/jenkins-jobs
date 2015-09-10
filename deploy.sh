@@ -20,9 +20,6 @@ if [ "${DEPLOY_VERSION}" = "default" ]; then
     # rather than doing the deploy.py default of doing a default deploy.
     DEPLOY_VERSION=
 fi
-# The AppEngine user to deploy as and the file containing the user's password.
-: ${DEPLOY_EMAIL:=prod-deploy@khanacademy.org}
-
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
