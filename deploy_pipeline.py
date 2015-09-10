@@ -1474,10 +1474,6 @@ def parse_args_and_invoke_main():
                         default=':crocodile:',
                         help=('The emoji to use as a bot avatar for messages'
                               ' posted to Slack'))
-    parser.add_argument('--deploy_email',
-                        help="Obsolete; ignored.")
-    parser.add_argument('--deploy_pw_file',
-                        help="Obsolete; ignored.")
 
     # This is only needed for acquire-lock, but if passed into any other
     # action, the action will ensure the token matches what's in the
