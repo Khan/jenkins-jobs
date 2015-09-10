@@ -201,14 +201,15 @@ fi
     timeout 10m git add pofiles approved_pofiles
     git status --porcelain \
         | grep -e '^M' -e '^A' \
-        | grep --only-matching '\(approved_\)\{0,1\}pofiles/[^.]\{1,\}' \
-        | xargs basename \
+        | grep --only-matching -e 'approved_pofiles/[^.]*' -e 'pofiles/[^.]*' \
+        | xargs -n1 basename \
         | sort -u \
       >"$UPDATED_LOCALES_FILE"
 )
 
 # e.g., "de fr zh-hans" for the commit message.
-updated_locales=`<"$UPDATED_LOCALES_FILE" tr -s '\n\t ' ' ' | sed 's/ $//'`
+# xargs with no args just converts newlines to spaces.
+updated_locales=`xargs <"$UPDATED_LOCALES_FILE"`
 
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
