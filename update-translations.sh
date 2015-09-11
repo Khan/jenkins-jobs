@@ -19,10 +19,16 @@
 #
 #   NUM_LANGS_TO_DOWNLOAD - update at most this many languages. The
 #       default is to process all languages that have updates.
+#
+#   OVERRIDE_LANGS - a whitespace-separated list of languages to
+#       process, e.g., "fr es pt". Ignored unless
+#       DOWNLOAD_TRANSLATIONS is also set. When this is set,
+#       NUM_LANGS_TO_DOWNLOAD is ignored.
 
 : ${DOWNLOAD_TRANSLATIONS:=}
 : ${UPDATE_STRINGS:=}
 : ${NUM_LANGS_TO_DOWNLOAD:=1000}
+: ${OVERRIDE_LANGS:=}
 
 if [ -z "$DOWNLOAD_TRANSLATIONS" -a -z "$UPDATE_STRINGS" ]; then
     echo "One of DOWNLOAD_TRANSLATIONS or UPDATE_STRINGS must be set" >&2
@@ -93,10 +99,17 @@ UPDATED_LOCALES_FILE="$WORKSPACE_ROOT"/updated_locales.txt
 
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
-    # Download the next NUM_LANGS_TO_DOWNLOAD most important langs pofiles and 
-    # stats files in parallel and create the combined intl/translations/pofiles
-    # and intl/translations/approved_pofiles 
-    for lang in `deploy/order_download_i18n.py --verbose | head -n "$NUM_LANGS_TO_DOWNLOAD"` ; do
+    if [ -n "$OVERRIDE_LANGS" ]; then
+        list_of_langs="$OVERRIDE_LANGS"
+    else
+        # Download the next NUM_LANGS_TO_DOWNLOAD most important langs
+        # pofiles and stats files in parallel and create the combined
+        # intl/translations/pofiles and intl/translations/approved_pofiles
+        list_of_langs=`deploy/order_download_i18n.py --verbose | head -n "$NUM_LANGS_TO_DOWNLOAD"`
+    fi
+
+    # xargs -n1 takes a string and puts each word on its own line.
+    for lang in `echo "$list_of_langs" | xargs -n1`; do
         echo "Downloading translations and stats for $lang from crowdin & making combined pofile."
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
