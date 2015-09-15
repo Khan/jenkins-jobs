@@ -272,7 +272,7 @@ _safe_update_submodules() {
           # existing symlinks inside main_repo/.git/ to get there.
           cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
 
-          timeout 10m git submodule sync
+          timeout 10m git submodule sync --recursive
           timeout 60m git submodule update --init --recursive -- $new_workdir_repos
           for path in $new_workdir_repos; do
               [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
@@ -282,7 +282,7 @@ _safe_update_submodules() {
 
     # Now update the 'normal' repos.
     if [ -n "$normal_repos" ]; then
-        timeout 10m git submodule sync
+        timeout 10m git submodule sync --recursive
         timeout 60m git submodule update --init --recursive -- $normal_repos
     fi
 
