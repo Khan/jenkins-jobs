@@ -802,7 +802,7 @@ def manual_test(props):
         "Or open them all at once (cut-and-paste): "
         "  $ tools/manual_webapp_testing.py %(version)s\n\n"
         "Also run end-to-end testing (cut-and-paste): "
-        "  $ tools/end_to_end_webapp_testing.py --version %(version)s</b>"
+        "  $ tools/end_to_end_webapp_testing.py --version %(version)s"
         % {
             'pages': '\n'.join('%s: %s' % (title, url)
                                for title, url
