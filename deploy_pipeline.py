@@ -778,14 +778,14 @@ def manual_test(props):
         'fields': [
             {
                 'title': 'all looks good :rocket:',
-                'value': u':speech_balloon: _“sun, set default”_ '
+                'value': u':speech_balloon: _“sun: set default”_ '
                          u'(or <%s|click me>)' % (_set_default_url(
                              props, AUTO_DEPLOY=props['AUTO_DEPLOY'])),
                 'short': True
             },
             {
                 'title': 'abort the deploy :skull:',
-                'value': u':speech_balloon: _“sun, abort”_ '
+                'value': u':speech_balloon: _“sun: abort”_ '
                          u'(or <%s|click me>)' % (_finish_url(
                              props, STATUS='failure', WHY='aborted')),
                 'short': True
@@ -995,14 +995,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
-                        'value': u':speech_balloon: _“sun, finish up”_ '
+                        'value': u':speech_balloon: _“sun: finish up”_ '
                                  u'(or <%s|click me>)' %
                                  _finish_url(props, STATUS='success'),
                         'short': True,
                     },
                     {
                         'title': 'abort the deploy :skull:',
-                        'value': u':speech_balloon: _“sun, abort”_ '
+                        'value': u':speech_balloon: _“sun: abort”_ '
                                  u'(or <%s|click me>)' %
                                  _finish_url(props, STATUS='rollback',
                                              WHY='aborted',
@@ -1057,7 +1057,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 },
                 {
                     'title': 'abort the deploy :skull:',
-                    'value': u':speech_balloon: _“sun, abort”_ '
+                    'value': u':speech_balloon: _“sun: abort”_ '
                              u'(or <%s|click me>)' %
                              _finish_url(props, STATUS='rollback',
                                          WHY='aborted',
@@ -1094,14 +1094,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'fields': [
                     {
                         'title': 'finish up :checkered_flag:',
-                        'value': u':speech_balloon: _“sun, finish up”_ '
+                        'value': u':speech_balloon: _“sun: finish up”_ '
                                  u'(or <%s|click me>)' %
                                  _finish_url(props, STATUS='success'),
                         'short': True,
                     },
                     {
                         'title': 'abort and roll back :skull:',
-                        'value': u':speech_balloon: _“sun, abort”_ '
+                        'value': u':speech_balloon: _“sun: abort”_ '
                                  u'(or <%s|click me>)' %
                                  _finish_url(props, STATUS='rollback',
                                              WHY='aborted',
