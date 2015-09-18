@@ -215,6 +215,13 @@ def _finish_url(props, **extra_params):
                urllib.urlencode(extra_params)))
 
 
+def _logs_url(props, module='default', **extra_params):
+    """Return a link to Google App Engine logs."""
+    return ("https://console.developers.google.com/project/khan-academy/logs"
+            "?service=appengine.googleapis.com&key1=%s&key2=%s&%s" % (
+                module, props['VERSION_NAME'], urllib.urlencode(extra_params)))
+
+
 def _gae_version(git_revision):
     # If git_revision is a branch, make sure it's available locally,
     # so dated_current_git_version can reference it.
@@ -989,9 +996,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             raise
         else:
             finish_attachments = [{
+                # TODO(benkraft): actually send the URL to the logs for the
+                # module where we've noticed an error, if there is one.
                 'pretext': 'Hey %s, :ohnoes: Jenkins says: `%s`. '
                            'Please double-check manually that everything '
-                           'is okay.' % (props['DEPLOYER_USERNAME'], why),
+                           'is okay on <https://www.khanacademy.org|the site> '
+                           'and in <%s|the logs>.' % (
+                               props['DEPLOYER_USERNAME'], why,
+                               _logs_url(props)),
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
