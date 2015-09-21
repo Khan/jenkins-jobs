@@ -1063,7 +1063,8 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             'fields': [
                 {
                     'title': 'release the deploy lock :unlock:',
-                    'value': u'<%s|click to unlock>)' %
+                    'value': u':speech_balloon: _“sun: finish up”_ '
+                             u'(or <%s|click me>)' %
                              _finish_url(props, STATUS='success'),
                     'short': True,
                 },
