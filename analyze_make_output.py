@@ -7,8 +7,8 @@ genfiles.  Likewise, a summary of the jstest output is put in
 genfiles, as is a summary of the lint output.
 
 This script analyzes these three output files and takes action --
-namely, talking to hipchat -- for test-failures that it sees in them.
-The hipchat messages have nice links to more details.
+namely, talking to Slack -- for test-failures that it sees in them.
+The Slack messages have nice links to more details.
 
 This script exits with rc 0 if no errors were seen, or a positive rc
 (the number of errors) if errors were seen.
@@ -85,7 +85,7 @@ _ALTERNATE_TESTS = {
 _ALTERNATE_TESTS_VALUES = {}
 
 
-def _alert(hipchat_room, slack_channel, failures, test_type, truncate=10,
+def _alert(slack_channel, failures, test_type, truncate=10,
            num_errors=None):
     """Alert with the first truncate failures, adding a header.
 
@@ -93,10 +93,10 @@ def _alert(hipchat_room, slack_channel, failures, test_type, truncate=10,
     (This happens when a system prints two error-lines for each file,
     for instance.)
 
-    failures should be a list of tuples (hipchat link, slack link)
+    failures should be a list of strings with slack links.
 
-    If hipchat_room is None or the empty string, we suppress alerting
-    to hipchat, and only log.
+    If slack_channel is None or the empty string, we suppress alerting to
+    Slack, and only log.
     """
     if not failures:
         return
@@ -113,29 +113,20 @@ def _alert(hipchat_room, slack_channel, failures, test_type, truncate=10,
     if len(failures) > truncate:
         alert_lines.append('...', '...')
 
-    if hipchat_room:
-        html_text = '%s:<br>\n%s' % (
-            pretext, '<br>\n'.join(alert[0] for alert in alert_lines))
-        html_alert = alertlib.Alert(html_text, severity=logging.ERROR,
-                                    html=True)
-        html_alert.send_to_hipchat(hipchat_room, sender='Jenny Jenkins')
-
-    fallback_text = '%s:\n%s' % (
-        pretext, '\n'.join(alert[1] for alert in alert_lines))
-    slack_attachment = {
+    text = '\n'.join(alert for alert in alert_lines)
+    fallback_text = '%s:\n%s' % (pretext, text)
+    attachment = {
         'fallback': fallback_text,
         'pretext': pretext,
-        'text': '\n'.join(alert[1] for alert in alert_lines),
+        'text': text,
         'color': 'danger',
     }
-    slack_alert = alertlib.Alert(fallback_text, severity=logging.ERROR)
-    slack_alert.send_to_logs()
+    alert = alertlib.Alert(fallback_text, severity=logging.ERROR)
+    alert.send_to_logs()
 
     if slack_channel:
-        # TODO(benkraft): find a retina-quality :lilturtle: and use that here
-        slack_alert.send_to_slack(slack_channel, sender='Testing Turtle',
-                                  icon_emoji=':turtle:',
-                                  attachments=[slack_attachment])
+        alert.send_to_slack(slack_channel, sender='Testing Turtle',
+                            icon_emoji=':turtle:', attachments=[attachment])
 
 
 def _find(rootdir):
@@ -177,7 +168,7 @@ def find_bad_testcases(test_reports_dir):
 
 
 def add_links(build_url, testcase):
-    """Return a tuple of strings (hipchat link, slack link)
+    """Return a slack-style link.
 
     Links to the testcase result in the Jenkins build at build_url.
     """
@@ -188,12 +179,10 @@ def add_links(build_url, testcase):
     url = "%s/testReport/junit/%s/%s/%s/" % (
         build_url, module, classname, testcase.get("name"))
 
-    return ('<a href="%s">%s</a>' % (url, display_name),
-            '<%s|%s>' % (url, display_name))
+    return '<%s|%s>' % (url, display_name)
 
 
-def report_test_failures(test_reports_dir, jenkins_build_url,
-                         hipchat_room, slack_channel):
+def report_test_failures(test_reports_dir, jenkins_build_url, slack_channel):
     """Alert for test (as opposed to jstest or lint) failures.
 
     Returns the number of errors seen.
@@ -208,11 +197,11 @@ def report_test_failures(test_reports_dir, jenkins_build_url,
     for bad_testcase in find_bad_testcases(test_reports_dir):
         failures.append(add_links(jenkins_build_url, bad_testcase))
     failures.sort()
-    _alert(hipchat_room, slack_channel, failures, 'Python test')
+    _alert(slack_channel, failures, 'Python test')
     return len(failures)
 
 
-def report_jstest_failures(jstest_reports_file, hipchat_room, slack_channel):
+def report_jstest_failures(jstest_reports_file, slack_channel):
     """Alert for jstest (as opposed to python-test or lint) failures."""
     if not os.path.exists(jstest_reports_file):
         return 0
@@ -238,24 +227,24 @@ def report_jstest_failures(jstest_reports_file, hipchat_room, slack_channel):
                 # Crashes are ignored in the "Finished running x tests"
                 # reports, so we have to count these errors manually.
                 num_errors += 1
-    _alert(hipchat_room, slack_channel, failures, 'JavaScript test',
+    _alert(slack_channel, failures, 'JavaScript test',
            num_errors=num_errors)
     return num_errors
 
 
-def report_lint_failures(lint_reports_file, hipchat_room, slack_channel):
+def report_lint_failures(lint_reports_file, slack_channel):
     """Alert for lint (as opposed to python-test or jstest) failures."""
     if not os.path.exists(lint_reports_file):
         return 0
 
     with open(lint_reports_file, 'rU') as infile:
         failures = infile.readlines()
-    _alert(hipchat_room, slack_channel, failures, 'Lint check')
+    _alert(slack_channel, failures, 'Lint check')
     return len(failures)
 
 
 def main(jenkins_build_url, test_reports_dir,
-         jstest_reports_file, lint_reports_file, hipchat_room, slack_channel,
+         jstest_reports_file, lint_reports_file, slack_channel,
          dry_run):
     if dry_run:
         alertlib.enter_test_mode()
@@ -266,7 +255,7 @@ def main(jenkins_build_url, test_reports_dir,
     if test_reports_dir:
         num_errors += report_test_failures(test_reports_dir,
                                            jenkins_build_url,
-                                           hipchat_room, slack_channel)
+                                           slack_channel)
 
     # If we ran any of the alternate-tests above, we'll fake having
     # emitted otuput to the output file.
@@ -277,14 +266,13 @@ def main(jenkins_build_url, test_reports_dir,
                 # TODO(csilvers): send a cStringIO to report_* instead.
                 f.write(_ALTERNATE_TESTS_VALUES['javascript'])
         num_errors += report_jstest_failures(jstest_reports_file,
-                                             hipchat_room, slack_channel)
+                                             slack_channel)
 
     if lint_reports_file:
         if 'lint' in _ALTERNATE_TESTS_VALUES:
             with open(lint_reports_file, 'w') as f:
                 f.write(_ALTERNATE_TESTS_VALUES['lint'])
-        num_errors += report_lint_failures(lint_reports_file,
-                                           hipchat_room, slack_channel)
+        num_errors += report_lint_failures(lint_reports_file, slack_channel)
 
     return num_errors
 
@@ -303,22 +291,17 @@ if __name__ == '__main__':
     parser.add_argument('--lint_reports_file',
                         default='genfiles/lint_errors.txt',
                         help='Where "make lint" puts the output report')
-    parser.add_argument('-c', '--hipchat-room',
-                        default="1s and 0s",
-                        help=("What room to send hipchat notifications to; "
-                              "set to the empty string to turn off hipchat "
-                              "notifications"))
     parser.add_argument('-S', '--slack-channel',
                         default="#1s-and-0s",
                         help=("What channel to send slack notifications to; "
                               "set to the empty string to turn off slack "
                               "notifications"))
     parser.add_argument('--dry-run', '-n', action='store_true',
-                        help='Log instead of sending to hipchat.')
+                        help='Log instead of sending to Slack.')
     args = parser.parse_args()
 
     rc = main(args.jenkins_build_url, args.test_reports_dir,
               args.jstest_reports_file, args.lint_reports_file,
-              args.hipchat_room, args.slack_channel, args.dry_run)
+              args.slack_channel, args.dry_run)
     # We cap num-errors at 127 because rc >= 128 is reserved for signals.
     sys.exit(min(rc, 127))
