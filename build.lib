@@ -31,9 +31,8 @@ VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 
-# Default HipChat info to use for alerting:
-: ${HIPCHAT_ROOM:=HipChat Tests}
-: ${HIPCHAT_SENDER:=Testybot}
+# Default Slack channel to use for alerting:
+: ${SLACK_CHANNEL:=#bot-testing}
 
 
 # Sanity check that we're in the right place, the working directory
@@ -144,7 +143,7 @@ decrypt_secrets_py_and_add_to_pythonpath() {
 # ubuntu defines its own alert by default, that we don't care about.
 if type alert >/dev/null; then unalias alert 2>/dev/null; fi
 
-# Send an alert to hipchat and the logs.  Decrypts secrets if necessary.
+# Send an alert to Slack and the logs.  Decrypts secrets if necessary.
 # The alertlib subrepo in webapp must be checked out for this to work.
 # $1: severity level; $2+: message
 alert() {
@@ -159,8 +158,7 @@ alert() {
     echo "$@" \
         | ${WEBSITE_ROOT}/third_party/alertlib-khansrc/alert.py \
               --severity="$severity" $html \
-              --hipchat "$HIPCHAT_ROOM" --hipchat-sender "$HIPCHAT_SENDER" \
-              --logs
+              --slack "$SLACK_CHANNEL" --logs
 }
 
 
