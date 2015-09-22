@@ -775,8 +775,8 @@ def manual_test(props):
 
     deploymsg_attachment = {
         'fallback': deploymsg_plaintext,
-        'pretext': 'Hey %(user)s, `<%(url)s|%(appengine_id)s>` (branch '
-                   '`%(branch)s`) is uploaded to App Engine!' % {
+        'pretext': 'Hey %(user)s, `<https://%(url)s/|%(appengine_id)s>` '
+                   '(branch `%(branch)s`) is uploaded to App Engine!' % {
                        'url': hostname,
                        'appengine_id': props['VERSION_NAME'],
                        'user': props['DEPLOYER_USERNAME'],
