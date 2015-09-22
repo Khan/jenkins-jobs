@@ -29,7 +29,7 @@ fi
 : ${FORCE:=false}       # --force: deploy unconditionally
 : ${PRIME:=false}       # --force-priming: set to "true" to append
 : ${SUBMODULE_REVERTS:=false}  # --allow-submodule-reverts: "true" to append
-: ${HIPCHAT_ROOM:=1s and 0s}   # --hipchat-room: "" to disable hipchat sending
+: ${SLACK_CHANNEL:=#1s-and-0s-deploys}  # --slack-channel: "" to disable slack
 
 # If set, we look for this directory, and if it exists use it as our
 # genfiles directory before deploying (we do this by mv-ing it).  This
@@ -63,7 +63,7 @@ DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
 [ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
 [ "$SUBMODULE_REVERTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --allow-submodule-reverts"
-DEPLOY_FLAGS="$DEPLOY_FLAGS --hipchat-room='$HIPCHAT_ROOM'"
+DEPLOY_FLAGS="$DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
 
 # Clean out the working tree.
