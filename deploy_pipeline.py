@@ -1058,8 +1058,10 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                         'abort.',
             'text': ' Either set the default manually by running '
                     '`deploy/set_default.py %s%s` and release the deploy '
-                    'lock, or abort.' % (priming_flag,
-                                         props['VERSION_NAME']),
+                    'lock, or abort.  The <%s/console|Jenkins logs> may tell '
+                    'you what happened.' % (
+                        priming_flag, props['VERSION_NAME'],
+                        props['JENKINS_JOB_URL'].rstrip('/')),
             'fields': [
                 {
                     'title': 'release the deploy lock :unlock:',
