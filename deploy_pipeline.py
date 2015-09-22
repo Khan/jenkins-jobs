@@ -21,7 +21,7 @@ them to run in parallel.  And we need kick-off/set-default/finish to
 be separate jobs because there's a manual step involved between each
 of these three tasks, and jenkins doesn't have great support for
 manual steps.  (We simulate manual steps here by having each of these
-jobs end with a hipchat message that includes a link to the next job
+jobs end with a Slack message that includes a link to the next job
 in the chain.)
 
 All of these jobs must operate under a deploy lock, so we only do one
@@ -57,22 +57,21 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)),
 import alertlib
 
 # We assume that webapp is a sibling to the jenkins-tools repo.
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             '..', 'webapp', 'tools'))
+_WEBAPP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            '..', 'webapp')
+sys.path.append(os.path.join(_WEBAPP_ROOT, 'tools'))
+
 import appengine_tool_setup
 appengine_tool_setup.fix_sys_path()
 
 import deploy.deploy
 import deploy.rollback
 import deploy.set_default
-import ka_secrets             # for (optional) email->hipchat
 from tools import manual_webapp_testing
 
 
 # Used for testing.  Does not set-default, does not tag versions as bad.
 _DRY_RUN = False
-
-_WEBAPP_ROOT = os.path.dirname(os.path.abspath(ka_secrets.__file__))
 
 InvocationDetails = collections.namedtuple(
     'InvocationDetails',
@@ -85,7 +84,6 @@ InvocationDetails = collections.namedtuple(
         'jenkins_url',
         'jenkins_job_url',
         'monitoring_time',
-        'hipchat_room',
         'chat_sender',
         'icon_emoji',
         'slack_channel',
@@ -94,74 +92,28 @@ InvocationDetails = collections.namedtuple(
 )
 
 
-def _hipchatify(s):
-    """Return the string s with Slack emoji replaced by HipChat emoticons."""
-    # TODO(bmp): Kill this whole function when HipChat dies
-    hipchat_substitutions = {
-        ':+1:': '(successful)',
-        ':checkered_flag:': '(successful)',
-        ':unlock:': '(successful)',
-        ':white_check_mark:': '(continue)',
-        ':ohnoes:': '(sadpanda)',
-        ':no_good:': '(failed)',
-        ':poop:': '(poo)',  # not a line of code I thought I'd ever write
-        ':party_dino:': '(gangnamstyle)',
-        ':flushed:': '(pokerface)',
-    }
-    for emoji, emoticon in hipchat_substitutions.viewitems():
-        s = s.replace(emoji, emoticon)
-
-    return s
+def _prefix_with_username(props, text):
+    """Prefix the give text with the deployer's username."""
+    return '%s %s' % (props['DEPLOYER_USERNAME'], text)
 
 
-def _alert_to_hipchat(props, alert, color=None, notify=True):
-    """Send the Alert to Hipchat with default sender and destination."""
-    alert.send_to_hipchat(room_name=props['HIPCHAT_ROOM'],
-                          sender=props['CHAT_SENDER'],
-                          color=color,
-                          notify=notify)
+def _alert(props, text, severity=logging.INFO, prefix_with_username=True,
+           attachments=None, simple_message=False):
+    """Send the given text to Slack and the logs at once.
 
+    By default this will also prefix an @mention for the relevant user.
+    """
+    if prefix_with_username:
+        text = _prefix_with_username(props, text)
 
-def _alert_to_slack(props, alert, simple_message=False, attachments=None):
-    """Send the Alert to Slack with default sender and destination."""
+    alert = alertlib.Alert(text, severity=severity)
     alert.send_to_slack(channel=props['SLACK_CHANNEL'],
                         sender=props['CHAT_SENDER'],
                         icon_emoji=props['ICON_EMOJI'],
                         simple_message=simple_message,
                         attachments=attachments)
 
-
-def _prefix_with_username(props, text):
-    """Prefix the give text with the deployer's username."""
-    return '%s %s' % (props['DEPLOYER_USERNAME'], text)
-
-
-def _alert(props, text, severity=logging.INFO, color=None, html=False,
-           prefix_with_username=True, attachments=None, simple_message=False):
-    """Send the given text to HipChat, Slack and the logs all at once.
-
-    Expects slack emoji and attempts to automatically translate them to HipChat
-    style. No other translations are attempted.
-
-    By default this will also prefix an @mention for the relevant user.
-
-    NOTE: This is a transition method and it's signature will likely change
-    once HipChat is deprecated.
-    """
-    if prefix_with_username:
-        text = _prefix_with_username(props, text)
-
-    hc_alert = alertlib.Alert(_hipchatify(text), severity=severity, html=html)
-    _alert_to_hipchat(props, hc_alert,
-                      color=color,
-                      notify=True)
-
-    slack_alert = alertlib.Alert(text, severity=severity, html=html)
-    _alert_to_slack(props, slack_alert,
-                    simple_message=simple_message,
-                    attachments=attachments)
-
-    slack_alert.send_to_logs()
+    alert.send_to_logs()
 
 
 def _safe_urlopen(*args, **kwargs):
@@ -262,7 +214,6 @@ def _create_properties(args):
         'AUTO_DEPLOY': str(args.auto_deploy).lower(),
         'ROLLBACK_TO': args.gae_version,
         'JENKINS_URL': args.jenkins_url,
-        'HIPCHAT_ROOM': args.hipchat_room,
         'CHAT_SENDER': args.chat_sender,
         'ICON_EMOJI': args.icon_emoji,
         'SLACK_CHANNEL': args.slack_channel,
@@ -349,7 +300,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
     the properties file is <lockdir>/deploy.prop.
 
     Once the current lock-holder has held the lock for longer than
-    wait_sec, we print an appropriate message to hipchat and exit.
+    wait_sec, we print an appropriate message to Slack and exit.
 
     Arguments:
         props: a map of property-name to value, stored with the lock.
@@ -359,7 +310,7 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
            https://jenkins.khanacademy.org/job/testjob/723/).
         wait_sec: how many seconds to busy-wait for the lock to free up.
         notify_sec: while waiting for the lock, how often to ping
-           hipchat that we're still waiting.
+           Slack that we're still waiting.
 
     Raises:
         RuntimeError or OSError if we failed to acquire the lock.
@@ -387,33 +338,21 @@ def acquire_deploy_lock(props, jenkins_build_url=None,
             props['LOCK_ACQUIRE_TIME'] = int(time.time())
             logging.info("Lockdir %s acquired." % lockdir)
 
-            msg = (
-                "Starting deploy of branch %s.  I'll post again when "
-                "tests are done and the deploy is finished."
-                % props['GIT_REVISION'])
-            slack_msg = (
+            deploy_msg = (
                 "*Starting deploy of branch `%s`.* :treeeee:\n"
                 "I'll post again when tests are done & the deploy is finished."
                 % props['GIT_REVISION'])
 
             if done_first_alert:   # tell them they're no longer in line.
-                msg = "Thank you for waiting! " + msg
-                slack_msg = "Thank you for waiting! " + slack_msg
+                deploy_msg = "Thank you for waiting! " + deploy_msg
 
             if jenkins_build_url and props['AUTO_DEPLOY'] != 'true':
                 _stop_url = "{}/stop".format(jenkins_build_url.rstrip('/'))
 
-                msg += (" If you wish to cancel before then:\n"
-                        "abort: %s" % _stop_url)
-                slack_msg += (" If you wish to cancel before then you can "
+                deploy_msg += (" If you wish to cancel before then you can "
                               "*<%s|abort the deploy>*." % _stop_url)
 
-            hc_alert = alertlib.Alert(_prefix_with_username(props, msg))
-            sl_alert = alertlib.Alert(_prefix_with_username(props, slack_msg))
-
-            hc_alert.send_to_logs()
-            _alert_to_hipchat(props, hc_alert, color='green')
-            _alert_to_slack(props, sl_alert, simple_message=True)
+            _alert(props, deploy_msg, simple_message=True)
             return
 
         recover_msg = ("If this is a mistake and you are sure nobody else "
@@ -760,7 +699,7 @@ def _rollback_deploy(props):
 
 
 def manual_test(props):
-    """Send a message to hipchat saying to do pre-set-default manual tests."""
+    """Send a message to Slack saying to do pre-set-default manual tests."""
     hostname = '%s-dot-khan-academy.appspot.com' % props['VERSION_NAME']
 
     deploymsg_plaintext = (
@@ -819,18 +758,6 @@ def manual_test(props):
         }
     )
 
-    # TODO(mroth): the HTML message is used only for HipChat and can be removed
-    # when hipchat is fully deprecated.
-    testmsg_html = (
-        "Here are some pages to manually test:<br>%s<br>"
-        "Or open them all at once (cut-and-paste): "
-        "<b>tools/manual_webapp_testing.py %s</b><br>"
-        "Also run end-to-end testing (cut-and-paste): "
-        "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
-        % (manual_webapp_testing.list_with_links(props['VERSION_NAME']),
-           props['VERSION_NAME'], props['VERSION_NAME'])
-    )
-
     testmsg_attachment = {
         'fallback': testmsg_plaintext,
         'pretext': 'Before deciding, here are some pages to manually test:',
@@ -855,24 +782,9 @@ def manual_test(props):
         'mrkdwn_in': ['fields', 'text']
     }
 
-    alert = alertlib.Alert(deploymsg_plaintext + "\n\n" + testmsg_plaintext,
-                           severity=logging.INFO)
-    alert.send_to_logs()
-    _alert_to_slack(
-        props, alert,
-        attachments=[deploymsg_attachment, testmsg_attachment])
-
-    # hipchat requires two messages to be sent seperately, with a delay so they
-    # are not out of order.
-    # TODO(mroth): remove me once HipChat is deprecated
-    _alert_to_hipchat(
-        props,
-        alertlib.Alert(deploymsg_plaintext, severity=logging.INFO, html=False),
-        color='green')
-    time.sleep(1)
-    _alert_to_hipchat(
-        props,
-        alertlib.Alert(testmsg_html, severity=logging.INFO, html=True))
+    _alert(props,
+           deploymsg_plaintext + "\n\n" + testmsg_plaintext,
+           attachments=[deploymsg_attachment, testmsg_attachment])
 
 
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
@@ -886,14 +798,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         encountered an error that should cause the build to abort and
         jenkins to release the build lock.  We do not raise an
         exception if the build should continue, either because we
-        emitted a hipchat message telling the user to click on a link
+        emitted a Slack message telling the user to click on a link
         to take us to the next step, or because set-default failed and
         was successfully auto-rolled back.
     """
     logging.info("Changing default from %s to %s"
                  % (props['ROLLBACK_TO'], props['VERSION_NAME']))
     # I do the deploy steps one at a time so I can intersperse some
-    # hipchat mesasges.
+    # Slack mesasges.
     did_priming = False
     try:
         pre_monitoring_data = deploy.set_default.get_predeploy_monitoring_data(
@@ -911,10 +823,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
 
         if (monitoring_time and jenkins_build_url and
                 props['AUTO_DEPLOY'] != 'true'):
-            # TODO(bmp): When HipChat dies, this can be one alert with
-            # two attachments
-            deploy_attachments = [{
-                'pretext': 'Hey %(user)s, `%(appengine_id)s` is now the '
+            deploy_text = ('Hey %(user)s, `%(appengine_id)s` is now the '
                            "default version! I'll be monitoring the logs "
                            'for %(minutes)s minutes, and then will post the '
                            'results. If you detect a problem in the meantime, '
@@ -922,7 +831,12 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                                'appengine_id': props['VERSION_NAME'],
                                'user': props['DEPLOYER_USERNAME'],
                                'minutes': monitoring_time,
-                           },
+                           })
+            deploy_plaintext = "%s\nTo cancel, go to %s/stop" % (
+                deploy_text, jenkins_build_url.rstrip('/'))
+            deploy_attachments = [{
+                'pretext': deploy_text,
+                'fallback': deploy_plaintext,
                 'fields': [{
                     'title': 'abort the deploy :skull:',
                     'value': '<%s/stop|click to abort>' % (
@@ -933,20 +847,18 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'color': 'good',
                 'mrkdwn_in': ['pretext', 'fields'],
             }]
-            _alert(props,
-                   "I've deployed to %s, and will be monitoring "
-                   "logs for %s minutes.  After that, I'll post "
-                   "next steps to HipChat.  If you detect a problem in "
-                   "the meantime you can cancel the deploy (note: this "
-                   "link will only work for the next %s minutes):\n"
-                   ":no_good: abort and rollback: %s/stop"
-                   % (props['VERSION_NAME'], monitoring_time, monitoring_time,
-                      jenkins_build_url.rstrip('/')),
-                   attachments=deploy_attachments)
-            time.sleep(1)  # to help the two hipchat alerts be ordered properly
+            test_plaintext = (
+                "While that's going on, manual-test on the live site!\n%s\n"
+                "Or open them all at once (cut-and-paste): "
+                "tools/manual_webapp_testing.py %s\n"
+                "Also run end-to-end testing (cut-and-paste): "
+                "tools/end_to_end_webapp_testing.py --version %s\n"
+                % (manual_webapp_testing.list_with_links('default'),
+                   'default', 'default'))
             test_attachments = [{
                 'pretext': "While that's going on, here are some pages to "
                            'manually test:',
+                'fallback': test_plaintext,
                 'text': ' '.join('`<%s|%s>`' % (url, title)
                                  for title, url
                                  in manual_webapp_testing.pages_to_test(
@@ -967,26 +879,20 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'mrkdwn_in': ['fields', 'text']
             }]
             _alert(props,
-                   ("While that's going on, manual-test on the live site!<br>"
-                    "%s<br>\n"
-                    "Or open them all at once (cut-and-paste): "
-                    "<b>tools/manual_webapp_testing.py %s</b><br>"
-                    "Also run end-to-end testing (cut-and-paste): "
-                    "<b>tools/end_to_end_webapp_testing.py --version %s</b>"
-                    % (manual_webapp_testing.list_with_links('default'),
-                       'default', 'default')),
-                   html=True, prefix_with_username=False,
-                   attachments=test_attachments)
+                   deploy_plaintext + '\n\n' + test_plaintext,
+                   attachments=[deploy_attachments, test_attachments])
 
         deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
                                    pre_monitoring_data,
-                                   hipchat_room=props['HIPCHAT_ROOM'],
                                    slack_channel=props['SLACK_CHANNEL'])
 
     except deploy.set_default.MonitoringError as why:
         # Wait a little to make sure this hipchat message comes after
         # the "I've deployed to ..." message we emitted above above.
-        time.sleep(10)
+        # TODO(benkraft): I don't think we need this anymore with Slack.  If we
+        # find message ordering issues, uncomment it.  If we don't, remove this
+        # (by December 2015).
+        # time.sleep(10)
         if props['AUTO_DEPLOY'] == 'true':
             _alert(props,
                    ":ohnoes: %s." % why,
@@ -995,6 +901,14 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             # job to clean up by rolling back.  auto-rollback for free!
             raise
         else:
+            finish_plaintext = (
+                'Oh no! %s. Make sure everything is ok, then:\n'
+                'finish up: type "sun, finish up" or visit %s\n'
+                'abort and roll back: type "sun, abort" or visit %s'
+                % (why,
+                   _finish_url(props, STATUS='success'),
+                   _finish_url(props, STATUS='rollback', WHY='aborted',
+                               ROLLBACK_TO=props['ROLLBACK_TO'])))
             finish_attachments = [{
                 # TODO(benkraft): actually send the URL to the logs for the
                 # module where we've noticed an error, if there is one.
@@ -1004,6 +918,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                            'and in <%s|the logs>.' % (
                                props['DEPLOYER_USERNAME'], why,
                                _logs_url(props)),
+                'fallback': finish_plaintext,
                 'fields': [
                     {
                         'title': 'deploy anyway :yolo:',
@@ -1024,18 +939,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 ],
                 'mrkdwn_in': ['fields', 'text', 'pretext']
             }]
-            _alert(props,
-                   ':ohnoes: %s. '
-                   'Make sure everything is ok, then:\n'
-                   ':+1: finish up: type "sun, finish up" '
-                   'or visit %s\n'
-                   ':no_good: abort and roll back: type "sun, abort" '
-                   'or visit %s'
-                   % (why,
-                      _finish_url(props, STATUS='success'),
-                      _finish_url(props, STATUS='rollback', WHY='aborted',
-                                  ROLLBACK_TO=props['ROLLBACK_TO'])
-                      ),
+            _alert(props, finish_plaintext,
                    severity=logging.WARNING,
                    attachments=finish_attachments)
     except Exception:
@@ -1050,12 +954,21 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         else:
             priming_flag = ''
 
+        set_default_failed_plaintext = (
+            "Oh no! set-default failed!  Either:\n"
+            "Set the default to %s manually (by running "
+            "deploy/set_default.py %s%s), then release the deploy lock "
+            "via %s\n"
+            "abort and roll back %s"
+            % (props['VERSION_NAME'], priming_flag, props['VERSION_NAME'],
+               _finish_url(props, STATUS='success'),
+               _finish_url(props, STATUS='rollback', WHY='aborted',
+                           ROLLBACK_TO=props['ROLLBACK_TO'])))
+
         set_default_failed_attachments = [{
             'pretext': ':ohnoes: :ohnoes: Sorry %s, but `set-default` failed!'
                        % props['DEPLOYER_USERNAME'],
-            'fallback': 'Sorry %s, but "set-default" failed! Either set the '
-                        'default manually and release the deploy lock, or '
-                        'abort.',
+            'fallback': set_default_failed_plaintext,
             'text': ' Either set the default manually by running '
                     '`deploy/set_default.py %s%s` and release the deploy '
                     'lock, or abort.  The <%s/console|Jenkins logs> may tell '
@@ -1082,23 +995,22 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
             ],
             'mrkdwn_in': ['fields', 'text', 'pretext'],
         }]
-        _alert(props,
-               ":ohnoes: :ohnoes: set-default failed!  Either:\n"
-               ":white_check_mark: Set the default to %s manually (by running "
-               "deploy/set_default.py %s%s), then release the deploy lock "
-               "via %s\n"
-               ":no_good: abort and roll back %s"
-               % (props['VERSION_NAME'], priming_flag, props['VERSION_NAME'],
+        _alert(props, set_default_failed_plaintext,
+               severity=logging.CRITICAL,
+               attachments=set_default_failed_attachments)
+    else:
+        # No need for a Slack message if the next step is automatic.
+        if props['AUTO_DEPLOY'] != 'true':
+            success_plaintext = (
+                'Monitoring passed for the new default (%s)! '
+                'But you should double-check everything is ok at '
+                'https://www.khanacademy.org. Then:\n'
+                'finish up: type "sun, finish up" or visit %s\n'
+                'abort and roll back: type "sun, abort" or visit %s'
+                % (props['VERSION_NAME'],
                   _finish_url(props, STATUS='success'),
                   _finish_url(props, STATUS='rollback', WHY='aborted',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])),
-               severity=logging.CRITICAL,
-               color='red',
-               attachments=set_default_failed_attachments
-               )
-    else:
-        # No need for a hipchat message if the next step is automatic.
-        if props['AUTO_DEPLOY'] != 'true':
+                              ROLLBACK_TO=props['ROLLBACK_TO'])))
             success_attachments = [{
                 'pretext': 'Hey %s, monitoring passed for the new default '
                            '(`%s`)!  But you should double-check that '
@@ -1106,6 +1018,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                            '<https://www.khanacademy.org|the site>.' %
                                (props['DEPLOYER_USERNAME'],
                                 props['VERSION_NAME']),
+                'fallback': success_plaintext,
                 'fields': [
                     {
                         'title': 'finish up :checkered_flag:',
@@ -1126,20 +1039,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 ],
                 'mrkdwn_in': ['fields', 'text', 'pretext']
             }]
-            _alert(props,
-                   'Monitoring passed for the new default (%s)! '
-                   'But you should double-check everything '
-                   'is ok at https://www.khanacademy.org. '
-                   'Then:\n'
-                   ':checkered_flag: finish up: type "sun, finish up" '
-                   'or visit %s\n'
-                   ':no_good: abort and roll back: type "sun, abort" '
-                   'or visit %s'
-                   % (props['VERSION_NAME'],
-                      _finish_url(props, STATUS='success'),
-                      _finish_url(props, STATUS='rollback', WHY='aborted',
-                                  ROLLBACK_TO=props['ROLLBACK_TO'])),
-                   color='green',
+            _alert(props, success_plaintext,
                    attachments=success_attachments)
 
 
@@ -1191,7 +1091,7 @@ def finish_with_success(props):
            ":party_dino: Deploy of `%s` (branch `%s`) succeeded! "
            "Time for a happy dance!"
            % (props['VERSION_NAME'], props['GIT_REVISION']),
-           color='green', simple_message=True)
+           simple_message=True)
     release_deploy_lock(props, backup_lockfile=False)
 
 
@@ -1287,7 +1187,6 @@ def _create_or_read_properties(action, invocation_details):
                 minimally_viable_props = {
                     'DEPLOYER_USERNAME':
                         invocation_details.deployer_username,
-                    'HIPCHAT_ROOM': '1s/0s: deploys',
                     'CHAT_SENDER': 'Mr Gorilla',
                     'SLACK_CHANNEL': '#1s-and-0s-deploys',
                     'ICON_EMOJI': ':monkey_face:',
@@ -1501,12 +1400,10 @@ def parse_args_and_invoke_main():
     parser.add_argument('--jenkins_url',
                         default='https://jenkins.khanacademy.org/',
                         help="The url of the jenkins server.")
+    # TODO(benkraft): remove once we have updated all callers
     parser.add_argument('--hipchat_room',
                         default='HipChat Tests',
-                        help=("The room to send all hipchat notifications "
-                              "to."))
-    parser.add_argument('--hipchat_sender',
-                        help=("Obsolete; use --chat-sender instead"))
+                        help=("Deprecated."))
     parser.add_argument('--chat-sender',
                         default='Testybot',
                         help='The user name to show for messages posted to'
@@ -1555,13 +1452,6 @@ def parse_args_and_invoke_main():
     global _DRY_RUN
     _DRY_RUN = args.dry_run
 
-    # Handle deprecated options --hipchat_sender and --deployer-email
-    chat_sender = args.chat_sender
-    if args.hipchat_sender:
-        logging.warn("The --hipchat_sender argument is deprecated; please use "
-                     "--chat-sender instead")
-        chat_sender = args.hipchat_sender
-
     # TODO(bmp): To avoid a lockstep Jenkins/tools upgrade, manually inject
     # an "@" in front of the username
     deployer_username = '@' + args.deployer_username
@@ -1580,8 +1470,7 @@ def parse_args_and_invoke_main():
                        jenkins_url=args.jenkins_url,
                        jenkins_job_url=args.jenkins_build_url,
                        monitoring_time=args.monitoring_time,
-                       hipchat_room=args.hipchat_room,
-                       chat_sender=chat_sender,
+                       chat_sender=args.chat_sender,
                        icon_emoji=args.icon_emoji,
                        slack_channel=args.slack_channel,
                        token=args.token))
