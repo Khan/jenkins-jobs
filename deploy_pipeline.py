@@ -834,7 +834,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                            })
             deploy_plaintext = "%s\nTo cancel, go to %s/stop" % (
                 deploy_text, jenkins_build_url.rstrip('/'))
-            deploy_attachments = [{
+            deploy_attachment = {
                 'pretext': deploy_text,
                 'fallback': deploy_plaintext,
                 'fields': [{
@@ -846,7 +846,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 }],
                 'color': 'good',
                 'mrkdwn_in': ['pretext', 'fields'],
-            }]
+            }
             test_plaintext = (
                 "While that's going on, manual-test on the live site!\n%s\n"
                 "Or open them all at once (cut-and-paste): "
@@ -855,7 +855,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 "tools/end_to_end_webapp_testing.py --version %s\n"
                 % (manual_webapp_testing.list_with_links('default'),
                    'default', 'default'))
-            test_attachments = [{
+            test_attachment = {
                 'pretext': "While that's going on, here are some pages to "
                            'manually test:',
                 'fallback': test_plaintext,
@@ -877,10 +877,10 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                     }
                 ],
                 'mrkdwn_in': ['fields', 'text']
-            }]
+            }
             _alert(props,
                    deploy_plaintext + '\n\n' + test_plaintext,
-                   attachments=[deploy_attachments, test_attachments])
+                   attachments=[deploy_attachment, test_attachment])
 
         deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
                                    pre_monitoring_data,
