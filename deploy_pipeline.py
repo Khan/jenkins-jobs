@@ -116,6 +116,63 @@ def _alert(props, text, severity=logging.INFO, prefix_with_username=True,
     alert.send_to_logs()
 
 
+def _manual_testing_plaintext(version, pretext=''):
+    """Returns a plaintext message with testing instructions.
+
+    "version" should be the version id, possibly "default".
+    "pretext" should be a complete sentence that goes at the beginning of the
+        message.
+    """
+    if pretext:
+        pretext = pretext + " "
+    return (
+        pretext +
+        "Here are some pages to manually test:\n"
+        "%(pages)s\n"
+        "Or open them all at once (cut-and-paste): "
+        "  $ tools/manual_webapp_testing.py %(version)s\n\n"
+        "Also run end-to-end testing (cut-and-paste): "
+        "  $ tools/end_to_end_webapp_testing.py --version %(version)s"
+        % {
+            'pages': '\n'.join('%s: %s' % (title, url)
+                               for title, url
+                               in manual_webapp_testing.pages_to_test(
+                                   version)),
+            'version': version,
+        }
+    )
+
+
+def _manual_testing_attachment(version, pretext=''):
+    """Returns a slack attachment with testing instructions.
+
+    Arguments are the same as _manual_testing_plaintext() above.
+    """
+    if pretext:
+        pretext = pretext + " "
+    return {
+        'fallback': _manual_testing_plaintext(version, pretext),
+        'pretext': pretext + 'Here are some pages to manually test:',
+        'text': ' '.join('`<%s|%s>`' % (url, title)
+                         for title, url
+                         in manual_webapp_testing.pages_to_test(version)),
+        'fields': [
+            {
+                'title': 'Open them all at once:',
+                'value': '`tools/manual_webapp_testing.py %s`' % version,
+                'short': False,
+            },
+            {
+                'title': 'Run end-to-end testing',
+                'value': '`tools/end_to_end_webapp_testing.py --version %s`' %
+                        version,
+                'short': False,
+            }
+        ],
+        'mrkdwn_in': ['fields', 'text']
+    }
+
+
 def _safe_urlopen(*args, **kwargs):
     """Does a urlopen with retries on error."""
     num_tries = 0
@@ -742,45 +799,8 @@ def manual_test(props):
 
     # Suggest some urls to do for manual testing, as both links and a
     # commandline tool.
-    testmsg_plaintext = (
-        "Here are some pages to manually test:\n"
-        "%(pages)s\n"
-        "Or open them all at once (cut-and-paste): "
-        "  $ tools/manual_webapp_testing.py %(version)s\n\n"
-        "Also run end-to-end testing (cut-and-paste): "
-        "  $ tools/end_to_end_webapp_testing.py --version %(version)s"
-        % {
-            'pages': '\n'.join('%s: %s' % (title, url)
-                               for title, url
-                               in manual_webapp_testing.pages_to_test(
-                               props['VERSION_NAME'])),
-            'version': props['VERSION_NAME']
-        }
-    )
-
-    testmsg_attachment = {
-        'fallback': testmsg_plaintext,
-        'pretext': 'Before deciding, here are some pages to manually test:',
-        'text': ' '.join('`<%s|%s>`' % (url, title)
-                         for title, url
-                         in manual_webapp_testing.pages_to_test(
-            props['VERSION_NAME'])),
-        'fields': [
-            {
-                'title': 'Open them all at once:',
-                'value': '`tools/manual_webapp_testing.py %s`' %
-                         props['VERSION_NAME'],
-                'short': False,
-            },
-            {
-                'title': 'Run end-to-end testing',
-                'value': '`tools/end_to_end_webapp_testing.py --version %s`' %
-                         props['VERSION_NAME'],
-                'short': False,
-            }
-        ],
-        'mrkdwn_in': ['fields', 'text']
-    }
+    testmsg_plaintext = _manual_testing_plaintext(props['VERSION_NAME'])
+    testmsg_attachment = _manual_testing_attachment(props['VERSION_NAME'])
 
     _alert(props,
            deploymsg_plaintext + "\n\n" + testmsg_plaintext,
@@ -847,37 +867,10 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                 'color': 'good',
                 'mrkdwn_in': ['pretext', 'fields'],
             }
-            test_plaintext = (
-                "While that's going on, manual-test on the live site!\n%s\n"
-                "Or open them all at once (cut-and-paste): "
-                "tools/manual_webapp_testing.py %s\n"
-                "Also run end-to-end testing (cut-and-paste): "
-                "tools/end_to_end_webapp_testing.py --version %s\n"
-                % (manual_webapp_testing.list_with_links('default'),
-                   'default', 'default'))
-            test_attachment = {
-                'pretext': "While that's going on, here are some pages to "
-                           'manually test:',
-                'fallback': test_plaintext,
-                'text': ' '.join('`<%s|%s>`' % (url, title)
-                                 for title, url
-                                 in manual_webapp_testing.pages_to_test(
-                    'default')),
-                'fields': [
-                    {
-                        'title': 'Open them all at once:',
-                        'value': '`tools/manual_webapp_testing.py default`',
-                        'short': False,
-                    },
-                    {
-                        'title': 'Run end-to-end testing',
-                        'value': '`tools/end_to_end_webapp_testing.py '
-                                 '--version default`',
-                        'short': False,
-                    }
-                ],
-                'mrkdwn_in': ['fields', 'text']
-            }
+            pretext = "While that's going on, manual-test on the live site!"
+            test_plaintext = _manual_testing_plaintext("default", pretext)
+            test_attachment = _manual_testing_attachment("default", pretext)
+
             _alert(props,
                    deploy_plaintext + '\n\n' + test_plaintext,
                    attachments=[deploy_attachment, test_attachment])
