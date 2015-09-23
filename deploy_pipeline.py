@@ -903,9 +903,7 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
                    _finish_url(props, STATUS='rollback', WHY='aborted',
                                ROLLBACK_TO=props['ROLLBACK_TO'])))
             finish_attachments = [{
-                # TODO(benkraft): actually send the URL to the logs for the
-                # module where we've noticed an error, if there is one.
-                'pretext': 'Hey %s, :ohnoes: Jenkins says: `%s`. '
+                'pretext': 'Hey %s, :ohnoes: %s. '
                            'Please double-check manually that everything '
                            'is okay on <https://www.khanacademy.org|the site> '
                            'and in <%s|the logs>.' % (
