@@ -111,7 +111,7 @@ def _alert(slack_channel, failures, test_type, truncate=10,
         pretext = 'Failed %s %ss' % (num_errors, test_type)
 
     if len(failures) > truncate:
-        alert_lines.append('...', '...')
+        alert_lines.append('...')
 
     text = '\n'.join(alert for alert in alert_lines)
     fallback_text = '%s:\n%s' % (pretext, text)
