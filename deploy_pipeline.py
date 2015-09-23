@@ -1391,10 +1391,6 @@ def parse_args_and_invoke_main():
     parser.add_argument('--jenkins_url',
                         default='https://jenkins.khanacademy.org/',
                         help="The url of the jenkins server.")
-    # TODO(benkraft): remove once we have updated all callers
-    parser.add_argument('--hipchat_room',
-                        default='HipChat Tests',
-                        help=("Deprecated."))
     parser.add_argument('--chat-sender',
                         default='Testybot',
                         help='The user name to show for messages posted to'
