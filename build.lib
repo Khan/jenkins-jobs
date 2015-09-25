@@ -405,7 +405,10 @@ safe_push() {
     timeout 120m find "$REPOS_ROOT"/*/.git/bigfile/objects \
         -mtime +2 -type f -print0 \
         | xargs -r0 rm
-    timeout 60m git push origin master || {
+
+    # Ensure we push using SSH to use Jenkins' configured SSH keys.
+    ssh_origin=`git config --get remote.origin.url | sed 's,^https://github.com/,git@github.com:,'`
+    timeout 60m git push "$ssh_origin" master || {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
