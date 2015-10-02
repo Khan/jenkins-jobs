@@ -807,6 +807,301 @@ def manual_test(props):
            attachments=[deploymsg_attachment, testmsg_attachment])
 
 
+def _run_monitoring(props, monitoring_time, jenkins_build_url,
+        pre_monitoring_data, non_defaulted_modules=None):
+    """Runs monitoring, and produces alerts about monitoring status
+
+    Runs the monitoring process, which is:
+    1. Notify user that monitoring is starting
+    2. Run monitoring
+    3. Notify user about the outcome of monitoring
+
+    Arguments:
+        props: a map containing details of the release
+        monitoring_time: how many minutes to run monitoring for
+        jenkins_build_url: url of the jenkins build job for the deploy
+        non_defaulted_modules: list of modules which were not successfully
+            defaulted. If None, we assume that set_default succeeded.
+
+    Raises:
+        deploy.set_default.MonitoringError if monitoring fails and AUTO_DEPLOY
+        is True
+    """
+    try:
+        if (monitoring_time and jenkins_build_url and
+                props['AUTO_DEPLOY'] != 'true'):
+            if non_defaulted_modules == None:
+                deploy_text = (
+                        "Hey %(user)s, `%(appengine_id)s` is now the default "
+                        "version! I'll be monitoring the logs for %(minutes)s "
+                        "minutes, and then will post the results. If you "
+                        "detect a problem in the meantime, you can cancel "
+                        "the deploy." % {
+                                   'appengine_id': props['VERSION_NAME'],
+                                   'user': props['DEPLOYER_USERNAME'],
+                                   'minutes': monitoring_time
+                               })
+            else:
+                deploy_text = (
+                        "Anyway, I'll be monitoring the logs for all modules "
+                        "(including the ones that didn't default) for the "
+                        "next %s minutes, and then will post the results. "
+                        "If you detect a problem in the meantime, you can "
+                        "cancel the deploy." % monitoring_time)
+
+            deploy_plaintext = "%s\nTo cancel, go to %s/stop" % (
+                deploy_text, jenkins_build_url.rstrip('/'))
+            deploy_attachment = {
+                'pretext': deploy_text,
+                'fallback': deploy_plaintext,
+                'fields': [{
+                    'title': 'abort the deploy :skull:',
+                    'value': '<%s/stop|click to abort>' % (
+                        jenkins_build_url.rstrip('/')
+                    ),
+                    'short': True
+                }],
+                'color': 'good',
+                'mrkdwn_in': ['pretext', 'fields'],
+            }
+            pretext = "While that's going on, manual-test on the live site!"
+            test_plaintext = _manual_testing_plaintext("default", pretext)
+            test_attachment = _manual_testing_attachment("default", pretext)
+
+            _alert(props,
+                   deploy_plaintext + '\n\n' + test_plaintext,
+                   attachments=[deploy_attachment, test_attachment])
+
+        deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
+                                   pre_monitoring_data,
+                                   slack_channel=props['SLACK_CHANNEL'])
+    except deploy.set_default.MonitoringError as why:
+        # Wait a little to make sure this hipchat message comes after
+        # the "I've deployed to ..." message we emitted above above.
+        # TODO(benkraft): I don't think we need this anymore with Slack.  If we
+        # find message ordering issues, uncomment it.  If we don't, remove this
+        # (by December 2015).
+        # time.sleep(10)
+        if props['AUTO_DEPLOY'] == 'true':
+            _alert(props,
+                   ":ohnoes: %s." % why,
+                   severity=logging.WARNING)
+            # By re-raising, we trigger the deploy-set-default jenkins
+            # job to clean up by rolling back.  auto-rollback for free!
+            raise
+        else:
+            double_check_failed_modules = ''
+            if non_defaulted_modules != None:
+                double_check_failed_modules = (
+                    "Also, because the set_default call failed, *be sure to "
+                    "double-check that the correct default is set on "
+                    "the modules that weren't automatically defaulted (%s) "
+                    "before proceeding!* " %
+                    ', '.join(non_defaulted_modules))
+
+            finish_plaintext = (
+                'Oh no! %s. %sMake sure everything is ok, then:\n'
+                'finish up: type "sun, finish up" or visit %s\n'
+                'abort and roll back: type "sun, abort" or visit %s'
+                % (why, double_check_failed_modules,
+                   _finish_url(props, STATUS='success'),
+                   _finish_url(props, STATUS='rollback', WHY='aborted',
+                               ROLLBACK_TO=props['ROLLBACK_TO'])))
+            finish_attachments = [{
+                'pretext': 'Hey %s, :ohnoes: %s. %s'
+                           'Please double-check manually that everything '
+                           'is okay on <https://www.khanacademy.org|the site> '
+                           'and in <%s|the logs>.' % (
+                               props['DEPLOYER_USERNAME'], why,
+                               double_check_failed_modules, _logs_url(props)),
+                'fallback': finish_plaintext,
+                'fields': [
+                    {
+                        'title': 'deploy anyway :yolo:',
+                        'value': u':speech_balloon: _“sun: finish up”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='success'),
+                        'short': True,
+                    },
+                    {
+                        'title': 'abort the deploy :skull:',
+                        'value': u':speech_balloon: _“sun: abort”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='rollback',
+                                             WHY='aborted',
+                                             ROLLBACK_TO=props['ROLLBACK_TO']),
+                        'short': True,
+                    }
+                ],
+                'mrkdwn_in': ['fields', 'text', 'pretext']
+            }]
+            _alert(props, finish_plaintext,
+                   severity=logging.WARNING,
+                   attachments=finish_attachments)
+    else:
+        # No need for a Slack message if the next step is automatic.
+        if props['AUTO_DEPLOY'] != 'true':
+            double_check_failed_modules = ''
+            proceed_text = 'finish up :checkered_flag:'
+            if non_defaulted_modules != None:
+                double_check_failed_modules = (
+                    "Because the set_default call failed, *be sure to "
+                    "double-check that the correct default is set on "
+                    "the modules that weren't automatically defaulted (%s) "
+                    "before proceeding!* " %
+                    ', '.join(non_defaulted_modules))
+                proceed_text = 'deploy anyway :yolo:'
+
+            success_plaintext = (
+                'Monitoring passed for the new default (%s)! %s'
+                'You should double-check everything is ok at '
+                'https://www.khanacademy.org. Then:\n'
+                'finish up: type "sun, finish up" or visit %s\n'
+                'abort and roll back: type "sun, abort" or visit %s'
+                % (props['VERSION_NAME'], double_check_failed_modules,
+                  _finish_url(props, STATUS='success'),
+                  _finish_url(props, STATUS='rollback', WHY='aborted',
+                              ROLLBACK_TO=props['ROLLBACK_TO'])))
+            success_attachments = [{
+                'pretext': 'Hey %s, monitoring passed for the new default '
+                           '(`%s`)! %sYou should double-check that '
+                           'everything is okay on '
+                           '<https://www.khanacademy.org|the site>.' %
+                               (props['DEPLOYER_USERNAME'],
+                                props['VERSION_NAME'],
+                                double_check_failed_modules),
+                'fallback': success_plaintext,
+                'fields': [
+                    {
+                        'title': proceed_text,
+                        'value': u':speech_balloon: _“sun: finish up”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='success'),
+                        'short': True,
+                    },
+                    {
+                        'title': 'abort and roll back :skull:',
+                        'value': u':speech_balloon: _“sun: abort”_ '
+                                 u'(or <%s|click me>)' %
+                                 _finish_url(props, STATUS='rollback',
+                                             WHY='aborted',
+                                             ROLLBACK_TO=props['ROLLBACK_TO']),
+                        'short': True,
+                    }
+                ],
+                'mrkdwn_in': ['fields', 'text', 'pretext']
+            }]
+            _alert(props, success_plaintext,
+                   attachments=success_attachments)
+
+
+def _send_set_default_failure_alert(props, did_priming, defaulted_modules=None,
+        non_defaulted_modules=None):
+    """Alerts that set_default has failed
+
+    Sends/posts a message that set_default has failed. Includes an appropriate
+    caveat if the failure was only partial.
+
+    Arguments:
+        props: a map containing details of the release
+        did_priming: bool, should be True if priming has been completed yet
+        defaulted_modules: list of modules which have been successfully
+            defaulted despite a failure in set_default. If None, we assume that
+            set_default was a complete failure.
+        non_defaulted_modules: list of modules which were not successfully
+            defaulted. If None, we assume that set_default was a complete
+            failure.
+
+    Raises:
+        Re-raises whatever exception caused this method to be called if
+        AUTO_DEPLOY is True
+    """
+    logging.exception('set-default failed')
+    if props['AUTO_DEPLOY'] == 'true':
+        _alert(props, ":ohnoes: :ohnoes: set-default failed!",
+               severity=logging.ERROR)
+        raise
+
+    if did_priming:
+        priming_flag = '--no-priming '
+    else:
+        priming_flag = ''
+
+    if non_defaulted_modules == None:
+        plaintext_message = (
+            "Oh no! set-default failed!  Either:\n"
+            "Set the default to %s manually (by running "
+            "deploy/set_default.py %s%s or via the GAE dashboard), then "
+            "release the deploy lock via %s, or\n"
+            "Abort and roll back via %s"
+            % (props['VERSION_NAME'], priming_flag,
+               props['VERSION_NAME'],
+               _finish_url(props, STATUS='success'),
+               _finish_url(props, STATUS='rollback', WHY='aborted',
+                           ROLLBACK_TO=props['ROLLBACK_TO'])))
+        fulltext_message = (
+            'Either set the default manually by running '
+            '`deploy/set_default.py %s%s` (or via the GAE dashboard) and '
+            'release the deploy lock, or abort.  The '
+            '<%s/console|Jenkins logs> may tell you what went wrong.' % (
+                priming_flag, props['VERSION_NAME'],
+                props['JENKINS_JOB_URL'].rstrip('/')))
+        show_action_buttons = True
+    else:
+        plaintext_message = (
+            "Oh no! set-default failed, though the default version was still "
+            "set on modules %s!  Either:\n"
+            "Set the default of modules %s to %s manually (by running "
+            "deploy/set_default.py %s%s or via the GAE dashboard), then "
+            "release the deploy lock via %s, or\n"
+            "Abort and roll back via %s"
+            % (defaulted_modules, non_defaulted_modules, props['VERSION_NAME'],
+               priming_flag, props['VERSION_NAME'],
+               _finish_url(props, STATUS='success'),
+               _finish_url(props, STATUS='rollback', WHY='aborted',
+                           ROLLBACK_TO=props['ROLLBACK_TO'])))
+        fulltext_message = (
+            'Despite the failure, the default version was still set on %s '
+            'module(s). *You should set the default of the remaining modules '
+            '(%s) manually,* by running `deploy/set_default.py %s%s`, or via '
+            'the GAE dashboard. (Or abort the deploy.) The '
+            '<%s/console|Jenkins logs> may tell you what went wrong.' % (
+                str(len(defaulted_modules)), ', '.join(non_defaulted_modules),
+                priming_flag, props['VERSION_NAME'],
+                props['JENKINS_JOB_URL'].rstrip('/')))
+        show_action_buttons = False
+
+    set_default_failed_attachments = [{
+        'pretext': ':ohnoes: :ohnoes: Sorry %s, but `set-default` failed!'
+                   % props['DEPLOYER_USERNAME'],
+        'fallback': plaintext_message,
+        'text': fulltext_message,
+        'color': 'danger',
+        'fields': [
+            {
+                'title': 'release the deploy lock :unlock:',
+                'value': u':speech_balloon: _“sun: finish up”_ '
+                         u'(or <%s|click me>)' %
+                         _finish_url(props, STATUS='success'),
+                'short': True,
+            },
+            {
+                'title': 'abort the deploy :skull:',
+                'value': u':speech_balloon: _“sun: abort”_ '
+                         u'(or <%s|click me>)' %
+                         _finish_url(props, STATUS='rollback',
+                                     WHY='aborted',
+                                     ROLLBACK_TO=props['ROLLBACK_TO']),
+                'short': True,
+            }
+        ] if show_action_buttons else [],
+        'mrkdwn_in': ['fields', 'text', 'pretext'],
+    }]
+    _alert(props, plaintext_message,
+           severity=logging.CRITICAL,
+           attachments=set_default_failed_attachments)
+
+
 def set_default(props, monitoring_time=10, jenkins_build_url=None):
     """Call set_default.py to make a specified deployed version live.
 
@@ -838,200 +1133,30 @@ def set_default(props, monitoring_time=10, jenkins_build_url=None):
         did_priming = True
 
         logging.info("Setting default")
+
         deploy.set_default.set_default(version=props['VERSION_NAME'],
-                                       dry_run=_DRY_RUN)
+                                   dry_run=_DRY_RUN)
+    except:
+        # Sometimes, when this fails, Google still set the default version on
+        # *some* modules. If so, we should still proceed with monitoring!
+        defaulted_modules, non_defaulted_modules = (deploy.set_default.
+                identify_modules_running_version_as_default(
+                    version=props['VERSION_NAME'],
+                    dry_run=_DRY_RUN))
 
-        if (monitoring_time and jenkins_build_url and
-                props['AUTO_DEPLOY'] != 'true'):
-            deploy_text = ('Hey %(user)s, `%(appengine_id)s` is now the '
-                           "default version! I'll be monitoring the logs "
-                           'for %(minutes)s minutes, and then will post the '
-                           'results. If you detect a problem in the meantime, '
-                           'you can cancel the deploy.' % {
-                               'appengine_id': props['VERSION_NAME'],
-                               'user': props['DEPLOYER_USERNAME'],
-                               'minutes': monitoring_time,
-                           })
-            deploy_plaintext = "%s\nTo cancel, go to %s/stop" % (
-                deploy_text, jenkins_build_url.rstrip('/'))
-            deploy_attachment = {
-                'pretext': deploy_text,
-                'fallback': deploy_plaintext,
-                'fields': [{
-                    'title': 'abort the deploy :skull:',
-                    'value': '<%s/stop|click to abort>' % (
-                        jenkins_build_url.rstrip('/')
-                    ),
-                    'short': True
-                }],
-                'color': 'good',
-                'mrkdwn_in': ['pretext', 'fields'],
-            }
-            pretext = "While that's going on, manual-test on the live site!"
-            test_plaintext = _manual_testing_plaintext("default", pretext)
-            test_attachment = _manual_testing_attachment("default", pretext)
-
-            _alert(props,
-                   deploy_plaintext + '\n\n' + test_plaintext,
-                   attachments=[deploy_attachment, test_attachment])
-
-        deploy.set_default.monitor(props['VERSION_NAME'], monitoring_time,
-                                   pre_monitoring_data,
-                                   slack_channel=props['SLACK_CHANNEL'])
-
-    except deploy.set_default.MonitoringError as why:
-        # Wait a little to make sure this hipchat message comes after
-        # the "I've deployed to ..." message we emitted above above.
-        # TODO(benkraft): I don't think we need this anymore with Slack.  If we
-        # find message ordering issues, uncomment it.  If we don't, remove this
-        # (by December 2015).
-        # time.sleep(10)
-        if props['AUTO_DEPLOY'] == 'true':
-            _alert(props,
-                   ":ohnoes: %s." % why,
-                   severity=logging.WARNING)
-            # By re-raising, we trigger the deploy-set-default jenkins
-            # job to clean up by rolling back.  auto-rollback for free!
-            raise
+        if defaulted_modules == []:
+            _send_set_default_failure_alert(props, did_priming)
+        elif non_defaulted_modules == []:
+            _run_monitoring(props, monitoring_time, jenkins_build_url,
+                    pre_monitoring_data)
         else:
-            finish_plaintext = (
-                'Oh no! %s. Make sure everything is ok, then:\n'
-                'finish up: type "sun, finish up" or visit %s\n'
-                'abort and roll back: type "sun, abort" or visit %s'
-                % (why,
-                   _finish_url(props, STATUS='success'),
-                   _finish_url(props, STATUS='rollback', WHY='aborted',
-                               ROLLBACK_TO=props['ROLLBACK_TO'])))
-            finish_attachments = [{
-                'pretext': 'Hey %s, :ohnoes: %s. '
-                           'Please double-check manually that everything '
-                           'is okay on <https://www.khanacademy.org|the site> '
-                           'and in <%s|the logs>.' % (
-                               props['DEPLOYER_USERNAME'], why,
-                               _logs_url(props)),
-                'fallback': finish_plaintext,
-                'fields': [
-                    {
-                        'title': 'deploy anyway :yolo:',
-                        'value': u':speech_balloon: _“sun: finish up”_ '
-                                 u'(or <%s|click me>)' %
-                                 _finish_url(props, STATUS='success'),
-                        'short': True,
-                    },
-                    {
-                        'title': 'abort the deploy :skull:',
-                        'value': u':speech_balloon: _“sun: abort”_ '
-                                 u'(or <%s|click me>)' %
-                                 _finish_url(props, STATUS='rollback',
-                                             WHY='aborted',
-                                             ROLLBACK_TO=props['ROLLBACK_TO']),
-                        'short': True,
-                    }
-                ],
-                'mrkdwn_in': ['fields', 'text', 'pretext']
-            }]
-            _alert(props, finish_plaintext,
-                   severity=logging.WARNING,
-                   attachments=finish_attachments)
-    except Exception:
-        logging.exception('set-default failed')
-        if props['AUTO_DEPLOY'] == 'true':
-            _alert(props, ":ohnoes: :ohnoes: set-default failed!",
-                   severity=logging.ERROR)
-            raise
-
-        if did_priming:
-            priming_flag = '--no-priming '
-        else:
-            priming_flag = ''
-
-        set_default_failed_plaintext = (
-            "Oh no! set-default failed!  Either:\n"
-            "Set the default to %s manually (by running "
-            "deploy/set_default.py %s%s), then release the deploy lock "
-            "via %s\n"
-            "abort and roll back %s"
-            % (props['VERSION_NAME'], priming_flag, props['VERSION_NAME'],
-               _finish_url(props, STATUS='success'),
-               _finish_url(props, STATUS='rollback', WHY='aborted',
-                           ROLLBACK_TO=props['ROLLBACK_TO'])))
-
-        set_default_failed_attachments = [{
-            'pretext': ':ohnoes: :ohnoes: Sorry %s, but `set-default` failed!'
-                       % props['DEPLOYER_USERNAME'],
-            'fallback': set_default_failed_plaintext,
-            'text': ' Either set the default manually by running '
-                    '`deploy/set_default.py %s%s` and release the deploy '
-                    'lock, or abort.  The <%s/console|Jenkins logs> may tell '
-                    'you what happened.' % (
-                        priming_flag, props['VERSION_NAME'],
-                        props['JENKINS_JOB_URL'].rstrip('/')),
-            'fields': [
-                {
-                    'title': 'release the deploy lock :unlock:',
-                    'value': u':speech_balloon: _“sun: finish up”_ '
-                             u'(or <%s|click me>)' %
-                             _finish_url(props, STATUS='success'),
-                    'short': True,
-                },
-                {
-                    'title': 'abort the deploy :skull:',
-                    'value': u':speech_balloon: _“sun: abort”_ '
-                             u'(or <%s|click me>)' %
-                             _finish_url(props, STATUS='rollback',
-                                         WHY='aborted',
-                                         ROLLBACK_TO=props['ROLLBACK_TO']),
-                    'short': True,
-                }
-            ],
-            'mrkdwn_in': ['fields', 'text', 'pretext'],
-        }]
-        _alert(props, set_default_failed_plaintext,
-               severity=logging.CRITICAL,
-               attachments=set_default_failed_attachments)
+            _send_set_default_failure_alert(props, did_priming,
+                    defaulted_modules, non_defaulted_modules)
+            _run_monitoring(props, monitoring_time, jenkins_build_url,
+                    pre_monitoring_data, non_defaulted_modules)
     else:
-        # No need for a Slack message if the next step is automatic.
-        if props['AUTO_DEPLOY'] != 'true':
-            success_plaintext = (
-                'Monitoring passed for the new default (%s)! '
-                'But you should double-check everything is ok at '
-                'https://www.khanacademy.org. Then:\n'
-                'finish up: type "sun, finish up" or visit %s\n'
-                'abort and roll back: type "sun, abort" or visit %s'
-                % (props['VERSION_NAME'],
-                  _finish_url(props, STATUS='success'),
-                  _finish_url(props, STATUS='rollback', WHY='aborted',
-                              ROLLBACK_TO=props['ROLLBACK_TO'])))
-            success_attachments = [{
-                'pretext': 'Hey %s, monitoring passed for the new default '
-                           '(`%s`)!  But you should double-check that '
-                           'everything is okay on '
-                           '<https://www.khanacademy.org|the site>.' %
-                               (props['DEPLOYER_USERNAME'],
-                                props['VERSION_NAME']),
-                'fallback': success_plaintext,
-                'fields': [
-                    {
-                        'title': 'finish up :checkered_flag:',
-                        'value': u':speech_balloon: _“sun: finish up”_ '
-                                 u'(or <%s|click me>)' %
-                                 _finish_url(props, STATUS='success'),
-                        'short': True,
-                    },
-                    {
-                        'title': 'abort and roll back :skull:',
-                        'value': u':speech_balloon: _“sun: abort”_ '
-                                 u'(or <%s|click me>)' %
-                                 _finish_url(props, STATUS='rollback',
-                                             WHY='aborted',
-                                             ROLLBACK_TO=props['ROLLBACK_TO']),
-                        'short': True,
-                    }
-                ],
-                'mrkdwn_in': ['fields', 'text', 'pretext']
-            }]
-            _alert(props, success_plaintext,
-                   attachments=success_attachments)
+        _run_monitoring(props, monitoring_time, jenkins_build_url,
+                pre_monitoring_data)
 
 
 def finish_with_unlock(props, caller=None):
@@ -1304,7 +1429,7 @@ def main(action, invocation_details):
     hand, if the command does not raise an exception, we return True,
     which will cause the Jenkins job to say that this step succeeded.
 
-    :param str action: one of DEPLOY_ACTIONS; see documentation there
+    :param str action: one of KNOWN_ACTIONS; see documentation there
     :param InvocationDetails invocation_details: all the details of this
         deploy; see the InvocationDetails and KNOWN_ACTIONS structure for
         more information
