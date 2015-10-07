@@ -157,6 +157,15 @@ if [ -n "$UPDATE_STRINGS" ]; then
     echo "Translating fake languages."
     "$MAKE" i18n_mo
 
+    # Update export timestamps for fake languages.
+    mark_fake_langs=`cat <<PYCOMMAND
+from deploy import download_i18n
+download_i18n.mark_strings_export('accents')
+download_i18n.mark_strings_export('boxes')
+PYCOMMAND
+`
+    python -c "$mark_fake_langs"
+
     cp "$ALL_POT" "$DATA_DIR"/all.pot
 
     echo "Uploading the new all.pot to crowdin."
