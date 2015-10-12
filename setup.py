@@ -7,7 +7,6 @@ setup(
     version='1.0',
     author='Khan Academy',
     packages=find_packages(),
-    scripts=['deploy_pipeline.py'],
     description='Khan Academy deployment system library',
     install_requires=[
         'lxml>=3.4,<3.5',
