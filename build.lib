@@ -496,7 +496,7 @@ safe_merge_from_master() {
 
     # If the current commit is a super-set of master, we're done, yay!
     base="`git merge-base "$git_revision" "$master_commit"`"
-    if [ "$base" == "$master_commit" ] ; then
+    if [ "$base" = "$master_commit" ] ; then
         echo "$git_revision is a superset of master, no need to merge"
         exit 0
     fi
