@@ -448,6 +448,86 @@ safe_commit_and_push() {
     fi
 }
 
+# Checks out a branch and merges master into it
+# $1: the directory to run the merge in
+# $2: the commit-ish (branch or sha1) into which to merge master.  If it's a
+# sha1, it must be a superset of master.  We check out $2 in the working dir $1
+# in order to do the merge.
+safe_merge_from_master() {
+    (
+    cd "$1"
+    git_revision="$2"
+    if [ "$git_revision" = "master" ] ; then
+        alert error "You must deploy from a branch, you can't deploy from master"
+        exit 1
+    fi
+
+    # Make sure our local master matches the remote
+    git fetch origin +refs/heads/master:refs/remotes/origin/master
+    git checkout master
+    git reset --hard origin/master
+
+    # Set our local branch to be the same as the origin branch.  This
+    # is needed in cases when a previous deploy set the local (jenkins)
+    # branch to commit X, but subsequent commits have moved the remote
+    # (github) version of the branch to commit Y.  This also moves us
+    # from a (potentially) detached-head state to a head-at-branch state.
+    # Finally, it makes sure the ref exists locally, so we can do
+    # 'git rev-parse branch' rather than 'git rev-parse origin/branch'
+    # (though only if we're given a branch rather than a commit as $2).
+    if git ls-remote --exit-code . "origin/$git_revision" ; then
+        git fetch origin "+refs/heads/$git_revision:refs/remotes/origin/$git_revision"
+        # The '--' is needed if git_revision is both a branch and
+        # directory, e.g. 'sat'.  '--' says 'treat it as a branch'.
+        git checkout "$git_revision" --
+        git reset --hard "origin/$git_revision"
+    else
+        git checkout "$git_revision" --
+    fi
+
+    head_commit="`git rev-parse HEAD`"
+    master_commit="`git rev-parse master`"
+
+    # Sanity check: HEAD should be at the revision we want to deploy from.
+    if [ "$head_commit" != "`git rev-parse "$git_revision"`" ] ; then
+        alert error "HEAD unexpectedly at '$head_commit', not '$git_revision'"
+        exit 1
+    fi
+
+    # If the current commit is a super-set of master, we're done, yay!
+    base="`git merge-base "$git_revision" "$master_commit"`"
+    if [ "$base" == "$master_commit" ] ; then
+        echo "$git_revision is a superset of master, no need to merge"
+        exit 0
+    fi
+
+    # Now we need to merge master into our branch.  First, make sure
+    # we *are* a branch.  git show-ref returns line like 'd41eba92 refs/...'
+    if ! git show-ref | cut -d ' ' -f 2 | grep -q "^refs/remotes/origin/$git_revision$" ; then
+        alert error "$git_revision is not a branch name on the remote"
+        exit 1
+    fi
+
+    # The merge exits with rc > 0 if there were conflicts
+    echo "Merging master into $git_revision"
+    if ! git merge master ; then
+        git merge --abort
+        alert error "Merge conflict: must merge master into $git_revision manually."
+        exit 1
+    fi
+
+    # There's a race condition if someone commits to this branch while
+    # this script is running, so check for that.
+    if ! git push origin "$git_revision" ; then
+        git reset --hard "$head_commit"
+        alert error "Someone committed to $git_revision while we've been deploying!"
+        exit 1
+    fi
+
+    echo "Done merging master into $git_revision"
+    )
+}
+
 busy_wait_on_dropbox() {
     dir="$1"
     while HOME=/mnt/dropbox dropbox.py filestatus "$dir" | grep -v "up to date" ; do
