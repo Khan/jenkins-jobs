@@ -190,9 +190,8 @@ _safe_pull_bigfiles() {
     # $REPOS_ROOT, so we need the lock for this.
     ( flock 9        # use fd 9 for locking (see the end of this paren)
       # First, clear up some space if need be by getting rid of old bigfiles.
-      find "$REPOS_ROOT" -name bigfile | while read bigfile_dir; do
-          timeout 120m find "$bigfile_dir/objects" \
-              -mtime +2 -type f -print0 \
+      find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
+          timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
               | xargs -r0 rm
       done
       timeout 120m git bigfile pull "$@"
