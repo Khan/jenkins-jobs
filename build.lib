@@ -156,7 +156,7 @@ alert() {
        html=
     fi
     echo "$@" \
-        | ${WEBSITE_ROOT}/third_party/alertlib-khansrc/alert.py \
+        | "$WORKSPACE_ROOT"/jenkins-tools/alertlib/alert.py \
               --severity="$severity" $html \
               --slack "$SLACK_CHANNEL" --logs
 }
