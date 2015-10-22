@@ -26,6 +26,7 @@
 # Make all the paths absolute, so clients can chdir with impunity.
 # We use the nice side-effect of readlink -f that it absolutizes.
 APPENGINE_ROOT=`readlink -f "$APPENGINE_ROOT"`
+WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
 WEBSITE_ROOT=`readlink -f "$WEBSITE_ROOT"`
 VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
@@ -42,7 +43,7 @@ SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 # we're inside some git repo or another.
 
 if git rev-parse 2>/dev/null; then
-    echo "`readlink -f $WORKSPACE_ROOT` is a git repo, not the workspace dir"
+    echo "$WORKSPACE_ROOT is a git repo, not the workspace dir"
     exit 1
 fi
 
