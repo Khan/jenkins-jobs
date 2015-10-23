@@ -453,12 +453,17 @@ safe_commit_and_push() {
 # Checks out a branch and merges master into it
 # $1: the directory to run the merge in
 # $2: the commit-ish (branch or sha1) into which to merge master.  If it's a
-# sha1, it must be a superset of master.  We check out $2 in the working dir $1
-# in order to do the merge.
+#     sha1, it must be a superset of master.  We check out $2 in the working
+#     dir $1 in order to do the merge.
+# $3+ (optional): submodules to update after the merge.  If left out, update
+#     all submodules.  If the string 'no_submodules', update no submodules.
 safe_merge_from_master() {
+    dir="$1"
+    shift
+    git_revision="$1"
+    shift
     (
-    cd "$1"
-    git_revision="$2"
+    cd "$dir"
     if [ "$git_revision" = "master" ] ; then
         alert error "You must deploy from a branch, you can't deploy from master"
         exit 1
@@ -525,6 +530,8 @@ safe_merge_from_master() {
         alert error "Someone committed to $git_revision while we've been deploying!"
         exit 1
     fi
+
+    _safe_update_submodules "$@"
 
     echo "Done merging master into $git_revision"
     )
