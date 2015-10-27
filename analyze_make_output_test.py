@@ -40,6 +40,7 @@ class TestBase(unittest.TestCase):
                              test_reports_dir=None,
                              jstest_reports_file=None,
                              lint_reports_file=None,
+                             e2e_test_reports_file=None,
                              dry_run=False):
         """(Sets defaults for params that aren't passed in.)"""
         if jenkins_build_url is None:
@@ -52,10 +53,13 @@ class TestBase(unittest.TestCase):
         if lint_reports_file is None:
             lint_reports_file = os.path.join(self.tmpdir,
                                              'lint_errors.txt')
+        if e2e_test_reports_file is None:
+            e2e_test_reports_file = os.path.join(self.tmpdir,
+                                                 'end_to_end_test_output.xml')
 
         return analyze_make_output.main(jenkins_build_url, test_reports_dir,
                                         jstest_reports_file, lint_reports_file,
-                                        None, dry_run)
+                                        e2e_test_reports_file, None, dry_run)
 
 
 class TestAlternateTest(TestBase):

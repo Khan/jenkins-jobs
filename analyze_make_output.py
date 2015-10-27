@@ -4,9 +4,10 @@
 
 When we run with JUNIT_XML, a summary of the test output it put inside
 genfiles.  Likewise, a summary of the jstest output is put in
-genfiles, as is a summary of the lint output.
+genfiles, as is a summary of the lint output.  When we run end-to-end tests,
+they output a file similar to the python tests.
 
-This script analyzes these three output files and takes action --
+This script analyzes any or all of these output files and takes action --
 namely, talking to Slack -- for test-failures that it sees in them.
 The Slack messages have nice links to more details.
 
@@ -54,6 +55,17 @@ LINT OUTPUT
 -----------
 The linter outputs one line per error, with that line indicating where
 the error is.  Easy peasy.
+
+END TO END TEST OUTPUT
+----------------------
+The E2E test runner also uses xUnit-compatible XML.  The format is slightly
+different from that of runtests.py, in three ways:
+
+1. All test results are in a single file.
+2. The toplevel element is <testsuites> and may contain many <testsuite>
+elements.
+3. The XML file uses a namespace of "http://www.w3.org/1999/xhtml".
+
 """
 
 import argparse
@@ -86,7 +98,7 @@ _ALTERNATE_TESTS_VALUES = {}
 
 
 def _alert(slack_channel, failures, test_type, truncate=10,
-           num_errors=None):
+           num_errors=None, extra_text=''):
     """Alert with the first truncate failures, adding a header.
 
     If num_errors is not equal to len(failures), you can pass it in.
@@ -109,6 +121,9 @@ def _alert(slack_channel, failures, test_type, truncate=10,
         pretext = 'Failed 1 %s' % test_type
     else:
         pretext = 'Failed %s %ss' % (num_errors, test_type)
+
+    if extra_text:
+        pretext = '%s %s' % (pretext, extra_text)
 
     if len(failures) > truncate:
         alert_lines.append('...')
@@ -167,17 +182,32 @@ def find_bad_testcases(test_reports_dir):
                 _ALTERNATE_TESTS_VALUES[test_type] = m.group(1)
 
 
-def add_links(build_url, testcase):
+def find_bad_e2e_testcases(test_reports_file):
+    doc = lxml.etree.parse(test_reports_file)
+    return doc.xpath('/xhtml:testsuites/xhtml:testsuite'
+                     '/xhtml:testcase[xhtml:failure or xhtml:error]',
+                     namespaces={'xhtml': 'http://www.w3.org/1999/xhtml'})
+
+
+def _clean_test_name(name):
+    return re.sub(r'[^a-zA-Z0-9]', '_', name)
+
+
+def add_links(build_url, testcase, sep='.'):
     """Return a slack-style link.
 
     Links to the testcase result in the Jenkins build at build_url.
+
+    sep should be the separator to be used between the test's class name and
+    the test's name in the display name of the test, traditionally ".".
     """
-    display_name = "%s.%s" % (testcase.get("classname"),
-                              testcase.get("name"))
     # the "classname" attribute is actually "module.of.TestCase"
+    name_parts = testcase.get("classname").split(".")
+    name_parts.append(testcase.get("name"))
+    display_name = sep.join(name_parts)
     module, classname = testcase.get("classname").rsplit(".", 1)
     url = "%s/testReport/junit/%s/%s/%s/" % (
-        build_url, module, classname, testcase.get("name"))
+        build_url, module, classname, _clean_test_name(testcase.get("name")))
 
     return '<%s|%s>' % (url, display_name)
 
@@ -189,8 +219,6 @@ def report_test_failures(test_reports_dir, jenkins_build_url, slack_channel):
     """
     if not os.path.exists(test_reports_dir):
         return 0
-
-    jenkins_build_url = jenkins_build_url.rstrip("/")
 
     # Sort output so it is easy to compare across runs.
     failures = []
@@ -243,13 +271,29 @@ def report_lint_failures(lint_reports_file, slack_channel):
     return len(failures)
 
 
+def report_e2e_failures(e2e_test_reports_file, jenkins_build_url,
+                        slack_channel):
+    if not os.path.exists(e2e_test_reports_file):
+        return 0
+
+    failures = []
+    for bad_testcase in find_bad_e2e_testcases(e2e_test_reports_file):
+        failures.append(add_links(jenkins_build_url, bad_testcase, sep=': '))
+    failures.sort()
+    _alert(slack_channel, failures, 'end-to-end test',
+           extra_text="(see the <%s/console|logs> for details)" %
+           jenkins_build_url)
+    return len(failures)
+
+
 def main(jenkins_build_url, test_reports_dir,
-         jstest_reports_file, lint_reports_file, slack_channel,
-         dry_run):
+         jstest_reports_file, lint_reports_file, e2e_test_reports_file,
+         slack_channel, dry_run):
     if dry_run:
         alertlib.enter_test_mode()
         logging.getLogger().setLevel(logging.INFO)
 
+    jenkins_build_url = jenkins_build_url.rstrip("/")
     num_errors = 0
 
     if test_reports_dir:
@@ -274,6 +318,10 @@ def main(jenkins_build_url, test_reports_dir,
                 f.write(_ALTERNATE_TESTS_VALUES['lint'])
         num_errors += report_lint_failures(lint_reports_file, slack_channel)
 
+    if e2e_test_reports_file:
+        num_errors += report_e2e_failures(e2e_test_reports_file,
+                                          jenkins_build_url, slack_channel)
+
     return num_errors
 
 
@@ -283,14 +331,18 @@ if __name__ == '__main__':
                         help=('$BUILD_URL from the Jenkins environment; '
                               'e.g. http://jenkins.ka.org/job/run-tests/1/'))
     parser.add_argument('--test_reports_dir',
-                        default='genfiles/test-reports',
-                        help='Where runtests.py --xml puts the output xml')
+                        help='Where runtests.py --xml puts the output xml, '
+                             'generally genfiles/test-reports.')
     parser.add_argument('--jstest_reports_file',
-                        default='genfiles/jstest_output.txt',
-                        help='Where "make jstest" puts the output report')
+                        help='Where "make jstest" puts the output report, '
+                             'generally genfiles/jstest_output.txt.')
     parser.add_argument('--lint_reports_file',
-                        default='genfiles/lint_errors.txt',
-                        help='Where "make lint" puts the output report')
+                        help='Where "make lint" puts the output report, '
+                             'generally genfiles/lint_errors.txt.')
+    parser.add_argument('--e2e_test_reports_file',
+                        help='Where "end_to_end_webapp_testing.py" puts '
+                             'the output report, generally '
+                             'genfiles/end_to_end_test_output.xml.')
     parser.add_argument('-S', '--slack-channel',
                         default="#1s-and-0s",
                         help=("What channel to send slack notifications to; "
@@ -302,6 +354,6 @@ if __name__ == '__main__':
 
     rc = main(args.jenkins_build_url, args.test_reports_dir,
               args.jstest_reports_file, args.lint_reports_file,
-              args.slack_channel, args.dry_run)
+              args.e2e_test_reports_file, args.slack_channel, args.dry_run)
     # We cap num-errors at 127 because rc >= 128 is reserved for signals.
     sys.exit(min(rc, 127))
