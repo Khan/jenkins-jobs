@@ -190,7 +190,40 @@ def find_bad_e2e_testcases(test_reports_file):
 
 
 def _clean_test_name(name):
-    return re.sub(r'[^a-zA-Z0-9]', '_', name)
+    """Sanitize a test case name in approximately the same way as Jenkins.
+
+    Jenkins converts any character for which `Character.isJavaIdentifierPart()`
+    is false to an underscore.  This is hopefully a good enough approximation,
+    at least for ASCII text.
+
+    For Jenkins's version, see hudson.tasks.junit.CaseResult.getSafeName in the
+    junit plugin, currently at
+    https://github.com/jenkinsci/junit-plugin/blob/master/src/main/java/hudson/tasks/junit/CaseResult.java#L300
+    """
+    return re.sub(r'[^a-zA-Z0-9$]', '_', name)
+
+
+def _clean_class_name(name):
+    """Sanitize a test suite name the same way as Jenkins.
+
+    Jenkins converts any character in r"/\:?#%" to an underscore.
+
+    For Jenkins's version, see hudson.tasks.test.TestObject.safe in the junit
+    plugin, currently at
+    https://github.com/jenkinsci/junit-plugin/blob/master/src/main/java/hudson/tasks/test/TestObject.java#L386
+    """
+    return re.sub(r'[/\:?#%]', '_', name)
+
+
+def _clean_link_text(name):
+    """Remove angle brackets from the link text, and replace them.
+
+    Slack's links are delimited by angle brackets, so a link's display text
+    can't contain them.  Luckily, Unicode has a lot of vaguely similar-looking
+    characters, and the text is intended for human consumption; we'll use
+    U+2039 and U+203A.
+    """
+    return name.replace(">", u"\u203a").replace("<", u"\u2039")
 
 
 def add_links(build_url, testcase, sep='.'):
@@ -204,10 +237,11 @@ def add_links(build_url, testcase, sep='.'):
     # the "classname" attribute is actually "module.of.TestCase"
     name_parts = testcase.get("classname").split(".")
     name_parts.append(testcase.get("name"))
-    display_name = sep.join(name_parts)
+    display_name = _clean_link_text(sep.join(name_parts))
     module, classname = testcase.get("classname").rsplit(".", 1)
     url = "%s/testReport/junit/%s/%s/%s/" % (
-        build_url, module, classname, _clean_test_name(testcase.get("name")))
+        build_url, _clean_class_name(module), _clean_class_name(classname),
+        _clean_test_name(testcase.get("name")))
 
     return '<%s|%s>' % (url, display_name)
 
