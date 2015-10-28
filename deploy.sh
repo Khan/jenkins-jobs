@@ -24,7 +24,6 @@ fi
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
 : ${MODULES:=}          # --modules: if set, a comma-separated list to deploy
-: ${SKIP_TESTS:=false}  # --no-tests: set to "true" to append --no-tests
 : ${SKIP_I18N:=false}   # --no-i18n: set to "true" to append --no-i18n
 : ${FORCE:=false}       # --force: deploy unconditionally
 : ${PRIME:=false}       # --force-priming: set to "true" to append
@@ -58,7 +57,6 @@ cd "$WEBSITE_ROOT"
 DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
-[ "$SKIP_TESTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-tests"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
 [ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
 [ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
