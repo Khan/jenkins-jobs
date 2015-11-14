@@ -255,11 +255,10 @@ def report_test_failures(test_reports_dir, jenkins_build_url, slack_channel):
         return 0
 
     # Sort output so it is easy to compare across runs.
-    failures = []
+    failures = set()
     for bad_testcase in find_bad_testcases(test_reports_dir):
-        failures.append(add_links(jenkins_build_url, bad_testcase))
-    failures.sort()
-    _alert(slack_channel, failures, 'Python test')
+        failures.add(add_links(jenkins_build_url, bad_testcase))
+    _alert(slack_channel, sorted(failures), 'Python test')
     return len(failures)
 
 
@@ -268,28 +267,28 @@ def report_jstest_failures(jstest_reports_file, slack_channel):
     if not os.path.exists(jstest_reports_file):
         return 0
 
-    failures = []
+    failures = set()
     num_errors = 0
     with open(jstest_reports_file, 'rU') as infile:
         for line in infile.readlines():
             if line.startswith('\t'):
-                failures.append(line[1:])  # trim first \t
+                failures.add(line[1:])  # trim first \t
             elif line.startswith('Finished running '):
                 m = re.match('Finished running \d+ tests, '
                              'with \d+ passes and (\d+) failures.', line)
                 assert m, line
                 num_errors += int(m.group(1))
             elif line.startswith('Timeout: tests did not start'):
-                failures.append(line)
+                failures.add(line)
                 # Timeouts are ignored in the "Finished running x tests"
                 # reports, so we have to count these errors manually.
                 num_errors += 1
             elif line.startswith('PhantomJS has crashed.'):
-                failures.append(line)
+                failures.add(line)
                 # Crashes are ignored in the "Finished running x tests"
                 # reports, so we have to count these errors manually.
                 num_errors += 1
-    _alert(slack_channel, failures, 'JavaScript test',
+    _alert(slack_channel, sorted(failures), 'JavaScript test',
            num_errors=num_errors)
     return num_errors
 
@@ -300,8 +299,8 @@ def report_lint_failures(lint_reports_file, slack_channel):
         return 0
 
     with open(lint_reports_file, 'rU') as infile:
-        failures = infile.readlines()
-    _alert(slack_channel, failures, 'Lint check')
+        failures = set(infile.readlines())
+    _alert(slack_channel, sorted(failures), 'Lint check')
     return len(failures)
 
 
@@ -310,11 +309,10 @@ def report_e2e_failures(e2e_test_reports_file, jenkins_build_url,
     if not os.path.exists(e2e_test_reports_file):
         return 0
 
-    failures = []
+    failures = set()
     for bad_testcase in find_bad_e2e_testcases(e2e_test_reports_file):
-        failures.append(add_links(jenkins_build_url, bad_testcase, sep=': '))
-    failures.sort()
-    _alert(slack_channel, failures, 'end-to-end test',
+        failures.add(add_links(jenkins_build_url, bad_testcase, sep=': '))
+    _alert(slack_channel, sorted(failures), 'end-to-end test',
            extra_text="(see the <%s/console|logs> for details)" %
            jenkins_build_url)
     return len(failures)
