@@ -457,6 +457,8 @@ safe_commit_and_push() {
 #     dir $1 in order to do the merge.
 # $3+ (optional): submodules to update after the merge.  If left out, update
 #     all submodules.  If the string 'no_submodules', update no submodules.
+# TODO(benkraft): wrap this whole assembly in failure-handling, so that if
+# something unexpected fails, at least it doesn't fail silently.
 safe_merge_from_master() {
     dir="$1"
     shift
@@ -489,7 +491,10 @@ safe_merge_from_master() {
         git checkout "$git_revision" --
         git reset --hard "origin/$git_revision"
     else
-        git checkout "$git_revision" --
+        if ! git checkout "$git_revision" -- ; then
+            alert error "$git_revision is not a valid git revision"
+            exit 1
+        fi
     fi
 
     head_commit="`git rev-parse HEAD`"
