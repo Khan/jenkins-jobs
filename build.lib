@@ -403,10 +403,12 @@ safe_push() {
     }
     # If this repo uses bigfiles, we have to push them to S3 now, as well.
     timeout 60m git bigfile push
-    # cleanup bigfile objects older than two days
-    timeout 120m find "$REPOS_ROOT"/*/.git/bigfile/objects \
-        -mtime +2 -type f -print0 \
-        | xargs -r0 rm
+    # Cleanup bigfile objects older than two days, both in the main
+    # module and in submodules
+    find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
+        timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
+            | xargs -r0 rm
+    done
 
     # Ensure we push using SSH to use Jenkins' configured SSH keys.
     ssh_origin=`git config --get remote.origin.url | sed 's,^https://github.com/,git@github.com:,'`
