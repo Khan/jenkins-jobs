@@ -1,13 +1,13 @@
 <?xml version="1.0" ?>
-<testsuite errors="1" failures="0" name="testutil.manual_test.LintTest-20140616235328" tests="1" time="73.491">
-	<testcase classname="testutil.manual_test.LintTest" name="test_run_lint" time="73.491">
+<testsuite errors="1" failures="0" name="testutil.lint_test.LintTest-20140616235328" tests="1" time="73.491">
+	<testcase classname="testutil.lint_test.LintTest" name="test_run_lint" time="73.491">
 		<error message="LINT ERRORS:
 tools/jenkins/analyze_make_output.py:112:1: E302 expected 2 blank lines, found 1
 " type="AssertionError">
 <![CDATA[Traceback (most recent call last):
   File "/home/csilvers/khan/webapp/testutil/decorators.py", line 49, in wrapper
     return func(*args, **kwargs)
-  File "/home/csilvers/khan/webapp/testutil/manual_test.py", line 33, in test_run_lint
+  File "/home/csilvers/khan/webapp/testutil/lint_test.py", line 33, in test_run_lint
     self.fail('LINT ERRORS:\n%s' % f.read())
 AssertionError: LINT ERRORS:
 tools/jenkins/analyze_make_output.py:112:1: E302 expected 2 blank lines, found 1

@@ -39,17 +39,11 @@ assertion. If an exception was raised it would be an "error" node instead.
 
 JSTEST OUTPUT
 -------------
-We look for two things in the output of 'make jstest':
+From the JS test output, we don't try to identify individual test case
+failures, we just identify which test files failed and report those.
 
-1) Lines that begin with at least one tab character indicate test
-failures and their detail output, e.g.,
-
-  \tScratchpad Output Exec getImage with Draw Loop (Version: 3)
-  \t\ttimeout of 2000ms exceeded
-
-2) We extract the failure count from the final line of output that
-provides a summary, e.g., "Finished running 121 tests, with 115 passes
-and 6 failures."
+We also check for a few abnormal failure cases like kake build failures or
+PhantomJS crashes.
 
 LINT OUTPUT
 -----------
@@ -85,10 +79,10 @@ import alertlib
 # checks in a subshell.  This maps the python test name to a regexp
 # that extracts the jstest/lint output from the python xml output.
 _ALTERNATE_TESTS = {
-    'testutil.manual_test.LintTest':
+    'testutil.lint_test.LintTest':
         ('lint',
          re.compile('AssertionError: LINT ERRORS:\s*(.*)', re.DOTALL)),
-    'testutil.manual_test.JsTest':
+    'testutil.js_test.JsTest':
         ('javascript',
          re.compile('AssertionError: JSTEST ERRORS:\s*(.*)', re.DOTALL)),
 }
@@ -226,6 +220,13 @@ def _clean_link_text(name):
     return name.replace(">", u"\u203a").replace("<", u"\u2039")
 
 
+def link_to_jenkins_test_report(display_name, build_url, module,
+                                classname, testname):
+    url = "%s/testReport/junit/%s/%s/%s/" % (
+        build_url, module, classname, testname)
+    return '<%s|%s>' % (url, display_name)
+
+
 def add_links(build_url, testcase, sep='.'):
     """Return a slack-style link.
 
@@ -239,11 +240,11 @@ def add_links(build_url, testcase, sep='.'):
     name_parts.append(testcase.get("name"))
     display_name = _clean_link_text(sep.join(name_parts))
     module, classname = testcase.get("classname").rsplit(".", 1)
-    url = "%s/testReport/junit/%s/%s/%s/" % (
-        build_url, _clean_class_name(module), _clean_class_name(classname),
+    return link_to_jenkins_test_report(
+        display_name, build_url,
+        _clean_class_name(module),
+        _clean_class_name(classname),
         _clean_test_name(testcase.get("name")))
-
-    return '<%s|%s>' % (url, display_name)
 
 
 def report_test_failures(test_reports_dir, jenkins_build_url, slack_channel):
@@ -262,35 +263,43 @@ def report_test_failures(test_reports_dir, jenkins_build_url, slack_channel):
     return len(failures)
 
 
-def report_jstest_failures(jstest_reports_file, slack_channel):
+def report_jstest_failures(jstest_reports_file, jenkins_build_url,
+                           slack_channel):
     """Alert for jstest (as opposed to python-test or lint) failures."""
     if not os.path.exists(jstest_reports_file):
         return 0
 
-    failures = set()
-    num_errors = 0
+    failures = []
+
+    def _add_failure(text):
+        failures.append(link_to_jenkins_test_report(text, jenkins_build_url,
+                                                    'js_test',
+                                                    'JsTest',
+                                                    'test_run_jstests'))
+
     with open(jstest_reports_file, 'rU') as infile:
         for line in infile.readlines():
-            if line.startswith('\t'):
-                failures.add(line[1:])  # trim first \t
-            elif line.startswith('Finished running '):
-                m = re.match('Finished running \d+ tests, '
-                             'with \d+ passes and (\d+) failures.', line)
-                assert m, line
-                num_errors += int(m.group(1))
-            elif line.startswith('Timeout: tests did not start'):
-                failures.add(line)
-                # Timeouts are ignored in the "Finished running x tests"
-                # reports, so we have to count these errors manually.
-                num_errors += 1
+            if 'FATAL ERROR building' in line:
+                # If the test bundle failed building, we'll see a log line like
+                # this from kake, and the tests didn't even start.
+                _add_failure(line)
             elif line.startswith('PhantomJS has crashed.'):
-                failures.add(line)
-                # Crashes are ignored in the "Finished running x tests"
-                # reports, so we have to count these errors manually.
-                num_errors += 1
-    _alert(slack_channel, sorted(failures), 'JavaScript test',
-           num_errors=num_errors)
-    return num_errors
+                # If PhantomJS crashes, we might not even get to the test
+                # failure reporting.
+                _add_failure(line)
+            elif line.startswith('Timed out waiting for tests'):
+                # We bail on timeouts, so we won't get to the test failure
+                # reporting, because the tests might not even be running!
+                _add_failure(line)
+            elif line.startswith('tools/runjstests.py -r browser'):
+                # We emit this line in case of failures to make it easy to
+                # re-run only the failed tests.
+                bad_files = line[len('tools/runjstests.py -r browser'):]
+                map(_add_failure, bad_files.split())
+
+    _alert(slack_channel, failures, 'JavaScript test',
+           num_errors=len(failures))
+    return len(failures)
 
 
 def report_lint_failures(lint_reports_file, slack_channel):
@@ -342,6 +351,7 @@ def main(jenkins_build_url, test_reports_dir,
                 # TODO(csilvers): send a cStringIO to report_* instead.
                 f.write(_ALTERNATE_TESTS_VALUES['javascript'])
         num_errors += report_jstest_failures(jstest_reports_file,
+                                             jenkins_build_url,
                                              slack_channel)
 
     if lint_reports_file:

@@ -1,8 +1,0 @@
-<?xml version="1.0" ?>
-<testsuite errors="0" failures="0" name="testutil.manual_test.LintTest-20140616235328" tests="1" time="73.491">
-	<testcase classname="testutil.manual_test.LintTest" name="test_run_lint" time="73.491" />
-	<system-out>
-<![CDATA[]]>	</system-out>
-	<system-err>
-<![CDATA[]]>	</system-err>
-</testsuite>
