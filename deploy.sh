@@ -65,29 +65,7 @@ DEPLOY_FLAGS="$DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
 
 # Clean out the working tree.
-case "$CLEAN" in
-    all)
-        "$MAKE" allclean
-        ;;
-    most)
-        "$MAKE" clean
-        # Be a bit more aggressive: delete un-git-added files, for instance.
-        git clean -qffdx --exclude genfiles --exclude node_modules
-        git submodule foreach git clean -qffdx --exclude node_modules
-        ;;
-    some)
-        git clean -qffdx --exclude genfiles --exclude node_modules
-        git submodule foreach git clean -qffdx --exclude node_modules
-        # genfiles is excluded from "git clean" so we need to manually
-        # remove artifacts that should not be kept across builds.
-        rm -rf genfiles/test-reports genfiles/lint_errors.txt
-        ;;
-    none)
-        ;;
-    *)
-        echo "Unknown value for CLEAN: '$CLEAN'"
-        exit 1
-esac
+clean "$CLEAN"         # in build.lib
 
 # If we have a genfiles-dir to take from, try do to that.
 if [ -n "$GENFILES_DIR" -a -d "$GENFILES_DIR" ]; then
