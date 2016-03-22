@@ -146,7 +146,9 @@ if type alert >/dev/null; then unalias alert 2>/dev/null; fi
 
 # Send an alert to Slack and the logs.  Decrypts secrets if necessary.
 # The alertlib subrepo in webapp must be checked out for this to work.
-# $1: severity level; $2+: message
+# $1: severity level
+# $2+: message
+# If $DEPLOYER_USERNAME is set, then that is prepended to the alert message.
 alert() {
     severity="$1"
     shift
@@ -156,7 +158,11 @@ alert() {
     else
        html=
     fi
-    echo "$@" \
+    if [ -n "$DEPLOYER_USERNAME" ]; then
+        msg="$DEPLOYER_USERNAME: $@"
+    else
+        msg="$@"
+    echo "$msg" \
         | "$WORKSPACE_ROOT"/jenkins-tools/alertlib/alert.py \
               --severity="$severity" $html \
               --slack "$SLACK_CHANNEL" --logs
