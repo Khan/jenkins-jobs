@@ -6,6 +6,7 @@
 # Here are some of the cleanups we run:
 #   deploy/pngcrush.py
 #       compress images
+#   clean up obsolete containers in /var/lib/docker
 #   TODO: khan-exercises/local-only/update_local.sh
 #       get khan-exercises matching webpp
 #   TODO: vacuum unused indexes
@@ -35,9 +36,9 @@ export FORCE_COMMIT=1
 
 cd "$WEBSITE_ROOT"
 
-pngcrush() {
-    safe_pull .
+safe_pull .
 
+pngcrush() {
     deploy/pngcrush.py
     {
         echo "Automatic compression of webapp images via $0"
@@ -52,4 +53,15 @@ pngcrush() {
     } | safe_commit_and_push . -a -F -
 }
 
+# Every week, make sure that /var/lib/docker's size is under control.
+# We then re-do a docker run to re-create the docker images we
+# actually still need (to make the next deploy faster).
+clean_docker() {
+    docker rm `docker ps -a | grep Exited | cut -f1 -d" "` || true
+    docker rmi `docker images -aq` || true
+    make docker-prod-staging-dir
+}
+
+
 pngcrush
+clean_docker

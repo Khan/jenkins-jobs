@@ -185,7 +185,7 @@ clean() {
         none)
             ;;
         *)
-            echo "Unknown value for CLEAN: '$CLEAN'"
+            echo "Unknown value for CLEAN: '$1'"
             exit 1
     esac
 }
