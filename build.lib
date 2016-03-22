@@ -480,19 +480,22 @@ safe_commit_and_push() {
     fi
 }
 
-# Checks out a branch and merges master into it
+# Checks out a branch and merges another branch into it
 # $1: the directory to run the merge in
-# $2: the commit-ish (branch or sha1) into which to merge master.  If it's a
-#     sha1, it must be a superset of master.  We check out $2 in the working
-#     dir $1 in order to do the merge.
-# $3+ (optional): submodules to update after the merge.  If left out, update
+# $2: the commit-ish (branch or sha1) into which to merge the other branch.
+#     If it's a sha1, it must be a superset of "branch".  We check out $2
+#     in the working dir $1 in order to do the merge.  Cannot be master.
+# $3: the branch to merge into $2.  Must be a branch name, not a sha1.
+# $4+ (optional): submodules to update after the merge.  If left out, update
 #     all submodules.  If the string 'no_submodules', update no submodules.
 # TODO(benkraft): wrap this whole assembly in failure-handling, so that if
 # something unexpected fails, at least it doesn't fail silently.
-safe_merge_from_master() {
+safe_merge_from_branch() {
     dir="$1"
     shift
     git_revision="$1"
+    shift
+    merge_from="$1"
     shift
     (
     cd "$dir"
@@ -501,10 +504,10 @@ safe_merge_from_master() {
         exit 1
     fi
 
-    # Make sure our local master matches the remote
-    git fetch origin +refs/heads/master:refs/remotes/origin/master
-    git checkout master
-    git reset --hard origin/master
+    # Make sure our local merge_from matches the remote
+    git fetch origin +"refs/heads/$merge_from:refs/remotes/origin/$merge_from"
+    git checkout "$merge_from"
+    git reset --hard "origin/$merge_from"
 
     # Set our local branch to be the same as the origin branch.  This
     # is needed in cases when a previous deploy set the local (jenkins)
@@ -528,7 +531,7 @@ safe_merge_from_master() {
     fi
 
     head_commit="`git rev-parse HEAD`"
-    master_commit="`git rev-parse master`"
+    merge_from_commit="`git rev-parse "$merge_from"`"
 
     # Sanity check: HEAD should be at the revision we want to deploy from.
     if [ "$head_commit" != "`git rev-parse "$git_revision"`" ] ; then
@@ -536,14 +539,14 @@ safe_merge_from_master() {
         exit 1
     fi
 
-    # If the current commit is a super-set of master, we're done, yay!
-    base="`git merge-base "$git_revision" "$master_commit"`"
-    if [ "$base" = "$master_commit" ] ; then
-        echo "$git_revision is a superset of master, no need to merge"
+    # If the current commit is a super-set of merge_from, we're done, yay!
+    base="`git merge-base "$git_revision" "$merge_from_commit"`"
+    if [ "$base" = "$merge_from_commit" ] ; then
+        echo "$git_revision is a superset of $merge_from, no need to merge"
         exit 0
     fi
 
-    # Now we need to merge master into our branch.  First, make sure
+    # Now we need to merge merge_from into our branch.  First, make sure
     # we *are* a branch.  git show-ref returns line like 'd41eba92 refs/...'
     if ! git show-ref | cut -d ' ' -f 2 | grep -q "^refs/remotes/origin/$git_revision$" ; then
         alert error "$git_revision is not a branch name on the remote"
@@ -551,10 +554,10 @@ safe_merge_from_master() {
     fi
 
     # The merge exits with rc > 0 if there were conflicts
-    echo "Merging master into $git_revision"
-    if ! git merge master ; then
+    echo "Merging $merge_from into $git_revision"
+    if ! git merge "$merge_from" ; then
         git merge --abort
-        alert error "Merge conflict: must merge master into $git_revision manually."
+        alert error "Merge conflict: must merge $merge_rom into $git_revision manually."
         exit 1
     fi
 
@@ -568,8 +571,17 @@ safe_merge_from_master() {
 
     _safe_update_submodules "$@"
 
-    echo "Done merging master into $git_revision"
+    echo "Done merging $merge_from into $git_revision"
     )
+}
+
+# Checks out a branch and merges master into it
+safe_merge_from_master() {
+    dir="$1"
+    shift
+    git_revision="$1"
+    shift
+    safe_merge_from_branch "$dir" "$git_revision" "master" "$@"
 }
 
 busy_wait_on_dropbox() {
