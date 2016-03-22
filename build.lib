@@ -162,6 +162,7 @@ alert() {
         msg="$DEPLOYER_USERNAME: $@"
     else
         msg="$@"
+    fi
     echo "$msg" \
         | "$WORKSPACE_ROOT"/jenkins-tools/alertlib/alert.py \
               --severity="$severity" $html \
