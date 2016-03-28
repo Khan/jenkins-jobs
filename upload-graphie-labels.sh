@@ -21,10 +21,14 @@ safe_pull .
 # We also make sure the translations sub-repo is up to date.
 safe_pull intl/translations
 
-echo "Translating graphie labels."
 # upload_graphie_labels.py expects all of the labels to have already been
 # translated.
-kake/build_prod_main.py -v1 i18n_graphie_labels --language=all
+# TODO(csilvers): write a small script that does this instad.
+languages=`python -c 'import tools.appengine_tool_setup; tools.appengine_tool_setup.fix_sys_path(); import intl.locale; print "\n".join(intl.locale.all_locales_for_packages() - {"en"})'`
+for language in languages; do
+    echo "Translating graphie labels for $language."
+    kake/build_prod_main.py -v1 i18n_graphie_labels --language="$language"
+done
 
 echo "Uploading labels to S3."
 tools/upload_graphie_labels.py
