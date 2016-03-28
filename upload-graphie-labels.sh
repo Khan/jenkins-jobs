@@ -25,7 +25,7 @@ safe_pull intl/translations
 # translated.
 # TODO(csilvers): write a small script that does this instad.
 languages=`python -c 'import tools.appengine_tool_setup; tools.appengine_tool_setup.fix_sys_path(); import intl.locale; print "\n".join(intl.locale.all_locales_for_packages() - {"en"})'`
-for language in languages; do
+for language in $languages; do
     echo "Translating graphie labels for $language."
     kake/build_prod_main.py -v1 i18n_graphie_labels --language="$language"
 done
