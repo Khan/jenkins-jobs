@@ -62,6 +62,24 @@ clean_docker() {
     make docker-prod-staging-dir
 }
 
+# Every week, we do a 'partial' clean of genfiles directories that
+# gets rid of certain files that are "probably" obsolete.
+clean_genfiles() {
+    for dir in $HOME/jobs/*/workspace/webapp/genfiles; do
+        (
+        echo "Cleaning genfiles in $dir"
+        cd "$dir"
+
+        # This means that slow-changing languages may get nuked even
+        # though they're up to date, but we'll just redownload them so
+        # no harm done.
+        find translations/pofiles -mtime +7 -print0 | xargs -0r rm -v
+        find translations/approved_pofiles -mtime +7 -print0 | xargs -0r rm -v
+        )
+    done
+}
+
 
 pngcrush
 clean_docker
+clean_genfiles
