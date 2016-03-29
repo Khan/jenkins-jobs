@@ -85,8 +85,11 @@ echo "Dropbox folders are ready and fully synched"
 cd "$WEBSITE_ROOT"
 
 echo "Updating the webapp repo."
-safe_pull .
-# We also make sure the translations sub-repo is up to date.
+# We do our work in the 'translations' branch.
+safe_pull_in_branch . translations
+# ...which we want to make sure is up-to-date with master.
+safe_merge_from_master . translations
+# We also make sure the intl/translations sub-repo is up to date.
 safe_pull intl/translations
 
 TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/pofiles

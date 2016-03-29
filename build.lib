@@ -406,17 +406,20 @@ safe_sync_to_origin() {
 }
 
 # $1: directory to run the pull in (can be in a sub-repo)
-# $2+ (optional): submodules to pull as well.  If left out, update all
+# $2: branch to pull
+# $3+ (optional): submodules to pull as well.  If left out, update all
 #     submodules.  If the string 'no_submodules', update no submodules.
 # NOTE: this does a git reset, and always changes the branch to master!
 # It also always inits and updates listed subrepos.
-safe_pull() {
+safe_pull_in_branch() {
     (
     cd "$1"
     shift
-    _safe_destructive_checkout "master"
+    branch="$1"
+    shift
+    _safe_destructive_checkout "$branch"
     _safe_fetch
-    _safe_rebase "master"
+    _safe_rebase "$branch"
     _safe_update_submodules "$@"
     # We could also do _safe_pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
@@ -424,15 +427,23 @@ safe_pull() {
     )
 }
 
+# Does a safe_pull after switching to the 'master' branch.
+# $1: directory to run the pull in (can be in a sub-repo)
+safe_pull() {
+    dir="$1"
+    shift
+    safe_pull_in_branch "$dir" "master" "$@"
+}
+
 # $1: directory to run the push in (can be in a sub-repo)
-# NOTE: you must be checked out at 'master' to call safe_push.
 safe_push() {
     (
     cd "$1"
+    branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
     _safe_fetch
-    _safe_rebase master || {
+    _safe_rebase "$branch" || {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
@@ -447,7 +458,7 @@ safe_push() {
 
     # Ensure we push using SSH to use Jenkins' configured SSH keys.
     ssh_origin=`git config --get remote.origin.url | sed 's,^https://github.com/,git@github.com:,'`
-    timeout 60m git push "$ssh_origin" master || {
+    timeout 60m git push "$ssh_origin" "$branch" || {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
@@ -462,7 +473,7 @@ safe_commit_and_push() {
     shift
     (
     cd "$dir"
-    if [ -z "$(git status --porcelain | head -n 1)" ]; then
+    if [ -z "`git status --porcelain | head -n 1`" ]; then
         echo "No changes, skipping commit"
     else
         timeout 10m git add .
@@ -473,8 +484,8 @@ safe_commit_and_push() {
 
     # If dir was a submodule, update the main repo's pointer to the submodule.
     if git -C "$dir" rev-parse --git-dir | fgrep -q .git/modules; then
-        timeout 10m git checkout master
-        safe_pull .
+        branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
+        safe_pull_in_branch . "$branch"
         # Safe-pull resets the submodule 'dir' so we need to update it again.
         ( cd "$dir" && timeout 10m git checkout master )
         timeout 10m git add "$dir"
