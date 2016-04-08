@@ -43,24 +43,23 @@ busy_wait_on_dropbox "$DATA_DIR/captions/"
 # | [dss]           | [kt]
 # v                 v
 # prof_incoming --> incoming ----> published ----> published_prod
-#                ^[hq]        ^[kt]           ^[uptp]
+#               ^[move]       ^[kt]           ^[uptp]
 #
 # [dss]: tools/dropbox_sync_source.py
-# [hq]: tools/high_quality_captions_import.py
+# [move]: moving professional captions to incoming
 # [kt]: tools/khantube.py
 # [uptp]: tools/upload_captions_to_production.py
 #
 # [dss] has a metadate file /captions/dropbox_info.json
-# [hq] and amara_exporter touch $amara_progess
 # For the purposes of SKIP_TO_STAGE
 # [dss] = 0
-# [hq] = 1
+# [move] = 1
 # (obsolete, now a no-op) tools/amara_exporter.py = 2
 # [kt] = 3
 # [uptp] = 4
 echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
 
-amara_progress="$DATA_DIR/captions/amara_progress.json"
+version_data="$DATA_DIR/captions/version_data.json"
 
 
 # --- The actual work:
@@ -76,16 +75,13 @@ if [ "$SKIP_TO_STAGE" -le 0 ]; then
 fi
 
 if [ "$SKIP_TO_STAGE" -le 1 ]; then
-    echo "Looking for high quality captions"
+    echo "Looking for professional captions"
     if [ -d "$prof_incoming" ] && \
        [ -n "$(find "$prof_incoming" -type f | head -n 1)" ]
     then
         # Note that `[ -n "" ]` returns false, so there's at least one caption
         # to process and `|head -n 1` prints the first line and closes,
         # stopping the search early.
-        "$tools/high_quality_captions_import.py" \
-            "$prof_incoming" "$incoming" "$amara_progress"
-
         echo "Moving them into incoming"
         for locale in $(ls "$prof_incoming") ; do
             mkdir -p "$prof_incoming/$locale"
@@ -108,7 +104,7 @@ if [ "$SKIP_TO_STAGE" -le 3 ]; then
     stats_file=/var/tmp/khantube_stats.txt
     if "$tools/khantube.py" "$incoming" "$published" \
         --youtube-ids-file="$video_list_path" \
-        --data-file="$amara_progress" \
+        --data-file="$version_data" \
         --english-caption-dir="$published_prod" \
         --stats-file="$stats_file";
     then
