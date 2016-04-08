@@ -38,9 +38,9 @@ tools="$WEBSITE_ROOT/tools"
 busy_wait_on_dropbox "$DATA_DIR/captions/"
 
 # Flow is something like:
-# hired             Amara
+# hired             YouTube FanCaptions
 # transcribers      |
-# | [dss]           | tools/amara_exporter.py
+# | [dss]           | [kt]
 # v                 v
 # prof_incoming --> incoming ----> published ----> published_prod
 #                ^[hq]        ^[kt]           ^[uptp]
@@ -55,7 +55,7 @@ busy_wait_on_dropbox "$DATA_DIR/captions/"
 # For the purposes of SKIP_TO_STAGE
 # [dss] = 0
 # [hq] = 1
-# tools/amara_exporter.py = 2
+# (obsolete, now a no-op) tools/amara_exporter.py = 2
 # [kt] = 3
 # [uptp] = 4
 echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
@@ -99,21 +99,7 @@ if [ "$SKIP_TO_STAGE" -le 1 ]; then
 fi
 
 if [ "$SKIP_TO_STAGE" -le 2 ]; then
-    echo "Downloading from Amara"
-    stats_file=/var/tmp/amara_stats.txt
-    if "$tools/amara_exporter.py" \
-        --youtube-ids-file="$video_list_path" \
-        --dest-dir="$incoming" \
-        --version-file="$amara_progress" \
-        --stats-file="$stats_file" \
-        --download-incomplete
-    then
-        echo "Successfully exported from Amara"
-    else
-        echo "FAILED: Some problems exporting from Amara"
-        error+="Error exporting from Amara\n"
-    fi
-    cat "$stats_file"
+    echo "Skipping download from Amara (Amara is no longer used)"
 fi
 
 if [ "$SKIP_TO_STAGE" -le 3 ]; then
