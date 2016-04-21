@@ -465,6 +465,24 @@ safe_push() {
     )
 }
 
+# This updates our repo to point to the current master of the given subrepo.
+# $1: the directory of the submodule
+safe_update_submodule_pointer_to_master() {
+    dir="$1"
+    shift
+    branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
+    safe_pull_in_branch . "$branch"
+    ( cd "$dir" && timeout 10m git checkout master )
+    timeout 10m git add "$dir"
+    if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
+        echo "No need to update substate for $dir: no new content created"
+    else
+        timeout 10m git commit -m "$dir substate [auto]"
+        safe_push .
+    fi
+}
+
+
 # $1: the directory to commit in (can be in a sub-repo)
 # $2+: arguments to 'git commit' (we add '-a' automatically)
 # NOTE: This 'git add's all new files in the commit-directory.
@@ -484,17 +502,7 @@ safe_commit_and_push() {
 
     # If dir was a submodule, update the main repo's pointer to the submodule.
     if git -C "$dir" rev-parse --git-dir | fgrep -q .git/modules; then
-        branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
-        safe_pull_in_branch . "$branch"
-        # Safe-pull resets the submodule 'dir' so we need to update it again.
-        ( cd "$dir" && timeout 10m git checkout master )
-        timeout 10m git add "$dir"
-        if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
-            echo "No need to update substate for $dir: no new content created"
-        else
-            timeout 10m git commit -m "$dir substate [auto]"
-            safe_push .
-        fi
+        safe_update_submodule_pointer_to_master "$dir"
     fi
 }
 
