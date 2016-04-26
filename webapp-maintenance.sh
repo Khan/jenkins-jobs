@@ -79,7 +79,83 @@ clean_genfiles() {
     done
 }
 
+# Clean up some gcs directories that have too-complicated cleanup
+# rules to use the gcs lifecycle rules.
+clean_ka_translations() {
+    for dir in `gsutil ls gs://ka_translations`; do
+        versions=`gsutil ls $dir | sort`
+        # We keep all version-dirs that fit either of these criteria:
+        # 1) One of the last 3 versions
+        # 2) version was created within the last week
+        not_last_three=`echo "$versions" | tac | tail -n+4`
+        week_ago_time_t=`date -d "-7 days" +%s`
+        for version in $not_last_three; do
+            # `basename $version` looks like "2016-04-17-2329",
+            # but `date` wants "2016-04-17 23:29".
+            date="`basename "$version" | cut -b1-10` `basename "$version" | cut -b12-13`:`basename "$version" | cut -b14-15`"
+            time_t=`date -d "$date" +%s`
+            if [ "$time_t" -lt "$week_ago_time_t" ]; then
+                # Very basic sanity-check: never delete files from today!
+                if echo "$version" | grep -q `date +%Y-%m-%d-`; then
+                    echo "FATAL ERROR: Why are we trying to delete $version??"
+                    exit 1
+                fi
+                echo "Deleting obsolete directory $version"
+                gsutil -m rm -r "$version"
+            fi
+        done
+    done
+}
+
+clean_ka_static() {
+    # First we find the manifest files for the last week.  (Plus we
+    # always keep the last 3.)  We'll keep any file listed in there.
+    week_ago_time_t=`date -d "-7 days" +%s`
+    manifests_seen=0
+    files_to_keep=`mktemp -d`/files_to_keep
+    # The 'ls -l' output looks like this:
+    #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
+    gsutil ls -l 'gs://ka-static/_manifest.*' | grep _manifest | sort -k2r | while read line; do
+        date=`echo "$line" | awk '{print $2}'`
+        time_t=`date -d "$date" +%s`
+        if [ "$time_t" -gt "$week_ago_time_t" -o $manifests_seen -lt 3 ]; then
+            # (Since we create the manifest-files, we know they don't
+            # have spaces in their name.)
+            manifest=`echo "$line" | awk '{print $3}'`
+            # This gets the keys (which is the url) to each
+            # dict-entry in the manifest file.
+            gsutil cat "$manifest" | grep -o '"[^"]*":' | tr -d '":' \
+                >> "$files_to_keep"
+            # We also keep the manifest-file itself around!
+            echo "$manifest" >> "$files_to_keep"
+            manifests_seen=`expr $manifests_seen + 1`
+        fi
+    done
+
+    # We need to add the gs://ka-static prefix to match the gsutil ls output.
+    sort -u "$files_to_keep" | sed s,^/,gs://ka-static/, \
+        > "$files_to_keep.sorted"
+
+    # Basic sanity check: make sure favicon.ico is in the list of files
+    # to keep.  If not, something has gone terribly wrong.
+    if ! grep -q "favicon.ico" "$files_to_keep.sorted"; then
+        echo "FATAL ERROR: The list of files-to-keep seems to be wrong"
+        exit 1
+    fi
+
+    # Now we go through every file in ka-static and delete it if it's
+    # not in files-to-keep.  We ignore lines ending with ':' -- those
+    # are directories.
+    gsutil -m ls -r gs://ka-static/ \
+        | grep . \
+        | grep -v ':$' \
+        | grep -vx -f "$files_to_keep.sorted" \
+        | tr '\012' '\0' \
+        | xargs -0r gsutil -m rm
+}
 
 pngcrush
 clean_docker
 clean_genfiles
+clean_ka_translations
+clean_ka_static
