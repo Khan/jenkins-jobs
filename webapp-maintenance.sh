@@ -154,8 +154,8 @@ clean_ka_static() {
         | xargs -0r gsutil -m rm
 }
 
-pngcrush
 clean_docker
 clean_genfiles
 clean_ka_translations
 clean_ka_static
+pngcrush
