@@ -101,7 +101,10 @@ clean_ka_translations() {
                     exit 1
                 fi
                 echo "Deleting obsolete directory $version"
-                gsutil -m rm -r "$version"
+                # TODO(csilvers): remove the -D after we've debugged why this
+                # sometimes fails with CommandException; definitely after
+                # 1 June 2016.
+                gsutil -D -m rm -r "$version"
             fi
         done
     done
