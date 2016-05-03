@@ -149,12 +149,15 @@ clean_ka_static() {
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
     # are directories.
+    # TODO(csilvers): remove the -D after we've debugged why this
+    # sometimes fails with CommandException; definitely after 1 June
+    # 2016.
     gsutil -m ls -r gs://ka-static/ \
         | grep . \
         | grep -v ':$' \
         | grep -vx -f "$files_to_keep.sorted" \
         | tr '\012' '\0' \
-        | xargs -0r gsutil -m rm
+        | xargs -0r gsutil -D -m rm
 }
 
 clean_docker
