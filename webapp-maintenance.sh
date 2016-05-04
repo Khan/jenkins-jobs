@@ -135,7 +135,7 @@ clean_ka_static() {
     done
 
     # We need to add the gs://ka-static prefix to match the gsutil ls output.
-    sort -u "$files_to_keep" | sed s,^/,gs://ka-static/, \
+    LANG=C sort -u "$files_to_keep" | sed s,^/,gs://ka-static/, \
         > "$files_to_keep.sorted"
 
     # Basic sanity check: make sure favicon.ico is in the list of files
@@ -153,7 +153,9 @@ clean_ka_static() {
     gsutil -m ls -r gs://ka-static/ \
         | grep . \
         | grep -v ':$' \
-        | grep -vx -f "$files_to_keep.sorted" \
+        | LANG=C sort > "$files_to_keep.candidates"
+    # This prints files in 'candidates that are *not* in files_to_keep.
+    LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
         | tr '\012' '\0' \
         | xargs -0r gsutil rm
 }
