@@ -101,10 +101,9 @@ clean_ka_translations() {
                     exit 1
                 fi
                 echo "Deleting obsolete directory $version"
-                # TODO(csilvers): remove the -D after we've debugged why this
-                # sometimes fails with CommandException; definitely after
-                # 1 June 2016.
-                gsutil -D -m rm -r "$version"
+                # TODO(csilvers): make it 'gsutil -m' after we've debugged
+                # why that sometimes fails with 'file not found'.
+                gsutil rm -r "$version"
             fi
         done
     done
@@ -149,15 +148,14 @@ clean_ka_static() {
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
     # are directories.
-    # TODO(csilvers): remove the -D after we've debugged why this
-    # sometimes fails with CommandException; definitely after 1 June
-    # 2016.
+    # TODO(csilvers): make the xargs 'gsutil -m' after we've debugged
+    # why that sometimes fails with 'file not found'.
     gsutil -m ls -r gs://ka-static/ \
         | grep . \
         | grep -v ':$' \
         | grep -vx -f "$files_to_keep.sorted" \
         | tr '\012' '\0' \
-        | xargs -0r gsutil -D -m rm
+        | xargs -0r gsutil rm
 }
 
 clean_docker
