@@ -49,21 +49,24 @@ run_android_e2e_tests() {
 }
 
 run_website_e2e_tests() {
-    find end-to-end -name '*_e2etest.js'  \
-      | if [ "$RUN_A11Y" = "false" ]; then grep -v a11y; else cat; fi \
-      | xargs tools/end_to_end_webapp_testing.py --version $VERSION --no-colors --jobs=4 --engine=phantomjs \
-            || echo "end_to_end_webapp_testing.py exited with failure"
+    (
+        cd "$WEBSITE_ROOT"
+        find end-to-end -name '*_e2etest.js'  \
+          | if [ "$RUN_A11Y" = "false" ]; then grep -v a11y; else cat; fi \
+          | xargs tools/end_to_end_webapp_testing.py --version $VERSION --no-colors --jobs=4 --engine=phantomjs \
+                || echo "end_to_end_webapp_testing.py exited with failure"
 
-    if ! "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
-        --e2e_test_reports_file="$WEBSITE_ROOT"/genfiles/end_to_end_test_output.xml \
-        --jenkins_build_url="$BUILD_URL" \
-        --slack-channel="$SLACK_CHANNEL"
-    then
-        echo "analyze_make_output.py exited with failure"
-        if [ ! -z "$EXTRA_TEXT_ON_FAILURE" ]; then
-            alert_slack "$EXTRA_TEXT_ON_FAILURE" "warning"
+        if ! "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
+            --e2e_test_reports_file="$WEBSITE_ROOT"/genfiles/end_to_end_test_output.xml \
+            --jenkins_build_url="$BUILD_URL" \
+            --slack-channel="$SLACK_CHANNEL"
+        then
+            echo "analyze_make_output.py exited with failure"
+            if [ ! -z "$EXTRA_TEXT_ON_FAILURE" ]; then
+                alert_slack "$EXTRA_TEXT_ON_FAILURE" "warning"
+            fi
         fi
-    fi
+    )
 }
 
 
