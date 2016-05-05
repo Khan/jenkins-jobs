@@ -10,5 +10,5 @@ source "${SCRIPT_DIR}/build.lib"
 # TODO(nacho): change branch to `master`.
 safe_sync_to_origin "git@github.com:Khan/android" "db-generator-jenkins"
 
-export API_BASE_URL="https://${VERSION}-dot-khanacademy.appspot.com"
+export API_BASE_URL="https://${VERSION}-dot-khan-academy.appspot.com"
 android/make-dbs.sh
