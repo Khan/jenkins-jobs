@@ -26,11 +26,11 @@
 # Send a message to slack.
 # $1: the message to send
 # $2: the severity level to use (warning, error, etc.). See alert.py for more details.
-# $3: slack channel to send the message to
+# $3: slack channel to send the message to. Defaults to $SLACK_CHANNEL.
 alert_slack() {
     echo "$1" \
         | env/bin/python jenkins-tools/alertlib/alert.py \
-          --slack "${$3:-$SLACK_CHANNEL}" --severity "$2" \
+          --slack "${3:-$SLACK_CHANNEL}" --severity "$2" \
           --chat-sender "Testing Turtle" --icon-emoji ":turtle:"
 }
 
@@ -53,21 +53,21 @@ run_android_e2e_tests() {
 run_website_e2e_tests() {
     (
         cd "$WEBSITE_ROOT"
-    find end-to-end -name '*_e2etest.js'  \
-      | if [ "$RUN_A11Y" = "false" ]; then grep -v a11y; else cat; fi \
-      | xargs tools/end_to_end_webapp_testing.py --version $VERSION --no-colors --jobs=4 --engine=phantomjs \
-            || echo "end_to_end_webapp_testing.py exited with failure"
+        find end-to-end -name '*_e2etest.js'  \
+          | if [ "$RUN_A11Y" = "false" ]; then grep -v a11y; else cat; fi \
+          | xargs tools/end_to_end_webapp_testing.py --version $VERSION --no-colors --jobs=4 --engine=phantomjs \
+                || echo "end_to_end_webapp_testing.py exited with failure"
 
         if ! "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
-        --e2e_test_reports_file="$WEBSITE_ROOT"/genfiles/end_to_end_test_output.xml \
-        --jenkins_build_url="$BUILD_URL" \
-        --slack-channel="$SLACK_CHANNEL"
-    then
-        echo "analyze_make_output.py exited with failure"
-        if [ ! -z "$EXTRA_TEXT_ON_FAILURE" ]; then
-            alert_slack "$EXTRA_TEXT_ON_FAILURE" "warning"
+            --e2e_test_reports_file="$WEBSITE_ROOT"/genfiles/end_to_end_test_output.xml \
+            --jenkins_build_url="$BUILD_URL" \
+            --slack-channel="$SLACK_CHANNEL"
+        then
+            echo "analyze_make_output.py exited with failure"
+            if [ ! -z "$EXTRA_TEXT_ON_FAILURE" ]; then
+                alert_slack "$EXTRA_TEXT_ON_FAILURE" "warning"
+            fi
         fi
-    fi
     )
 }
 
