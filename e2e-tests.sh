@@ -13,7 +13,7 @@
 # The AppEngine version name to check against.
 : ${VERSION:=staging}
 # Whether to run a11y tests.
-: ${RUN_A11Y:=false}
+: ${RUN_A11Y:=true}
 # Send an extra message to alert.py in the case of an error.
 : ${EXTRA_TEXT_ON_FAILURE:=""}
 # "" to disable slack notifications.
