@@ -20,7 +20,7 @@
 : ${SLACK_CHANNEL:=#1s-and-0s-deploys}
 # The jenkins build-url, used for debugging messages
 : ${BUILD_URL:=""}
-: ${WORKSPACE_ROOT:=.}
+: ${WORKSPACE_ROOT:="`pwd`"}
 : ${WEBSITE_ROOT:="$WORKSPACE_ROOT/webapp"}
 
 # Send a message to slack.
