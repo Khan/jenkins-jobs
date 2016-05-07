@@ -45,7 +45,7 @@ run_android_e2e_tests() {
         alert_slack "Mobile integration tests succeeded" "info"
     else
         echo "run_android_db_generator.sh exited with failure"
-        alert_slack "Mobile integration tests failed" "warning"
+        alert_slack "Mobile integration tests failed" "error"
         alert_slack "Mobile integration tests failed" "error" "mobile-1s-and-0s"
     fi
 }
