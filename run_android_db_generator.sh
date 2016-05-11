@@ -7,8 +7,7 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 source "${SCRIPT_DIR}/build.lib"
 
-# TODO(nacho): change branch to `master`.
-safe_sync_to_origin "git@github.com:Khan/android" "db-generator-jenkins"
+safe_sync_to_origin "git@github.com:Khan/android" "master"
 
 export API_BASE_URL="https://${VERSION}-dot-khan-academy.appspot.com"
 android/make-dbs.sh
