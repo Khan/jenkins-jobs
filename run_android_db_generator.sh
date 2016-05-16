@@ -10,4 +10,9 @@ source "${SCRIPT_DIR}/build.lib"
 safe_sync_to_origin "git@github.com:Khan/android" "master"
 
 export API_BASE_URL="https://${VERSION}-dot-khan-academy.appspot.com"
-android/make-dbs.sh
+if android/make-dbs.sh; then
+    echo "RUN_ANDROID_DB_GENERATOR PASSED"
+else
+    echo "RUN_ANDROID_DB_GENERATOR FAILED"
+    exit 1
+fi
