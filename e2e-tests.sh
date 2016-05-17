@@ -45,8 +45,12 @@ run_android_e2e_tests() {
         alert_slack "Mobile integration tests succeeded" "info"
     else
         echo "run_android_db_generator.sh exited with failure"
-        alert_slack "Mobile integration tests failed" "error"
-        alert_slack "Mobile integration tests failed" "error" "mobile-1s-and-0s"
+        msg="Mobile integration tests failed"
+        if [ -n "$BUILD_URL" ]; then
+            msg="$msg (search for 'ANDROID' in ${BUILD_URL}consoleFull)"
+        fi
+        alert_slack "$msg" "error"
+        alert_slack "$msg" "error" "mobile-1s-and-0s"
     fi
 }
 
