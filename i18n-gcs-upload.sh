@@ -7,8 +7,8 @@
 # 3) change the setting `translations_version`, which controls which set of
 #    translations the webapp will load from Google Cloud Storage
 
-# empty string means 'all locales', otherwise it should be a
-# space-separated list.
+# empty string means 'all locales', and so does the special string "all";
+# otherwise it should be a space-separated list.
 : ${I18N_GCS_UPLOAD_LOCALES:=}
 
 # empty string means 'default number of parallel jobs', otherwise it
@@ -22,13 +22,13 @@ ensure_virtualenv
 decrypt_secrets_py_and_add_to_pythonpath
 
 
-if [ -n "$I18N_GCS_UPLOAD_LOCALES" ]; then
+if [ -z "$I18N_GCS_UPLOAD_LOCALES" -o "$I18N_GCS_UPLOAD_LOCALES" = "all" ]; then
+    locales_for_build="-l all-with-data"
+    locales_for_upload=""
+else
     # Convert the list of locales to '-l <locale> -l <locale> ...'
     locales_for_build="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /"`"
     locales_for_upload="$locales_for_build"
-else
-    locales_for_build="-l all-with-data"
-    locales_for_upload=""
 fi
 
 if [ -n "$JOBS" ]; then
