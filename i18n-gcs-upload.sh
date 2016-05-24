@@ -27,7 +27,7 @@ if [ -z "$I18N_GCS_UPLOAD_LOCALES" -o "$I18N_GCS_UPLOAD_LOCALES" = "all" ]; then
     locales_for_upload=""
 else
     # Convert the list of locales to '-l <locale> -l <locale> ...'
-    locales_for_build="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /"`"
+    locales_for_build="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
     locales_for_upload="$locales_for_build"
 fi
 
