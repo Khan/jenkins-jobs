@@ -23,12 +23,12 @@ decrypt_secrets_py_and_add_to_pythonpath
 
 
 if [ -z "$I18N_GCS_UPLOAD_LOCALES" -o "$I18N_GCS_UPLOAD_LOCALES" = "all" ]; then
-    locales_for_build="-l all-with-data"
+    locales_for_build="all-with-data"
     locales_for_upload=""
 else
+    locales_for_build="$I18N_GCS_UPLOAD_LOCALES"
     # Convert the list of locales to '-l <locale> -l <locale> ...'
-    locales_for_build="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
-    locales_for_upload="$locales_for_build"
+    locales_for_upload="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
 fi
 
 if [ -n "$JOBS" ]; then
@@ -38,5 +38,9 @@ fi
 
 cd "$WEBSITE_ROOT"
 
-kake/build_prod_main.py -v1 $JOBS $locales_for_build compiled_po
+# These kake jobs can use a lot of memory; to avoid trouble we build
+# just one at a time.
+for locale in $locales_for_build; do
+    kake/build_prod_main.py -v1 $JOBS -l $locale compiled_po
+done
 deploy/upload_gcs_i18n.py $locales_for_upload
