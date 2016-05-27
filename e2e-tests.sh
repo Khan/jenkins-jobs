@@ -47,7 +47,7 @@ prime() {
             # We don't really care if priming fails; we'll do it again
             # on set-default, with better failure-handling, so this version
             # isn't necessary to the success of the deploy.
-            tools/primeversion.py "$VERSION" || echo "Priming failed"
+            deploy/primeversion.py "$VERSION" || echo "Priming failed"
         )
     fi
 }
