@@ -224,7 +224,7 @@ def link_to_jenkins_test_report(display_name, build_url, module,
                                 classname, testname):
     url = "%s/testReport/junit/%s/%s/%s/" % (
         build_url, module, classname, testname)
-    return '<%s|%s>' % (url, display_name)
+    return '<%s|%s>' % (url, display_name.strip())
 
 
 def add_links(build_url, testcase, sep='.'):
