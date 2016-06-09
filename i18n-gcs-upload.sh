@@ -7,7 +7,7 @@
 # 3) change the setting `translations_version`, which controls which set of
 #    translations the webapp will load from Google Cloud Storage
 
-# This should be a spec-separated list of locales.
+# This should be a space-separated list of locales.
 : ${I18N_GCS_UPLOAD_LOCALES:=}
 
 # empty string means 'default number of parallel jobs', otherwise it
@@ -26,10 +26,6 @@ if [ -z "$I18N_GCS_UPLOAD_LOCALES" ]; then
     exit 1
 fi
 
-locales_for_build="$I18N_GCS_UPLOAD_LOCALES"
-# Convert the list of locales to '-l <locale> -l <locale> ...'
-locales_for_upload="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
-
 if [ -n "$JOBS" ]; then
     JOBS="--jobs $JOBS"
 fi
@@ -39,7 +35,10 @@ cd "$WEBSITE_ROOT"
 
 # These kake jobs can use a lot of memory; to avoid trouble we build
 # just one at a time.
-for locale in $locales_for_build; do
+for locale in $I18N_GCS_UPLOAD_LOCALES; do
     kake/build_prod_main.py -v1 $JOBS -l $locale compiled_po
 done
+
+# Convert the list of locales to '-l <locale> -l <locale> ...'
+locales_for_upload="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
 deploy/upload_gcs_i18n.py $locales_for_upload
