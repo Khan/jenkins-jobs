@@ -251,17 +251,21 @@ _safe_rebase() {
 # if you have stuff you want to commit.
 _safe_destructive_checkout() {
     # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
-    timeout 10m git reset --hard
-    timeout 10m git submodule foreach --recursive git reset --hard
-    timeout 10m git clean -ffd
-    timeout 10m git submodule foreach --recursive git clean -ffd
+   if [ -n "`git status --porcelain | head -n 1`" ]; then
+        timeout 10m git reset --hard
+        timeout 10m git submodule foreach --recursive git reset --hard
+        timeout 10m git clean -ffd
+        timeout 10m git submodule foreach --recursive git clean -ffd
+    fi
 
     timeout 10m git checkout "$1"
 
-    timeout 10m git reset --hard
-    timeout 10m git submodule foreach --recursive git reset --hard
-    timeout 10m git clean -ffd
-    timeout 10m git submodule foreach --recursive git clean -ffd
+   if [ -n "`git status --porcelain | head -n 1`" ]; then
+        timeout 10m git reset --hard
+        timeout 10m git submodule foreach --recursive git reset --hard
+        timeout 10m git clean -ffd
+        timeout 10m git submodule foreach --recursive git clean -ffd
+    fi
 
     # We could also do _safe_pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
