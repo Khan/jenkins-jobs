@@ -68,7 +68,7 @@ if [ -n "$GAE_VERSION" ]; then
         fi
     done
 
-    if [ -n "$locales_for_static_upload"]; then
+    if [ -n "$locales_for_static_upload" ]; then
         deploy/deploy_to_gcs.py $JOBS "$GAE_VERSION"
     fi
 fi
