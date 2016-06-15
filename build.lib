@@ -586,7 +586,7 @@ safe_merge_from_branch() {
     echo "Merging $merge_from into $git_revision"
     if ! git merge "$merge_from" ; then
         git merge --abort
-        alert error "Merge conflict: must merge $merge_rom into $git_revision manually."
+        alert error "Merge conflict: must merge $merge_from into $git_revision manually."
         exit 1
     fi
 
