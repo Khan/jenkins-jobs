@@ -136,7 +136,7 @@ clean_ka_static() {
 
     # We need to add the gs://ka-static prefix to match the gsutil ls output.
     sed s,^/,gs://ka-static/, "$files_to_keep" \
-        | LANG=C sort > "$files_to_keep.sorted"
+        | LANG=C sort -u > "$files_to_keep.sorted"
 
     # Basic sanity check: make sure favicon.ico is in the list of files
     # to keep.  If not, something has gone terribly wrong.
