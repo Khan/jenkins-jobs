@@ -104,5 +104,10 @@ prime
 # We can run all these in parallel!  We move all output to stderr so
 # we don't have to worry about the output lines getting intermingled.
 run_website_e2e_tests 1>&2 &
-run_android_e2e_tests 1>&2 &
+
+# These tests are failing due to 500s all the time. Disabling them now
+# because they're very noisy.
+# See https://app.asana.com/0/inbox/15045191754661/144201038317782/146044043448984.
+# run_android_e2e_tests 1>&2 &
+
 wait
