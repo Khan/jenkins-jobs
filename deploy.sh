@@ -23,10 +23,10 @@ fi
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
-: ${MODULES:=}          # --modules: if set, a comma-separated list to deploy
-: ${SKIP_I18N:=false}   # --no-i18n: set to "true" to append --no-i18n
-: ${FORCE:=false}       # --force: deploy unconditionally
-: ${PRIME:=false}       # --force-priming: set to "true" to append
+: ${MODULES:=}              # --modules: if set, a comma-separated list to deploy
+: ${SKIP_I18N:=false}       # --no-i18n: set to "true" to append --no-i18n
+: ${FORCE:=false}           # --force: deploy unconditionally
+: ${SKIP_PRIMING:=false}    # --no-priming: set to "true" to append
 : ${SUBMODULE_REVERTS:=false}  # --allow-submodule-reverts: "true" to append
 : ${SLACK_CHANNEL:=#1s-and-0s-deploys}  # --slack-channel: "" to disable slack
 
@@ -59,7 +59,7 @@ DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
 [ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
-[ "$PRIME" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-priming"
+[ "$SKIP_PRIMING" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-priming"
 [ "$SUBMODULE_REVERTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --allow-submodule-reverts"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
