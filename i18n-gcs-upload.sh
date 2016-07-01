@@ -44,6 +44,8 @@ fi
 
 cd "$WEBSITE_ROOT"
 
+make install_deps
+
 # These kake jobs can use a lot of memory; to avoid trouble we build
 # just one at a time.
 for locale in $I18N_GCS_UPLOAD_LOCALES; do

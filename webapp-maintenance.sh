@@ -38,6 +38,8 @@ cd "$WEBSITE_ROOT"
 
 safe_pull .
 
+make install_deps
+
 pngcrush() {
     deploy/pngcrush.py
     {
