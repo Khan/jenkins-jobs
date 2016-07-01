@@ -34,24 +34,6 @@ alert_slack() {
           --chat-sender "Testing Turtle" --icon-emoji ":turtle:"
 }
 
-# Tests are much more likely to fail if we haven't yet primed the new version,
-# so we'll do that first.
-prime() {
-    # If we're already default, everything should already be primed.
-    if [ "$VERSION" != "default" ] ; then
-        (
-            cd "$WEBSITE_ROOT"
-            # NOTE: this only does cache-priming, not instance-priming,
-            # because we don't need many instances up for tests.
-            #
-            # We don't really care if priming fails; we'll do it again
-            # on set-default, with better failure-handling, so this version
-            # isn't necessary to the success of the deploy.
-            deploy/primeversion.py --no-instance-priming "$VERSION" || echo "Priming failed"
-        )
-    fi
-}
-
 # Always exit with success, but log a message if there were monitoring
 # failures; our postbuild actions will handle marking the build as
 # unstable, which will cause the user or upstream job to know it's not all
@@ -93,13 +75,6 @@ run_website_e2e_tests() {
     )
 }
 
-
-# This doesn't strictly need to happen first, but the e2e tests will run
-# a lot faster if it does, because of how Casper handles timeouts.  So it
-# seems worth it to just run it first.
-# TODO(benkraft): if this turns out to slow things down, do it in parallel,
-# which will probably still help but slow things down less.
-prime
 
 # We can run all these in parallel!  We move all output to stderr so
 # we don't have to worry about the output lines getting intermingled.
