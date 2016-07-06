@@ -1,0 +1,3 @@
+This directory holds scripts useful for monitoring jenkins's activity.
+
+It is used by cronjobs on the jenkins ec2 machine.
