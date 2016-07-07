@@ -14,12 +14,33 @@
 # oops or crash or some other problem.  In that case, we have to
 # manually restart the worker's ssh-connection from within jenkins.
 #
-# This script notices when that situation arises and sends a message
-# to slack so that people can handle it properly.
+# This script notices when that situation arises and is true for more
+# than 5 minutes, and sends a message to slack so that people can
+# handle it properly.
 #
 # This script is meant to be run as the `ubuntu` user.
 
 JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
+LIVE_WORKERS_FILE="/tmp/live_workers.is_bad"
+
+# We send a warning if failures have been going on since at least this time.
+A_WHILE_AGO=`date +%s -d "5 minutes ago"`
+
+
+warn() {
+    cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
+                      "$HOME/alertlib/alert.py" \
+                      --slack "#1s-and-0s-deploys,#infrastructure" \
+                      --severity "error" \
+                      --summary "Need to restart some jenkins workers"
+Some of the Jenkins worker machines are in a bad state and must be restarted.
+
+To do this, visit https://jenkins.khanacademy.org/computer.  Look in the
+right navigation pane for workers that are marked "(offline)".  Click on
+each one and then click the big "Launch agent" button.
+EOF
+}
+
 
 # First, figure out how many workers we have.  We can get that from
 # the jenkins configs.  We are looking for this section in config.xml:
@@ -33,7 +54,6 @@ JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 #             </hudson.plugins.ec2.EC2Tag>
 #           </tags>
 # ```
-
 expected_workers=`\
     grep -C10 "jenkins ka-test worker" "$JENKINS_HOME/config.xml" \
         | grep instanceCap | tr -cd 0123456789`
@@ -46,15 +66,28 @@ expected_workers=`\
 actual_workers=`sudo lsof -u jenkins -a -i :22 | grep ssh | wc -l`
 
 if [ "$actual_workers" -gt 0 -a "$actual_workers" -lt "$expected_workers" ]; then
-    cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
-                      "$HOME/alertlib/alert.py" \
-                      --slack "#1s-and-0s-deploys,#infrastructure" \
-                      --severity "error" \
-                      --summary "Need to restart some jenkins workers"
-Some of the Jenkins worker machines are in a bad state and must be restarted.
-
-To do this, visit https://jenkins.khanacademy.org/computer.  Look in the
-right navigation pane for workers that are marked "(offline)".  Click on
-each one and then click the big "Launch agent" button.
-EOF
+    # OK, let's see if this problem has been going on for a while.
+    # The idea is we create LIVE_WORKERS_FILE every time we see a
+    # problem and the file doesn't already exist, and delete it every
+    # time we don't see a problem.  So if LIVE_WORKERS_FILE is at least
+    # X minutes old, that means we've been failing for >=X minutes.
+    if [ -e "$LIVE_WORKERS_FILE" ]; then
+        if [ `stat -c %Y "$LIVE_WORKERS_FILE"` -le "$A_WHILE_AGO" ]; then
+            warn
+            # Make it so that we don't warn again for a little while.
+            rm -f "$LIVE_WORKERS_FILE"
+        else
+            # Failures have been going on, but not long enough for us to
+            # warn.  Let's just chill until next time.
+            :
+        fi
+    else
+        # We're failing, but LIVE_WORKERS_FILE doesn't exist.  That
+        # means we're the first failure, so let's make a note of it!
+        # We won't warn yet though; it's too early.
+        touch "$LIVE_WORKERS_FILE"
+    fi
+else
+    # Everything is ok, let's delete the "it's bad" file.  Happy times!
+    rm -f "$LIVE_WORKERS_FILE"
 fi
