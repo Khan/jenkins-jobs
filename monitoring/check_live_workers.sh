@@ -17,7 +17,7 @@
 # This script notices when that situation arises and sends a message
 # to slack so that people can handle it properly.
 #
-# This script is meant to be run as the Jenkins user.
+# This script is meant to be run as the `ubuntu` user.
 
 JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 
@@ -41,7 +41,9 @@ expected_workers=`\
 # Figure out how many ssh processes the jenkins user has open.
 # We assume that jenkins doesn't need to ssh to anyone except the workers.
 # (The 'grep' is just an easy way to get rid of the header line.)
-actual_workers=`lsof -u jenkins -a -i :22 | grep ssh | wc -l`
+# TODO(csilvers): figure out how to get permissions to see these processes
+#     without requiring sudo.  Maybe run this as the jenkins user?
+actual_workers=`sudo lsof -u jenkins -a -i :22 | grep ssh | wc -l`
 
 if [ "$actual_workers" -gt 0 -a "$actual_workers" -lt "$expected_workers" ]; then
     cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
