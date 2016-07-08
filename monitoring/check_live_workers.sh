@@ -40,6 +40,9 @@ the right navigation pane for workers that are marked "(offline)".  If
 *all* of them are offline, that's expected and you're done.  If some
 are offline and some are online, on the other hand, click on each one
 that is offline and then click the big "Launch agent" button.
+
+(If you do not see the "Launch agent" button, you may lack the necessary
+permissions; ask for help on the #infrastructure slack room.)
 EOF
 }
 
