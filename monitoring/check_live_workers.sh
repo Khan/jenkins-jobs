@@ -35,9 +35,11 @@ warn() {
                       --summary "Need to restart some jenkins workers"
 Some of the Jenkins worker machines are in a bad state and must be restarted.
 
-To do this, visit https://jenkins.khanacademy.org/computer.  Look in the
-right navigation pane for workers that are marked "(offline)".  Click on
-each one and then click the big "Launch agent" button.
+To do this, visit https://jenkins.khanacademy.org/computer.  Look in
+the right navigation pane for workers that are marked "(offline)".  If
+*all* of them are offline, that's expected and you're done.  If some
+are offline and some are online, on the other hand, click on each one
+that is offline and then click the big "Launch agent" button.
 EOF
 }
 
