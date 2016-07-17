@@ -4,8 +4,9 @@
 # run by the continuous integration server from the root of a workspace
 # where the website code is checked out into a subdirectory.
 
-# There are 2 types of tests currently being run:
-# - webpage-loading tests, using phantomjs.
+# There are 3 types of tests currently being run:
+# - webpage-loading tests, using phantomjs (DEPRECATED)
+# - webpage-loading tests, using selenium (replacing phantomjs tests).
 # - mobile integration tests against the topic tree endpoint (https://github.com/Khan/android/blob/master/db-generator/src/main/java/org/khanacademy/dbgenerator/Main.java).
 
 # Settings:
@@ -74,10 +75,25 @@ run_website_e2e_tests() {
         fi
     )
 }
+run_selenium_e2e_tests() {
+    (
+        cd "$WEBSITE_ROOT"
+        URL="https://${VERSION}-dot-khan-academy.appspot.com"
+        # TODO(dhruv): selenium test runner should output xml
+        # so we can use analyze_make_output
+        if tools/selenium_webapp_testing.py selenium_tests --url $URL --driver remote
+            alert_slack "selenium tests suceeded!" "info" "better-end-to-end"
+        then
+            alert_slack "selenium tests failed!" "error" "better-end-to-end"
+        fi
+    )
+}
 
 
 # We can run all these in parallel!  We move all output to stderr so
 # we don't have to worry about the output lines getting intermingled.
 run_website_e2e_tests 1>&2 &
 run_android_e2e_tests 1>&2 &
+run_selenium_e2e_tests 1>&2 &
+
 wait
