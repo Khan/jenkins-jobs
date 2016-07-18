@@ -84,7 +84,7 @@ run_selenium_e2e_tests() {
         then
             alert_slack "selenium tests suceeded!" "info" "better-end-to-end"
         else
-            alert_slack "selenium tests failed!" "error" "better-end-to-end"
+            alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" "error" "better-end-to-end"
         fi
     )
 }
