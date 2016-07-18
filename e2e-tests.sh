@@ -80,7 +80,7 @@ run_selenium_e2e_tests() {
         URL="https://${VERSION}-dot-khan-academy.appspot.com"
         # TODO(dhruv): selenium test runner should output xml
         # so we can use analyze_make_output
-        if "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests --url "$URL" --driver remote --jobs 4 --retries 3
+        if "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests --url "$URL" --driver remote --jobs 4
         then
             alert_slack "selenium tests suceeded!" "info" "better-end-to-end"
         else
