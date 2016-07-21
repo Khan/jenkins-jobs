@@ -240,11 +240,9 @@ def add_links(build_url, testcase, sep='.'):
     name_parts.append(testcase.get("name"))
     display_name = _clean_link_text(sep.join(name_parts))
     try:
-        module, classname = testcase.get("classname").rsplit(".", 1)
-    except ValueError:
-        # TODO(csilvers): instead, set module/classname to something useful.
-        raise ValueError("Cannot extract module/classname from %s"
-                         % testcase.get("classname"))
+        (module, classname) = testcase.get("classname").rsplit(".", 1)
+    except ValueError:   # no dot seen
+        (module, classname) = ('', testcase.get("classname", "<unspecified>"))
     return link_to_jenkins_test_report(
         display_name, build_url,
         _clean_class_name(module),
