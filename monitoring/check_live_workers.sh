@@ -24,7 +24,7 @@ JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 LIVE_WORKERS_FILE="/tmp/live_workers.is_bad"
 
 # We send a warning if failures have been going on since at least this time.
-A_WHILE_AGO=`date +%s -d "5 minutes ago"`
+A_WHILE_AGO=`date +%s -d "10 minutes ago"`
 
 
 warn() {
