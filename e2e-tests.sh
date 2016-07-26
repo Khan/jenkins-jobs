@@ -82,7 +82,9 @@ run_selenium_e2e_tests() {
         # so we can use analyze_make_output
         if "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests --url "$URL" --driver sauce --jobs 4 --retries 3
         then
-            alert_slack "selenium tests suceeded: ${BUILD_URL}consoleFull" "info" "better-end-to-end"
+            # Don't alert on success for now
+            :
+            #alert_slack "selenium tests suceeded: ${BUILD_URL}consoleFull" "info" "better-end-to-end"
         else
             alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" "error" "better-end-to-end"
         fi
