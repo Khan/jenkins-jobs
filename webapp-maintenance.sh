@@ -114,18 +114,26 @@ clean_ka_translations() {
 clean_ka_static() {
     # First we find the manifest files for the last week.  (Plus we
     # always keep the last 3.)  We'll keep any file listed in there.
+
+    # We also keep the manifest files for any version still on appengine.
+    # (audit_gae_versions.py has a bunch of other text it emits besides
+    # the active versions, but it's ok to have extra stuff.)
+    active_versions=`tools/audit_gae_versions.py -n`
+
     week_ago_time_t=`date -d "-7 days" +%s`
     manifests_seen=0
     files_to_keep=`mktemp -d`/files_to_keep
     # The 'ls -l' output looks like this:
     #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
-    gsutil ls -l 'gs://ka-static/_manifest.*' | grep _manifest | sort -k2r | while read line; do
+    gsutil ls -l 'gs://ka-static/_manifest.*.json' | grep _manifest | sort -k2r | while read line; do
         date=`echo "$line" | awk '{print $2}'`
         time_t=`date -d "$date" +%s`
-        if [ "$time_t" -gt "$week_ago_time_t" -o $manifests_seen -lt 3 ]; then
-            # (Since we create the manifest-files, we know they don't
-            # have spaces in their name.)
-            manifest=`echo "$line" | awk '{print $3}'`
+        # (Since we create the manifest-files, we know they don't
+        # have spaces in their name.)
+        manifest=`echo "$line" | awk '{print $3}'`
+        manifest_version=`echo "$manifest" | cut -d. -f2`  # _manifest.<v>.json
+        if [ "$time_t" -gt "$week_ago_time_t" -o $manifests_seen -lt 3 ] \
+            || echo "$active_versions" | grep -q "$manifest_version"; then
             # This gets the keys (which is the url) to each
             # dict-entry in the manifest file.
             gsutil cat "$manifest" | grep -o '"[^"]*":' | tr -d '":' \
