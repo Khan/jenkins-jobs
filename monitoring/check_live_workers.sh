@@ -24,7 +24,7 @@
 # This script is meant to be run as the `ubuntu` user.
 
 # How many minutes we wait for the jenkins workers to start up.
-GRACE_PERIOD=5
+GRACE_PERIOD=7
 
 JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 
