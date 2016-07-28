@@ -96,6 +96,7 @@ run_selenium_e2e_tests() {
 # we don't have to worry about the output lines getting intermingled.
 run_website_e2e_tests 1>&2 &
 run_android_e2e_tests 1>&2 &
-run_selenium_e2e_tests 1>&2 &
+# Disabling the selenium tests until our sauce credentials are activated
+#run_selenium_e2e_tests 1>&2 &
 
 wait
