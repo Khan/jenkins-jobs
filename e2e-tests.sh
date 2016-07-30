@@ -82,7 +82,7 @@ run_selenium_e2e_tests() {
         # pwd needs to be set to webapp for selenium_webapp_testing to be set
         if ! (cd $WEBSITE_ROOT;
               "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests \
-              #--url "$URL" --driver sauce --jobs 4 --retries 3 \
+              --url "$URL" --driver sauce --jobs 4 --retries 3 \
               --xml-dir "$WEBSITE_ROOT/genfiles/selenium_test_reports/" )
         then
             echo "selenium tests exited with failure!"
