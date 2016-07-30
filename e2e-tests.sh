@@ -78,16 +78,20 @@ run_website_e2e_tests() {
 run_selenium_e2e_tests() {
     (
         URL="https://${VERSION}-dot-khan-academy.appspot.com"
-        # TODO(dhruv): selenium test runner should output xml
-        # so we can use analyze_make_output
-        if "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests --url "$URL" --driver sauce --jobs 4 --retries 3
+        if ! "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" selenium_tests \
+            --url "$URL" --driver sauce --jobs 4 --retries 3 \
+            --xml-dir "$WEBSITE_ROOT/genfiles/selenium_test_reports/" \
+            || echo "selenium tests exited with failure!"
         then
-            # Don't alert on success for now
-            :
-            #alert_slack "selenium tests suceeded: ${BUILD_URL}consoleFull" "info" "better-end-to-end"
-        else
-            alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" "error" "better-end-to-end"
+            alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" \
+                        "error" "better-end-to-end"
         fi
+
+        # analyze make output will alert slack if there's an error
+        "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
+            --test_reports_dir="$WEBSITE_ROOT"/genfiles/selenium_test_reports/\
+            --jenkins_build_url="$BUILD_URL" \
+            --slack-channel="$SLACK_CHANNEL"
     )
 }
 
@@ -96,7 +100,6 @@ run_selenium_e2e_tests() {
 # we don't have to worry about the output lines getting intermingled.
 run_website_e2e_tests 1>&2 &
 run_android_e2e_tests 1>&2 &
-# Disabling the selenium tests until our sauce credentials are activated
-#run_selenium_e2e_tests 1>&2 &
+run_selenium_e2e_tests 1>&2 &
 
 wait
