@@ -188,6 +188,7 @@ clean() {
             # genfiles is excluded from "git clean" so we need to manually
             # remove artifacts that should not be kept across builds.
             rm -rf genfiles/test-reports genfiles/lint_errors.txt
+            rm -rf genfiles/selenium_test_reports
             ;;
         none)
             ;;
