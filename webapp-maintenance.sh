@@ -134,9 +134,11 @@ clean_ka_static() {
         manifest_version=`echo "$manifest" | cut -d. -f2`  # _manifest.<v>.json
         if [ "$time_t" -gt "$week_ago_time_t" -o $manifests_seen -lt 3 ] \
             || echo "$active_versions" | grep -q "$manifest_version"; then
-            # This gets the keys (which is the url) to each
-            # dict-entry in the manifest file.
-            gsutil cat "$manifest" | grep -o '"[^"]*":' | tr -d '":' \
+            # This gets the keys (which is the url) to each dict-entry
+            # in the manifest file.  The manifest file might be
+            # uploaded compressed, so I use `zcat -f` to uncompress it
+            # if needed. (`-f` handles uncompressed data correctly too.)
+            gsutil cat "$manifest" | zcat -f | grep -o '"[^"]*":' | tr -d '":' \
                 >> "$files_to_keep"
             # We also keep the manifest-file itself around!
             echo "$manifest" >> "$files_to_keep"
