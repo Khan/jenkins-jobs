@@ -157,14 +157,24 @@ clean_ka_static() {
         exit 1
     fi
 
+    # Configure the whitelist. Any files in the whitelist will be kept around
+    # in perpetuity.
+    # We need to keep topic icons around forever because older mobile clients
+    # continue to point to them. Thankfully, they don't change that often, and
+    # so we shouldn't expect an explosion of stale icons. We don't need to
+    # worry about keeping older manifests around, since the mobile clients
+    # download and ship with the most recent manifest.
+    KA_STATIC_WHITELIST="-e genfiles/topic-icons/icons/"
+
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
-    # are directories.
+    # are directories.  We also ignore any files in the whitelist.
     # TODO(csilvers): make the xargs 'gsutil -m' after we've debugged
     # why that sometimes fails with 'file not found'.
     gsutil -m ls -r gs://ka-static/ \
         | grep . \
         | grep -v ':$' \
+        | grep -v $KA_STATIC_WHITELIST \
         | LANG=C sort > "$files_to_keep.candidates"
     # This prints files in 'candidates that are *not* in files_to_keep.
     LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
