@@ -151,7 +151,7 @@ if [ -n "$UPDATE_STRINGS" ]; then
     rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
     kake/build_prod_main.py -v3 pot
     # This is where build_prod_main.py puts the output all.pot
-    ALL_POT="$PWD"/genfiles/translations/all.pot.txt_for_debugging
+    ALL_POT="$PWD"/genfiles/translations/all.pot.pickle
 
     echo "Sanity check: will fail if the new all.pot is missing stuff."
     [ `wc -l < "$ALL_POT"` -gt 100000 ]
