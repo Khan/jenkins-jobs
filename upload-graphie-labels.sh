@@ -26,9 +26,9 @@ safe_pull intl/translations
 
 # upload_graphie_labels.py expects all of the labels to have already been
 # translated.
-# TODO(csilvers): write a small script that does this instad.
-languages=`python -c 'import tools.appengine_tool_setup; tools.appengine_tool_setup.fix_sys_path(); import intl.locale; print "\n".join(intl.locale.all_locales_for_packages() - {"en"})'`
+languages=`intl/locale_main.py | grep "locales for packages:" | cut -d: -f2`
 for language in $languages; do
+    [ "$language" = "en" ] && continue
     echo "Translating graphie labels for $language."
     kake/build_prod_main.py -v1 i18n_graphie_labels --language="$language"
 done
