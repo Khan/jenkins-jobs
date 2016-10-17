@@ -23,6 +23,8 @@ fi
 # These set various flags when calling deploy.py.  See also:
 #    VERSION: which sets --version
 #    CLEAN: which may set --no-clean
+: ${DEPLOY_DYNAMIC:=true}
+: ${DEPLOY_STATIC:=true}
 : ${MODULES:=}              # --modules: if set, a comma-separated list to deploy
 : ${SKIP_I18N:=false}       # --no-i18n: set to "true" to append --no-i18n
 : ${FORCE:=false}           # --force: deploy unconditionally
@@ -56,6 +58,8 @@ cd "$WEBSITE_ROOT"
 # We always set --no-up: Jenkins checks out the right revision for us.
 DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
 DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
+[ "$DEPLOY_DYNAMIC" = "true" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --static-only"
+[ "$DEPLOY_STATIC" = "true" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --copy-static"
 [ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
 [ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
 [ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
