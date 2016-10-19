@@ -12,25 +12,30 @@
 
 # The AppEngine version name for this deployment. The special string "default"
 # indicates a default deploy and an auto-generated version is used.
+# If DEPLOY_STATIC is true and DEPLOY_DYNAMIC is false, then DEPLOY_VERSION
+# indicates the static version to deploy; in that case, the related dynamic
+# version is the currently live version.
 : ${DEPLOY_VERSION:=staging}
 if [ "${DEPLOY_VERSION}" = "default" ]; then
-    # We unset here to retain the deploy.py semantics that an empty version
-    # indicates a default deploy. We jump through some hoops so if the user
-    # doesn't set DEPLOY_VERSION at all, we default to deploying to 'staging',
-    # rather than doing the deploy.py default of doing a default deploy.
+    # We unset here to retain the deploy_to_gae.py semantics that an
+    # empty version indicates a default deploy.
     DEPLOY_VERSION=
 fi
-# These set various flags when calling deploy.py.  See also:
-#    VERSION: which sets --version
-#    CLEAN: which may set --no-clean
+
+# These control whether we call deploy_to_gae, deploy_to_gcs, or both.
 : ${DEPLOY_DYNAMIC:=true}
 : ${DEPLOY_STATIC:=true}
+
+# These set various flags when calling deploy_to_gae.py and
+# deploy_to_gcs.py.  See also:
+#    DEPLOY_VERSION: which sets --version
 : ${MODULES:=}              # --modules: if set, a comma-separated list to deploy
 : ${SKIP_I18N:=false}       # --no-i18n: set to "true" to append --no-i18n
 : ${FORCE:=false}           # --force: deploy unconditionally
 : ${SKIP_PRIMING:=false}    # --no-priming: set to "true" to append
 : ${SUBMODULE_REVERTS:=false}  # --allow-submodule-reverts: "true" to append
 : ${SLACK_CHANNEL:=#1s-and-0s-deploys}  # --slack-channel: "" to disable slack
+: ${DEPLOYER_USERNAME:=}    # --deployer-username: @user who is deploying
 
 # If set, we look for this directory, and if it exists use it as our
 # genfiles directory before deploying (we do this by mv-ing it).  This
@@ -54,19 +59,37 @@ ensure_virtualenv
 
 cd "$WEBSITE_ROOT"
 
-# Set up the flags we pass to deploy.py
-# We always set --no-up: Jenkins checks out the right revision for us.
-DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
-DEPLOY_FLAGS="$DEPLOY_FLAGS --no-browser --no-up --clean-versions"
-[ "$DEPLOY_DYNAMIC" = "true" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --static-only"
-[ "$DEPLOY_STATIC" = "true" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --copy-static"
-[ -z "$MODULES" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --modules='$MODULES'"
-[ "$SKIP_I18N" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-i18n"
-[ "$FORCE" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --force-deploy"
-[ "$SKIP_PRIMING" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --no-priming"
-[ "$SUBMODULE_REVERTS" = "false" ] || DEPLOY_FLAGS="$DEPLOY_FLAGS --allow-submodule-reverts"
-DEPLOY_FLAGS="$DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
-DEPLOY_FLAGS="$DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
+# Set up the flags we pass to deploy_to_gae.py.
+if [ "$DEPLOY_DYNAMIC" = "true" ]; then
+    GAE_DEPLOY_FLAGS="--version='$DEPLOY_VERSION'"
+    GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --no-browser --no-up --clean-versions"
+    [ -z "$MODULES" ] || GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --modules='$MODULES'"
+    [ "$SKIP_I18N" = "false" ] || GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --no-i18n"
+    [ "$FORCE" = "false" ] || GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --force-deploy"
+    [ "$SKIP_PRIMING" = "false" ] || GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --no-priming"
+    [ "$SUBMODULE_REVERTS" = "false" ] || GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --allow-submodule-reverts"
+    GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
+    GAE_DEPLOY_FLAGS="$GAE_DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
+fi
+
+# Also set up the flags we pass to deploy_to_gcs.py.  If
+# DEPLOY_DYNAMIC is true and DEPLOY_STATIC is false, we still call
+# deploy_to_gcs, but with an arg saying "just copy the static-manifest
+# to our new dynamic gae version."
+GCS_DEPLOY_FLAGS=""
+if [ "$DEPLOY_STATIC" = "true" ]; then
+    [ "$SKIP_I18N" = "false" ] || GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --no-i18n"
+    # We only tell deploy_to_gcs to message slack if deploy_to_gae won't be.
+    if [ "$DEPLOY_DYNAMIC" = "false" ]; then
+        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
+        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
+    fi
+else
+    GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --copy-from=default"
+fi
+# Here we can't use an empty-string version name, so for default
+# deploys we need to ask `make` what the version name will be.
+GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS ${DEPLOY_VERSION-`make gae_version_name`}"
 
 # Clean out the working tree.
 clean "$CLEAN"         # in build.lib
@@ -79,7 +102,7 @@ fi
 # Run the deploy.
 "$MAKE" install_deps
 
-echo "Deploying"
+echo "Deploying to: `[ "$DEPLOY_DYNAMIC" = "true" ] && echo "gae "``[ "$DEPLOY_STATIC" = "true" ] && echo "gcs "`"
 
 # We need to deploy secrets.py to production, so it needs to be in
 # webapp/, not just in $SECRETS_DIR.
@@ -97,5 +120,26 @@ cp -p "$SECRETS_DIR/secrets.py" .
 # 4096 appears to be the maximum value linux allows.
 ulimit -S -n 4096
 
-# Use eval to properly handle quotes in $DEPLOY_FLAGS
-eval python -u deploy/deploy.py $DEPLOY_FLAGS
+# TODO(csilvers): remove this compatibility-mode `if` after D31478 is landed.
+if [ -s deploy/deploy.py ]; then
+    eval python -u deploy/deploy.py $GAE_DEPLOY_FLAGS
+    exit 0
+fi
+
+# We can deploy both at the same time.  We use eval to properly handle
+# quotes in $DEPLOY_FLAGS.
+if [ -n "$GAE_DEPLOY_FLAGS" ]; then
+    eval python -u deploy/deploy_to_gae.py $GAE_DEPLOY_FLAGS &
+    gae_pid=$!
+fi
+if [ -n "$GCS_DEPLOY_FLAGS" ]; then
+    eval python -u deploy/deploy_to_gcs.py $GCS_DEPLOY_FLAGS &
+    gcs_pid=$!
+fi
+
+# We can't just call the no-arg version of `wait` because it always
+# returns rc 0.  By doing it this way, we return the rc of each
+# deploy_to_*.py script, and if it's an error this script will fail
+# (due to the `-e` on the shebang line).
+if [ -n "$gae_pid" ]; then wait "$gae_pid"; fi
+if [ -n "$gcs_pid" ]; then wait "$gcs_pid"; fi
