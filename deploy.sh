@@ -143,5 +143,17 @@ fi
 # (due to the `-e` on the shebang line).  We wait for gcs first
 # because gae is the one that writes to slack, and we don't want to
 # do that until everything is done.
-if [ -n "$gcs_pid" ]; then wait "$gcs_pid"; fi
-if [ -n "$gae_pid" ]; then wait "$gae_pid"; fi
+if [ -n "$gcs_pid" ]; then
+    if ! wait "$gcs_pid"; then
+        echo "DEPLOY TO GCS FAILED"
+        # NO need to wait for GAE-deploy once the GCS-deploy has failed.
+        [ -z "$gae_pid" ] || kill "$gae_pid"
+        exit 1
+    fi
+fi
+if [ -n "$gae_pid" ]; then
+    if ! wait "$gae_pid"; then
+        echo "DEPLOY TO APPENGINE (GAE) FAILED"
+        exit 1
+    fi
+fi
