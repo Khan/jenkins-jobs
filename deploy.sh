@@ -80,7 +80,10 @@ GCS_DEPLOY_FLAGS=""
 if [ "$DEPLOY_STATIC" = "true" ]; then
     [ "$SKIP_I18N" = "false" ] || GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --no-i18n"
     # We only tell deploy_to_gcs to message slack if deploy_to_gae won't be.
-    if [ "$DEPLOY_DYNAMIC" = "false" ]; then
+    if [ "$DEPLOY_DYNAMIC" = "true" ]; then
+        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel="
+        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username="
+    else
         GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
         GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
     fi
