@@ -123,12 +123,6 @@ cp -p "$SECRETS_DIR/secrets.py" .
 # 4096 appears to be the maximum value linux allows.
 ulimit -S -n 4096
 
-# TODO(csilvers): remove this compatibility-mode `if` after D31478 is landed.
-if [ -s deploy/deploy.py ]; then
-    eval python -u deploy/deploy.py $GAE_DEPLOY_FLAGS
-    exit 0
-fi
-
 # We can deploy both at the same time.  We use eval to properly handle
 # quotes in $DEPLOY_FLAGS.
 if [ -n "$GAE_DEPLOY_FLAGS" ]; then
