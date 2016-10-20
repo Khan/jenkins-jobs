@@ -13,14 +13,6 @@
 
 # The URL to run the e2e tests against.
 : ${URL:=https://www.khanacademy.org}
-# An old variant of $URL.  TODO(csilvers): remove after all callers are fixed.
-if [ -n "$VERSION" ]; then
-    if expr "$VERSION" : "http" >/dev/null; then   # $VERSION is a url
-        URL="$VERSION"
-    else
-        URL="$VERSION-dot-khan-academy.appspot.com"
-    fi
-fi
 # Whether to run a11y tests.
 : ${RUN_A11Y:=true}
 # Send an extra message to alert.py in the case of an error.
@@ -66,11 +58,9 @@ run_android_e2e_tests() {
 run_website_e2e_tests() {
     (
         cd "$WEBSITE_ROOT"
-        # TODO(csilvers): replace `--version` with `--url` once
-        # https://phabricator.khanacademy.org/D31484 has landed.
         find end-to-end -name '*_e2etest.js'  \
           | if [ "$RUN_A11Y" = "false" ]; then grep -v a11y; else cat; fi \
-          | xargs tools/end_to_end_webapp_testing.py --version "$URL" --no-colors --jobs=4 --engine=phantomjs \
+          | xargs tools/end_to_end_webapp_testing.py --url "$URL" --no-colors --jobs=4 --engine=phantomjs \
                 || echo "end_to_end_webapp_testing.py exited with failure"
 
         if ! "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
