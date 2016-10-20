@@ -140,6 +140,8 @@ fi
 # We can't just call the no-arg version of `wait` because it always
 # returns rc 0.  By doing it this way, we return the rc of each
 # deploy_to_*.py script, and if it's an error this script will fail
-# (due to the `-e` on the shebang line).
-if [ -n "$gae_pid" ]; then wait "$gae_pid"; fi
+# (due to the `-e` on the shebang line).  We wait for gcs first
+# because gae is the one that writes to slack, and we don't want to
+# do that until everything is done.
 if [ -n "$gcs_pid" ]; then wait "$gcs_pid"; fi
+if [ -n "$gae_pid" ]; then wait "$gae_pid"; fi
