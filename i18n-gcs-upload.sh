@@ -14,12 +14,12 @@
 # This should be a space-separated list of locales.
 : ${I18N_GCS_UPLOAD_LOCALES:=}
 
-# If the webapp repo at WEBSITE_ROOT is synced to a commit that is
-# compatible with a current deployed gae version, this should be
-# set to that gae version.  In that case, we'll rebuild the js/css
+# If the webapp repo at WEBSITE_ROOT is synced to a commit that has
+# been deployed live, set this to the git-tag of that commit.
+# (`gae-<version>`).  In that case, we'll rebuild the js/css
 # files and upload them to prod, to replace the existing js/css at
-# that gae version.
-: ${GAE_VERSION:=}
+# that gae version and static-content version.
+: ${GIT_TAG:=}
 
 # empty string means 'default number of parallel jobs', otherwise it
 # should be an integer.
@@ -56,7 +56,7 @@ done
 locales_for_upload="-l `echo "$I18N_GCS_UPLOAD_LOCALES" | sed "s/ / -l /g"`"
 deploy/upload_gcs_i18n.py $locales_for_upload
 
-if [ -n "$GAE_VERSION" ]; then
+if [ -n "$GIT_TAG" ]; then
     # Let's build the js/css files as well, and update the Settings for them.
     # But only do this if we've updated a language that we have js/css
     # content for.
@@ -70,7 +70,22 @@ if [ -n "$GAE_VERSION" ]; then
         fi
     done
 
+    # In a perfect world, we'd do a js-only deploy at this time to
+    # deploy the new translated files in a way that we could easily
+    # roll back.  But that would mean that i18n-gcs-upload could not
+    # run at the same time as a deploy, which is too big a cost for
+    # us.  So we just overwrite the content at the $GIT_TAG version
+    # instead, with this new content which should be exactly the same
+    # except maybe a bit better translated.
+    #
+    # If it turns out it's problematic, we can still roll back, it
+    # will just be a bit further back than we'd roll back if we did a
+    # real js-only deploy.
+    STATIC_CONTENT_VERSION=`deploy/git_tags.py --static "$GIT_TAG"`
+
     if [ -n "$locales_for_static_upload" ]; then
-        deploy/deploy_to_gcs.py $JOBS "$GAE_VERSION"
+        # We don't send to slack since there aren't really any changes
+        # to report.
+        deploy/deploy_to_gcs.py $JOBS --slack-channel= "$STATIC_CONTENT_VERSION"
     fi
 fi
