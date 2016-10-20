@@ -50,7 +50,7 @@ alert_slack() {
 # failure here, it would be difficult to downgrade that.
 
 run_android_e2e_tests() {
-    if "$WORKSPACE_ROOT"/jenkins-tools/run_android_db_generator.sh; then
+    if env URL="$URL" "$WORKSPACE_ROOT"/jenkins-tools/run_android_db_generator.sh; then
         alert_slack "Mobile integration tests succeeded" "info"
     else
         echo "run_android_db_generator.sh exited with failure"
