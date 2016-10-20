@@ -89,7 +89,7 @@ else
 fi
 # Here we can't use an empty-string version name, so for default
 # deploys we need to ask `make` what the version name will be.
-GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS ${DEPLOY_VERSION-`make gae_version_name`}"
+GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS ${DEPLOY_VERSION:-`make gae_version_name`}"
 
 # Clean out the working tree.
 clean "$CLEAN"         # in build.lib
