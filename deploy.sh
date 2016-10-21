@@ -79,16 +79,16 @@ fi
 GCS_DEPLOY_FLAGS=""
 if [ "$DEPLOY_STATIC" = "true" ]; then
     [ "$SKIP_I18N" = "false" ] || GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --no-i18n"
-    # We only tell deploy_to_gcs to message slack if deploy_to_gae won't be.
-    if [ "$DEPLOY_DYNAMIC" = "true" ]; then
-        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel="
-        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username="
-    else
-        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
-        GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
-    fi
 else
     GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --copy-from=default"
+fi
+# We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
+if [ "$DEPLOY_DYNAMIC" = "true" ]; then
+    GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel="
+    GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username="
+else
+    GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --slack-channel='$SLACK_CHANNEL'"
+    GCS_DEPLOY_FLAGS="$GCS_DEPLOY_FLAGS --deployer-username='$DEPLOYER_USERNAME'"
 fi
 # Here we can't use an empty-string version name, so for default
 # deploys we need to ask `make` what the version name will be.
