@@ -232,7 +232,7 @@ _safe_pull_bigfiles() {
       # First, clear up some space if need be by getting rid of old bigfiles.
       find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
           timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
-              | xargs -r0 rm
+              | xargs -r0 rm -f
       done
       timeout 120m git bigfile pull "$@"
       timeout 120m git submodule foreach git bigfile pull "$@"
@@ -461,7 +461,7 @@ safe_push() {
     # module and in submodules
     find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
         timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
-            | xargs -r0 rm
+            | xargs -r0 rm -f
     done
 
     # Ensure we push using SSH to use Jenkins' configured SSH keys.
