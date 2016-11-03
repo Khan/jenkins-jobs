@@ -7,11 +7,11 @@
 #   deploy/pngcrush.py
 #       compress images
 #   clean up obsolete containers in /var/lib/docker
-#   TODO: khan-exercises/local-only/update_local.sh
-#       get khan-exercises matching webpp
+#   clean up genfiles directories in every repo
+#   delete obsolete files on GCS (ka-static and ka_translations)
+#   remove obsolete webapp deploy-branches on github
 #   TODO: vacuum unused indexes
 #   TODO: store test times to use with the @tiny/@small/@large decorators
-#   TODO: remove obsolete webapp deploy-branches on github
 #
 # There are also some cleanups we'd like to run but probably can't
 # because they require manual intervention:
@@ -77,6 +77,37 @@ clean_genfiles() {
         # no harm done.
         find translations/pofiles -mtime +7 -print0 | xargs -0r rm -v
         find translations/approved_pofiles -mtime +7 -print0 | xargs -0r rm -v
+        )
+    done
+}
+
+# Every week, we prune invalid branches that creep into our repos somehow.
+# See http://stackoverflow.com/questions/6265502/getting-rid-of-does-not-point-to-a-valid-object-for-an-old-git-branch
+clean_invalid_branches() {
+    find $HOME/jobs/ -maxdepth 4 -name ".git" -type d | while read dir; do
+        (
+        dir=`dirname "$dir"`
+        echo "Cleaning invalid branches in $dir"
+        cd "$dir"
+
+        find .git/refs -type f | while read ref; do
+            id=`cat "$ref"`
+            if git rev-parse -q --verify "$id" >/dev/null && \
+               ! git rev-parse -q --verify "$id^{commit}" >/dev/null; then
+                echo "Removing ref $ref with missing commit $id"
+                rm "$ref"
+            fi
+        done
+
+        cat .git/packed-refs | awk '/refs\// {print $2}' | while read ref; do
+            id=`git rev-parse -q --verify "$ref"`   # "" if we fail to verify
+            if [ -n "$id" ] && \
+               git rev-parse -q --verify "$id" >/dev/null && \
+               ! git rev-parse -q --verify "$id^{commit}" >/dev/null; then
+                echo "Removing packed ref $ref with missing commit $id"
+                git update-ref -d "$ref"
+            fi
+        done
         )
     done
 }
@@ -184,6 +215,7 @@ clean_ka_static() {
 
 clean_docker
 clean_genfiles
+clean_invalid_branches
 clean_ka_translations
 clean_ka_static
 pngcrush
