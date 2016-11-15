@@ -60,11 +60,10 @@ expected_workers=`\
 #     without requiring sudo.  Maybe run this as the jenkins user?
 actual_workers=`sudo lsof -u jenkins -a -i :22 | grep ssh | wc -l`
 
-# TODO(dhruv): Move this back to alert #infrastructure after it is not flakey
 if [ "$actual_workers" -lt "$expected_workers" ]; then
     cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
                       "$HOME/alertlib/alert.py" \
-                      --slack "#monitoring" \
+                      --slack "#infrastructure-alerts" \
                       --severity "error" \
                       --summary "Need to restart some jenkins workers"
 Some of the Jenkins worker machines are in a bad state and must be restarted.
