@@ -81,7 +81,7 @@ run_selenium_e2e_tests() {
         if ! (cd $WEBSITE_ROOT;
               "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" \
               --buffer-output \
-              --url "$URL" --driver sauce --jobs 4 --retries 3 \
+              --url "$URL" --driver sauce --jobs 10 --retries 3 \
               --xml-dir "$WEBSITE_ROOT/genfiles/selenium_test_reports/" )
         then
             echo "selenium tests exited with failure!"
