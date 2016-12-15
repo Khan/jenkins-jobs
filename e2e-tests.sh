@@ -79,9 +79,10 @@ run_selenium_e2e_tests() {
     (
         # pwd needs to be set to webapp for selenium_webapp_testing to be set
         if ! (cd $WEBSITE_ROOT;
-              "$WEBSITE_ROOT/tools/rune2etests.py" \
-              --quiet --xml \
-              --url "$URL" --driver sauce --jobs 10 --retries 3 )
+              "$WEBSITE_ROOT/tools/selenium_webapp_testing.py" \
+              --buffer-output \
+              --url "$URL" --driver sauce --jobs 10 --retries 3 \
+              --xml-dir "$WEBSITE_ROOT/genfiles/selenium_test_reports/" )
         then
             echo "selenium tests exited with failure!"
             alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" \
