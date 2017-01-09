@@ -55,6 +55,21 @@ pngcrush() {
     } | safe_commit_and_push . -a -F -
 }
 
+svgcrush() {
+    deploy/svgcrush.py
+    {
+        echo "Automatic compression of webapp svg files via $0"
+        echo
+        echo "| size % | old size | new size | filename"
+        git status --porcelain | sort | while read status filename; do
+            old_size=`git show HEAD:"$filename" | wc -c`
+            new_size=`cat "$filename" | wc -c`
+            ratio=`expr $new_size \* 100 / $old_size`
+            echo "| $ratio% | $old_size | $new_size | $filename"
+        done
+    } | safe_commit_and_push . -a -F -
+}
+
 # Every week, make sure that /var/lib/docker's size is under control.
 # We then re-do a docker run to re-create the docker images we
 # actually still need (to make the next deploy faster).
@@ -218,4 +233,5 @@ clean_genfiles
 clean_invalid_branches
 clean_ka_translations
 clean_ka_static
+svgcrush
 pngcrush
