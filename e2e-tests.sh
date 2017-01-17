@@ -15,6 +15,10 @@
 : ${URL:=https://www.khanacademy.org}
 # Whether to run a11y tests.
 : ${RUN_A11Y:=true}
+# What selenium driver to use.  `sauce` is the 3rd-party platform we use.
+: ${SELENIUM_DRIVER:=sauce}
+# How many parallel jobs to run.  10 is how many sauce instances we have.
+: ${JOBS:=10}
 # Send an extra message to alert.py in the case of an error.
 : ${EXTRA_TEXT_ON_FAILURE:=""}
 # "" to disable slack notifications.
@@ -61,7 +65,7 @@ run_selenium_e2e_tests() {
         if ! (cd $WEBSITE_ROOT;
               "$WEBSITE_ROOT/tools/rune2etests.py" \
               --quiet --xml \
-              --url "$URL" --driver sauce --jobs 10 --retries 3 )
+              --url "$URL" --driver "$SELENIUM_DRIVER" --jobs "$JOBS" --retries 3 )
         then
             echo "selenium tests exited with failure!"
             alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" \
