@@ -28,6 +28,12 @@
 : ${WORKSPACE_ROOT:="`pwd`"}
 : ${WEBSITE_ROOT:="$WORKSPACE_ROOT/webapp"}
 
+
+# This is apparently needed to avoid hanging with the chrome driver.
+# See https://github.com/SeleniumHQ/docker-selenium/issues/87
+export DBUS_SESSION_BUS_ADDRESS=/dev/null
+
+
 # Send a message to slack.
 # $1: the message to send
 # $2: the severity level to use (warning, error, etc.). See alert.py for more details.
