@@ -4,7 +4,9 @@
 # output to stderr so we don't have to worry about the output lines
 # getting intermingled.
 
-./android-e2e-tests.sh 1>&2 &
-./selenium-e2e-tests.sh 1>&2 &
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
+
+"$SCRIPT_DIR"/android-e2e-tests.sh 1>&2 &
+"$SCRIPT_DIR"/selenium-e2e-tests.sh 1>&2 &
 
 wait
