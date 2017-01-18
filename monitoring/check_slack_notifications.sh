@@ -14,7 +14,7 @@ JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 # These are the jobs that are allowed not to send to slack for
 # whatever reason.  The format of this list is
 #    -e <jobname> -e <jobname> ...
-EXCEPTIONS="-e make-check-worker"
+EXCEPTIONS="-e make-check-worker -e e2e-test-worker"
 
 errors=""
 
