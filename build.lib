@@ -259,7 +259,10 @@ _safe_destructive_checkout() {
         timeout 10m git submodule foreach --recursive git clean -ffd
     fi
 
-    timeout 10m git checkout "$1"
+   if ! timeout 10m git checkout "$1" -- ; then
+       alert error "'$1' is not a valid git revision"
+       exit 1
+   fi
 
    if [ -n "`git status --porcelain | head -n 1`" ]; then
         timeout 10m git reset --hard
@@ -559,7 +562,7 @@ safe_merge_from_branch() {
         git reset --hard "origin/$git_revision"
     else
         if ! git checkout "$git_revision" -- ; then
-            alert error "$git_revision is not a valid git revision"
+            alert error "'$git_revision' is not a valid git revision"
             exit 1
         fi
     fi
