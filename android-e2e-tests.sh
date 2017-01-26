@@ -49,4 +49,5 @@ else
     fi
     alert_slack "$msg" "error"
     alert_slack "$msg" "error" "mobile-1s-and-0s"
+    exit 1
 fi

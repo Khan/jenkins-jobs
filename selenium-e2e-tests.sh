@@ -41,17 +41,25 @@ alert_slack() {
 
 cd "$WEBSITE_ROOT"
 
-if ! tools/rune2etests.py \
-       --quiet --xml --url "$URL" --jobs "$JOBS" --retries 3 \
-       --driver "$SELENIUM_DRIVER" $BACKUP_DRIVER_FLAG
+if tools/rune2etests.py \
+     --quiet --xml --url "$URL" --jobs "$JOBS" --retries 3 \
+     --driver "$SELENIUM_DRIVER" $BACKUP_DRIVER_FLAG
 then
+    rc=0
+else
     echo "selenium tests exited with failure!"
     alert_slack "selenium tests failed: ${BUILD_URL}consoleFull" \
                 "error" "better-end-to-end"
+    rc=1
 fi
 
-# analyze make output will alert slack if there's an error
+# analyze make output will alert slack if there's an error.  It will
+# also return a non-zero exit code *if* the error was one that ended
+# up being reported in the xml files.  For other types of errors
+# -- such as timeouts -- we depend on the setting of `rc=1` above.
 "$WORKSPACE_ROOT"/jenkins-tools/analyze_make_output.py \
     --test_reports_dir="$WEBSITE_ROOT"/genfiles/selenium_test_reports/ \
     --jenkins_build_url="$BUILD_URL" \
     --slack-channel="$SLACK_CHANNEL"
+
+exit $rc
