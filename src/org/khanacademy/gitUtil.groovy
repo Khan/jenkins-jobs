@@ -1,5 +1,7 @@
 // This should be run from a workspace that has checked out jenkins-tools.
 
+package org.khanacademy;
+
 
 // Submodules is the empty list (default) for "clone all submodules".
 // Submodules is null for "clone no submodules".
