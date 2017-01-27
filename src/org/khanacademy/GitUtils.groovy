@@ -11,7 +11,7 @@ class GitUtils {
     static def safeSyncToOrigin(repoToClone, commit, submodules=[]) {
         def submodulesString = '';
         if (submodules == null) {
-           submodulesString = 'no-submodules';
+           submodulesString = 'no_submodules';
         } else {
            submodulesString = submodules.join(' ');
         }
