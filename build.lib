@@ -628,3 +628,12 @@ busy_wait_on_dropbox() {
        sleep 30
     done
 }
+
+
+# Typically, you'll source this file into your own shell script
+# (`. build.lib`) to have access to its functions, but you can
+# also call it from the commandline, in which case you can run
+# any function here with args (typically a safe_* git function).
+if [ -n "$1" ]; then
+   "$@"
+fi
