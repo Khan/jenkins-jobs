@@ -14,7 +14,7 @@
 //
 // Use like this from the top of a a groovy script.
 //    new Setup().<option1>.<option2>....apply(steps);
-// `steps` is a global var 
+// `steps` is a global var defined by the pipeline setup.
 
 
 package org.khanacademy;
@@ -29,7 +29,7 @@ class Setup implements Serializable {
    // The values you set when running this job.
    def params;
 
-   Setup() { 
+   Setup() {
       this.numBuildsToKeep = 100;
       this.concurrentBuildCategories = ['this'];
       this.params = [];
@@ -71,15 +71,15 @@ class Setup implements Serializable {
          props << new logRotator(
             numToKeepStr: this.numBuildsToKeep.toString());
       }
-      if (this.concurrentBuildCategories && 
+      if (this.concurrentBuildCategories &&
           this.concurrentBuildCategories.contains('this')) {
          props << new disableConcurrentBuilds();
          props.removeElement('this');
       }
       if (this.concurrentBuildCategories) {
-         props << [$class: 'ThrottleJobProperty', 
+         props << [$class: 'ThrottleJobProperty',
                    categories: this.concurrentBuildCategories,
-                   throttleEnabled: true, 
+                   throttleEnabled: true,
                    throttleOption: 'category'
                   ];
       }
@@ -88,4 +88,5 @@ class Setup implements Serializable {
       }
 
       steps.properties(props);
+   }
 };
