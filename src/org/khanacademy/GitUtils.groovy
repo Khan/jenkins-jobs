@@ -1,3 +1,4 @@
+// A wrapper around build.lib, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
 
 package org.khanacademy;
