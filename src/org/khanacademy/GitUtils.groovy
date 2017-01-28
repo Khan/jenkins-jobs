@@ -18,6 +18,12 @@ def _submodulesArg(submodules) {
 }
 
 // Submodules is as in _submodulesArg.
+def safeSyncTo(repoToClone, commit, submodules=[]) {
+   sh ("jenkins-tools/build.lib safe_sync_to " +
+       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+}
+
+// Submodules is as in _submodulesArg.
 def safeSyncToOrigin(repoToClone, commit, submodules=[]) {
    sh ("jenkins-tools/build.lib safe_sync_to_origin " +
        "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
