@@ -92,7 +92,7 @@ class Setup implements Serializable {
       if (this.concurrentBuildCategories &&
           this.concurrentBuildCategories.contains('this')) {
          props << this.steps.disableConcurrentBuilds();
-         props.removeElement('this');
+         this.concurrentBuildCategories.removeElement('this');
       }
       if (this.concurrentBuildCategories) {
          props << [$class: 'ThrottleJobProperty',
