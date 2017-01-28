@@ -41,39 +41,53 @@ class Setup implements Serializable {
 
    def setNumBuildsToKeep(num) {
       this.numBuildsToKeep = num;
+      return this;
    }
    def keepAllBuilds(num) {
       this.numBuildsToKeep = null;
+      return this;
    }
 
    def allowConcurrentBuilds() {
       this.concurrentBuildCategories = null;
+      return this;
    }
    // By default, block builds so only one instance of this job
    // runs at a time.  If you pass in labels, the only one job
    // with a given label can run at a time.
    def blockBuilds(labels=['this']) {
       this.concurrentBuildCategories = labels;
+      return this;
    }
 
+   def addParam(param) {
+      this.params << param;
+      return this;
+   }
    def addBooleanParam(name, description, defaultValue=false) {
-      this.params << this.steps.booleanParam(
-         name: name, description: description, defaultValue: defaultValue);
+      return this.addParam(
+         this.steps.booleanParam(
+            name: name, description: description, defaultValue: defaultValue));
    }
    def addStringParam(name, description, defaultValue='') {
-      this.params << this.steps.string(
-         name: name, description: description, defaultValue: defaultValue);
+      return this.addParam(
+         this.steps.string(
+            name: name, description: description, defaultValue: defaultValue));
    }
    def addChoicesParam(name, description, choices) {
-      this.params << this.steps.choice(
-         name: name, description: description, choices: choices);
+      return this.addParam(
+         this.steps.choice(
+            name: name, description: description, choices: choices));
    }
 
    def apply() {
       def props = [];
       if (this.numBuildsToKeep) {
-         props << this.steps.logRotator(
-            numToKeepStr: this.numBuildsToKeep.toString());
+         props << this.steps.buildDiscarder(
+            this.steps.logRotator(artifactDaysToKeepStr: '',
+                                  artifactNumToKeepStr: '',
+                                  daysToKeepStr: '',
+                                  numToKeepStr: this.numBuildsToKeep.toString()));
       }
       if (this.concurrentBuildCategories &&
           this.concurrentBuildCategories.contains('this')) {
