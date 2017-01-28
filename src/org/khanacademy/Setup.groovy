@@ -20,6 +20,9 @@
 package org.khanacademy;
 
 class Setup implements Serializable {
+   // The global jenkins object that knows how to run steps.
+   def steps;
+
    // How many log files to keep around for this job.
    def numBuildsToKeep;
    // Values can be 'this' to say this job cannot be run concurrently,
@@ -29,7 +32,8 @@ class Setup implements Serializable {
    // The values you set when running this job.
    def params;
 
-   Setup() {
+   Setup(steps) {
+      this.steps = steps;
       this.numBuildsToKeep = 100;
       this.concurrentBuildCategories = ['this'];
       this.params = [];
@@ -53,27 +57,27 @@ class Setup implements Serializable {
    }
 
    def addBooleanParam(name, description, defaultValue=false) {
-      this.params << new booleanParam(name: name, description: description,
-                                      defaultValue: defaultValue);
+      this.params << this.steps.booleanParam(
+         name: name, description: description, defaultValue: defaultValue);
    }
    def addStringParam(name, description, defaultValue='') {
-      this.params << new string(name: name, description: description,
-                                defaultValue: defaultValue);
+      this.params << this.steps.string(
+         name: name, description: description, defaultValue: defaultValue);
    }
    def addChoicesParam(name, description, choices) {
-      this.params << new choice(name: name, description: description,
-                                choices: choices);
+      this.params << this.steps.choice(
+         name: name, description: description, choices: choices);
    }
 
-   def apply(steps) {
+   def apply() {
       def props = [];
       if (this.numBuildsToKeep) {
-         props << new logRotator(
+         props << this.steps.logRotator(
             numToKeepStr: this.numBuildsToKeep.toString());
       }
       if (this.concurrentBuildCategories &&
           this.concurrentBuildCategories.contains('this')) {
-         props << new disableConcurrentBuilds();
+         props << this.steps.disableConcurrentBuilds();
          props.removeElement('this');
       }
       if (this.concurrentBuildCategories) {
@@ -84,9 +88,9 @@ class Setup implements Serializable {
                   ];
       }
       if (this.params) {
-         props << new parameters(params);
+         props << this.steps.parameters(params);
       }
 
-      steps.properties(props);
+      this.steps.properties(props);
    }
 };
