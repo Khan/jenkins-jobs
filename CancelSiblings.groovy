@@ -74,6 +74,7 @@ class CancelSiblings {
         // Cancel running builds.
         def numCancels = 0;
         for (job in this.hudson.instance.items) {
+            if (!job.hasProperty('builds')) { continue; }   // a folder, maybe
             for (build in job.builds) {
                 if (build == this.build) { continue; } // don't cancel ourself!
                 if (!build.hasProperty('causes')) { continue; }
