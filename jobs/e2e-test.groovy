@@ -15,10 +15,37 @@ new Setup(steps).addStringParam(
    "#1s-and-0s-deploys"
 
 ).addStringParam(
+   "NUM_WORKER_MACHINES",
+   """How many worker machines to use.  This will function best
+when it's equal to the <code>Instance Cap</code> value for
+the <code>ka-test worker</code> ec2 setup at
+<a href=\"/configure\">the Jenkins configure page</a>.  You'll need
+to click on 'advanced' to see the instance cap.""",
+   "4"
+
+).addStringParam(
+   "JOBS_PER_WORKER",
+   """How many end-to-end tests to run on each worker machine.  It
+will depend on the size of the worker machine, which you can see in
+the <code>Instance Type</code> value for the
+<code>ka-test worker</code> ec2 setup at
+<a href=\"/configure\">the Jenkins configure page</a>.<br><br>
+Here's one way to figure out the right value: log into a worker
+machine and run:
+<pre>
+cd webapp-workspace/webapp
+. ../env/bin/activate
+for num in `seq 1 16`; do echo -- $num; time tools/rune2etests.py -j$num >/dev/null 2>&1; done
+</pre>
+and pick the number with the shortest time.  For m3.large,
+the best value is 4.""",
+   "4"
+
+).addStringParam(
    "GIT_REVISION",
-   "A commit-ish to check out.  This only affects the version of the
+   """A commit-ish to check out.  This only affects the version of the
 E2E test used; it will probably match the tested version's code,
-but it doesn't need to.",
+but it doesn't need to.""",
    "master"
 
 ).addBooleanParam(
@@ -28,19 +55,11 @@ but it doesn't need to.",
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
-   "Who asked to run this job, used to ping on slack.
-Typically not set manually, but rather by other jobs that call this one.",
+   """Who asked to run this job, used to ping on slack.
+Typically not set manually, but rather by other jobs that call this one.""",
    "@AutomatedRun"
 
 ).apply();
-
-
-// We run on 4 workers.
-env.NUM_WORKERS = 4
-
-// We run 4 jobs on each worker (because they're m3.large and that's
-// how many chrome's fit comfortably on that machine size).
-env.JOBS_PER_WORKER = 4
 
 
 // TODO(csilvers): add a good timeout
@@ -54,7 +73,7 @@ stage("Determining splits") {
          // each of 4 workers.  We put this in the location where the
          // 'copy to slave' plugin expects it (e2e-test-worker will
          // copy the file from here to each worker machine).
-         def NUM_SPLITS = env.NUM_SPLITS * env.JOBS_PER_WORKER;
+         def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
          gitUtils = new org.khanacademy.GitUtils();
          gitUtils.safeSyncToOrigin "git@github.com:Khan/webapp", "master";
