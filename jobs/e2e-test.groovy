@@ -73,7 +73,8 @@ stage("Determining splits") {
          // each of 4 workers.  We put this in the location where the
          // 'copy to slave' plugin expects it (e2e-test-worker will
          // copy the file from here to each worker machine).
-         def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
+         def NUM_SPLITS = (params.NUM_WORKER_MACHINES.toInteger() *
+                           params.JOBS_PER_WORKER.toInteger());
 
          gitUtils = new org.khanacademy.GitUtils();
          gitUtils.safeSyncToOrigin "git@github.com:Khan/webapp", "master";
