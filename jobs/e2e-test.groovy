@@ -1,8 +1,12 @@
 // The pipeline job for e2e tests.
 
 @Library("kautils")
+// Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 import org.khanacademy.GitUtils;
+// Vars we use, under jenkins-tools/vars.  This is just for documentation.
+//import vars.pip
+
 
 new Setup(steps).addStringParam(
    "URL",
