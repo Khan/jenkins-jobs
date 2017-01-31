@@ -1,4 +1,4 @@
-def call(shellCommand, installSecrets=False, workspaceRoot="..") {
+def call(shellCommand, installSecrets=false, workspaceRoot="..") {
    timestamps {
       withEnv(["WORKSPACE_ROOT=${workspaceRoot}"]) {
          sh (". $WORKSPACE_ROOT/jenkins-tools/build.lib; " +
