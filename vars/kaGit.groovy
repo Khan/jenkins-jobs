@@ -1,9 +1,6 @@
 // A wrapper around build.lib, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
 
-package org.khanacademy;
-
-
 // Turn a list of submodules into arguments to pass to build.lib functions.
 // Submodules is the empty list (default) for "clone all submodules".
 // Submodules is null for "clone no submodules".
