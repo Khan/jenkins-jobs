@@ -35,7 +35,7 @@ machine and run:
 <pre>
 cd webapp-workspace/webapp
 . ../env/bin/activate
-for num in `seq 1 16`; do echo -- $num; time tools/rune2etests.py -j$num >/dev/null 2>&1; done
+for num in `seq 1 16`; do echo -- \$num; time tools/rune2etests.py -j\$num >/dev/null 2>&1; done
 </pre>
 and pick the number with the shortest time.  For m3.large,
 the best value is 4.""",
