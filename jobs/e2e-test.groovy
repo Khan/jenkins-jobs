@@ -79,9 +79,9 @@ stage("Determining splits") {
          gitUtils = new org.khanacademy.GitUtils();
          gitUtils.safeSyncToOrigin "git@github.com:Khan/webapp", "master";
          dir("webapp") {
-            sh "make python_deps";
-            sh ("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
-                "> genfiles/e2e-test-splits.txt");
+            pip "make python_deps";
+            pip ("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
+                 "> genfiles/e2e-test-splits.txt");
             dir("genfiles") {
                stash includes: "e2e-test-splits.txt", name: "splits";
             }
