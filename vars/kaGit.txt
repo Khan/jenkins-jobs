@@ -1,0 +1,4 @@
+A wrapper around build.lib, providing "safe" checkout tools for repos.
+These steps should be run from a directory that has checked out
+jenkins-tools as a subdir.
+
