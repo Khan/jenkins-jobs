@@ -101,7 +101,7 @@ stage("Running tests") {
    // workers and complain if a job that uses the make-check
    // workers is running, but all the workers aren't up.  (We
    // delete this file in an always-run post-build step.)
-   touch /tmp/make_check.run
+   sh "touch /tmp/make_check.run"
 
    // TODO(csilvers): finish
    // https://jenkins.khanacademy.org/job/e2e-test/configure
