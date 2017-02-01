@@ -17,19 +17,19 @@ def _submodulesArg(submodules) {
 // Make sure jenkins-tools is installed as a subdir of $PWD.
 def installJenkinsTools() {
    dir("jenkins-tools") {
-      git (url: 'https://github.com/Khan/jenkins-tools',
-           changelog: false, poll: false);
+      git(url: 'https://github.com/Khan/jenkins-tools',
+          changelog: false, poll: false);
    }
 }
 
 // Submodules is as in _submodulesArg.
 def safeSyncTo(repoToClone, commit, submodules=[]) {
-   sh ("jenkins-tools/build.lib safe_sync_to " +
-       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+   sh("jenkins-tools/build.lib safe_sync_to " +
+      "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
 }
 
 // Submodules is as in _submodulesArg.
 def safeSyncToOrigin(repoToClone, commit, submodules=[]) {
-   sh ("jenkins-tools/build.lib safe_sync_to_origin " +
-       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+   sh("jenkins-tools/build.lib safe_sync_to_origin " +
+      "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
 }

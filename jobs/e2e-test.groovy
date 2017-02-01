@@ -4,11 +4,11 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
-//import vars.pip
 //import vars.kaGit
+//import vars.withSecrets
 
 
-new Setup(steps).addStringParam(
+new Setup(steps, env).addStringParam(
    "URL",
    "The url-base to run these tests against.",
    "https://www.khanacademy.org"
@@ -83,21 +83,20 @@ stage("Determining splits") {
          // each of 4 workers.  We put this in the location where the
          // 'copy to slave' plugin expects it (e2e-test-worker will
          // copy the file from here to each worker machine).
-         def NUM_SPLITS = (NUM_WORKER_MACHINES * JOBS_PER_WORKER);
-         kaGit.installJenkinsTools();
-         kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
-                                 params.GIT_REVISION);
+         def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
+         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                params.GIT_REVISION);
          dir("webapp") {
-            pip "make python_deps";
-            pip ("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
-                 "> genfiles/e2e-test-splits.txt");
+            sh("make python_deps");
+            sh("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
+               "> genfiles/e2e-test-splits.txt");
             dir("genfiles") {
                def allSplits = readFile("e2e-test-splits.txt").split("\n\n");
                for (def i = 0; i < allSplits.size(); i++) {
                   writeFile(file: "e2e-test-splits.${i}.txt",
                             text: allSplits[i]);
                }
-               stash includes: "e2e-test-splits.*.txt", name: "splits";
+               stash(includes: "e2e-test-splits.*.txt", name: "splits");
             }
          }
 
@@ -107,7 +106,7 @@ stage("Determining splits") {
          // complain if a job that uses the make-check workers is
          // running, but all the workers aren't up.  (We delete this
          // file in a try/finally.)
-         sh "touch /tmp/make_check.run"
+         sh("touch /tmp/make_check.run");
       }
    }
 }
@@ -115,15 +114,15 @@ stage("Determining splits") {
 try {
    stage("Running tests") {
       def jobs = [
+         // This is a kwarg that tells parallel() what to do when a job fails.
          "failFast": params.FAILFAST == "true",
+
          "mobile integration test": {
             node("master") {
                timestamps {
-                  kaGit.installJenkinsTools();
                   withEnv(["URL=${params.URL}",
                            "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
-                     pip("jenkins-tools/android-e2e-tests.sh",
-                         workspaceRoot=".");
+                     sh("jenkins-tools/android-e2e-tests.sh");
                   }
                }
             }
@@ -133,35 +132,42 @@ try {
          jobs["e2e test ${i}"] = {
             node("ka-test-ec2") {
                timestamps {
-                  // Out with the old, in with the new!
-                  sh "rm -f e2e-test-results.*.pickle";
-                  unstash "splits";
-                  def firstSplit = i * JOBS_PER_WORKER;
-                  def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+                  // We use a shared workspace for all jobs that run
+                  // on the test workers.  TODO(csilvers): do this as
+                  // part of a new onTestWorker() step.
+                  dir("/home/ubuntu/webapp-workspace") {
+                      // Out with the old, in with the new!
+                      sh("rm -f e2e-test-results.*.pickle");
+                      unstash("splits");
+                      def firstSplit = i * JOBS_PER_WORKER;
+                      def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
-                  kaGit.installJenkinsTools();
-                  kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
-                                          params.GIT_REVISION);
-                  dir("webapp") {
-                     pip "make python_deps";
-                  }
-                  withEnv(["URL=${params.URL}",
-                           "FAILFAST=${params.FAILFAST}"]) {
-                     pip ("jenkins-tools/parallel-selenium-e2e-tests.sh " +
-                          "`seq ${firstSplit} ${lastSplit}`",
-                          // We need secrets so we can talk to saucelabs.
-                          installSecrets=true, workspaceRoot=".");
-                  }
+                      // TODO(csilvers): do this as part of onTestWorker().
+                      kaGit.installJenkinsTools();
+                      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                             params.GIT_REVISION);
+                      dir("webapp") {
+                         sh("make python_deps");
+                      }
+                      withEnv(["URL=${params.URL}",
+                               "FAILFAST=${params.FAILFAST}"]) {
+                         // We need secrets so we can talk to saucelabs.
+                         withSecrets() {
+                            sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
+                               "`seq ${firstSplit} ${lastSplit}`");
+                         }
+                      }
 
-                  // Now let the next stage see all the results.
-                  stash (includes: "e2e-test-results.*.pickle", 
-                         name: "results ${i}");
+                      // Now let the next stage see all the results.
+                      stash(includes: "e2e-test-results.*.pickle",
+                            name: "results ${i}");
+                  }
                }
             }
          };
       }
 
-      parallel jobs;
+      parallel(jobs);
    }
 } finally {
    // We want to analyze results even if -- especially if -- there
@@ -171,15 +177,11 @@ try {
          timestamps {
             // Once we get here, we're done using the worker machines,
             // so let our cron overseer know.
-            sh "rm /tmp/make_check.run";
+            sh("rm /tmp/make_check.run");
 
-            kaGit.installJenkinsTools();
-            kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
-                                    params.GIT_REVISION);
-
-            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {            
+            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
                try {
-                  unstash "results ${i}";
+                  unstash("results ${i}");
                } catch (e) {
                   // I guess that worker had trouble even producing results
                   // TODO(csilvers): warn to slack about this
@@ -187,25 +189,24 @@ try {
             }
 
             dir("webapp") {
-               pip ("tools/test_pickle_util.py merge " +
-                    "../e2e-test-results.*.pickle " +
-                    "genfiles/e2e-test-results.pickle");
-               pip ("tools/test_pickle_util.py update-timing-db " +
-                    "genfiles/e2e-test-results.pickle " +
-                    "genfiles/e2e_test_info.db");
-               sh "rm -rf genfiles/selenium_test_reports";
-               pip ("tools/test_pickle_util.py to-junit " +
-                    "genfiles/e2e-test-results.pickle " +
-                    "genfiles/selenium_test_reports");
+               sh("tools/test_pickle_util.py merge " +
+                  "../e2e-test-results.*.pickle " +
+                  "genfiles/e2e-test-results.pickle");
+               sh("tools/test_pickle_util.py update-timing-db " +
+                  "genfiles/e2e-test-results.pickle " +
+                  "genfiles/e2e_test_info.db");
+               sh("rm -rf genfiles/selenium_test_reports");
+               sh("tools/test_pickle_util.py to-junit " +
+                  "genfiles/e2e-test-results.pickle " +
+                  "genfiles/selenium_test_reports");
             }
 
-            junit 'webapp/genfiles/selenium_test_reports/*.xml';
+            junit("webapp/genfiles/selenium_test_reports/*.xml");
             // TODO(csilvers): rewrite analyze_make_output to read from pickle
-            pip ("jenkins-tools/analyze_make_output.py " +
-                 "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
-                 "--jenkins_build_url='${env.BUILD_URL}' " +
-                 "--slack-channel='${params.SLACK_CHANNEL}'",
-                workspaceRoot=".");
+            sh("jenkins-tools/analyze_make_output.py " +
+               "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
+               "--jenkins_build_url='${env.BUILD_URL}' " +
+               "--slack-channel='${params.SLACK_CHANNEL}'");
          }
       }
    }

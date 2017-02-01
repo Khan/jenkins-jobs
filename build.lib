@@ -86,7 +86,7 @@ ensure_virtualenv() {
         # Have 'env' point to 'env.normal'.  To debug, you just manually
         # change the symlink to point to env.dbg
         ln -snf "`basename $VIRTUALENV_ROOT`".normal "$VIRTUALENV_ROOT"
-        echo <<EOF >"$WORKSPACE_ROOT/README.debugging"
+        cat <<EOF >"$WORKSPACE_ROOT/README.debugging"
 If you want to be able to debug a running python process using gdb
 (to debug hangs or segfaults, say), do the following:
     ln -snf env.dbg env
