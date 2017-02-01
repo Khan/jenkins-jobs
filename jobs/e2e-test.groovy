@@ -81,7 +81,7 @@ stage("Determining splits") {
          // copy the file from here to each worker machine).
          def NUM_SPLITS = (params.NUM_WORKER_MACHINES.toInteger() *
                            params.JOBS_PER_WORKER.toInteger());
-         kaGit.installJenkinsTools;
+         kaGit.installJenkinsTools();
          kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
                                  params.GIT_REVISION);
          dir("webapp") {
@@ -115,7 +115,7 @@ try {
          "mobile integration test": {
             node("master") {
                timestamps {
-                  kaGit.installJenkinsTools;
+                  kaGit.installJenkinsTools();
                   withEnv(["URL=${params.URL}",
                            "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
                      pip "jenkins-tools/android-e2e-tests.sh";
@@ -134,7 +134,7 @@ try {
                   def firstSplit = i * params.JOBS_PER_WORKER;
                   def lastSplit = firstSplit + params.JOBS_PER_WORKER - 1;
 
-                  kaGit.installJenkinsTools;
+                  kaGit.installJenkinsTools();
                   kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
                                           params.GIT_REVISION);
                   dir("webapp") {
@@ -168,7 +168,7 @@ try {
    stage("Analyzing results") {
       node("master") {
          timestamps {
-            kaGit.installJenkinsTools;
+            kaGit.installJenkinsTools();
             kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
                                     params.GIT_REVISION);
 
