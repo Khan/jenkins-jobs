@@ -31,6 +31,9 @@ for config in "$JENKINS_HOME"/jobs/*/config.xml; do
     # Ignore disabled configs
     grep -q "<disabled>true</disabled>" "$config" && continue
 
+    # Ignore folders (which have config.xml's but aren't jobs)
+    grep -q "<com.cloudbees.hudson.plugins.folder.Folder" "$config" && continue
+
     # Make sure we send to slack on all the failure modes.
     grep -q "<notifyAborted>true</notifyAborted>" "$config" || error "$job: should send to slack on 'Aborted'"
     grep -q "<notifyNotBuilt>true</notifyNotBuilt>" "$config" || error "$job: should send to slack on 'NotBuilt'"
