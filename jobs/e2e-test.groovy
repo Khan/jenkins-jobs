@@ -117,7 +117,7 @@ try {
                timestamps {
                   kaGit.installJenkinsTools;
                   withEnv(["URL=${params.URL}",
-                           "SLACK_CHANNEL=${params.SLACK_CHANNEL"]) {
+                           "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
                      pip "jenkins-tools/android-e2e-tests.sh";
                   }
                }
