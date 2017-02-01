@@ -66,6 +66,10 @@ Typically not set manually, but rather by other jobs that call this one.""",
 ).apply();
 
 
+def NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+
+
 // TODO(csilvers): add a good timeout
 // TODO(csilvers): set the build name to
 //     #${BUILD_NUMBER} (${ENV, var="GIT_REVISION"})
@@ -79,8 +83,7 @@ stage("Determining splits") {
          // each of 4 workers.  We put this in the location where the
          // 'copy to slave' plugin expects it (e2e-test-worker will
          // copy the file from here to each worker machine).
-         def NUM_SPLITS = (params.NUM_WORKER_MACHINES.toInteger() *
-                           params.JOBS_PER_WORKER.toInteger());
+         def NUM_SPLITS = (NUM_WORKER_MACHINES * JOBS_PER_WORKER);
          kaGit.installJenkinsTools();
          kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
                                  params.GIT_REVISION);
@@ -91,7 +94,8 @@ stage("Determining splits") {
             dir("genfiles") {
                def allSplits = readFile("e2e-test-splits.txt").split("\n\n");
                for (def i = 0; i < allSplits.size(); i++) {
-                  writeFile "e2e-test-splits.${i}.txt", allSplits[i];
+                  writeFile(file: "e2e-test-splits.${i}.txt",
+                            text: allSplits[i]);
                }
                stash includes: "e2e-test-splits.*.txt", name: "splits";
             }
@@ -118,21 +122,22 @@ try {
                   kaGit.installJenkinsTools();
                   withEnv(["URL=${params.URL}",
                            "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
-                     pip "jenkins-tools/android-e2e-tests.sh";
+                     pip("jenkins-tools/android-e2e-tests.sh",
+                         workspaceDir=".");
                   }
                }
             }
          },
       ];
-      for (def i = 0; i < params.NUM_WORKER_MACHINES; i++) {
+      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          jobs["e2e test ${i}"] = {
             node("ka-test-ec2") {
                timestamps {
                   // Out with the old, in with the new!
                   sh "rm -f e2e-test-results.*.pickle";
                   unstash "splits";
-                  def firstSplit = i * params.JOBS_PER_WORKER;
-                  def lastSplit = firstSplit + params.JOBS_PER_WORKER - 1;
+                  def firstSplit = i * JOBS_PER_WORKER;
+                  def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
                   kaGit.installJenkinsTools();
                   kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
@@ -159,20 +164,20 @@ try {
       parallel jobs;
    }
 } finally {
-   // Once we get here, we're done using the worker machines, so
-   // let our cron overseer know.
-   sh "rm /tmp/make_check.run";
-
    // We want to analyze results even if -- especially if -- there
    // were failures; hence we're in the `finally`.
    stage("Analyzing results") {
       node("master") {
          timestamps {
+            // Once we get here, we're done using the worker machines,
+            // so let our cron overseer know.
+            sh "rm /tmp/make_check.run";
+
             kaGit.installJenkinsTools();
             kaGit.safeSyncToOrigin ("git@github.com:Khan/webapp", 
                                     params.GIT_REVISION);
 
-            for (def i = 0; i < params.NUM_WORKER_MACHINES; i++) {            
+            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {            
                try {
                   unstash "results ${i}";
                } catch (e) {
@@ -199,7 +204,8 @@ try {
             pip ("jenkins-tools/analyze_make_output.py " +
                  "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
                  "--jenkins_build_url='${env.BUILD_URL}' " +
-                 "--slack-channel='${params.SLACK_CHANNEL}'");
+                 "--slack-channel='${params.SLACK_CHANNEL}'",
+                workspaceDir=".");
          }
       }
    }
