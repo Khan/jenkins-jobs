@@ -123,7 +123,7 @@ try {
                   withEnv(["URL=${params.URL}",
                            "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
                      pip("jenkins-tools/android-e2e-tests.sh",
-                         workspaceDir=".");
+                         workspaceRoot=".");
                   }
                }
             }
@@ -205,7 +205,7 @@ try {
                  "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
                  "--jenkins_build_url='${env.BUILD_URL}' " +
                  "--slack-channel='${params.SLACK_CHANNEL}'",
-                workspaceDir=".");
+                workspaceRoot=".");
          }
       }
    }
