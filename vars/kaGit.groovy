@@ -16,8 +16,10 @@ def _submodulesArg(submodules) {
 
 // Make sure jenkins-tools is installed as a subdir of $PWD.
 def installJenkinsTools() {
-    git (url: 'https://github.com/Khan/jenkins-tools',
-         changelog: false, poll: false);
+   dir("jenkins-tools") {
+      git (url: 'https://github.com/Khan/jenkins-tools',
+           changelog: false, poll: false);
+   }
 }
 
 // Submodules is as in _submodulesArg.
