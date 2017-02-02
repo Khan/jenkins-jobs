@@ -1,0 +1,7 @@
+Same as `node("ka-test-ec2")` but does a bunch of executor-specific setup too.
+
+1. It makes sure jenkins-tools is available in the current workspace
+   (almost every node needs jenkins-tools to do further checkouts).
+2. It enables virtualenv (for python scripts)
+3. It enables access to secrets.py [optional]
+4. It turns on timestamping of all commands run on that node.

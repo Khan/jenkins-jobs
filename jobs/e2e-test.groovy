@@ -5,10 +5,11 @@
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.kaGit
-//import vars.withSecrets
+//import vars.onMaster
+//import vars.onTestWorker
 
 
-new Setup(steps, env).addStringParam(
+new Setup(steps).addStringParam(
    "URL",
    "The url-base to run these tests against.",
    "https://www.khanacademy.org"
@@ -77,37 +78,35 @@ def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 //     (add an `alert` build step to call out to alert.py)
 
 stage("Determining splits") {
-   node("master") {
-      timestamps {
-         // Figure out how to split up the tests.  We run 4 jobs on
-         // each of 4 workers.  We put this in the location where the
-         // 'copy to slave' plugin expects it (e2e-test-worker will
-         // copy the file from here to each worker machine).
-         def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
-         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                params.GIT_REVISION);
-         dir("webapp") {
-            sh("make python_deps");
-            sh("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
-               "> genfiles/e2e-test-splits.txt");
-            dir("genfiles") {
-               def allSplits = readFile("e2e-test-splits.txt").split("\n\n");
-               for (def i = 0; i < allSplits.size(); i++) {
-                  writeFile(file: "e2e-test-splits.${i}.txt",
-                            text: allSplits[i]);
-               }
-               stash(includes: "e2e-test-splits.*.txt", name: "splits");
-            }
-         }
+   onMaster() {
+     // Figure out how to split up the tests.  We run 4 jobs on
+     // each of 4 workers.  We put this in the location where the
+     // 'copy to slave' plugin expects it (e2e-test-worker will
+     // copy the file from here to each worker machine).
+     def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
+     kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                            params.GIT_REVISION);
+     dir("webapp") {
+        sh("make python_deps");
+        sh("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
+           "> genfiles/e2e-test-splits.txt");
+        dir("genfiles") {
+           def allSplits = readFile("e2e-test-splits.txt").split("\n\n");
+           for (def i = 0; i < allSplits.size(); i++) {
+              writeFile(file: "e2e-test-splits.${i}.txt",
+                        text: allSplits[i]);
+           }
+           stash(includes: "e2e-test-splits.*.txt", name: "splits");
+        }
+     }
 
-         // Touch this file right before we start using the jenkins
-         // make-check workers.  We have a cron job running on jenkins
-         // that will keep track of the make-check workers and
-         // complain if a job that uses the make-check workers is
-         // running, but all the workers aren't up.  (We delete this
-         // file in a try/finally.)
-         sh("touch /tmp/make_check.run");
-      }
+     // Touch this file right before we start using the jenkins
+     // make-check workers.  We have a cron job running on jenkins
+     // that will keep track of the make-check workers and
+     // complain if a job that uses the make-check workers is
+     // running, but all the workers aren't up.  (We delete this
+     // file in a try/finally.)
+     sh("touch /tmp/make_check.run");
    }
 }
 
@@ -118,51 +117,38 @@ try {
          "failFast": params.FAILFAST == "true",
 
          "mobile integration test": {
-            node("master") {
-               timestamps {
-                  withEnv(["URL=${params.URL}",
-                           "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
-                     sh("jenkins-tools/android-e2e-tests.sh");
-                  }
+            onMaster() {
+               withEnv(["URL=${params.URL}",
+                        "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
+                  sh("jenkins-tools/android-e2e-tests.sh");
                }
             }
          },
       ];
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          jobs["e2e test ${i}"] = {
-            node("ka-test-ec2") {
-               timestamps {
-                  // We use a shared workspace for all jobs that run
-                  // on the test workers.  TODO(csilvers): do this as
-                  // part of a new onTestWorker() step.
-                  dir("/home/ubuntu/webapp-workspace") {
-                      // Out with the old, in with the new!
-                      sh("rm -f e2e-test-results.*.pickle");
-                      unstash("splits");
-                      def firstSplit = i * JOBS_PER_WORKER;
-                      def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+            // We need secrets so the test-runner can talk to saucelabs.
+            onTestWorker(installSecrets=true) {
+              // Out with the old, in with the new!
+              sh("rm -f e2e-test-results.*.pickle");
+              unstash("splits");
+              def firstSplit = i * JOBS_PER_WORKER;
+              def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
-                      // TODO(csilvers): do this as part of onTestWorker().
-                      kaGit.installJenkinsTools();
-                      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                             params.GIT_REVISION);
-                      dir("webapp") {
-                         sh("make python_deps");
-                      }
-                      withEnv(["URL=${params.URL}",
-                               "FAILFAST=${params.FAILFAST}"]) {
-                         // We need secrets so we can talk to saucelabs.
-                         withSecrets() {
-                            sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
-                               "`seq ${firstSplit} ${lastSplit}`");
-                         }
-                      }
+              kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                     params.GIT_REVISION);
+              dir("webapp") {
+                 sh("make python_deps");
+              }
+              withEnv(["URL=${params.URL}",
+                       "FAILFAST=${params.FAILFAST}"]) {
+                 sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
+                    "`seq ${firstSplit} ${lastSplit}`");
+              }
 
-                      // Now let the next stage see all the results.
-                      stash(includes: "e2e-test-results.*.pickle",
-                            name: "results ${i}");
-                  }
-               }
+              // Now let the next stage see all the results.
+              stash(includes: "e2e-test-results.*.pickle",
+                    name: "results ${i}");
             }
          };
       }
@@ -173,41 +159,39 @@ try {
    // We want to analyze results even if -- especially if -- there
    // were failures; hence we're in the `finally`.
    stage("Analyzing results") {
-      node("master") {
-         timestamps {
-            // Once we get here, we're done using the worker machines,
-            // so let our cron overseer know.
-            sh("rm /tmp/make_check.run");
+      onMaster() {
+        // Once we get here, we're done using the worker machines,
+        // so let our cron overseer know.
+        sh("rm /tmp/make_check.run");
 
-            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-               try {
-                  unstash("results ${i}");
-               } catch (e) {
-                  // I guess that worker had trouble even producing results
-                  // TODO(csilvers): warn to slack about this
-               }
-            }
+        for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+           try {
+              unstash("results ${i}");
+           } catch (e) {
+              // I guess that worker had trouble even producing results
+              // TODO(csilvers): warn to slack about this
+           }
+        }
 
-            dir("webapp") {
-               sh("tools/test_pickle_util.py merge " +
-                  "../e2e-test-results.*.pickle " +
-                  "genfiles/e2e-test-results.pickle");
-               sh("tools/test_pickle_util.py update-timing-db " +
-                  "genfiles/e2e-test-results.pickle " +
-                  "genfiles/e2e_test_info.db");
-               sh("rm -rf genfiles/selenium_test_reports");
-               sh("tools/test_pickle_util.py to-junit " +
-                  "genfiles/e2e-test-results.pickle " +
-                  "genfiles/selenium_test_reports");
-            }
+        dir("webapp") {
+           sh("tools/test_pickle_util.py merge " +
+              "../e2e-test-results.*.pickle " +
+              "genfiles/e2e-test-results.pickle");
+           sh("tools/test_pickle_util.py update-timing-db " +
+              "genfiles/e2e-test-results.pickle " +
+              "genfiles/e2e_test_info.db");
+           sh("rm -rf genfiles/selenium_test_reports");
+           sh("tools/test_pickle_util.py to-junit " +
+              "genfiles/e2e-test-results.pickle " +
+              "genfiles/selenium_test_reports");
+        }
 
-            junit("webapp/genfiles/selenium_test_reports/*.xml");
-            // TODO(csilvers): rewrite analyze_make_output to read from pickle
-            sh("jenkins-tools/analyze_make_output.py " +
-               "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
-               "--jenkins_build_url='${env.BUILD_URL}' " +
-               "--slack-channel='${params.SLACK_CHANNEL}'");
-         }
+        junit("webapp/genfiles/selenium_test_reports/*.xml");
+        // TODO(csilvers): rewrite analyze_make_output to read from pickle
+        sh("jenkins-tools/analyze_make_output.py " +
+           "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
+           "--jenkins_build_url='${env.BUILD_URL}' " +
+           "--slack-channel='${params.SLACK_CHANNEL}'");
       }
    }
 }
