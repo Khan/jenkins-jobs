@@ -145,6 +145,8 @@ class Setup implements Serializable {
                this.steps.dir("jenkins-tools") {
                   this.steps.git(url: "https://github.com/Khan/jenkins-tools",
                                  changelog: false, poll: false);
+                  // Make it so scripts can use jenkins-tools's alertlib too.
+                  this.steps.sh("git submodule update --init --recursive");
                }
                if (this.useVirtualenv) {
                   // This makes sure env/ exists.
