@@ -1,4 +1,4 @@
-def call(Closure body, installSecrets=false) {
+def call(Closure body) {
    node("master") {
       timestamps {
          // TODO(csilvers): only do this once per workspace per script.
@@ -15,19 +15,9 @@ def call(Closure body, installSecrets=false) {
          sh("./jenkins-tools/build.lib ensure_virtualenv");
          def virtualenvDir = sh(
             script: "cd env && pwd", returnStdout: true).trim();
-         def newEnvVars = ["VIRTUAL_ENV=${virtualenvDir}",
-                           "PATH=${virtualenvDir}/bin:${env.PATH}"];
 
-         if (installSecrets) {
-            sh("./jenkins-tools/build.lib " +
-               "decrypt_secrets_py_and_add_to_pythonpath");
-            def secretsDir = sh(script: ('. ./jenkins-tools/build.lib; ' +
-                                         'echo $SECRETS_DIR'),
-                                returnStdout: true).trim();
-            newEnvVars << "PYTHONPATH=${secretsDir}:${env.PYTHONPATH}";
-         }
-
-         withEnv(newEnvVars) {
+         withEnv(["VIRTUAL_ENV=${virtualenvDir}",
+                  "PATH=${virtualenvDir}/bin:${env.PATH}"]) {
             body();
          }
       }

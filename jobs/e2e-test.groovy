@@ -7,6 +7,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.onMaster
 //import vars.onTestWorker
+//import vars.withSecrets
 
 
 new Setup(steps).addStringParam(
@@ -127,28 +128,30 @@ try {
       ];
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          jobs["e2e test ${i}"] = {
-            // We need secrets so the test-runner can talk to saucelabs.
-            onTestWorker(installSecrets=true) {
-              // Out with the old, in with the new!
-              sh("rm -f e2e-test-results.*.pickle");
-              unstash("splits");
-              def firstSplit = i * JOBS_PER_WORKER;
-              def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+            onTestWorker() {
+               // Out with the old, in with the new!
+               sh("rm -f e2e-test-results.*.pickle");
+               unstash("splits");
+               def firstSplit = i * JOBS_PER_WORKER;
+               def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
-              kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
-              dir("webapp") {
-                 sh("make python_deps");
-              }
-              withEnv(["URL=${params.URL}",
-                       "FAILFAST=${params.FAILFAST}"]) {
-                 sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
-                    "`seq ${firstSplit} ${lastSplit}`");
-              }
+               kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                      params.GIT_REVISION);
+               dir("webapp") {
+                  sh("make python_deps");
+               }
+               withEnv(["URL=${params.URL}",
+                        "FAILFAST=${params.FAILFAST}"]) {
+                  // We need secrets so we can talk to saucelabs.
+                  withSecrets() {
+                     sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
+                        "`seq ${firstSplit} ${lastSplit}`");
+                  }
+               }
 
-              // Now let the next stage see all the results.
-              stash(includes: "e2e-test-results.*.pickle",
-                    name: "results ${i}");
+               // Now let the next stage see all the results.
+               stash(includes: "e2e-test-results.*.pickle",
+                     name: "results ${i}");
             }
          };
       }
