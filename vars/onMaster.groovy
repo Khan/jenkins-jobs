@@ -13,9 +13,8 @@ def call(Closure body, installSecrets=false) {
 
          // Now set up the virtualenv
          sh("./jenkins-tools/build.lib ensure_virtualenv");
-         dir("env") {
-            def virtualenvDir = sh(script: "pwd", returnStdout: true).trim();
-         }
+         def virtualenvDir = sh(
+            script: "cd env && pwd", returnStdout: true).trim();
          def newEnvVars = ["VIRTUAL_ENV=${virtualenvDir}",
                            "PATH=${virtualenvDir}/bin:${env.PATH}"];
 
