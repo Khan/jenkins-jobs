@@ -143,18 +143,23 @@ try {
                dir("webapp") {
                   sh("make python_deps");
                }
-               withEnv(["URL=${params.URL}",
-                        "FAILFAST=${params.FAILFAST}"]) {
-                  // We need secrets so we can talk to saucelabs.
-                  withSecrets() {
-                     sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
-                        "`seq ${firstSplit} ${lastSplit}`");
+               try {
+                  withEnv(["URL=${params.URL}",
+                           "FAILFAST=${params.FAILFAST}"]) {
+                     // We need secrets so we can talk to saucelabs.
+                     withSecrets() {
+                        sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
+                           "`seq ${firstSplit} ${lastSplit}`");
+                     }
                   }
+               } finally {
+                  // Now let the next stage see all the results.
+                  // parallel-selenium-e2e-tests.sh should normally
+                  // produce these files even when it returns a
+                  // failure rc (due to some test or other failing).
+                  stash(includes: "e2e-test-results.*.pickle",
+                        name: "results ${workerNum}");
                }
-
-               // Now let the next stage see all the results.
-               stash(includes: "e2e-test-results.*.pickle",
-                     name: "results ${workerNum}");
             }
          };
       }
@@ -170,6 +175,7 @@ try {
         // so let our cron overseer know.
         sh("rm /tmp/make_check.run");
 
+        sh("rm -f e2e-test-results.*.pickle");
         for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
            try {
               unstash("results ${i}");
