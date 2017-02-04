@@ -127,7 +127,7 @@ try {
          },
       ];
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         jobs["e2e test ${i}"] = {
+         jobs["e2e test ${i}"] = { i ->
             onTestWorker() {
                // Out with the old, in with the new!
                sh("rm -f e2e-test-results.*.pickle");
@@ -153,7 +153,7 @@ try {
                stash(includes: "e2e-test-results.*.pickle",
                      name: "results ${i}");
             }
-         };
+         }.curry(i);   // hack to get i evaluated at node-definition time.
       }
 
       parallel(jobs);
