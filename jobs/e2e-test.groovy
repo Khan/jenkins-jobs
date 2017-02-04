@@ -127,12 +127,12 @@ try {
          },
       ];
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         jobs["e2e test ${i}"] = { i ->
+         jobs["e2e test ${i}"] = { iCopy ->
             onTestWorker() {
                // Out with the old, in with the new!
                sh("rm -f e2e-test-results.*.pickle");
                unstash("splits");
-               def firstSplit = i * JOBS_PER_WORKER;
+               def firstSplit = iCopy * JOBS_PER_WORKER;
                def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
                kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
@@ -151,7 +151,7 @@ try {
 
                // Now let the next stage see all the results.
                stash(includes: "e2e-test-results.*.pickle",
-                     name: "results ${i}");
+                     name: "results ${iCopy}");
             }
          }.curry(i);   // hack to get i evaluated at node-definition time.
       }
