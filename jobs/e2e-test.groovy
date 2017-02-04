@@ -127,12 +127,15 @@ try {
          },
       ];
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         jobs["e2e test ${i}"] = { iCopy ->
+         // A restriction in `parallel`: need to redefine the index var here.
+         def workerNum = i;
+
+         jobs["e2e test ${workerNum}"] = {
             onTestWorker() {
                // Out with the old, in with the new!
                sh("rm -f e2e-test-results.*.pickle");
                unstash("splits");
-               def firstSplit = iCopy * JOBS_PER_WORKER;
+               def firstSplit = workerNum * JOBS_PER_WORKER;
                def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
                kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
@@ -151,12 +154,9 @@ try {
 
                // Now let the next stage see all the results.
                stash(includes: "e2e-test-results.*.pickle",
-                     // This interpolated `i`, unlike the one used to
-                     // define firstSplit, is evaluated at closure-
-                     // creation time.  I know, it's confusing. :-(
-                     name: "results ${i}");
+                     name: "results ${workerNum}");
             }
-         }.curry(i);   // hack to get i evaluated at node-definition time.
+         };
       }
 
       parallel(jobs);
