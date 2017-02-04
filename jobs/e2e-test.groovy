@@ -90,14 +90,14 @@ stage("Determining splits") {
      dir("webapp") {
         sh("make python_deps");
         sh("tools/rune2etests.py --dry-run --just-split -j${NUM_SPLITS}" +
-           "> genfiles/e2e-test-splits.txt");
+           "> genfiles/e2e_splits.txt");
         dir("genfiles") {
-           def allSplits = readFile("e2e-test-splits.txt").split("\n\n");
+           def allSplits = readFile("e2e_splits.txt").split("\n\n");
            for (def i = 0; i < allSplits.size(); i++) {
-              writeFile(file: "e2e-test-splits.${i}.txt",
+              writeFile(file: "e2e_splits.${i}.txt",
                         text: allSplits[i]);
            }
-           stash(includes: "e2e-test-splits.*.txt", name: "splits");
+           stash(includes: "e2e_splits.*.txt", name: "splits");
         }
      }
 
@@ -151,7 +151,10 @@ try {
 
                // Now let the next stage see all the results.
                stash(includes: "e2e-test-results.*.pickle",
-                     name: "results ${iCopy}");
+                     // This interpolated `i`, unlike the one used to
+                     // define firstSplit, is evaluated at closure-
+                     // creation time.  I know, it's confusing. :-(
+                     name: "results ${i}");
             }
          }.curry(i);   // hack to get i evaluated at node-definition time.
       }
