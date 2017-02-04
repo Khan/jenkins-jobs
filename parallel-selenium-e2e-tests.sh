@@ -37,7 +37,7 @@ for i in "$@"; do
         --xml --pickle --pickle-file="../e2e-test-results.$i.pickle" \
         --quiet --jobs=1 --retries 3  $FAILFAST_FLAG \
         --url "$URL" --driver=chrome --backup-driver=sauce \
-        - < "../e2e_splits.$i.txt"
+        - < "../e2e_splits.$i.txt" &
     pids="$pids $!"
 done
 
