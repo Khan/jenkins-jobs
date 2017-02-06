@@ -14,14 +14,6 @@ def _submodulesArg(submodules) {
    }
 }
 
-// Make sure jenkins-tools is installed as a subdir of $PWD.
-def installJenkinsTools() {
-   dir("jenkins-tools") {
-      git(url: 'https://github.com/Khan/jenkins-tools',
-          changelog: false, poll: false);
-   }
-}
-
 // Submodules is as in _submodulesArg.
 def safeSyncTo(repoToClone, commit, submodules=[]) {
    sh("jenkins-tools/build.lib safe_sync_to " +
@@ -32,4 +24,18 @@ def safeSyncTo(repoToClone, commit, submodules=[]) {
 def safeSyncToOrigin(repoToClone, commit, submodules=[]) {
    sh("jenkins-tools/build.lib safe_sync_to_origin " +
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+}
+
+
+// Returns True iff the repo in the given subdirectory is at the
+// given git commit-ish.  Note it does *not* check that the
+// workspace is clean or anything like that, just that rev-parse
+// matches.  TODO(csilvers): do this automatically in build.lib instead.
+def isAtCommit(subdir, commit) {
+   dir(subdir) {
+      def rc = sh(script: ("[ \"`git rev-parse HEAD`\" = " +
+                           "\"`git rev-parse '${commit}'`\" ]"),
+                  returnStatus: true)
+      return rc == 0;
+   }
 }
