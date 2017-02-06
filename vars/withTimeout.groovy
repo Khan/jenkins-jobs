@@ -1,16 +1,21 @@
 // Returns a triple: timeout amount as an integer (e.g. 20),
 // timeout unit as a string (e.g. "MINUTES"), timeout strategy as
 // a string (e.g. "ABSOLUTE").
-//
+
 // The timeout units are named as per the built-in `timeout` step.  See
 // https://jenkins.khanacademy.org/job/deploy/job/e2e-test/pipeline-syntax/
-def parseTimeout(def timeoutStgring) {
-   def _UNITS_MAP = [
-      "s": "SECONDS",
-      "m": "MINUTES",
-      "h": "HOURS",
-      "d": "DAYS",
-   ];
+def _UNITS_MAP = [
+   "s": "SECONDS",
+   "m": "MINUTES",
+   "h": "HOURS",
+   "d": "DAYS",
+];
+
+
+def call(def timeoutString, Closure body) {
+   // I wanted to make this top part a separate function,
+   // parseTimeout, but it appears pipeline-groovy can't return a list
+   // or dict from a function call, so I just inline it. :-/
 
    def strategy = "ABSOLUTE";
    def units = "MINUTES";
@@ -23,11 +28,6 @@ def parseTimeout(def timeoutStgring) {
    }
    if (strategyAndValue.size() == 2) {
       strategy = strategyAndValue[0];
-   }
-   // TODO(csilvers): support "NO_ACTIVITY" as well.
-   if (strategy != "ABSOLUTE") {
-      error("Invalid timeout-value '${timeoutString}': " +
-            "unsupported strategy '${strategy}'");
    }
 
    def valueAndUnits = strategyAndValue[-1];
@@ -53,19 +53,16 @@ def parseTimeout(def timeoutStgring) {
       error("Invalid timeout-value '${timeoutString}': " +
             "value not a number, or invalid suffix (not s/m/h/d)");
    }
-   return [value, units, strategy];
-}
 
-
-def call(def timeoutString, Closure body) {
-   def (value, units, strategy) = parseTimeout(timeoutString);
+   // The actual main work of withTimeout().
 
    if (strategy == 'ABSOLUTE') {
       timeout(time: value, unit: units) {
          body();
       }
    } else {
-      error("Unsupported strategy '${STRATEGY}' -- sorry!");
+      error("Invalid timeout-value '${timeoutString}': " +
+            "Unsupported strategy '${strategy}' -- sorry!");
    }
 }
 
