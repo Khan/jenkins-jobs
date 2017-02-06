@@ -14,6 +14,23 @@ def _submodulesArg(submodules) {
    }
 }
 
+// Normally we check out repos using our own `safe-git` scripts, but
+// those exist in the jenkins-tools repo so we can't use that script
+// for that repo.  This is the command that bootstraps checking out
+// jenkins-tools so we can then check out other repos.
+// This is typically not called manually, but instead by onMaster/etc.
+def checkoutJenkinsTools() {
+   // TODO(csilvers): only do this once per workspace per script.
+   dir("jenkins-tools") {
+      git(url: "https://github.com/Khan/jenkins-tools",
+          changelog: false, poll: false);
+      // The built-in 'git' step is not great: it doesn't do
+      // submodules, and it messes up the tracking with the remote.
+      sh("git submodule update --init --recursive");
+      sh("git branch --set-upstream-to origin/master master");
+   }
+}
+
 // Submodules is as in _submodulesArg.
 def safeSyncTo(repoToClone, commit, submodules=[]) {
    sh("jenkins-tools/build.lib safe_sync_to " +
