@@ -2,20 +2,19 @@
 // timeout unit as a string (e.g. "MINUTES"), timeout strategy as
 // a string (e.g. "ABSOLUTE").
 
-// The timeout units are named as per the built-in `timeout` step.  See
-// https://jenkins.khanacademy.org/job/deploy/job/e2e-test/pipeline-syntax/
-def _UNITS_MAP = [
-   "s": "SECONDS",
-   "m": "MINUTES",
-   "h": "HOURS",
-   "d": "DAYS",
-];
-
-
 def call(def timeoutString, Closure body) {
    // I wanted to make this top part a separate function,
    // parseTimeout, but it appears pipeline-groovy can't return a list
    // or dict from a function call, so I just inline it. :-/
+
+   // The timeout units are named as per the built-in `timeout` step.  See
+   // https://jenkins.khanacademy.org/job/deploy/job/e2e-test/pipeline-syntax/
+   def _UNITS_MAP = [
+      "s": "SECONDS",
+      "m": "MINUTES",
+      "h": "HOURS",
+      "d": "DAYS",
+   ];
 
    def strategy = "ABSOLUTE";
    def units = "MINUTES";
