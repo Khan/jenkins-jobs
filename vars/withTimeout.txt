@@ -1,0 +1,10 @@
+A fancier form of the build-in `timeout` step.
+
+For one thing, it supports a nicer call syntax: you can use the normal
+'20m', '1h', '1d' instead of having to use MINUTES, HOURS, and DAYS.
+
+Second, it supports various timeout strategies, including "no
+activity", which times out if nothing has been written to
+stdout/stderr in the given time period.  You do this by setting
+the timeout to 'output:20m'.  The default, if no strategy is
+specified, is 'absolute:'.  TODO(csilvers): actually support this.

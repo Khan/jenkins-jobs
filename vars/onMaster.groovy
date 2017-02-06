@@ -1,13 +1,16 @@
 // We use these user-defined steps from vars/:
 //import kaGit
+//import withTimeout
 //import withVirtualenv
 
-def call(Closure body) {
+def call(timeoutString, Closure body) {
    node("master") {
       timestamps {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
-            body();
+            withTimeout(timeoutString) {
+               body();
+            }
          }
       }
    }

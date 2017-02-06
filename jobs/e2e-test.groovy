@@ -106,7 +106,7 @@ stage("Determining splits") {
    // That will save time later.
    def jobs = [
       "determine-splits": {
-         onMaster() {
+         onMaster('10m') {        // timeout
             // Figure out how to split up the tests.  We run 4 jobs on
             // each of 4 workers.  We put this in the location where the
             // 'copy to slave' plugin expects it (e2e-test-worker will
@@ -142,7 +142,7 @@ stage("Determining splits") {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["sync-webapp-${workerNum}"] = {
-         onTestWorker() {
+         onTestWorker('10m') {      // timeout
             _setupWebapp();
          }
       }
@@ -158,7 +158,7 @@ try {
          "failFast": params.FAILFAST == "true",
 
          "mobile-integration-test": {
-            onMaster() {
+            onMaster('1h') {       // timeout
                withEnv(["URL=${params.URL}",
                         "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
                   sh("jenkins-tools/android-e2e-tests.sh");
@@ -171,7 +171,7 @@ try {
          def workerNum = i;
 
          jobs["e2e-test-${workerNum}"] = {
-            onTestWorker() {
+            onTestWorker('1h') {     // timeout
                // Out with the old, in with the new!
                sh("rm -f e2e-test-results.*.pickle");
                unstash("splits");
@@ -210,7 +210,7 @@ try {
    // We want to analyze results even if -- especially if -- there
    // were failures; hence we're in the `finally`.
    stage("Analyzing results") {
-      onMaster() {
+      onMaster('5m') {         // timeout
         // Once we get here, we're done using the worker machines,
         // so let our cron overseer know.
         sh("rm /tmp/make_check.run");
