@@ -1,0 +1,9 @@
+Check out the jenkins-tools repo.
+
+Normally we check out repos using our own `safe-git` scripts, but
+those exist in the jenkins-tools repo so we can't use that script for
+that repo.  This is the command that bootstraps checking out
+jenkins-tools so we can then check out other repos.
+
+It is not typically called manually -- onMaster/etc call it
+automatically as needed.

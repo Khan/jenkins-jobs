@@ -1,0 +1,7 @@
+This pipeline step runs its body in a python virtualenv.
+
+This means that every python command run inside it will use the
+virtualenv rather than the system python/etc.
+
+It is not typically used manually -- onMaster/etc use it automatically
+as needed.
