@@ -262,25 +262,25 @@ try {
            _alert(msg, isError=true);
         }
 
-        dir("webapp") {
-           sh("tools/test_pickle_util.py merge " +
-              "../e2e-test-results.*.pickle " +
-              "genfiles/e2e-test-results.pickle");
-           sh("tools/test_pickle_util.py update-timing-db " +
-              "genfiles/e2e-test-results.pickle " +
-              "genfiles/e2e_test_info.db");
-           withSecrets() {     // we need secrets to talk to slack!
-              sh("tools/test_pickle_util.py summarize-to-slack " +
+        withSecrets() {     // we need secrets to talk to slack!
+           dir("webapp") {
+              sh("tools/test_pickle_util.py merge " +
+                 "../e2e-test-results.*.pickle " +
+                 "genfiles/e2e-test-results.pickle");
+              sh("tools/test_pickle_util.py update-timing-db " +
                  "genfiles/e2e-test-results.pickle " +
-                 "'${params.SLACK_CHANNEL}' " +
-                 "--deployer '${params.DEPLOYER_USERNAME}' " +
-                 "--commit '${params.GIT_REVISION}'");
-           }
+                 "genfiles/e2e_test_info.db");
+                 sh("tools/test_pickle_util.py summarize-to-slack " +
+                    "genfiles/e2e-test-results.pickle " +
+                    "'${params.SLACK_CHANNEL}' " +
+                    "--deployer '${params.DEPLOYER_USERNAME}' " +
+                    "--commit '${params.GIT_REVISION}'");
 
-           sh("rm -rf genfiles/selenium_test_reports");
-           sh("tools/test_pickle_util.py to-junit " +
-              "genfiles/e2e-test-results.pickle " +
-              "genfiles/selenium_test_reports");
+              sh("rm -rf genfiles/selenium_test_reports");
+              sh("tools/test_pickle_util.py to-junit " +
+                 "genfiles/e2e-test-results.pickle " +
+                 "genfiles/selenium_test_reports");
+           }
         }
 
         junit("webapp/genfiles/selenium_test_reports/*.xml");
