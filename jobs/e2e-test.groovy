@@ -87,14 +87,14 @@ def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 // This is the e2e command we run on the workers.  $1 is the
 // job-number for this current worker (and is used to decide what
 // tests this worker is responsible for running.)
-// We need the trailing `--` because `sh` ignores its first arg
-// and actually puts its *second* arg into `$1`.
+// The trailing `tools/rune2etests.py` is just to set the executable
+// name ($0) reported by `sh`.
 def E2E_CMD = """\
-sh -c 'timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
+sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
    --pickle --pickle-file=../e2e-test-results.\$1.pickle
    --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
    --url=\"${params.URL}\" --driver=chrome --backup-driver=sauce
-   - < ../e2e_splits.\$1.txt' --
+   - < ../e2e_splits.\$1.txt' tools/rune2etests.py
 """.replaceAll("\n", "")
 
 
