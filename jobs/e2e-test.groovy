@@ -84,6 +84,19 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 def NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 
+// This is the e2e command we run on the workers.  $1 is the
+// job-number for this current worker (and is used to decide what
+// tests this worker is responsible for running.)
+// We need the trailing `--` because `sh` ignores its first arg
+// and actually puts its *second* arg into `$1`.
+def E2E_CMD = """\
+sh -c 'timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
+   --pickle --pickle-file=../e2e-test-results.\$1.pickle
+   --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
+   --url=\"${params.URL}\" --driver=chrome --backup-driver=sauce
+   - < ../e2e_splits.\$1.txt' --
+""".replaceAll("\n", "")
+
 
 def _setupWebapp() {
    if (!kaGit.isAtCommit("webapp", params.GIT_REVISION)) {
@@ -197,12 +210,14 @@ try {
                _setupWebapp();
 
                try {
-                  withEnv(["URL=${params.URL}",
-                           "FAILFAST=${params.FAILFAST}"]) {
-                     // We need secrets so we can talk to saucelabs.
+                  // This is apparently needed to avoid hanging with
+                  // the chrome driver.  See
+                  // https://github.com/SeleniumHQ/docker-selenium/issues/87
+                  withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
                      withSecrets() {
-                        sh("jenkins-tools/parallel-selenium-e2e-tests.sh " +
-                           "`seq ${firstSplit} ${lastSplit}`");
+                        sh("jenkins-tools/in_parallel.py " +
+                           "`seq ${firstSplit} ${lastSplit}` " +
+                           "-- ${E2E_CMD}");
                      }
                   }
                } finally {
