@@ -96,9 +96,16 @@ def _setupWebapp() {
 }
 
 
-// TODO(csilvers): add a good timeout
-// TODO(csilvers): do something reasonable with slack messaging
-//     (add an `alert` build step to call out to alert.py)
+// This should be called from workspace-root.
+def _alert(def msg, def isError=true) {
+   withSecrets() {     // you need secrets to talk to slack
+      sh("echo '${msg}' | " +
+         "jenkins-tools/alertlib/alert.py --slack='${params.SLACK_CHANNEL}' " +
+         "--severity=${isError ? 'error' : 'info'} " +
+         "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
+   }
+}
+
 
 stage("Determining splits") {
    // The main goal of this stage is to determine the splits, which
@@ -162,7 +169,12 @@ try {
             onMaster('1h') {       // timeout
                withEnv(["URL=${params.URL}",
                         "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
-                  sh("jenkins-tools/android-e2e-tests.sh");
+                  withSecrets() {  // we need secrets to talk to slack!
+                     // TODO(csilvers): just call
+                     // jenkins-tools/run_android_db_generator.sh
+                     // and do the slack-sending here in this script.
+                     sh("jenkins-tools/android-e2e-tests.sh");
+                  }
                }
             }
          },
@@ -216,14 +228,23 @@ try {
         // so let our cron overseer know.
         sh("rm /tmp/make_check.run");
 
+        def numPickleFileErrors = 0;
+
         sh("rm -f e2e-test-results.*.pickle");
         for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
            try {
               unstash("results ${i}");
            } catch (e) {
-              // I guess that worker had trouble even producing results
-              // TODO(csilvers): warn to slack about this
+              // I guess that worker had trouble even producing results.
+              numPickleFileErrors++;
            }
+        }
+
+        if (numPickleFileErrors) {
+           def msg = ("${numPickleFileErrors} test workers did not even " +
+                      "finish (could be due to timeouts or framework " +
+                      "errors; check the logs to see exactly why)");
+           _alert(msg, isError=true);
         }
 
         dir("webapp") {
@@ -233,6 +254,14 @@ try {
            sh("tools/test_pickle_util.py update-timing-db " +
               "genfiles/e2e-test-results.pickle " +
               "genfiles/e2e_test_info.db");
+           withSecrets() {     // we need secrets to talk to slack!
+              sh("tools/test_pickle_util.py summarize-to-slack " +
+                 "genfiles/e2e-test-results.pickle " +
+                 "'${params.SLACK_CHANNEL}' " +
+                 "--deployer '${params.DEPLOYER_USERNAME}' " +
+                 "--commit '${params.GIT_REVISION}'");
+           }
+
            sh("rm -rf genfiles/selenium_test_reports");
            sh("tools/test_pickle_util.py to-junit " +
               "genfiles/e2e-test-results.pickle " +
@@ -240,11 +269,10 @@ try {
         }
 
         junit("webapp/genfiles/selenium_test_reports/*.xml");
-        // TODO(csilvers): rewrite analyze_make_output to read from pickle
-        sh("jenkins-tools/analyze_make_output.py " +
-           "--test_reports_dir=webapp/genfiles/selenium_test_reports " +
-           "--jenkins_build_url='${env.BUILD_URL}' " +
-           "--slack-channel='${params.SLACK_CHANNEL}'");
       }
    }
 }
+
+// TODO(csilvers): send to slack if the script fails in a way that we
+// don't send to slack otherwise (have this whole thing in a big
+// try/finally).
