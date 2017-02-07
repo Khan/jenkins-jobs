@@ -77,7 +77,7 @@ Typically not set manually, but rather by other jobs that call this one.""",
 
 ).apply();
 
-currentBuild.displayName = ("${currentBuild.displayName} "
+currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION)");
 
 
