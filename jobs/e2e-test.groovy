@@ -77,7 +77,8 @@ Typically not set manually, but rather by other jobs that call this one.""",
 
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} (${GIT_REVISION)";
+currentBuild.displayName = ("${currentBuild.displayName} "
+                            "(${params.GIT_REVISION)");
 
 
 def NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
