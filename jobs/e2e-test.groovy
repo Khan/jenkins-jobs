@@ -77,6 +77,8 @@ Typically not set manually, but rather by other jobs that call this one.""",
 
 ).apply();
 
+currentBuild.displayName = "${currentBuild.displayName} (${GIT_REVISION)";
+
 
 def NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
@@ -94,8 +96,6 @@ def _setupWebapp() {
 
 
 // TODO(csilvers): add a good timeout
-// TODO(csilvers): set the build name to
-//     #${BUILD_NUMBER} (${ENV, var="GIT_REVISION"})
 // TODO(csilvers): do something reasonable with slack messaging
 //     (add an `alert` build step to call out to alert.py)
 
