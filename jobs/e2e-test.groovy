@@ -99,12 +99,11 @@ sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
 
 
 def _setupWebapp() {
-   if (!kaGit.isAtCommit("webapp", params.GIT_REVISION)) {
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                             params.GIT_REVISION);
-      dir("webapp") {
-         sh("make python_deps");
-      }
+   // TODO(csilvers): have this fn be a noop if we're already at this commit.
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                          params.GIT_REVISION);
+   dir("webapp") {
+      sh("make python_deps");
    }
 }
 
