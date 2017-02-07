@@ -272,6 +272,7 @@ try {
                  sh("tools/test_pickle_util.py summarize-to-slack " +
                     "genfiles/e2e-test-results.pickle " +
                     "'${params.SLACK_CHANNEL}' " +
+                    "--jenkins-build-url '${env.BUILD_URL}' " +
                     "--deployer '${params.DEPLOYER_USERNAME}' " +
                     "--commit '${params.GIT_REVISION}'");
 
