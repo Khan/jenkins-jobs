@@ -65,7 +65,8 @@ class Setup implements Serializable {
 
    // Schedule should be, e.g. 'H 2 * * 1-5'
    def setCronSchedule(schedule) {
-      self.cronSchedule = schedule;
+      this.cronSchedule = schedule;
+      return this;
    }
 
    def addParam(param) {
