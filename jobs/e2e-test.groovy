@@ -73,7 +73,7 @@ but it doesn't need to.""",
    "DEPLOYER_USERNAME",
    """Who asked to run this job, used to ping on slack.
 Typically not set manually, but rather by other jobs that call this one.""",
-   "@AutomatedRun"
+   ""
 
 ).apply();
 
