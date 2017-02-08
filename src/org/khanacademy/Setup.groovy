@@ -29,13 +29,16 @@ class Setup implements Serializable {
    // or a list of labels to use with the 'throttle concurrent builds'
    // plugin.  We block (no concurrent builds) by default.
    def concurrentBuildCategories;
-   // The values you set when running this job.
+   // The cron schedule, if this job should be run on a schedule.
+   def cronSchedule;
+   // The values users set when running this job.
    def params;
 
    Setup(steps) {
       this.steps = steps;
       this.numBuildsToKeep = 100;
       this.concurrentBuildCategories = ['this'];
+      this.cronSchedule = null;
       this.params = [];
    }
 
@@ -58,6 +61,11 @@ class Setup implements Serializable {
    def blockBuilds(labels=['this']) {
       this.concurrentBuildCategories = labels;
       return this;
+   }
+
+   // Schedule should be, e.g. 'H 2 * * 1-5'
+   def setCronSchedule(schedule) {
+      self.cronSchedule = schedule;
    }
 
    def addParam(param) {
@@ -100,6 +108,10 @@ class Setup implements Serializable {
                    throttleEnabled: true,
                    throttleOption: 'category'
                   ];
+      }
+      if (this.cronSchedule) {
+         props << this.steps.pipelineTriggers(
+            [this.steps.cron(this.cronSchedule)]);
       }
       if (this.params) {
          props << this.steps.parameters(params);
