@@ -167,7 +167,12 @@ stage("Determining splits") {
       }
    }
 
-   parallel(jobs);
+   try {
+      parallel(jobs);
+   } catch (e) {
+      _alert("Error setting up e2e tests; e2e tests not run", isError=true);
+      throw e;
+   }
 }
 
 try {
@@ -244,56 +249,58 @@ try {
    // were failures; hence we're in the `finally`.
    stage("Analyzing results") {
       onMaster('5m') {         // timeout
-        // Once we get here, we're done using the worker machines,
-        // so let our cron overseer know.
-        sh("rm /tmp/make_check.run");
+         try {
+            // Once we get here, we're done using the worker machines,
+            // so let our cron overseer know.
+            sh("rm /tmp/make_check.run");
 
-        def numPickleFileErrors = 0;
+            def numPickleFileErrors = 0;
 
-        sh("rm -f e2e-test-results.*.pickle");
-        for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-           try {
-              unstash("results ${i}");
-           } catch (e) {
-              // I guess that worker had trouble even producing results.
-              numPickleFileErrors++;
-           }
-        }
+            sh("rm -f e2e-test-results.*.pickle");
+            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+               try {
+                  unstash("results ${i}");
+               } catch (e) {
+                  // I guess that worker had trouble even producing results.
+                  numPickleFileErrors++;
+               }
+            }
 
-        if (numPickleFileErrors) {
-           def msg = ("${numPickleFileErrors} test workers did not even " +
-                      "finish (could be due to timeouts or framework " +
-                      "errors; check the logs to see exactly why)");
-           _alert(msg, isError=true);
-        }
+            if (numPickleFileErrors) {
+               def msg = ("${numPickleFileErrors} test workers did not even " +
+                          "finish (could be due to timeouts or framework " +
+                          "errors; check the logs to see exactly why)");
+               _alert(msg, isError=true);
+            }
 
-        withSecrets() {     // we need secrets to talk to slack!
-           dir("webapp") {
-              sh("tools/test_pickle_util.py merge " +
-                 "../e2e-test-results.*.pickle " +
-                 "genfiles/e2e-test-results.pickle");
-              sh("tools/test_pickle_util.py update-timing-db " +
-                 "genfiles/e2e-test-results.pickle " +
-                 "genfiles/e2e_test_info.db");
-                 sh("tools/test_pickle_util.py summarize-to-slack " +
-                    "genfiles/e2e-test-results.pickle " +
-                    "'${params.SLACK_CHANNEL}' " +
-                    "--jenkins-build-url '${env.BUILD_URL}' " +
-                    "--deployer '${params.DEPLOYER_USERNAME}' " +
-                    "--commit '${params.GIT_REVISION}'");
+            withSecrets() {     // we need secrets to talk to slack!
+               dir("webapp") {
+                  sh("tools/test_pickle_util.py merge " +
+                     "../e2e-test-results.*.pickle " +
+                     "genfiles/e2e-test-results.pickle");
+                  sh("tools/test_pickle_util.py update-timing-db " +
+                     "genfiles/e2e-test-results.pickle " +
+                     "genfiles/e2e_test_info.db");
+                  sh("tools/test_pickle_util.py summarize-to-slack " +
+                     "genfiles/e2e-test-results.pickle " +
+                     "'${params.SLACK_CHANNEL}' " +
+                     "--jenkins-build-url '${env.BUILD_URL}' " +
+                     "--deployer '${params.DEPLOYER_USERNAME}' " +
+                     "--commit '${params.GIT_REVISION}'");
 
-              sh("rm -rf genfiles/selenium_test_reports");
-              sh("tools/test_pickle_util.py to-junit " +
-                 "genfiles/e2e-test-results.pickle " +
-                 "genfiles/selenium_test_reports");
-           }
-        }
+                  sh("rm -rf genfiles/selenium_test_reports");
+                  sh("tools/test_pickle_util.py to-junit " +
+                     "genfiles/e2e-test-results.pickle " +
+                     "genfiles/selenium_test_reports");
+               }
+            }
 
-        junit("webapp/genfiles/selenium_test_reports/*.xml");
+            junit("webapp/genfiles/selenium_test_reports/*.xml");
+         } catch (e) {
+            _alert("Error analyzing e2e test results; " +
+                   "e2e-tests may have failed!", isError=true)
+            throw e;
+         }
       }
    }
 }
-
-// TODO(csilvers): send to slack if the script fails in a way that we
-// don't send to slack otherwise (have this whole thing in a big
-// try/finally).
