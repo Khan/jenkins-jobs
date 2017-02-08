@@ -31,28 +31,45 @@ def checkoutJenkinsTools() {
    }
 }
 
+def _buildTagFile(repo) {
+   // `repo` is something like `git@github.com:Khan/webapp`.
+   return "build_tag.${repo.split('/')[-1]}";
+}
+
+// true iff the current job had previously synced the given repo to
+// the given commit using safeSync or safeSyncToOrigin.
+def wasSyncedTo(repo, commit, syncFn) {
+   try {
+      actual = readFile(_buildTagFile(repo));
+      return actual == "${syncFn} ${commit} ${env.BUILD_TAG}";
+   } catch (e) {
+      return false;     // build_tag file doesn't exist.
+   }
+}
+
 // Submodules is as in _submodulesArg.
-def safeSyncTo(repoToClone, commit, submodules=[]) {
+// Unless `force` is True, we are a noop if that dir is already synced
+// to the given commit *by this same jenkins job*.
+def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
+   if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
+      return;
+   }
    sh("jenkins-tools/build.lib safe_sync_to " +
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+   // Document who synced this repo and to where, for future reference.
+   writeFile(file: _buildTagFile(repoToClone),
+             text: "safeSyncTo ${commit} ${env.BUILD_TAG}");
 }
 
 // Submodules is as in _submodulesArg.
-def safeSyncToOrigin(repoToClone, commit, submodules=[]) {
+// Unless `force` is True, we are a noop if that dir is already synced
+// to the given commit *by this same jenkins job*.
+def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
+   if (!force && wasSyncedTo(repoToClone, commit, "safeSyncToOrigin")) {
+      return;
+   }
    sh("jenkins-tools/build.lib safe_sync_to_origin " +
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
-}
-
-
-// Returns True iff the repo in the given subdirectory is at the
-// given git commit-ish.  Note it does *not* check that the
-// workspace is clean or anything like that, just that rev-parse
-// matches.  TODO(csilvers): do this automatically in build.lib instead.
-def isAtCommit(subdir, commit) {
-   dir(subdir) {
-      def rc = sh(script: ("[ \"`git rev-parse HEAD`\" = " +
-                           "\"`git rev-parse '${commit}'`\" ]"),
-                  returnStatus: true)
-      return rc == 0;
-   }
+   writeFile(file: _buildTagFile(repoToClone),
+             text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
 }
