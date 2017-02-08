@@ -108,10 +108,10 @@ def _setupWebapp() {
 
 
 // This should be called from workspace-root.
-def _alert(def msg, def isError=true) {
+def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo '${msg}' | " +
-         "jenkins-tools/alertlib/alert.py --slack='${params.SLACK_CHANNEL}' " +
+         "jenkins-tools/alertlib/alert.py --slack='${channel}' " +
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
@@ -178,13 +178,20 @@ try {
 
          "mobile-integration-test": {
             onMaster('1h') {       // timeout
-               withEnv(["URL=${params.URL}",
-                        "SLACK_CHANNEL=${params.SLACK_CHANNEL}"]) {
+               withEnv(["URL=${params.URL}"]) {
                   withSecrets() {  // we need secrets to talk to slack!
-                     // TODO(csilvers): just call
-                     // jenkins-tools/run_android_db_generator.sh
-                     // and do the slack-sending here in this script.
-                     sh("jenkins-tools/android-e2e-tests.sh");
+                     try {
+                        sh("jenkins-tools/run_android_db_generator.sh");
+                        _alert("Mobile integration tests succeeded",
+                               isError=false);
+                     } catch (e) {
+                        def msg = ("Mobile integration tests failed " +
+                                   "(search for 'ANDROID' in " +
+                                   "${env.BUILD_URL}consoleFull)");
+                        _alert(msg, isError=true);
+                        _alert(msg, isError=true, channel="#mobile-1s-and-0s");
+                        throw e;
+                     }
                   }
                }
             }
