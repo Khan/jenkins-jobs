@@ -141,7 +141,7 @@ def determineSplits() {
                dir("genfiles") {
                   def allSplits = readFile("test-splits.txt").split("\n\n");
                   for (def i = 0; i < allSplits.size(); i++) {
-                     writeFile(file: "e2e_splits.${i}.txt",
+                     writeFile(file: "test-splits.${i}.txt",
                                text: allSplits[i]);
                   }
                   stash(includes: "test-splits.*.txt", name: "splits");
