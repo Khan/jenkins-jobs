@@ -82,15 +82,15 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-def NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 
 // This is the e2e command we run on the workers.  $1 is the
 // job-number for this current worker (and is used to decide what
 // tests this worker is responsible for running.)
 // The trailing `tools/rune2etests.py` is just to set the executable
 // name ($0) reported by `sh`.
-def E2E_CMD = """\
+E2E_CMD = """\
 sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
    --pickle --pickle-file=../test-results.\$1.pickle
    --timing-db=genfiles/test-info.db --xml-dir=genfiles/test-reports
