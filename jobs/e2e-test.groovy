@@ -5,6 +5,7 @@
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.kaGit
+//import vars.notify
 //import vars.onMaster
 //import vars.onTestWorker
 //import vars.withSecrets
@@ -91,10 +92,11 @@ def JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 // name ($0) reported by `sh`.
 def E2E_CMD = """\
 sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
-   --pickle --pickle-file=../e2e-test-results.\$1.pickle
+   --pickle --pickle-file=../test-results.\$1.pickle
+   --timing-db=genfiles/test-info.db --xml-dir=genfiles/test-reports
    --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
    --url=\"${params.URL}\" --driver=chrome --backup-driver=sauce
-   - < ../e2e_splits.\$1.txt' tools/rune2etests.py
+   - < ../test-splits.\$1.txt' tools/rune2tests.py
 """.replaceAll("\n", "")
 
 
@@ -118,7 +120,7 @@ def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
 }
 
 
-stage("Determining splits") {
+def determineSplits() {
    // The main goal of this stage is to determine the splits, which
    // happens on master.  But while we're waiting for that, we might
    // as well get all the test-workers synced to the right commit!
@@ -128,21 +130,21 @@ stage("Determining splits") {
          onMaster('10m') {        // timeout
             // Figure out how to split up the tests.  We run 4 jobs on
             // each of 4 workers.  We put this in the location where the
-            // 'copy to slave' plugin expects it (e2e-test-worker will
+            // 'copy to slave' plugin expects it (e2e-test-<worker> will
             // copy the file from here to each worker machine).
             def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
             _setupWebapp();
             dir("webapp") {
                sh("tools/rune2etests.py -n --just-split -j${NUM_SPLITS}" +
-                  "> genfiles/e2e_splits.txt");
+                  "> genfiles/test-splits.txt");
                dir("genfiles") {
-                  def allSplits = readFile("e2e_splits.txt").split("\n\n");
+                  def allSplits = readFile("test-splits.txt").split("\n\n");
                   for (def i = 0; i < allSplits.size(); i++) {
                      writeFile(file: "e2e_splits.${i}.txt",
                                text: allSplits[i]);
                   }
-                  stash(includes: "e2e_splits.*.txt", name: "splits");
+                  stash(includes: "test-splits.*.txt", name: "splits");
                }
             }
 
@@ -167,140 +169,148 @@ stage("Determining splits") {
       }
    }
 
-   try {
-      parallel(jobs);
-   } catch (e) {
-      _alert("Error setting up e2e tests; e2e tests not run", isError=true);
-      throw e;
+   parallel(jobs);
+}
+
+def runTests() {
+   def jobs = [
+      // This is a kwarg that tells parallel() what to do when a job fails.
+      "failFast": params.FAILFAST == "true",
+
+      "mobile-integration-test": {
+         onMaster('1h') {       // timeout
+            withEnv(["URL=${params.URL}"]) {
+               withSecrets() {  // we need secrets to talk to slack!
+                  try {
+                     sh("jenkins-tools/run_android_db_generator.sh");
+                     _alert("Mobile integration tests succeeded",
+                            isError=false);
+                  } catch (e) {
+                     def msg = ("Mobile integration tests failed " +
+                                "(search for 'ANDROID' in " +
+                                "${env.BUILD_URL}consoleFull)");
+                     _alert(msg, isError=true);
+                     _alert(msg, isError=true, channel="#mobile-1s-and-0s");
+                     throw e;
+                  }
+               }
+            }
+         }
+      },
+   ];
+   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+      // A restriction in `parallel`: need to redefine the index var here.
+      def workerNum = i;
+
+      jobs["e2e-test-${workerNum}"] = {
+         onTestWorker('1h') {     // timeout
+            // Out with the old, in with the new!
+            sh("rm -f test-results.*.pickle");
+            unstash("splits");
+            def firstSplit = workerNum * JOBS_PER_WORKER;
+            def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+
+            // Hopefully, the sync-webapp-i job above synced us to
+            // the right commit, but we can't depend on that, so we
+            // double-check.
+            _setupWebapp();
+
+            try {
+               // This is apparently needed to avoid hanging with
+               // the chrome driver.  See
+               // https://github.com/SeleniumHQ/docker-selenium/issues/87
+               withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
+                  withSecrets() {   // we need secrets to talk to saucelabs
+                     sh("jenkins-tools/in_parallel.py " +
+                        "`seq ${firstSplit} ${lastSplit}` " +
+                        "-- ${E2E_CMD}");
+                  }
+               }
+            } finally {
+               // Now let the next stage see all the results.
+               // rune2etests.py should normally produce these files
+               // even when it returns a failure rc (due to some test
+               // or other failing).
+               stash(includes: "test-results.*.pickle",
+                     name: "results ${workerNum}");
+            }
+         }
+      };
+   }
+
+   parallel(jobs);
+}
+
+def analyzeResults() {
+   onMaster('5m') {         // timeout
+      // Once we get here, we're done using the worker machines,
+      // so let our cron overseer know.
+      sh("rm /tmp/make_check.run");
+
+      def numPickleFileErrors = 0;
+
+      sh("rm -f test-results.*.pickle");
+      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+         try {
+            unstash("results ${i}");
+         } catch (e) {
+            // I guess that worker had trouble even producing results.
+            numPickleFileErrors++;
+         }
+      }
+
+      if (numPickleFileErrors) {
+         def msg = ("${numPickleFileErrors} test workers did not even " +
+                    "finish (could be due to timeouts or framework " +
+                    "errors; check the logs to see exactly why)");
+         _alert(msg, isError=true);
+      }
+
+      withSecrets() {     // we need secrets to talk to slack!
+         dir("webapp") {
+            sh("tools/test_pickle_util.py merge " +
+               "../test-results.*.pickle " +
+               "genfiles/test-results.pickle");
+            sh("tools/test_pickle_util.py update-timing-db " +
+               "genfiles/test-results.pickle genfiles/test-info.db");
+            sh("tools/test_pickle_util.py summarize-to-slack " +
+               "genfiles/test-results.pickle " +
+               "'${params.SLACK_CHANNEL}' " +
+               "--jenkins-build-url '${env.BUILD_URL}' " +
+               "--deployer '${params.DEPLOYER_USERNAME}' " +
+               "--commit '${params.GIT_REVISION}'");
+            // Let notify() know not to send any messages to slack,
+            // because we just did it above.
+            env.SENT_TO_SLACK = '1';
+
+            sh("rm -rf genfiles/test-reports");
+            sh("tools/test_pickle_util.py to-junit " +
+               "genfiles/test-results.pickle genfiles/test-reports");
+         }
+      }
+
+      junit("webapp/genfiles/test-reports/*.xml");
    }
 }
 
-try {
-   stage("Running tests") {
-      def jobs = [
-         // This is a kwarg that tells parallel() what to do when a job fails.
-         "failFast": params.FAILFAST == "true",
 
-         "mobile-integration-test": {
-            onMaster('1h') {       // timeout
-               withEnv(["URL=${params.URL}"]) {
-                  withSecrets() {  // we need secrets to talk to slack!
-                     try {
-                        sh("jenkins-tools/run_android_db_generator.sh");
-                        _alert("Mobile integration tests succeeded",
-                               isError=false);
-                     } catch (e) {
-                        def msg = ("Mobile integration tests failed " +
-                                   "(search for 'ANDROID' in " +
-                                   "${env.BUILD_URL}consoleFull)");
-                        _alert(msg, isError=true);
-                        _alert(msg, isError=true, channel="#mobile-1s-and-0s");
-                        throw e;
-                     }
-                  }
-               }
-            }
-         },
-      ];
-      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         // A restriction in `parallel`: need to redefine the index var here.
-         def workerNum = i;
-
-         jobs["e2e-test-${workerNum}"] = {
-            onTestWorker('1h') {     // timeout
-               // Out with the old, in with the new!
-               sh("rm -f e2e-test-results.*.pickle");
-               unstash("splits");
-               def firstSplit = workerNum * JOBS_PER_WORKER;
-               def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
-
-               // Hopefully, the sync-webapp-i job above synced us to
-               // the right commit, but we can't depend on that, so we
-               // double-check.
-               _setupWebapp();
-
-               try {
-                  // This is apparently needed to avoid hanging with
-                  // the chrome driver.  See
-                  // https://github.com/SeleniumHQ/docker-selenium/issues/87
-                  withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
-                     withSecrets() {
-                        sh("jenkins-tools/in_parallel.py " +
-                           "`seq ${firstSplit} ${lastSplit}` " +
-                           "-- ${E2E_CMD}");
-                     }
-                  }
-               } finally {
-                  // Now let the next stage see all the results.
-                  // parallel-selenium-e2e-tests.sh should normally
-                  // produce these files even when it returns a
-                  // failure rc (due to some test or other failing).
-                  stash(includes: "e2e-test-results.*.pickle",
-                        name: "results ${workerNum}");
-               }
-            }
-         };
-      }
-
-      parallel(jobs);
+notify([slack: [channel: params.SLACK_CHANNEL,
+                sender: 'Testing Turtle',
+                emoji: ':turtle:',
+                when: ['FAILURE', 'UNSTABLE']]]) {
+   stage("Determining splits") {
+      determineSplits();
    }
-} finally {
-   // We want to analyze results even if -- especially if -- there
-   // were failures; hence we're in the `finally`.
-   stage("Analyzing results") {
-      onMaster('5m') {         // timeout
-         try {
-            // Once we get here, we're done using the worker machines,
-            // so let our cron overseer know.
-            sh("rm /tmp/make_check.run");
 
-            def numPickleFileErrors = 0;
-
-            sh("rm -f e2e-test-results.*.pickle");
-            for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-               try {
-                  unstash("results ${i}");
-               } catch (e) {
-                  // I guess that worker had trouble even producing results.
-                  numPickleFileErrors++;
-               }
-            }
-
-            if (numPickleFileErrors) {
-               def msg = ("${numPickleFileErrors} test workers did not even " +
-                          "finish (could be due to timeouts or framework " +
-                          "errors; check the logs to see exactly why)");
-               _alert(msg, isError=true);
-            }
-
-            withSecrets() {     // we need secrets to talk to slack!
-               dir("webapp") {
-                  sh("tools/test_pickle_util.py merge " +
-                     "../e2e-test-results.*.pickle " +
-                     "genfiles/e2e-test-results.pickle");
-                  sh("tools/test_pickle_util.py update-timing-db " +
-                     "genfiles/e2e-test-results.pickle " +
-                     "genfiles/e2e_test_info.db");
-                  sh("tools/test_pickle_util.py summarize-to-slack " +
-                     "genfiles/e2e-test-results.pickle " +
-                     "'${params.SLACK_CHANNEL}' " +
-                     "--jenkins-build-url '${env.BUILD_URL}' " +
-                     "--deployer '${params.DEPLOYER_USERNAME}' " +
-                     "--commit '${params.GIT_REVISION}'");
-
-                  sh("rm -rf genfiles/selenium_test_reports");
-                  sh("tools/test_pickle_util.py to-junit " +
-                     "genfiles/e2e-test-results.pickle " +
-                     "genfiles/selenium_test_reports");
-               }
-            }
-
-            junit("webapp/genfiles/selenium_test_reports/*.xml");
-         } catch (e) {
-            _alert("Error analyzing e2e test results; " +
-                   "e2e-tests may have failed!", isError=true)
-            throw e;
-         }
+   try {
+      stage("Running tests") {
+         runTests();
+      }
+   } finally {
+      // We want to analyze results even if -- especially if -- there
+      // were failures; hence we're in the `finally`.
+      stage("Analyzing results") {
+         analyzeResults();
       }
    }
 }
