@@ -93,5 +93,5 @@ def safePull(dir) {
 // args are the arguments to git commit (we add '-a' automatically).
 def safeCommitAndPush(dir, args) {
    sh("jenkins-tools/build.lib safe_commit_and_push " +
-      "${dir} ${_shellEscape(args)})";
+      "${dir} ${_shellEscape(args)}");
 }
