@@ -1,6 +1,16 @@
 // A wrapper around build.lib, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
 
+// Convert a list of args into a string that you can invoke from the shell.
+def _shellEscape(lst) {
+   def retval = "";
+   // We have to use C-style iterators in jenkins pipeline scripts.
+   for (i = 0; i < lst.size(); i++) {
+      retval += "'" + lst.replace("'", "'\\''") + "' ";
+   }
+   return retval
+}
+
 // Turn a list of submodules into arguments to pass to build.lib functions.
 // Submodules is the empty list (default) for "clone all submodules".
 // Submodules is null for "clone no submodules".
@@ -10,7 +20,7 @@ def _submodulesArg(submodules) {
    if (submodules == null) {
       return 'no_submodules';
    } else {
-      return submodules.join(' ');
+      return _shellEscape(submodules);
    }
 }
 
@@ -72,4 +82,16 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
+}
+
+// dir is the directory to run the pull in (can be in a sub-repo)
+def safePull(dir) {
+   sh("jenkins-tools/build.lib safe_pull ${dir}");
+}
+
+// dir is the directory to commit in (can be in a sub-repo)
+// args are the arguments to git commit (we add '-a' automatically).
+def safeCommitAndPush(dir, args) {
+   sh("jenkins-tools/build.lib safe_commit_and_push " +
+      "${dir} ${_shellEscape(args)})";
 }
