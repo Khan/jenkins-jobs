@@ -86,8 +86,9 @@ def main(cmd_list, duration, signum, kill_after):
             if data == "":
                 read_set.remove(sys.stdin)
             else:
-                if not p.stdin.closed and p.stdin not in write_set:
+                if not p.stdin.closed:
                     input += data
+                if p.stdin not in write_set:
                     write_set.append(p.stdin)
                 continue
 
