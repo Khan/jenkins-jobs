@@ -262,7 +262,8 @@ def analyzeResults() {
       if (numPickleFileErrors) {
          def msg = ("${numPickleFileErrors} test workers did not even " +
                     "finish (could be due to timeouts or framework " +
-                    "errors; check the logs to see exactly why)");
+                    "errors; check ${env.BUILD_URL}consoleFull " +
+                    "to see exactly why)");
          _alert(msg, isError=true);
       }
 

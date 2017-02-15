@@ -173,10 +173,12 @@ def publishResults() {
       }
 
       if (numWorkerErrors) {
-         def msg = ("${numWorkerErrors} test workers did not even " +
+         def msg = ("*determine-test-dependencies:* " +
+                    "${numWorkerErrors} test workers did not even " +
                     "finish (could be due to timeouts or framework " +
-                    "errors; check the logs to see exactly why), so not " +
-                    "updating test-dependency information");
+                    "errors; check ${env.BUILD_URL}consoleFull " +
+                    "to see exactly why), so not updating test-dependency " +
+                    "information");
          _alert(msg, isError=true);
          // Let notify() know not to send any messages to slack,
          // because we just did it above.
