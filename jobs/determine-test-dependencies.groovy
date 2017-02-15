@@ -46,8 +46,10 @@ the <code>ka-test worker</code> ec2 setup at
 to click on 'advanced' to see the instance cap.""",
    "4"
 
-).setCronSchedule(
-   'H 3 * * *'
+// TODO(csilvers): re-enable once I figure out why setCronSchedule causes
+// our process to hang.
+//).setCronSchedule(
+//   'H 3 * * *'
 
 ).apply();
 
