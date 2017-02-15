@@ -196,6 +196,7 @@ def publishResults() {
             "../tests_for.*.json");
 
          // Check it in!
+         sh("git add tools/tests_for.json");
          withEnv(["FORCE_COMMIT=1"]) {   // commit without a test plan
             kaGit.safeCommitAndPush(
                ".", ["-m", "Automatic update of tests_for.json"]);
