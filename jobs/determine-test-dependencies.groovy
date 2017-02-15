@@ -46,7 +46,8 @@ the <code>ka-test worker</code> ec2 setup at
 to click on 'advanced' to see the instance cap.""",
    "4"
 
-).setCronSchedule('H 3 * * *')
+).setCronSchedule(
+   'H 3 * * *'
 
 ).apply();
 
@@ -144,7 +145,6 @@ def runTests() {
                "- < ../test-splits.${workerNum}.txt");
             stash(includes: "tests_for.*.json",
                   name: "results ${workerNum}");
-            }
          }
       };
    }
@@ -162,10 +162,12 @@ def publishResults() {
 
       sh("rm -f tests_for.*.json");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         unstash("results ${i}");
-      } catch (e) {
-         // I guess that worker had trouble even producing results.
-         numWorkerErrors++;
+         try {
+            unstash("results ${i}");
+         } catch (e) {
+            // I guess that worker had trouble even producing results.
+            numWorkerErrors++;
+         }
       }
 
       if (numWorkerErrors) {
