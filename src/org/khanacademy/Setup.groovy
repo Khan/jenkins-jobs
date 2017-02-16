@@ -112,7 +112,10 @@ class Setup implements Serializable {
       }
       if (this.cronSchedule) {
          props << this.steps.pipelineTriggers(
-            [this.steps.cron(this.cronSchedule)]);
+            [
+               [$class: "hudson.triggers.TimerTrigger",
+                spec: this.cronSchedule]
+            ]);
       }
       if (this.params) {
          props << this.steps.parameters(params);
