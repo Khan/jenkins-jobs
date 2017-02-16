@@ -15,7 +15,7 @@ def sendToSlack(slackOptions, status) {
             status = 'has unknown status (oops!)';
          }
 
-         sh("echo '${env.JOB_NAME} ${currentBuild.displayName} ${status}' | " +
+         sh("echo '${env.JOB_NAME} ${currentBuild.displayName} ${status} (<${env.BUILD_URL}|Open>)' | " +
             "jenkins-tools/alertlib/alert.py " +
             "--slack='${slackOptions.channel}' " +
             // TODO(csilvers): make success green, not gray.
