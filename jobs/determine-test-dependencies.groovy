@@ -157,7 +157,7 @@ def runTests() {
 }
 
 def publishResults() {
-   onMaster('5m') {         // timeout
+   onMaster('10m') {         // timeout
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
       sh("rm /tmp/make_check.run");
@@ -188,21 +188,19 @@ def publishResults() {
          return;
       }
 
+      // Get ready to overwrite a file in our repo.
+      kaGit.safePull("webapp");
       dir("webapp") {
-         // Get ready to overwrite a file in our repo.
-         kaGit.safePull(".");
-
          // Combine all the dicts into one dict.
          sh("tools/determine_tests_for.py --merge " +
             "-o tools/tests_for.json " +
             "../tests_for.*.json");
-
-         // Check it in!
          sh("git add tools/tests_for.json");
-         withEnv(["FORCE_COMMIT=1"]) {   // commit without a test plan
-            kaGit.safeCommitAndPush(
-               ".", ["-m", "Automatic update of tests_for.json"]);
-         }
+      }
+      // Check it in!
+      withEnv(["FORCE_COMMIT=1"]) {   // commit without a test plan
+         kaGit.safeCommitAndPush(
+            "webapp", ["-m", "Automatic update of tests_for.json"]);
       }
    }
 }
