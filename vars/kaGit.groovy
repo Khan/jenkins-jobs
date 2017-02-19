@@ -7,7 +7,7 @@ def _shellEscape(lst) {
    def retval = "";
    // We have to use C-style iterators in jenkins pipeline scripts.
    for (i = 0; i < lst.size(); i++) {
-      retval += "'" + lst.replace("'", "'\\''") + "' ";
+      retval += "'" + lst[i].replace("'", "'\\''") + "' ";
    }
    return retval
 }
@@ -59,6 +59,7 @@ def resolveCommitish(repo, commit) {
       }
    }
    if (sha1) {
+      echo("'${commit}' resolves to ${sha1}");
       return sha1;
    }
    // If this looks like a sha1 already, return it.
