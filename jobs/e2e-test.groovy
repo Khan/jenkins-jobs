@@ -99,10 +99,14 @@ sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
    - < ../test-splits.\$1.txt' tools/rune2tests.py
 """.replaceAll("\n", "")
 
+// We want to make sure all nodes below work at the same sha1,
+// so we resolve our input commit to a sha1 right away.
+GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                  params.GIT_REVISION);
+
 
 def _setupWebapp() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                          params.GIT_REVISION);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
       sh("make python_deps");
    }
@@ -171,6 +175,7 @@ def determineSplits() {
 
    parallel(jobs);
 }
+
 
 def runTests() {
    def jobs = [
@@ -241,6 +246,7 @@ def runTests() {
    parallel(jobs);
 }
 
+
 def analyzeResults() {
    onMaster('5m') {         // timeout
       // Once we get here, we're done using the worker machines,
@@ -279,6 +285,8 @@ def analyzeResults() {
                "'${params.SLACK_CHANNEL}' " +
                "--jenkins-build-url '${env.BUILD_URL}' " +
                "--deployer '${params.DEPLOYER_USERNAME}' " +
+               // The commit here is just used for a human-readable
+               // slack message, so we use the input commit, not the sha1.
                "--commit '${params.GIT_REVISION}'");
             // Let notify() know not to send any messages to slack,
             // because we just did it above.

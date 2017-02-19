@@ -2,6 +2,7 @@
 // This should be run from a workspace that has checked out jenkins-tools.
 
 // Convert a list of args into a string that you can invoke from the shell.
+// TODO(csilvers): use in all the sh commands in this file.
 def _shellEscape(lst) {
    def retval = "";
    // We have to use C-style iterators in jenkins pipeline scripts.
@@ -41,13 +42,40 @@ def checkoutJenkinsTools() {
    }
 }
 
+// Turn a commit-ish into a sha1.  If a branch name, we assume the
+// branch exists on the remote and get the sha1 from there.  Otherwise
+// if the input looks like a sha1 we just return it verbatim.
+// Otherwise we error.  This should be run outside a node!
+def resolveCommitish(repo, commit) {
+   def sha1 = null;
+   stage("Resolving commit") {
+      node("master") {
+         timeout(1) {
+            sha1 = sh(script: ("git ls-remote -q " +
+                               "${_shellEscape [repo, commit]}" +
+                               " | cut -f1"),
+                      returnStdout: true).trim();
+         }
+      }
+   }
+   if (sha1) {
+      return sha1;
+   }
+   // If this looks like a sha1 already, return it.
+   // TODO(csilvers): complain to slack?
+   if (commit ==~ /[0-9a-fA-F]{5,}/) {
+      return commit;
+   }
+   error("Cannot find '${commit}' in repo '${repo}'");
+}
+
 def _buildTagFile(repo) {
    // `repo` is something like `git@github.com:Khan/webapp`.
    return "build_tag.${repo.split('/')[-1]}";
 }
 
 // true iff the current job had previously synced the given repo to
-// the given commit using safeSync or safeSyncToOrigin.
+// the given commit using safeSyncTo or safeSyncToOrigin.
 def wasSyncedTo(repo, commit, syncFn) {
    try {
       actual = readFile(_buildTagFile(repo));

@@ -56,10 +56,14 @@ to click on 'advanced' to see the instance cap.""",
 
 NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
+// We want to make sure all nodes below work at the same sha1,
+// so we resolve our input commit to a sha1 right away.
+GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                  params.GIT_REVISION);
+
 
 def _setupWebapp() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                          params.GIT_REVISION);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
       sh("make deps");
    }
@@ -129,6 +133,7 @@ def determineSplits() {
    parallel(jobs);
 }
 
+
 def runTests() {
    def jobs = [:];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
@@ -155,6 +160,7 @@ def runTests() {
 
    parallel(jobs);
 }
+
 
 def publishResults() {
    onMaster('10m') {         // timeout
