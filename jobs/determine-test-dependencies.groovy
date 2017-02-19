@@ -142,6 +142,8 @@ def runTests() {
 
       jobs["test-deps-${workerNum}"] = {
          onTestWorker('3h') {     // timeout
+            // Out with the old, in with the new!
+            sh("rm -f tests_for.*.json");
             unstash("splits");
             // Hopefully, the sync-webapp-i job above synced us to
             // the right commit, but we can't depend on that, so we
