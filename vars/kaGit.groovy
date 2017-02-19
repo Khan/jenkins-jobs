@@ -52,7 +52,7 @@ def resolveCommitish(repo, commit) {
       node("master") {
          timeout(1) {
             sha1 = sh(script: ("git ls-remote -q " +
-                               "${_shellEscape [repo, commit]}" +
+                               "${_shellEscape([repo, commit])}" +
                                " | cut -f1"),
                       returnStdout: true).trim();
          }
