@@ -48,6 +48,14 @@ else
         msg="$msg (search for 'ANDROID' in ${BUILD_URL}consoleFull)"
     fi
     alert_slack "$msg" "error"
-    alert_slack "$msg" "error" "mobile-1s-and-0s"
+    # TODO(charlie): Re-enable sending these failures to #mobile-1s-and-0s.
+    # They're too noisy right now, making the channel unusable on some days,
+    # and these failures are rarely urgent (so, e.g., if we only notice them
+    # the next morning when the nightly e2es run, that's fine). Note that the
+    # tests are mostly failing during the publish e2es. (Coincidentally -- and
+    # conveniently -- this file is _only_ used for the publish e2es, so we'll
+    # continue to get notified when they run on deploys and whatnot.)
+    # See: https://app.asana.com/0/31965416896056/268841235736013.
+    # alert_slack "$msg" "error" "mobile-1s-and-0s"
     exit 1
 fi
