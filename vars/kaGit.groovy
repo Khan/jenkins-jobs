@@ -93,7 +93,7 @@ def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
       return;
    }
-   sh("jenkins-tools/build.lib safe_sync_to " +
+   sh("sh -ex jenkins-tools/build.lib safe_sync_to " +
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
    // Document who synced this repo and to where, for future reference.
    writeFile(file: _buildTagFile(repoToClone),
@@ -107,7 +107,7 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncToOrigin")) {
       return;
    }
-   sh("jenkins-tools/build.lib safe_sync_to_origin " +
+   sh("sh -ex jenkins-tools/build.lib safe_sync_to_origin " +
       "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
@@ -115,12 +115,12 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 def safePull(dir) {
-   sh("jenkins-tools/build.lib safe_pull ${dir}");
+   sh("sh -ex jenkins-tools/build.lib safe_pull ${dir}");
 }
 
 // dir is the directory to commit in (can be in a sub-repo)
 // args are the arguments to git commit (we add '-a' automatically).
 def safeCommitAndPush(dir, args) {
-   sh("jenkins-tools/build.lib safe_commit_and_push " +
+   sh("sh -ex jenkins-tools/build.lib safe_commit_and_push " +
       "${dir} ${_shellEscape(args)}");
 }
