@@ -42,7 +42,7 @@ class Setup implements Serializable {
       this.params = [];
    }
 
-   def setNumBuildsToKeep(num) {
+   def resetNumBuildsToKeep(num) {
       this.numBuildsToKeep = num;
       return this;
    }
@@ -64,7 +64,7 @@ class Setup implements Serializable {
    }
 
    // Schedule should be, e.g. 'H 2 * * 1-5'
-   def setCronSchedule(schedule) {
+   def addCronSchedule(schedule) {
       this.cronSchedule = schedule;
       return this;
    }
