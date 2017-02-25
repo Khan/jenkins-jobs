@@ -17,6 +17,6 @@ def shellEscapeList(lst) {
 
 def call(arglist, returnStdout=false, returnStatus=false) {
    sh(shellEscapeList(arglist),
-      returnStdout=returnStdout, returnStatus=returnStatus);
+      returnStdout: returnStdout, returnStatus: returnStatus);
 }
 
