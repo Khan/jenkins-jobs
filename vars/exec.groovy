@@ -10,13 +10,14 @@ def shellEscape(s) {
 def shellEscapeList(lst) {
    def retval = "";
    // We have to use C-style iterators in jenkins pipeline scripts.
-   for (i = 0; i < lst.size(); i++) {
+   for (def i = 0; i < lst.size(); i++) {
       retval += shellEscape(lst[i]) + " ";
    }
+   return retval;
 }
 
 def call(arglist, returnStdout=false, returnStatus=false) {
-   sh(shellEscapeList(arglist),
+   sh(script: shellEscapeList(arglist),
       returnStdout: returnStdout, returnStatus: returnStatus);
 }
 
