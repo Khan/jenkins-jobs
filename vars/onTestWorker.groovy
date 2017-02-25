@@ -1,7 +1,7 @@
 // We use these user-defined steps from vars/:
-//import kaGit
-//import withTimeout
-//import withVirtualenv
+//import vars.kaGit
+//import vars.withTimeout
+//import vars.withVirtualenv
 
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.

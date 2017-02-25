@@ -1,0 +1,19 @@
+A variant of `sh` that takes a list instead of a string.  `exec` is
+intended to act like `execv(3)` -- it executes the arguments as
+literal strings, without shell expansion of any kind.
+
+In practice, `exec` still resolves to an `sh` command, just one where
+all the arguments have been shell-escaped.
+
+`exec` is intended when trying to run scripts whose arguments are
+groovy variables (including `params` or `env`).  These variables could
+contain spaces and other characters meaningful to the shell, and
+interpolating them unescaped into an `sh` command is a security hole.
+`exec` plugs that hole.
+
+Note there is *NO* reason to use `exec` instead of `sh` if all the
+arguments are literal strings or otherwise not user-specified.  For
+instance, there is no reason to prefer
+   exec(['git', 'rev-parse', 'HEAD']);
+to the simpler
+   sh('git rev-parse HEAD');

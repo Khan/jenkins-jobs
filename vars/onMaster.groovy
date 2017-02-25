@@ -1,7 +1,7 @@
 // We use these user-defined steps from vars/:
-//import kaGit
-//import withTimeout
-//import withVirtualenv
+//import vars.kaGit
+//import vars.withTimeout
+//import vars.withVirtualenv
 
 def call(timeoutString, Closure body) {
    node("master") {

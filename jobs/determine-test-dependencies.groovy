@@ -12,6 +12,7 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+//import vars.exec
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
@@ -71,8 +72,9 @@ def _setupWebapp() {
 // This should be called from workspace-root.
 def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
    withSecrets() {     // you need secrets to talk to slack
-      sh("echo '${msg}' | " +
-         "jenkins-tools/alertlib/alert.py --slack='${channel}' " +
+      sh("echo ${exec.shellEscape(msg)} | " +
+         "jenkins-tools/alertlib/alert.py " +
+         "--slack=${exec.shellEscape(channel)}' " +
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }

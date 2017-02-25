@@ -1,16 +1,8 @@
 // A wrapper around build.lib, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
 
-// Convert a list of args into a string that you can invoke from the shell.
-// TODO(csilvers): use in all the sh commands in this file.
-def _shellEscape(lst) {
-   def retval = "";
-   // We have to use C-style iterators in jenkins pipeline scripts.
-   for (i = 0; i < lst.size(); i++) {
-      retval += "'" + lst[i].replace("'", "'\\''") + "' ";
-   }
-   return retval
-}
+// We use these user-defined steps from vars/:
+//import vars.exec
 
 // Turn a list of submodules into arguments to pass to build.lib functions.
 // Submodules is the empty list (default) for "clone all submodules".
@@ -19,9 +11,9 @@ def _shellEscape(lst) {
 //     some prefix.
 def _submodulesArg(submodules) {
    if (submodules == null) {
-      return 'no_submodules';
+      return ['no_submodules'];
    } else {
-      return _shellEscape(submodules);
+      return submodules;
    }
 }
 
@@ -51,8 +43,8 @@ def resolveCommitish(repo, commit) {
    stage("Resolving commit") {
       node("master") {
          timeout(1) {
-            sha1 = sh(script: ("git ls-remote -q " +
-                               "${_shellEscape([repo, commit])}" +
+            sha1 = sh(script: ("git ls-remote -q ${exec.shellEscape(repo)} " +
+                               "${exec.shellEscape(commit)}" +
                                " | cut -f1"),
                       returnStdout: true).trim();
          }
@@ -86,15 +78,15 @@ def wasSyncedTo(repo, commit, syncFn) {
    }
 }
 
-// Submodules is as in _submodulesArg.
+// Submodules is as in _submodulesArg`.
 // Unless `force` is True, we are a noop if that dir is already synced
 // to the given commit *by this same jenkins job*.
 def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
       return;
    }
-   sh("sh -ex jenkins-tools/build.lib safe_sync_to " +
-      "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_sync_to",
+         repoToClone, commit] + _submodulesArg(submodules));
    // Document who synced this repo and to where, for future reference.
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncTo ${commit} ${env.BUILD_TAG}");
@@ -107,20 +99,20 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncToOrigin")) {
       return;
    }
-   sh("sh -ex jenkins-tools/build.lib safe_sync_to_origin " +
-      "${repoToClone} ${commit} ${_submodulesArg(submodules)}");
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_sync_to_origin",
+         repoToClone, commit] + _submodulesArg(submodules));
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
 }
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 def safePull(dir) {
-   sh("sh -ex jenkins-tools/build.lib safe_pull ${dir}");
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_pull", dir]);
 }
 
 // dir is the directory to commit in (can be in a sub-repo)
 // args are the arguments to git commit (we add '-a' automatically).
 def safeCommitAndPush(dir, args) {
-   sh("sh -ex jenkins-tools/build.lib safe_commit_and_push " +
-      "${dir} ${_shellEscape(args)}");
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_commit_and_push",
+         dir] + args);
 }

@@ -1,6 +1,7 @@
 // We use these user-defined steps from vars/:
-//import onMaster
-//import withSecrets
+//import vars.exec
+//import vars.onMaster
+//import vars.withSecrets
 
 def sendToSlack(slackOptions, status) {
    onMaster('1m') {
@@ -15,13 +16,15 @@ def sendToSlack(slackOptions, status) {
             status = 'has unknown status (oops!)';
          }
 
-         sh("echo '${env.JOB_NAME} ${currentBuild.displayName} ${status} (<${env.BUILD_URL}|Open>)' | " +
+         def msg = ("${env.JOB_NAME} ${currentBuild.displayName} ${status} " +
+                    "(<${env.BUILD_URL}|Open>)";
+         sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
-            "--slack='${slackOptions.channel}' " +
+            "--slack=${exec.shellEscape(slackOptions.channel)} " +
             // TODO(csilvers): make success green, not gray.
             "--severity=${status == 'succeeded' ? 'info' : 'error'} " +
-            "--chat-sender='${slackOptions.sender ?: 'Janet Jenkins'}' " +
-            "--icon-emoji='${slackOptions.emoji ?: ':crocodile:'}'");
+            "--chat-sender=${exec.shellEscape(slackOptions.sender ?: 'Janet Jenkins')} " +
+            "--icon-emoji=${exec.shellEscape(slackOptions.emoji ?: ':crocodile:')}");
       }
    }
 }

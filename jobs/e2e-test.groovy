@@ -88,15 +88,13 @@ JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
 // This is the e2e command we run on the workers.  $1 is the
 // job-number for this current worker (and is used to decide what
 // tests this worker is responsible for running.)
-// The trailing `tools/rune2etests.py` is just to set the executable
-// name ($0) reported by `sh`.
 E2E_CMD = """\
-sh -c 'cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
+   cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
    --pickle --pickle-file=../test-results.\$1.pickle
    --timing-db=genfiles/test-info.db --xml-dir=genfiles/test-reports
    --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
-   --url=\"${params.URL}\" --driver=chrome --backup-driver=sauce
-   - < ../test-splits.\$1.txt' tools/rune2tests.py
+   --url=${exec.shellEscape(params.URL)} --driver=chrome --backup-driver=sauce
+   - < ../test-splits.\$1.txt
 """.replaceAll("\n", "")
 
 // We want to make sure all nodes below work at the same sha1,
@@ -116,8 +114,9 @@ def _setupWebapp() {
 // This should be called from workspace-root.
 def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
    withSecrets() {     // you need secrets to talk to slack
-      sh("echo '${msg}' | " +
-         "jenkins-tools/alertlib/alert.py --slack='${channel}' " +
+      sh("echo ${exec.shellEscape(msg)} | " +
+         "jenkins-tools/alertlib/alert.py " +
+         "--slack=${exec.shellEscape(channel)} " +
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
@@ -226,9 +225,11 @@ def runTests() {
                // https://github.com/SeleniumHQ/docker-selenium/issues/87
                withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
                   withSecrets() {   // we need secrets to talk to saucelabs
-                     sh("jenkins-tools/in_parallel.py " +
-                        "`seq ${firstSplit} ${lastSplit}` " +
-                        "-- ${E2E_CMD}");
+                     // The trailing `tools/rune2etests.py` is just to
+                     // set the executable name ($0) reported by `sh`.
+                     exec(["jenkins-tools/in_parallel.py"] +
+                          (firstSplit..lastSplit) +
+                          ["--", "sh", "-c", E2E_CMD, "tools/rune2etests.py"]);
                   }
                }
             } finally {
@@ -280,14 +281,13 @@ def analyzeResults() {
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
-            sh("tools/test_pickle_util.py summarize-to-slack " +
-               "genfiles/test-results.pickle " +
-               "'${params.SLACK_CHANNEL}' " +
-               "--jenkins-build-url '${env.BUILD_URL}' " +
-               "--deployer '${params.DEPLOYER_USERNAME}' " +
-               // The commit here is just used for a human-readable
-               // slack message, so we use the input commit, not the sha1.
-               "--commit '${params.GIT_REVISION}'");
+            exec(["tools/test_pickle_util.py", "summarize-to-slack",
+                  "genfiles/test-results.pickle", params.SLACK_CHANNEL,
+                  "--jenkins-build-url", env.BUILD_URL,
+                  "--deployer", params.DEPLOYER_USERNAME,
+                  // The commit here is just used for a human-readable
+                  // slack message, so we use the input commit, not the sha1.
+                  "--commit", params.GIT_REVISION]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
