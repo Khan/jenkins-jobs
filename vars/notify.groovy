@@ -17,7 +17,7 @@ def sendToSlack(slackOptions, status) {
          }
 
          def msg = ("${env.JOB_NAME} ${currentBuild.displayName} ${status} " +
-                    "(<${env.BUILD_URL}|Open>)";
+                    "(<${env.BUILD_URL}|Open>)");
          sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
             "--slack=${exec.shellEscape(slackOptions.channel)} " +
