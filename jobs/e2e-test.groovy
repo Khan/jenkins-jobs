@@ -82,9 +82,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
-
 // This is the e2e command we run on the workers.  $1 is the
 // job-number for this current worker (and is used to decide what
 // tests this worker is responsible for running.)
@@ -97,10 +94,20 @@ E2E_CMD = """\
    - < ../test-splits.\$1.txt
 """.replaceAll("\n", "")
 
-// We want to make sure all nodes below work at the same sha1,
-// so we resolve our input commit to a sha1 right away.
-GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                  params.GIT_REVISION);
+// We set these to real values first thing below; but we do it within
+// the notify() so if there's an error setting them we notify on slack.
+NUM_WORKER_MACHINES = null;
+JOBS_PER_WORKER = null;
+GIT_SHA1 = null;
+
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                     params.GIT_REVISION);
+}
 
 
 def _setupWebapp() {
@@ -307,6 +314,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: 'Testing Turtle',
                 emoji: ':turtle:',
                 when: ['FAILURE', 'UNSTABLE']]]) {
+   initializeGlobals();
+
    stage("Determining splits") {
       determineSplits();
    }

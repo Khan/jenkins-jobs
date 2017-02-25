@@ -53,12 +53,18 @@ to click on 'advanced' to see the instance cap.""",
 ).apply();
 
 
-NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+// We set these to real values first thing below; but we do it within
+// the notify() so if there's an error setting them we notify on slack.
+NUM_WORKER_MACHINES = null;
+GIT_SHA1 = null;
 
-// We want to make sure all nodes below work at the same sha1,
-// so we resolve our input commit to a sha1 right away.
-GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                  params.GIT_REVISION);
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                     params.GIT_REVISION);
+}
 
 
 def _setupWebapp() {
@@ -218,6 +224,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: 'Testing Turtle',
                 emoji: ':turtle:',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE']]]) {
+   initializeGlobals();
+   
    stage("Determining splits") {
       determineSplits();
    }
