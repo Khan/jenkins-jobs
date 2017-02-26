@@ -4,6 +4,9 @@
 //import vars.withSecrets
 
 def sendToSlack(slackOptions, status) {
+   if (!(status in slackOptions.when)) {
+      return;
+   }
    onMaster('1m') {
       withSecrets() {     // you need secrets to talk to slack
          if (status == 'FAILURE') {
