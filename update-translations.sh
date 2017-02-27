@@ -157,9 +157,6 @@ if [ -n "$UPDATE_STRINGS" ]; then
     [ `wc -l < "$ALL_POT"` -gt 100000 ]
     grep -q 'intl/datastore:1' "$ALL_POT"
 
-    echo "Translating fake languages."
-    "$MAKE" i18n_mo
-
     # Update export timestamps for fake languages.
     mark_fake_langs=`cat <<PYCOMMAND
 from deploy import download_i18n
