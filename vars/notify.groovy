@@ -53,6 +53,17 @@ def _statusText(status) {
 }
 
 
+def _logSuffix() {
+   // Returns the last 50 lines of the logfile.
+   // `manager` is a global provided by Jenkins.
+   def matcher = manager.getLogMatcher('(?:[^\\n]*\\n){,50}$');
+   if (matcher.find()) {
+      return matcher.group(0);
+   }
+   return '';
+}
+
+
 // Supported options:
 // channel (required): what slack channel to send to
 // when (required): under what circumstances to send to jenkins; a list.
@@ -61,10 +72,10 @@ def _statusText(status) {
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 def sendToSlack(slackOptions, status) {
    onMaster("1m") {
+      def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
+                 "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
+      def severity = (status in ['FAILURE', 'UNSTABLE'] ? 'error' : 'info');
       withSecrets() {     // you need secrets to talk to slack
-         def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
-                    "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
-         def severity = (status in ['FAILURE', 'UNSTABLE'] ? 'error' : 'info');
          sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
             "--slack=${exec.shellEscape(slackOptions.channel)} " +
@@ -76,8 +87,34 @@ def sendToSlack(slackOptions, status) {
    }
 }
 
+// Supported options:
+// to (required): a string saying who to send mail to.  We automatically
+//    append "@khanacademy.org" to each email address in the list.
+//    If you want to send to multiple people, use a comma: "sal, team".
+// cc: a string saying who to cc on the email.  Format is the same as
+//    for `to`.
 def sendToEmail(emailOptions, status) {
-   // TODO
+   def severity = (status in ['FAILURE', 'UNSTABLE'] ? 'error' : 'info');
+   def subject = ("${env.JOB_NAME} ${currentBuild.displayName} " +
+                  "${_statusText(status)}");
+   def body = ("""${subject}: See {env.BUILD_URL} for full details.
+
+Below is the tail of the build log.
+If there's a failure it is probably near the bottom!
+
+---------------------------------------------------------------------
+
+[...]
+${_logSuffix()}
+""");
+
+   sh("echo ${exec.shellEscape(body)} | " +
+      "jenkins-tools/alertlib/alert.py " +
+      "--mail=${exec.shellEscape(slackOptions.to)} " +
+      "--summary=${exec.shellEscape(subject)} " +
+      "--cc=${exec.shellEscape(slackOptions.cc ?: '')} " +
+      "--sender-suffix=${exec.shellEscape(env.JOB_NAME.replace(' ', '_'))} " +
+      "--severity=${severity}");
 }
 
 
