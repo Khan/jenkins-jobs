@@ -7,6 +7,7 @@ exception-handling) and sends notifications as appropriate.
 The argument is a map that has `slack` and `email` as possible keys.
 Each value is itself a map with options for that notification mode.
 For instance `slack` has an option what channel to talk to, etc.
+See the code for what options are supported.
 
 If you set the envvar `env.SENT_TO_SLACK` in the body, then we will
 suppress any sending to slack, under the assumption the body did all
