@@ -154,8 +154,8 @@ if [ -n "$UPDATE_STRINGS" ]; then
     ALL_POT="$PWD"/genfiles/translations/all.pot.pickle
 
     echo "Sanity check: will fail if the new all.pot is missing stuff."
-    [ `wc -l < "$ALL_POT"` -gt 100000 ]
-    grep -q 'intl/datastore:1' "$ALL_POT"
+    [ `strings "$ALL_POT" | wc -l` -gt 3000000 ]
+    strings "$ALL_POT" | grep -q 'intl/datastore'
 
     # Update export timestamps for fake languages.
     mark_fake_langs=`cat <<PYCOMMAND
