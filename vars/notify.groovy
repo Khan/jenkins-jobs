@@ -54,10 +54,13 @@ def _statusText(status) {
 
 
 def _logSuffix() {
-   // Returns the last 50 lines of the logfile.
+   // Returns the last 50 lines of the logfile.  However, we omit the
+   // text of commands run by notify() (below) when it's easy to do so,
+   // since they are run after the job proper has already finished, and
+   // don't provide any useful information for debugging.
    // `manager` is a global provided by Jenkins.
-   // TODO(csilvers): stop at `===== JOB FAILED =====` instead, if present?
-   def matcher = manager.getLogMatcher('(?:[^\\n]*\\n){,50}$');
+   def matcher = manager.getLogMatcher(
+      '(?:[^\\n]*\\n){,50}(?:===== JOB FAILED =====|$)');
    if (matcher.find()) {
       return matcher.group(0);
    }
