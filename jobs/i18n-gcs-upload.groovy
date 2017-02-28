@@ -67,7 +67,7 @@ def syncRepos() {
       // We have to do things in this weird way to fake out build.lib
       // into not complaining that we're using internal functions.
       // TODO(csilvers): don't use build.lib internals.
-      sh(". ./build.lib; cd webapp/intl/translations; " +
+      sh(". jenkins-tools/build.lib; cd webapp/intl/translations; " +
          "_safe_fetch; " +
          "_safe_destructive_checkout" +
          "   ${exec.shellEscape(params.TRANSLATIONS_COMMIT)}");
