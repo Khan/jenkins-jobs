@@ -34,6 +34,9 @@ for config in "$JENKINS_HOME"/jobs/*/config.xml; do
     # Ignore folders (which have config.xml's but aren't jobs)
     grep -q "<com.cloudbees.hudson.plugins.folder.Folder" "$config" && continue
 
+    # Ignore pipeline jobs (which do slack notification from within groovy)
+    grep -q "<flow-definition " "$config" && continue
+
     # Make sure we send to slack on all the failure modes.
     grep -q "<notifyAborted>true</notifyAborted>" "$config" || error "$job: should send to slack on 'Aborted'"
     grep -q "<notifyNotBuilt>true</notifyNotBuilt>" "$config" || error "$job: should send to slack on 'NotBuilt'"
