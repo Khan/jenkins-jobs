@@ -56,6 +56,7 @@ def _statusText(status) {
 def _logSuffix() {
    // Returns the last 50 lines of the logfile.
    // `manager` is a global provided by Jenkins.
+   // TODO(csilvers): stop at `===== JOB FAILED =====` instead, if present?
    def matcher = manager.getLogMatcher('(?:[^\\n]*\\n){,50}$');
    if (matcher.find()) {
       return matcher.group(0);
@@ -124,6 +125,12 @@ def call(options, Closure body) {
       body();
    } catch (e) {
       status = "FAILURE";
+      // Log a message to help us ignore this post-build action when
+      // analyzing the logs for errors.  I use `sh` instead of `echo`
+      // since I don't know how echo deals with escape sequences.
+      ansiColor('xterm') {
+         sh("echo '\033[31m===== JOB FAILED =====\033[0m'");
+      }
       throw e;
    } finally {
       if (currentBuild.result != null) {
