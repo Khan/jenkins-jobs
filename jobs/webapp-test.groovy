@@ -149,6 +149,9 @@ def _determineTests() {
       sh("${runtestsCmd} . testutil.js_test testutil.lint_test " +
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "relevant") {
+      // TODO(csilvers): Instead of `origin/master`, what we really want
+      // is "the last time tests passed on a commit that is in master."
+      // We could use redis for this.
       sh("tools/tests_for.py origin/master " +
          " | ${runtestsCmd} -" +
          " > genfiles/test_splits.txt");
