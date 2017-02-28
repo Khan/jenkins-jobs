@@ -228,9 +228,9 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
-            dir("webapp") {
-               sh("../jenkins-tools/build.lib clean ${params.CLEAN}");
-            }
+            // TODO(csilvers): move clean() to a var rather than build.lib.
+            sh(". ./jenkins-tools/build.lib; cd webapp; " +
+               "clean ${exec.shellEscape(params.CLEAN)}");
 
             try {
                sh("cd webapp; ../jenkins-tools/timeout_output.py 45m " +
