@@ -13,11 +13,17 @@ def _shouldReport(status, when) {
 }
 
 
+// True if the status code is one of the ones that indicates failure.
+def _failed(status) {
+   return status in ['FAILURE', 'UNSTABLE', 'ABORTED'];
+}
+
+
 // Number of jobs that have failed in a row, including this one.
 def _numConsecutiveFailures() {
    def numFailures = 0;
    def build = currentBuild;    // a global provided by jenkins
-   while (build && build.result == "FAILURE") {
+   while (build && _failed(build.result)) {
       numFailures++;
       build = build.previousBuild;
    }
@@ -43,6 +49,8 @@ def _statusText(status) {
       return "failed";
    } else if (status == "UNSTABLE") {
       return "is unstable";
+   } else if (status == "ABORTED") {
+      return "was aborted";
    } else if (status == "SUCCESS") {
       return "succeeded";
    } else if (status == "BACK TO NORMAL") {
@@ -78,7 +86,7 @@ def sendToSlack(slackOptions, status) {
    onMaster("1m") {
       def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
                  "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
-      def severity = (status in ['FAILURE', 'UNSTABLE'] ? 'error' : 'info');
+      def severity = _failed(status) ? 'error' : 'info';
       withSecrets() {     // you need secrets to talk to slack
          sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
@@ -98,7 +106,7 @@ def sendToSlack(slackOptions, status) {
 // cc: a string saying who to cc on the email.  Format is the same as
 //    for `to`.
 def sendToEmail(emailOptions, status) {
-   def severity = (status in ['FAILURE', 'UNSTABLE'] ? 'error' : 'info');
+   def severity = _failed(status) ? 'error' : 'info';
    def subject = ("${env.JOB_NAME} ${currentBuild.displayName} " +
                   "${_statusText(status)}");
    def body = ("""${subject}: See {env.BUILD_URL} for full details.
@@ -141,7 +149,7 @@ def call(options, Closure body) {
       // If we are success and the previous build was a failure, then
       // we change the status to BACK TO NORMAL.
       if (status == "SUCCESS" && currentBuild.previousBuild &&
-          currentBuild.previousBuild.result in ["FAILURE", "UNSTABLE"]) {
+          _failed(currentBuild.previousBuild.result)) {
          status = "BACK TO NORMAL";
       }
 
