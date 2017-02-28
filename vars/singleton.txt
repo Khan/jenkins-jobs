@@ -1,0 +1,18 @@
+Only run the body of `singleton` if it hadn't run successfully before.
+
+You give `singleton` the "key" -- it has to be a string key -- that
+uniquely identifies the code to be executed.  If we see a record that
+a job has been run successfully with this key in the past, we are a
+noop.  Otherwise, we run body().  If (and only if) it succeeds, we
+update the database saying that a job has successfully run with this
+key.
+
+If the key is null, we always run body().  This can be useful for an
+idiom like this:
+    with singleton(params.FORCE ? null : key) { ... }
+
+singleton() should be called outside a node.  It always runs on the
+master node.
+
+The database is reset upon machine restart, and possibly at other
+times, so this should be treated as an optimization step only.

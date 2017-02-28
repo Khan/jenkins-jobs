@@ -1,4 +1,10 @@
-// The pipeline job for e2e tests.
+// The pipeline job for webapp tests.
+//
+// webapp tests are the tests run in the webapp repo, including python
+// tests, javascript tests, and linters (which aren't technically tests).
+//
+// This job can either run all tests, or a subset thereof, depending on
+// how parameters are specified.
 
 @Library("kautils")
 // Classes we use, under jenkins-tools/src/.
@@ -21,14 +27,55 @@ new Setup(steps
 ).blockBuilds(['builds-using-test-workers']
 
 ).addStringParam(
-   "URL",
-   "The url-base to run these tests against.",
-   "https://www.khanacademy.org"
+   "GIT_REVISION",
+   """The git commit-hash to run tests at, or a symbolic name referring
+to such a commit-hash.""",
+   "master"
+
+).addChoiceParam(
+   "TEST_TYPE",
+   """\
+<ul>
+  <li> <b>all</b>: run all tests</li>
+  <li> <b>relevant</b>: run only those tests that are affected by
+         files that have changed between master and GIT_REVISION.</li>
+</ul>
+""",
+   ["all", "relevant"]
+
+).addChoiceParam(
+   "MAX_SIZE",
+   """The largest size tests to run, as per tools/runtests.py.""",
+   ["medium", "large", "huge", "small", "tiny"]
+
+).addBooleanParam(
+   "FAILFAST",
+   "If set, stop running tests after the first failure.",
+   false
 
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "#1s-and-0s"
+
+).addBooleanParam(
+   "FORCE",
+   """If set, run the tests even if the database says that the tests
+have already passed at this GIT_REVISION.""",
+   false
+
+).addChoiceParam(
+   "CLEAN",
+   """\
+<ul>
+  <li> <b>some</b>: Clean the workspaces (including .pyc files)
+         but not genfiles
+  <li> <b>most</b>: Clean the workspaces and genfiles, excluding
+         js/ruby/python modules
+  <li> <b>all</b>: Full clean that results in a pristine working copy
+  <li> <b>none</b>: Don't clean at all
+</ul>""",
+   ["some", "most", "all", "none"]
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
@@ -38,38 +85,6 @@ the <code>ka-test worker</code> ec2 setup at
 <a href=\"/configure\">the Jenkins configure page</a>.  You'll need
 to click on 'advanced' to see the instance cap.""",
    "4"
-
-).addStringParam(
-   "JOBS_PER_WORKER",
-   """How many end-to-end tests to run on each worker machine.  It
-will depend on the size of the worker machine, which you can see in
-the <code>Instance Type</code> value for the
-<code>ka-test worker</code> ec2 setup at
-<a href=\"/configure\">the Jenkins configure page</a>.<br><br>
-Here's one way to figure out the right value: log into a worker
-machine and run:
-<blockqoute>
-<pre>
-cd webapp-workspace/webapp
-. ../env/bin/activate
-for num in `seq 1 16`; do echo -- \$num; time tools/rune2etests.py -j\$num >/dev/null 2>&1; done
-</pre>
-</blockquote>
-and pick the number with the shortest time.  For m3.large,
-the best value is 4.""",
-   "4"
-
-).addStringParam(
-   "GIT_REVISION",
-   """A commit-ish to check out.  This only affects the version of the
-E2E test used; it will probably match the tested version's code,
-but it doesn't need to.""",
-   "master"
-
-).addBooleanParam(
-   "FAILFAST",
-   "If set, stop running tests after the first failure.",
-   false
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
@@ -83,27 +98,13 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-// This is the e2e command we run on the workers.  $1 is the
-// job-number for this current worker (and is used to decide what
-// tests this worker is responsible for running.)
-E2E_CMD = """\
-   cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
-   --pickle --pickle-file=../test-results.\$1.pickle
-   --timing-db=genfiles/test-info.db --xml-dir=genfiles/test-reports
-   --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
-   --url=${exec.shellEscape(params.URL)} --driver=chrome --backup-driver=sauce
-   - < ../test-splits.\$1.txt
-""".replaceAll("\n", "")
-
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -114,19 +115,54 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
-      sh("make python_deps");
+      sh("make deps");
    }
 }
 
 
 // This should be called from workspace-root.
-def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
+def _alert(def msg, def isError=true) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo ${exec.shellEscape(msg)} | " +
          "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(channel)} " +
+         "--slack=${exec.shellEscape(params.SLACK_CHANNEL)} " +
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
+   }
+}
+
+
+// Figures out what tests to run based on TEST_TYPE and writes them to
+// a file in workspace-root.  Should be called in the webapp dir.
+def _determineTests() {
+   def tests;
+
+   // This command expands directory arguments, and also filters out
+   // tests that are not the right size.  Finally, it figures out splits.
+   def runtestsCmd = ("tools/runtests.py " +
+                      "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+                      "--jobs=${NUM_WORKER_MACHINES} " +
+                      "--dry-run --just-split");
+
+   if (params.TEST_TYPE == "all") {
+      // We have to specify these explicitly because they are @manual_only.
+      sh("${runtestsCmd} . testutil.js_test testutil.lint_test " +
+         " > genfiles/test_splits.txt");
+   } else if (params.TEST_TYPE == "relevant") {
+      sh("tools/tests_for.py origin/master " +
+         " | ${runtestsCmd} -" +
+         " > genfiles/test_splits.txt");
+   } else {
+      error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
+   }
+
+   dir("genfiles") {
+      def allSplits = readFile("test_splits.txt").split("\n\n");
+      for (def i = 0; i < allSplits.size(); i++) {
+         writeFile(file: "test_splits.${i}.txt",
+                   text: allSplits[i]);
+      }
+      stash(includes: "test_splits.*.txt", name: "splits");
    }
 }
 
@@ -139,24 +175,9 @@ def determineSplits() {
    def jobs = [
       "determine-splits": {
          onMaster('10m') {        // timeout
-            // Figure out how to split up the tests.  We run 4 jobs on
-            // each of 4 workers.  We put this in the location where the
-            // 'copy to slave' plugin expects it (e2e-test-<worker> will
-            // copy the file from here to each worker machine).
-            def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
-
             _setupWebapp();
             dir("webapp") {
-               sh("tools/rune2etests.py -n --just-split -j${NUM_SPLITS}" +
-                  "> genfiles/test-splits.txt");
-               dir("genfiles") {
-                  def allSplits = readFile("test-splits.txt").split("\n\n");
-                  for (def i = 0; i < allSplits.size(); i++) {
-                     writeFile(file: "test-splits.${i}.txt",
-                               text: allSplits[i]);
-                  }
-                  stash(includes: "test-splits.*.txt", name: "splits");
-               }
+               _determineTests();
             }
 
             // Touch this file right before we start using the jenkins
@@ -188,58 +209,35 @@ def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST == "true",
-
-      "mobile-integration-test": {
-         onMaster('1h') {       // timeout
-            withEnv(["URL=${params.URL}"]) {
-               withSecrets() {  // we need secrets to talk to slack!
-                  try {
-                     sh("jenkins-tools/run_android_db_generator.sh");
-                     _alert("Mobile integration tests succeeded",
-                            isError=false);
-                  } catch (e) {
-                     def msg = ("Mobile integration tests failed " +
-                                "(search for 'ANDROID' in " +
-                                "${env.BUILD_URL}consoleFull)");
-                     _alert(msg, isError=true);
-                     _alert(msg, isError=true, channel="#mobile-1s-and-0s");
-                     throw e;
-                  }
-               }
-            }
-         }
-      },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
 
-      jobs["e2e-test-${workerNum}"] = {
+      jobs["test-${workerNum}"] = {
          onTestWorker('1h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f test-results.*.pickle");
             unstash("splits");
-            def firstSplit = workerNum * JOBS_PER_WORKER;
-            def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
 
             // Hopefully, the sync-webapp-i job above synced us to
             // the right commit, but we can't depend on that, so we
             // double-check.
             _setupWebapp();
 
+            dir("webapp") {
+               sh("../jenkins-tools/build.lib clean ${params.CLEAN}");
+            }
+
             try {
-               // This is apparently needed to avoid hanging with
-               // the chrome driver.  See
-               // https://github.com/SeleniumHQ/docker-selenium/issues/87
-               withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
-                  withSecrets() {   // we need secrets to talk to saucelabs
-                     // The trailing `tools/rune2etests.py` is just to
-                     // set the executable name ($0) reported by `sh`.
-                     exec(["jenkins-tools/in_parallel.py"] +
-                          (firstSplit..lastSplit) +
-                          ["--", "sh", "-c", E2E_CMD, "tools/rune2etests.py"]);
-                  }
-               }
+               sh("cd webapp; ../jenkins-tools/timeout_output.py 45m " +
+                  "tools/runtests.py " +
+                  "--pickle " +
+                  "--pickle-file=../test-results.${workerNum}.pickle " +
+                  "--quiet --jobs=1 " +
+                  "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+                  (params.FAILFAST ? "--failfast " : "") +
+                  "- < ../test_splits.${workerNum}.txt");
             } finally {
                // Now let the next stage see all the results.
                // rune2etests.py should normally produce these files
@@ -317,19 +315,22 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE']]]) {
    initializeGlobals();
 
-   stage("Determining splits") {
-      determineSplits();
-   }
-
-   try {
-      stage("Running tests") {
-         runTests();
+   def key = ["rGW${GIT_SHA1}", params.TEST_TYPE, params.MAX_SIZE];
+   singleton(params.FORCE ? null : key.join(":")) {
+      stage("Determining splits") {
+         determineSplits();
       }
-   } finally {
-      // We want to analyze results even if -- especially if -- there
-      // were failures; hence we're in the `finally`.
-      stage("Analyzing results") {
-         analyzeResults();
+
+      try {
+         stage("Running tests") {
+            runTests();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if -- there
+         // were failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
+         }
       }
    }
 }
