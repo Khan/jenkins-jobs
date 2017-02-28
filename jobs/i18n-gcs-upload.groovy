@@ -49,6 +49,8 @@ TRANSLATIONS_COMMIT.""",
 
 ).apply();
 
+currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALES})";
+
 
 def syncRepos() {
    onMaster("10m") {
