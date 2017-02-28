@@ -20,9 +20,12 @@ def _failed(status) {
 
 
 // Number of jobs that have failed in a row, including this one.
-def _numConsecutiveFailures() {
-   def numFailures = 0;
-   def build = currentBuild;    // a global provided by jenkins
+def _numConsecutiveFailures(status) {
+   if (!_failed(status)) {
+      return 0;
+   }
+   def numFailures = 1;
+   def build = currentBuild.previousBuild;    // a global provided by jenkins
    while (build && _failed(build.result)) {
       numFailures++;
       build = build.previousBuild;
@@ -42,7 +45,7 @@ def _ordinal(num) {
 
 def _statusText(status) {
    if (status == "FAILURE") {
-      def numFailures = _numConsecutiveFailures();
+      def numFailures = _numConsecutiveFailures(status);
       if (numFailures > 1) {
          return "failed (${_ordinal(numFailures)} time in a row)";
       }
