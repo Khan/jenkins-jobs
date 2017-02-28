@@ -98,7 +98,7 @@ def resetRepo() {
 
 // TODO(csilvers): update the slack message with the updated locales.
 notify([slack: [channel: '#i18n',
-                when: ['FAILURE', 'UNSTABLE']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
    // Make sure LOCALES was specified -- it's an error not to list a
    // locale to update!
    if (!params.LOCALES) {

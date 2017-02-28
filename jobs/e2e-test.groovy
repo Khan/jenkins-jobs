@@ -314,7 +314,7 @@ def analyzeResults() {
 notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: 'Testing Turtle',
                 emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
    initializeGlobals();
 
    stage("Determining splits") {
