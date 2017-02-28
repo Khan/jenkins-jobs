@@ -64,13 +64,13 @@ def syncRepos() {
       }
       kaGit.safeSyncTo("git@github.com:Khan/webapp", gitTag);
 
-      dir("webapp/intl/translations") {
-         // TODO(csilvers): don't use build.lib internals.
-         exec(["../../../jenkins-tools/build.lib",
-               "_safe_fetch"]);
-         exec(["../../../jenkins-tools/build.lib",
-               "_safe_destructive_checkout", params.TRANSLATIONS_COMMIT]);
-      }
+      // We have to do things in this weird way to fake out build.lib
+      // into not complaining that we're using internal functions.
+      // TODO(csilvers): don't use build.lib internals.
+      sh(". ./build.lib; cd webapp/intl/translations; " +
+         "_safe_fetch; " +
+         "_safe_destructive_checkout" +
+         "   ${exec.shellEscape(params.TRANSLATIONS_COMMIT)}");
    }
 }
 
