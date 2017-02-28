@@ -86,7 +86,7 @@ class Setup implements Serializable {
    def addChoiceParam(name, description, choices) {
       return this.addParam(
          this.steps.choice(
-            name: name, description: description, choices: choices));
+            name: name, description: description, choices: choices.join("\n")));
    }
 
    def apply() {
