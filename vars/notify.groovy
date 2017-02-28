@@ -15,7 +15,7 @@ def _shouldReport(status, when) {
 
 // True if the status code is one of the ones that indicates failure.
 def _failed(status) {
-   return status in ['FAILURE', 'UNSTABLE', 'ABORTED'];
+   return status in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT'];
 }
 
 
@@ -51,6 +51,8 @@ def _statusText(status) {
       return "is unstable";
    } else if (status == "ABORTED") {
       return "was aborted";
+   } else if (status == "NOT_BUILT") {
+      return "was not built";
    } else if (status == "SUCCESS") {
       return "succeeded";
    } else if (status == "BACK TO NORMAL") {
