@@ -141,7 +141,7 @@ def call(options, Closure body) {
       // Log a message to help us ignore this post-build action when
       // analyzing the logs for errors.
       ansiColor('xterm') {
-         echo("\033[31m===== JOB FAILED =====\033[0m");
+         echo("\033[1;33m===== JOB FAILED =====\033[0m");
       }
       throw e;
    } finally {
