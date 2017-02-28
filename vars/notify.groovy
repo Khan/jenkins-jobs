@@ -129,10 +129,9 @@ def call(options, Closure body) {
    } catch (e) {
       status = "FAILURE";
       // Log a message to help us ignore this post-build action when
-      // analyzing the logs for errors.  I use `sh` instead of `echo`
-      // since I don't know how echo deals with escape sequences.
+      // analyzing the logs for errors.
       ansiColor('xterm') {
-         sh("echo '\033[31m===== JOB FAILED =====\033[0m'");
+         echo("\033[31m===== JOB FAILED =====\033[0m");
       }
       throw e;
    } finally {
