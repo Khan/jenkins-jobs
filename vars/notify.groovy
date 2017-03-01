@@ -88,10 +88,10 @@ def _logSuffix(status) {
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 def sendToSlack(slackOptions, status) {
+   def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
+              "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
+   def severity = _failed(status) ? 'error' : 'info';
    onMaster("1m") {
-      def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
-                 "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
-      def severity = _failed(status) ? 'error' : 'info';
       withSecrets() {     // you need secrets to talk to slack
          sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
@@ -125,13 +125,15 @@ If there's a failure it is probably near the bottom!
 ${_logSuffix(status)}
 """);
 
-   sh("echo ${exec.shellEscape(body)} | " +
-      "jenkins-tools/alertlib/alert.py " +
-      "--mail=${exec.shellEscape(emailOptions.to)} " +
-      "--summary=${exec.shellEscape(subject)} " +
-      "--cc=${exec.shellEscape(emailOptions.cc ?: '')} " +
-      "--sender-suffix=${exec.shellEscape(env.JOB_NAME.replace(' ', '_'))} " +
-      "--severity=${severity}");
+   onMaster("1m") {
+      sh("echo ${exec.shellEscape(body)} | " +
+         "jenkins-tools/alertlib/alert.py " +
+         "--mail=${exec.shellEscape(emailOptions.to)} " +
+         "--summary=${exec.shellEscape(subject)} " +
+         "--cc=${exec.shellEscape(emailOptions.cc ?: '')} " +
+         "--sender-suffix=${exec.shellEscape(env.JOB_NAME.replace(' ', '_'))} " +
+         "--severity=${severity}");
+   }
 }
 
 
