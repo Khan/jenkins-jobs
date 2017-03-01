@@ -1,7 +1,6 @@
 // Pipeline job that does the following:
 // * Uploads to Crowdin the latest all.pot file from source control.
 // * Downloads up-to-date translations for the JIPT language from crowdin.
-// * Builds the .po files for fake languages, e.g., accents, boxes.
 // * Triggers running the i18n-gcs-upload Jenkins job.
 
 @Library("kautils")
