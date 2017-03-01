@@ -127,7 +127,7 @@ def sendToEmail(emailOptions, status) {
    def severity = _failed(status) ? 'error' : 'info';
    def subject = ("${env.JOB_NAME} ${currentBuild.displayName} " +
                   "${_statusText(status)}");
-   def body = ("""${subject}: See {env.BUILD_URL} for full details.
+   def body = ("""${subject}: See ${env.BUILD_URL} for full details.
 
 Below is the tail of the build log.
 If there's a failure it is probably near the bottom!
