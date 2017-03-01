@@ -1,4 +1,5 @@
 // We use these user-defined steps from vars/:
+//import vars.exec
 //import vars.onMaster
 
 def call(key, Closure body) {
@@ -8,8 +9,8 @@ def call(key, Closure body) {
    }
 
    onMaster('1m') {
-      def cacheValue = sh(script: "redis-cli --raw GET '${key}'",
-                          returnStdout: true).trim();
+      def cacheValue = exec(arglist: ["redis-cli", "--raw", "GET", key],
+                            returnStdout: true).trim();
       // A cache hit!  We don't need to do any work.
       if (cacheValue == "1") {
          echo "Cache hit on '${key}' -- not running the body of this job.";
@@ -24,7 +25,7 @@ def call(key, Closure body) {
    // anyway in case the user explicitly set the status to not-success.
    if (currentBuild.status == null || currentBuild.status == "SUCCESS") {
       onMaster('1m') {
-         sh("redis-cli SET '${key}' '1'");
+         exec(["redis-cli", "SET", key, "1"]);
       }
    }
 }
