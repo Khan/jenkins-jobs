@@ -16,8 +16,9 @@ def shellEscapeList(lst) {
    return retval;
 }
 
-def call(arglist, returnStdout=false, returnStatus=false) {
-   sh(script: shellEscapeList(arglist),
-      returnStdout: returnStdout, returnStatus: returnStatus);
+// TODO(csilvers): figure out how to support returnStdout and returnStatus
+// the same way `sh` does.  When I try to implement it, I get errors about
+// not being able to serialize a hash-map.
+def call(arglist) {
+   sh(shellEscapeList(arglist));
 }
-
