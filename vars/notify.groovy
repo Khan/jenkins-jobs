@@ -71,29 +71,13 @@ def _statusText(status) {
 // since they are run after the job proper has already finished, and
 // don't provide any useful information for debugging.
 def _logSuffix(status) {
-   def retval = '';
-
-   // getLogMatcher() has a bug where it will segfault if
-   // currentBuild.result is null when it's called.  So we make sure
-   // it's not.  But we re-set it to null when we're done so jenkins
-   // can update it appropriately in case our derived status is wrong.
-   def resultWasNull = currentBuild.result == null;
-   if (resultWasNull) {
-      currentBuild.result = status;
-   }
-
    // `manager` is a global provided by Jenkins.
    def matcher = manager.getLogMatcher(
       '(?:[^\\n]*\\n){,50}(?:===== JOB FAILED =====|$)');
    if (matcher.find()) {
-      retval = matcher.group(0);
+      return matcher.group(0);
    }
-
-   if (resultWasNull) {
-      currentBuild.result = null;
-   }
-
-   return retval;
+   return '';
 }
 
 
@@ -166,7 +150,18 @@ def call(options, Closure body) {
    } finally {
       if (currentBuild.result != null) {
          status = currentBuild.result;
+      } else {
+         if (options.email) {
+            // _getLogMatcher(), called for email-sending, has a bug
+            // where it will segfault if currentBuild.result is null
+            // when it's called.  So we make sure it's not.  This is
+            // sub-optimal because our idea of the status may be
+            // wrong, and once we do this assignment jenkins won't fix
+            // it.  This probably means we'll never report 'ABORTED'.
+            currentBuild.result = status;
+         }
       }
+
       // If we are success and the previous build was a failure, then
       // we change the status to BACK TO NORMAL.
       if (status == "SUCCESS" && currentBuild.previousBuild &&
