@@ -15,6 +15,7 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.onMaster
 //import vars.onTestWorker
+//import vars.singleton
 //import vars.withSecrets
 
 

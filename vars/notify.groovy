@@ -58,6 +58,8 @@ def _statusText(status) {
       return "was not built";
    } else if (status == "SUCCESS") {
       return "succeeded";
+   } else if (status == "BUILD START") {
+      return "is starting";
    } else if (status == "BACK TO NORMAL") {
       return "is back to normal";
    } else {
@@ -153,6 +155,9 @@ ${_logSuffix()}
 def call(options, Closure body) {
    def status = "SUCCESS";
    try {
+      if (options.slack && "BUILD START" in options.slack.when) {
+         sendToSlack(options.slack, "BUILD START");
+      }
       body();
    } catch (e) {
       status = "FAILURE";
