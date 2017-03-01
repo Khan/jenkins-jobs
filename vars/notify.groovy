@@ -127,9 +127,9 @@ ${_logSuffix()}
 
    sh("echo ${exec.shellEscape(body)} | " +
       "jenkins-tools/alertlib/alert.py " +
-      "--mail=${exec.shellEscape(slackOptions.to)} " +
+      "--mail=${exec.shellEscape(emailOptions.to)} " +
       "--summary=${exec.shellEscape(subject)} " +
-      "--cc=${exec.shellEscape(slackOptions.cc ?: '')} " +
+      "--cc=${exec.shellEscape(emailOptions.cc ?: '')} " +
       "--sender-suffix=${exec.shellEscape(env.JOB_NAME.replace(' ', '_'))} " +
       "--severity=${severity}");
 }
