@@ -73,7 +73,7 @@ def _statusText(status) {
 def _logSuffix(status) {
    // `manager` is a global provided by Jenkins.
    def matcher = manager.getLogMatcher(
-      '(?:[^\\n]*\\n){,50}(?:===== JOB FAILED =====|$)');
+      '(?:[^\\n]*\\n){0,50}[^\\n]*(?:===== JOB FAILED =====|$)');
    if (matcher.find()) {
       return matcher.group(0);
    }
