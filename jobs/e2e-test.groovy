@@ -231,7 +231,9 @@ def runTests() {
                // This is apparently needed to avoid hanging with
                // the chrome driver.  See
                // https://github.com/SeleniumHQ/docker-selenium/issues/87
-               withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null"]) {
+               // We also work around https://bugs.launchpad.net/bugs/1033179
+               withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
+                        "TMPDIR=/tmp"]) {
                   withSecrets() {   // we need secrets to talk to saucelabs
                      // The trailing `tools/rune2etests.py` is just to
                      // set the executable name ($0) reported by `sh`.

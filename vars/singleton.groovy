@@ -30,3 +30,31 @@ def call(key, Closure body) {
       }
    }
 }
+
+
+// This is like singleton(), but will store that the job has been run
+// even if it fails.
+def storeEvenOnFailure(key, Closure body) {
+   if (key == null) {
+      body();
+      return;
+   }
+
+   onMaster('1m') {
+      def cacheValue = exec(arglist: ["redis-cli", "--raw", "GET", key],
+                            returnStdout: true).trim();
+      // A cache hit!  We don't need to do any work.
+      if (cacheValue == "1") {
+         echo "Cache hit on '${key}' -- not running the body of this job.";
+         return;
+      }
+   }
+
+   try {
+      body();
+   } finally {
+      onMaster('1m') {
+         exec(["redis-cli", "SET", key, "1"]);
+      }
+   }
+}
