@@ -66,18 +66,34 @@ def _statusText(status) {
 }
 
 
-def _logSuffix() {
-   // Returns the last 50 lines of the logfile.  However, we omit the
-   // text of commands run by notify() (below) when it's easy to do so,
-   // since they are run after the job proper has already finished, and
-   // don't provide any useful information for debugging.
+// Returns the last 50 lines of the logfile.  However, we omit the
+// text of commands run by notify() (below) when it's easy to do so,
+// since they are run after the job proper has already finished, and
+// don't provide any useful information for debugging.
+def _logSuffix(status) {
+   def retval = '';
+
+   // getLogMatcher() has a bug where it will segfault if
+   // currentBuild.result is null when it's called.  So we make sure
+   // it's not.  But we re-set it to null when we're done so jenkins
+   // can update it appropriately in case our derived status is wrong.
+   def resultWasNull = currentBuild.result == null;
+   if (resultWasNull) {
+      currentBuild.result = status;
+   }
+
    // `manager` is a global provided by Jenkins.
    def matcher = manager.getLogMatcher(
       '(?:[^\\n]*\\n){,50}(?:===== JOB FAILED =====|$)');
    if (matcher.find()) {
-      return matcher.group(0);
+      retval = matcher.group(0);
    }
-   return '';
+
+   if (resultWasNull) {
+      currentBuild.result = null;
+   }
+
+   return retval;
 }
 
 
@@ -122,7 +138,7 @@ If there's a failure it is probably near the bottom!
 ---------------------------------------------------------------------
 
 [...]
-${_logSuffix()}
+${_logSuffix(status)}
 """);
 
    sh("echo ${exec.shellEscape(body)} | " +
