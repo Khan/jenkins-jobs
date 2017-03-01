@@ -60,8 +60,11 @@ def syncRepos() {
          // live version of webapp.  Then we sync to that.
          kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
          dir("webapp") {
-            gitTag = sh(script: "deploy/current_version.py --git-tag",
-                        returnStdout: true).trim();
+            // We want the last release that's successfully been tagged.
+            // This can differ from the current release when a deploy
+            // is going on (after deploying to GAE and before finishing).
+            gitTag = sh(script: "deploy/git_tags.py",
+                        returnStdout: true).split("\n")[-1];
          }
       }
       kaGit.safeSyncTo("git@github.com:Khan/webapp", gitTag);
