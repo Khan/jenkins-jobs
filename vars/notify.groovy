@@ -70,14 +70,27 @@ def _statusText(status) {
 // text of commands run by notify() (below) when it's easy to do so,
 // since they are run after the job proper has already finished, and
 // don't provide any useful information for debugging.
-def _logSuffix(status) {
-   // `manager` is a global provided by Jenkins.
-   def matcher = manager.getLogMatcher(
-      '(?:[^\\n]*\\n){0,50}[^\\n]*(?:===== JOB FAILED =====|$)');
-   if (matcher.find()) {
-      return matcher.group(0);
+def _logSuffix() {
+   def NUM_LINES = 50;
+   // We allow 400 lines of post-failure processing.
+   // TODO(csilvers): rawBuild is a bit of a security hole; revoke
+   // permissions for it and use logMatcher instead if we can get it
+   // to work.
+   def loglines = currentBuild.rawBuild.getLog(NUM_LINES + 400);
+
+   // We always include loglines[0], that's the one that says
+   def end = loglines.size();
+   if (end < 2) {
+      return '';
    }
-   return '';
+   for (def i = 0; i < loglines.size(); i++) {
+      if ('===== JOB FAILED =====' in loglines[i]) {
+         end = i;
+         break;
+      }
+   }
+   def start = end - NUM_LINES < 1 ? 1 : end - NUM_LINES;
+   return loglines[0, start..end].join("\n");
 }
 
 
@@ -122,7 +135,7 @@ If there's a failure it is probably near the bottom!
 ---------------------------------------------------------------------
 
 [...]
-${_logSuffix(status)}
+${_logSuffix()}
 """);
 
    onMaster("1m") {
@@ -152,16 +165,6 @@ def call(options, Closure body) {
    } finally {
       if (currentBuild.result != null) {
          status = currentBuild.result;
-      } else {
-         if (options.email) {
-            // _getLogMatcher(), called for email-sending, has a bug
-            // where it will segfault if currentBuild.result is null
-            // when it's called.  So we make sure it's not.  This is
-            // sub-optimal because our idea of the status may be
-            // wrong, and once we do this assignment jenkins won't fix
-            // it.  This probably means we'll never report 'ABORTED'.
-            currentBuild.result = status;
-         }
       }
 
       // If we are success and the previous build was a failure, then
