@@ -78,8 +78,9 @@ def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
 // don't want to redo work if nothing has changed since the last run!
 def getRedisKey() {
    onMaster('30m') {
-      def versionJson = exec(
-         arglist: ["curl", "-s", "${params.URL}/api/internal/dev/version"],
+      def versionJson = sh(
+         script: ("curl -s ${exec.shellEscape(params.URL)}" +
+                  "/api/internal/dev/version"),
          returnStdout: true).trim();
       def versionId = sh(
          script: ("echo ${exec.shellEscape(versionJson)} | " +
@@ -88,10 +89,10 @@ def getRedisKey() {
                   " x[\"static_version_id\"]'"),
          returnStdout: true).trim();
 
-      def publishCommitJson = exec(
-         arglist: ["curl", "-s",
-                   "${params.URL}/api/internal/misc/last_published_commit"],
-         returnStdout: true);
+      def publishCommitJson = sh(
+         script: ("curl -s ${exec.shellEscape(params.URL)}" +
+                  "/api/internal/misc/last_published_commit"),
+         returnStdout: true).trim();
       def publishCommitId = sh(
          script: ("echo ${exec.shellEscape(publishCommitJson)} | " +
                   "python -c 'import json, sys;" +
