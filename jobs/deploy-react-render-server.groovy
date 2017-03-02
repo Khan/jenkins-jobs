@@ -18,7 +18,7 @@ new Setup(steps
     """Do not run tests before deploying.
 TODO(jlfwong): Make this actually skip tests by modifying
 https://github.com/Khan/react-render-server/blob/master/deploy.sh""",
-    "false"
+    false
 
 ).addChoiceParam(
     "CLEAN",
@@ -34,7 +34,7 @@ TODO(jlfwong): Make this clean node_modules""",
     "PRIME",
     """If set, prime the version after deploying.
 TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
-    "true"
+    true
 
 ).apply();
 

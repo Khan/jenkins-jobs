@@ -74,10 +74,13 @@ def process_cron(root):
 
 def _process_param(param_node):
     if 'StringParameterDefinition' in param_node.tag:
+        kind = 'string'
         print ').addStringParam('
     elif 'BooleanParameterDefinition' in param_node.tag:
+        kind = 'boolean'
         print ').addBooleanParam('
     elif 'ChoiceParameterDefinition' in param_node.tag:
+        kind = 'choice'
         print ').addChoiceParam('
     else:
         raise NotImplementedError(param_node.tag)
@@ -105,10 +108,13 @@ def _process_param(param_node):
 
     print '    %s,' % _escape(name)
     print '    %s,' % _escape(description)
-    if choices:
-        print '    %s' % _escape_list(choices)
-    else:
+    if kind == 'string':
         print '    %s' % _escape(default_value)
+    elif kind == 'boolean':
+        print '    %s' % ('true' if default_value == 'true' else 'false')
+    elif kind == 'choice':
+        print '    %s' % _escape_list(choices)
+
     print
 
 
