@@ -24,7 +24,7 @@ def call(key, Closure body) {
    // This only gets run if body() does not throw (because the build
    // was a success).  But we check explicitly for currentBuild.status
    // anyway in case the user explicitly set the status to not-success.
-   if (currentBuild.status == null || currentBuild.status == "SUCCESS") {
+   if (currentBuild.result == null || currentBuild.result == "SUCCESS") {
       onMaster('1m') {
          exec(["redis-cli", "SET", key, "1"]);
       }
