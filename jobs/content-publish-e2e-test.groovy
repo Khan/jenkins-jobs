@@ -85,7 +85,7 @@ def getRedisKey() {
       def versionId = sh(
          script: ("echo ${exec.shellEscape(versionJson)} | " +
                   "python -c 'import json, sys; x = json.load(sys.stdin);" +
-                  " print x[\"version_id\"] + \"-\" +" +
+                  " print x[\"version_id\"].split(\".\")[0] + \"-\" +" +
                   " x[\"static_version_id\"]'"),
          returnStdout: true).trim();
 
