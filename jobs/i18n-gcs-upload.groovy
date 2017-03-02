@@ -21,7 +21,22 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).blockBuilds(["builds-using-a-lot-of-memory"]
+// This script uses a lot of memory, so normally we'd block on
+// "builds-using-a-lot-of-memory".  But we can't do that because
+// this job is called by other jobs that also run under
+// "builds-using-a-lot-of-memory", which causes deadlock. :-(
+// The solution is to move to
+// https://wiki.jenkins-ci.org/display/JENKINS/Lockable+Resources+Plugin
+// instead of using the "throttle concurrent builds" plugin.
+// TODO(csilvers): once all i18n jobs are moved over to groovy,
+// change the script to use lock() instead.
+//
+// For now we use the hacky solution of requiring all callers
+// of this script to make sure they block on
+// builds-using-a-lot-of-memory themselves.  Note this means that
+// we do not properly block when running this job manually.
+// Hopefully that is a rare or non-existent event.
+//).blockBuilds(["builds-using-a-lot-of-memory"]
 
 ).addStringParam(
     "LOCALES",
