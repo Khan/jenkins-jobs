@@ -110,7 +110,7 @@ def syncWebapp() {
    onMaster('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       dir("webapp") {
-         sh("make python_deps");
+         sh("make deps");
       }
    }
 }
