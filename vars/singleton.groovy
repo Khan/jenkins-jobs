@@ -2,60 +2,52 @@
 //import vars.exec
 //import vars.onMaster
 
-def call(key, Closure body) {
-   if (key == null) {
-      body();
-      return;
-   }
-
+def _getKey(key) {
    onMaster('1m') {
-      def cacheValue = sh(
+      return sh(
          script: "redis-cli --raw GET ${exec.shellEscape(key)}",
          returnStdout: true).trim();
-      // A cache hit!  We don't need to do any work.
-      if (cacheValue == "1") {
-         echo "Cache hit on '${key}' -- not running the body of this job.";
-         return;
+   }
+}
+
+def _setKey(key) {
+   onMaster('1m') {
+      exec(["redis-cli", "SET", key, "1"]);
+   }
+}
+
+def _singleton(key, storeOnFailure, Closure body) {
+   if (key == null) {
+      body();
+   } else if (_getKey(key) == "1") {
+      echo "Cache hit on '${key}' -- not running the body of this job.";
+   } else if (storeOnFailure) {
+      try {
+         body();
+      } finally {
+         // set the key whether or not body completes successfully.
+         _setKey(key);
+      }
+   } else {
+      body();
+
+      // This only gets run if body() does not throw (because the build
+      // was a success).  But we check explicitly for currentBuild.status
+      // anyway in case the user explicitly set the status to not-success.
+      if (currentBuild.result == null || currentBuild.result == "SUCCESS") {
+         _setKey(key);
       }
    }
+}
 
-   body();
 
-   // This only gets run if body() does not throw (because the build
-   // was a success).  But we check explicitly for currentBuild.status
-   // anyway in case the user explicitly set the status to not-success.
-   if (currentBuild.result == null || currentBuild.result == "SUCCESS") {
-      onMaster('1m') {
-         exec(["redis-cli", "SET", key, "1"]);
-      }
-   }
+def call(key, Closure body) {
+   _singleton(key, false, body);
 }
 
 
 // This is like singleton(), but will store that the job has been run
 // even if it fails.
 def storeEvenOnFailure(key, Closure body) {
-   if (key == null) {
-      body();
-      return;
-   }
-
-   onMaster('1m') {
-      def cacheValue = sh(
-         script: "redis-cli --raw GET ${exec.shellEscape(key)}",
-         returnStdout: true).trim();
-      // A cache hit!  We don't need to do any work.
-      if (cacheValue == "1") {
-         echo "Cache hit on '${key}' -- not running the body of this job.";
-         return;
-      }
-   }
-
-   try {
-      body();
-   } finally {
-      onMaster('1m') {
-         exec(["redis-cli", "SET", key, "1"]);
-      }
-   }
+   _singleton(key, true, body);
 }
