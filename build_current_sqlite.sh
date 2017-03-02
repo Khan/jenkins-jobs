@@ -5,6 +5,8 @@
 # gcs, run the tool to create a current.sqlite, and upload that to
 # gcs.
 #
+# This script should be run from workspace-root.
+#
 # For this script to work, secrets.py must be on the PYTHONPATH.
 
 
