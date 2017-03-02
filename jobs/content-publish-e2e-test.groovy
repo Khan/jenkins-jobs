@@ -84,9 +84,11 @@ def getRedisKey() {
          returnStdout: true).trim();
       def versionId = sh(
          script: ("echo ${exec.shellEscape(versionJson)} | " +
-                  "python -c 'import json, sys; x = json.load(sys.stdin);" +
-                  " print x[\"version_id\"].split(\".\")[0] + \"-\" +" +
-                  " x[\"static_version_id\"]'"),
+                  "python -c 'import json, sys;" +
+                  " x = json.load(sys.stdin);" +
+                  " v = x[\"version_id\"].split(\".\")[0];" +
+                  " s = x[\"static_version_id\"];" +
+                  " print v if v == s else v + \"-\" + s'"),
          returnStdout: true).trim();
 
       def publishCommitJson = sh(
