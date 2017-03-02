@@ -5,7 +5,6 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
-//import vars.exec
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
