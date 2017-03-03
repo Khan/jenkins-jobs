@@ -14,7 +14,9 @@ JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 # These are the jobs that are allowed not to send to slack for
 # whatever reason.  The format of this list is
 #    -e <jobname> -e <jobname> ...
-EXCEPTIONS="-e make-check-worker -e e2e-test-worker"
+# 1) workers: their parents send to slack so they don't have to.
+# 2) jobs that 'symlink' to another job and do no useful work themselves.
+EXCEPTIONS="-e make-check-worker -e e2e-test-worker -e content-publish-e2e-test -e e2e-test -e i18n-gcs-upload -e webapp-test"
 
 errors=""
 
