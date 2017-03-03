@@ -178,6 +178,7 @@ def analyzeResults(label) {
    onMaster("15m") {
       dir("webapp") {
          if (!fileExists("webapp/test-results.pickle")) {
+            currentBuild.result = "UNSTABLE";
             def msg = ("The e2e tests did not even finish " +
                        "(could be due to timeouts or framework " +
                        "errors; check ${env.BUILD_URL}consoleFull " +

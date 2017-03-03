@@ -198,6 +198,10 @@ def runTests() {
                      _alert("Mobile integration tests succeeded",
                             isError=false);
                   } catch (e) {
+                     // end-to-end failures are not blocking
+                     // currently, so if tests fail set the status to
+                     // UNSTABLE, not FAILED.
+                     currentBuild.result = "UNSTABLE";
                      def msg = ("Mobile integration tests failed " +
                                 "(search for 'ANDROID' in " +
                                 "${env.BUILD_URL}consoleFull)");
@@ -281,6 +285,7 @@ def analyzeResults() {
       }
 
       if (numPickleFileErrors) {
+         currentBuild.result = "UNSTABLE";
          def msg = ("${numPickleFileErrors} test workers did not even " +
                     "finish (could be due to timeouts or framework " +
                     "errors; check ${env.BUILD_URL}consoleFull " +

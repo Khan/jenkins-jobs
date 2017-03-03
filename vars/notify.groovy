@@ -21,11 +21,8 @@ def _failed(status) {
 
 // Number of jobs that have failed in a row, including this one.
 def _numConsecutiveFailures(status) {
-   if (!_failed(status)) {
-      return 0;
-   }
-   def numFailures = 1;
-   def build = currentBuild.previousBuild;    // a global provided by jenkins
+   def numFailures = 0;
+   def build = currentBuild;    // a global provided by jenkins
    while (build && _failed(build.result)) {
       numFailures++;
       build = build.previousBuild;
@@ -136,7 +133,6 @@ If there's a failure it is probably near the bottom!
 
 ---------------------------------------------------------------------
 
-[...]
 ${_logSuffix()}
 """);
 
@@ -153,14 +149,14 @@ ${_logSuffix()}
 
 
 def call(options, Closure body) {
-   def status = "SUCCESS";
+   currentBuild.result = "SUCCESS";
    try {
       if (options.slack && "BUILD START" in options.slack.when) {
          sendToSlack(options.slack, "BUILD START");
       }
       body();
    } catch (e) {
-      status = "FAILURE";
+      currentBuild.result = "FAILURE";
       // Log a message to help us ignore this post-build action when
       // analyzing the logs for errors.
       ansiColor('xterm') {
@@ -168,9 +164,7 @@ def call(options, Closure body) {
       }
       throw e;
    } finally {
-      if (currentBuild.result != null) {
-         status = currentBuild.result;
-      }
+      def status = currentBuild.result;
 
       // If we are success and the previous build was a failure, then
       // we change the status to BACK TO NORMAL.
