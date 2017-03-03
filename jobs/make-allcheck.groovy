@@ -5,6 +5,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
+//import vars.notify
 
 
 new Setup(steps
@@ -35,19 +36,25 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-build(job: '../deploy/webapp-test',
-      parameters: [
-         string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-         string(name: 'TEST_TYPE', value: "all"),
-         string(name: 'MAX_SIZE', value: "huge"),
-         booleanParam(name: 'FAILFAST', values: params.FAILFAST),
-         string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-         booleanParam(name: 'FORCE', value: params.FORCE),
-      ])
+// We want to notify that make-allcheck started, but don't need
+// to notify how it did because the sub-jobs will each notify
+// individually.
+notify([slack: [channel: '#1s-and-0s',
+                when: ['STARTED', 'ABORTED']]]) {
+   build(job: '../deploy/webapp-test',
+         parameters: [
+            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+            string(name: 'TEST_TYPE', value: "all"),
+            string(name: 'MAX_SIZE', value: "huge"),
+            booleanParam(name: 'FAILFAST', values: params.FAILFAST),
+            string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+            booleanParam(name: 'FORCE', value: params.FORCE),
+         ])
 
-build(job: '../deploy/e2e-test',
-      parameters: [
-         string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-         string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-         booleanParam(name: 'FAILFAST', values: params.FAILFAST),
-      ])
+   build(job: '../deploy/e2e-test',
+         parameters: [
+            string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+            booleanParam(name: 'FAILFAST', values: params.FAILFAST),
+         ])
+}
