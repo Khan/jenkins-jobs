@@ -14,6 +14,16 @@ def call(def timeoutString, Closure body) {
             kaGit.checkoutJenkinsTools();
             withVirtualenv() {
                withTimeout(timeoutString) {
+                  // We document what machine we're running on, to help
+                  // with debugging.
+                  def instanceId = sh(
+                     script: 'curl -s http://169.254.169.254/latest/meta-data/instance-id',
+                     returnStdout: true).trim();
+                  def ip = sh(
+                     script: 'curl -s http://169.254.169.254/latest/meta-data/public-ipv4',
+                     returnStdout: true).trim();
+                  echo("Running on ${instanceId} at ${ip}");
+
                   body();
                }
             }

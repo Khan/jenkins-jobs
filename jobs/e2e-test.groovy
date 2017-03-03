@@ -83,18 +83,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-// This is the e2e command we run on the workers.  $1 is the
-// job-number for this current worker (and is used to decide what
-// tests this worker is responsible for running.)
-E2E_CMD = """\
-   cd webapp; timeout -k 5m 5h xvfb-run -a tools/rune2etests.py
-   --pickle --pickle-file=../test-results.\$1.pickle
-   --timing-db=genfiles/test-info.db --xml-dir=genfiles/test-reports
-   --quiet --jobs=1 --retries 3 ${params.FAILFAST ? '--failfast ' : ''}
-   --url=${exec.shellEscape(params.URL)} --driver=chrome --backup-driver=sauce
-   - < ../test-splits.\$1.txt
-""".replaceAll("\n", "")
-
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
@@ -184,6 +172,29 @@ def determineSplits() {
 }
 
 
+def _runOneTest(splitId) {
+   def args = ["xvfb-run", "-a", "tools/rune2etests.py",
+               "--url=${params.URL}",
+               "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
+               "--timing-db=genfiles/test-info.db",
+               "--xml-dir=genfiles/test-reports",
+               "--quiet", "--jobs=1", "--retries=3",
+               "--driver=chrome", "--backup-driver=sauce",
+               "-"];
+   if (params.FAILFAST) {
+      args += ["--failfast"];
+   }
+
+   try {
+      sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
+   } catch (e) {
+      // end-to-end failures are not blocking currently, so if
+      // tests fail set the status to UNSTABLE, not FAILED.
+      currentBuild.result = "UNSTABLE";
+   }
+}
+
+
 def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
@@ -231,6 +242,11 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
+            def parallelTests = ["failFast": params.FAILFAST];
+            for (def split = firstSplit; split <= lastSplit; split++) {
+               parallelTests["job-$split"] = { _runOneTest(split); };
+            }
+
             try {
                // This is apparently needed to avoid hanging with
                // the chrome driver.  See
@@ -239,17 +255,11 @@ def runTests() {
                withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
                         "TMPDIR=/tmp"]) {
                   withSecrets() {   // we need secrets to talk to saucelabs
-                     // The trailing `tools/rune2etests.py` is just to
-                     // set the executable name ($0) reported by `sh`.
-                     exec(["jenkins-tools/in_parallel.py"] +
-                          (firstSplit..lastSplit) +
-                          ["--", "sh", "-c", E2E_CMD, "tools/rune2etests.py"]);
+                     dir("webapp") {
+                        parallel(parallelTests);
+                     }
                   }
                }
-            } catch (e) {
-               // end-to-end failures are not blocking currently, so if
-               // tests fail set the status to UNSTABLE, not FAILED.
-               currentBuild.result = "UNSTABLE";
             } finally {
                // Now let the next stage see all the results.
                // rune2etests.py should normally produce these files
