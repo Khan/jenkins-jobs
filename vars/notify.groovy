@@ -149,18 +149,51 @@ ${_logSuffix()}
 
 
 def call(options, Closure body) {
+   def abortState = [complete: false, aborted: false];
+
    currentBuild.result = "SUCCESS";
    try {
       if (options.slack && "BUILD START" in options.slack.when) {
          sendToSlack(options.slack, "BUILD START");
       }
-      body();
+
+      // We do this `parallel` to catch when the job has been aborted.
+      // http://stackoverflow.com/questions/36855066/how-to-query-jenkins-to-determine-if-a-still-building-pipeline-job-has-been-abor
+      parallel(
+         "_watchdog": {
+            try {
+               waitUntil({ abortState.complete || abortState.aborted });
+            } catch (e) {
+               if (!abortState.complete) {
+                  abortState.aborted = true;
+               }
+               throw e
+            } finally {
+               abortState.complete = true;
+            }
+         },
+         "body": {
+            try {
+               body();
+            } finally {
+               abortState.complete = true;
+            }
+         },
+         "failFast": true,
+      );
    } catch (e) {
-      currentBuild.result = "FAILURE";
-      // Log a message to help us ignore this post-build action when
-      // analyzing the logs for errors.
-      ansiColor('xterm') {
-         echo("\033[1;33m===== JOB FAILED =====\033[0m");
+      if (abortState.aborted) {
+         currentBuild.result = "ABORTED";
+         ansiColor('xterm') {
+            echo("\033[1;33m===== JOB ABORTED =====\033[0m");
+         }
+      } else {
+         currentBuild.result = "FAILED";
+         // Log a message to help us ignore this post-build action when
+         // analyzing the logs for errors.
+         ansiColor('xterm') {
+            echo("\033[1;33m===== JOB FAILED =====\033[0m");
+         }
       }
       throw e;
    } finally {
