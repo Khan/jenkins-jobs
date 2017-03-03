@@ -11,7 +11,6 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
-//import vars.withSecrets
 
 
 new Setup(steps
@@ -29,7 +28,7 @@ def runScript() {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
 
       // Remove output from a previous run.  Re-created by
-      // update-translations and this script.
+      // update-translations.
       sh('rm -f updated_locales.txt')
 
       withEnv(['UPDATE_STRINGS=1']) {
