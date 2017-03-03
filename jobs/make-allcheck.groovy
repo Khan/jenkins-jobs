@@ -40,14 +40,14 @@ build(job: '../deploy/webapp-test',
          string(name: 'GIT_REVISION', value: params.GIT_REVISION),
          string(name: 'TEST_TYPE', value: "all"),
          string(name: 'MAX_SIZE', value: "huge"),
-         string(name: 'FAILFAST', values: params.FAILFAST),
+         booleanParam(name: 'FAILFAST', values: params.FAILFAST),
          string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-         string(name: 'FORCE', value: params.FORCE),
+         booleanParam(name: 'FORCE', value: params.FORCE),
       ])
 
 build(job: '../deploy/e2e-test',
       parameters: [
          string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
          string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-         string(name: 'FAILFAST', values: params.FAILFAST),
+         booleanParam(name: 'FAILFAST', values: params.FAILFAST),
       ])
