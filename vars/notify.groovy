@@ -97,11 +97,19 @@ def _logSuffix() {
 // channel (required): what slack channel to send to
 // when (required): under what circumstances to send to jenkins; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+// extraTextClosure: if specified, a closure that, when called with
+//    no arguments, resolves to text to put below the status line
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 def sendToSlack(slackOptions, status) {
    def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
               "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
+   if (slackOptions.extraTextClosure) {
+      def extraText = slackOptions.extraTextClosure();
+      if (extraText) {
+         msg += "\n${slackOptions.extraText}";
+      }
+   }
    def severity = _failed(status) ? 'error' : 'info';
    onMaster("1m") {
       withSecrets() {     // you need secrets to talk to slack
