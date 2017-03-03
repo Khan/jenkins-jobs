@@ -81,12 +81,12 @@ def _logSuffix() {
    def loglines = currentBuild.rawBuild.getLog(NUM_LINES + 400);
 
    // We always include loglines[0], that's the one that says
-   def end = loglines.size();
-   if (end < 2) {
-      return '';
+   def end = loglines.size() - 1;
+   if (end < 1) {
+      return "";
    }
    for (def i = 0; i < loglines.size(); i++) {
-      if ('===== JOB FAILED =====' in loglines[i]) {
+      if ("===== JOB FAILED =====" in loglines[i]) {
          end = i;
          break;
       }
