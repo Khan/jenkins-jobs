@@ -242,6 +242,10 @@ def runTests() {
                           ["--", "sh", "-c", E2E_CMD, "tools/rune2etests.py"]);
                   }
                }
+            } catch (e) {
+               // end-to-end failures are not blocking currently, so if
+               // tests fail set the status to UNSTABLE, not FAILED.
+               currentBuild.result = "UNSTABLE";
             } finally {
                // Now let the next stage see all the results.
                // rune2etests.py should normally produce these files

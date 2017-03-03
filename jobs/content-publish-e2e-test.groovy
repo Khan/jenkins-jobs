@@ -224,16 +224,27 @@ notify([slack: [channel: params.SLACK_CHANNEL,
          syncWebapp();
       }
       stage("Running android tests") {
-         runAndroidTests();
+         try {
+            runAndroidTests();
+         } catch (e) {
+            // end-to-end failures are not blocking currently, so if
+            // tests fail set the status to UNSTABLE, not FAILED.
+            // We also keep going to do the other tests.
+            currentBuild.result = "UNSTABLE";
+         }
       }
-      try {
-         stage("Running e2e tests") {
+      stage("Running e2e tests") {
+         try {
             runEndToEndTests();
+         } catch (e) {
+            // end-to-end failures are not blocking currently, so if
+            // tests fail set the status to UNSTABLE, not FAILED.
+            // We also keep going to analyze the results.
+            currentBuild.result = "UNSTABLE";
          }
-      } finally {
-         stage("Analyzing results") {
-            analyzeResults(key);
-         }
+      }
+      stage("Analyzing results") {
+         analyzeResults(key);
       }
    }
 }
