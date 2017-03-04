@@ -80,7 +80,7 @@ def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo ${exec.shellEscape(msg)} | " +
          "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(channel)}' " +
+         "--slack=${exec.shellEscape(channel)} " +
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
