@@ -167,12 +167,12 @@ def call(options, Closure body) {
                if (!abortState.complete) {
                   abortState.aborted = true;
                }
-               throw e
+               throw e;
             } finally {
                abortState.complete = true;
             }
          },
-         "body": {
+         "main": {
             try {
                body();
             } finally {

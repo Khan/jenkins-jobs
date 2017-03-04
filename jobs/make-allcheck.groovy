@@ -49,12 +49,12 @@ notify([slack: [channel: '#1s-and-0s',
             booleanParam(name: 'FAILFAST', values: params.FAILFAST),
             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
             booleanParam(name: 'FORCE', value: params.FORCE),
-         ])
+         ]);
 
    build(job: '../deploy/e2e-test',
          parameters: [
             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
             booleanParam(name: 'FAILFAST', values: params.FAILFAST),
-         ])
+         ]);
 }
