@@ -105,7 +105,7 @@ def sendToSlack(slackOptions, status) {
    def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
               "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
    if (slackOptions.extraTextClosure) {
-      def extraText = slackOptions.extraTextClosure();
+      def extraText = slackOptions.extraTextClosure.call();
       if (extraText) {
          msg += "\n${slackOptions.extraText}";
       }
