@@ -33,7 +33,7 @@ def runScript() {
    // We run on a special worker machine because this job uses so much
    // memory.  There's no `onFoo` macro for this, so we have to repeat
    // all that logic here ourselves.
-   node("ka-content-sync-worker") {
+   node("ka-content-sync-ec2") {
       timestamps {
          kaGit.checkoutJenkinsTools();
 
