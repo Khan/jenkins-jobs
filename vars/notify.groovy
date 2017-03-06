@@ -170,7 +170,9 @@ def call(options, Closure body) {
       parallel(
          "_watchdog": {
             try {
-               waitUntil({ abortState.complete || abortState.aborted });
+               timestamps {
+                  waitUntil({ abortState.complete || abortState.aborted });
+               }
             } catch (e) {
                if (!abortState.complete) {
                   abortState.aborted = true;
