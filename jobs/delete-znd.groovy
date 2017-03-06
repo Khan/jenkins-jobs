@@ -26,7 +26,7 @@ currentBuild.displayName = "${currentBuild.displayName} (${params.ZND_NAME})";
 gFailureMessage = '';     // So we can repeat the failure message in slack
 
 
-def zndFailure() {
+def verifyZnd() {
    if (!params.ZND_NAME) {
       gFailureMessage = "The ZND_NAME parameter is required.";
       error(gFailureMessage);
