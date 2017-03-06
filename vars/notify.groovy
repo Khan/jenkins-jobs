@@ -107,7 +107,7 @@ def sendToSlack(slackOptions, status) {
    if (slackOptions.extraTextClosure) {
       def extraText = slackOptions.extraTextClosure.call();
       if (extraText) {
-         msg += "\n${slackOptions.extraText}";
+         msg += "\n${extraText}";
       }
    }
    def severity = _failed(status) ? 'error' : 'info';
