@@ -243,9 +243,9 @@ def runTests() {
             _setupWebapp();
 
             def parallelTests = ["failFast": params.FAILFAST];
-            for (def i = firstSplit; split <= lastSplit; split++) {
+            for (def j = firstSplit; j <= lastSplit; split++) {
                // That restriction in `parallel` again.
-               def split = i;
+               def split = j;
                parallelTests["job-$split"] = { _runOneTest(split); };
             }
 
@@ -294,8 +294,8 @@ def analyzeResults() {
       }
 
       def numPickleFileErrors = 0;
-      for (def j = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; j++) {
-         if (!fileExists("test-results.${j}.pickle")) {
+      for (def i = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; i++) {
+         if (!fileExists("test-results.${i}.pickle")) {
             numPickleFileErrors++;
          }
       }
