@@ -294,8 +294,8 @@ def analyzeResults() {
       }
 
       def numPickleFileErrors = 0;
-      for (def i = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; i++) {
-         if (!fileExists("test-results.${i}.pickle")) {
+      for (def j = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; j++) {
+         if (!fileExists("test-results.${j}.pickle")) {
             numPickleFileErrors++;
          }
       }
