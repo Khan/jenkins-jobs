@@ -264,18 +264,21 @@ def analyzeResults() {
       // so let our cron overseer know.
       sh("rm /tmp/make_check.run");
 
-      def numPickleFileErrors = 0;
-
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
             unstash("results ${i}");
          } catch (e) {
-            // I guess that worker had trouble even producing results.
-            numPickleFileErrors++;
+            // We'll mark the actual error next.
          }
       }
 
+      def numPickleFileErrors = 0;
+      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+         if (!fileExists("test-results.${i}.pickle")) {
+            numPickleFileErrors++;
+         }
+      }
       if (numPickleFileErrors) {
          def msg = ("${numPickleFileErrors} test workers did not even " +
                     "finish (could be due to timeouts or framework " +
