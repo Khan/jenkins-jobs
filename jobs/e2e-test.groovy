@@ -301,11 +301,17 @@ def analyzeResults() {
       }
       if (numPickleFileErrors) {
          currentBuild.result = "UNSTABLE";
-         def msg = ("${numPickleFileErrors} test workers did not even " +
-                    "finish (could be due to timeouts or framework " +
+         def msg = ("TESTS FAILED: ${numPickleFileErrors} test workers did " +
+                    "not even finish (could be due to timeouts or framework " +
                     "errors; check ${env.BUILD_URL}consoleFull " +
                     "to see exactly why)");
          _alert(msg, isError=true);
+         // One could imagine it's useful to go on in this case, and
+         // analyze the pickle-file we *did* get back.  But in my
+         // experience it's too confusing: people think that the
+         // results we emit are the full results, even though this
+         // error indicates some results could not be processed.
+         return;
       }
 
       withSecrets() {     // we need secrets to talk to slack!
