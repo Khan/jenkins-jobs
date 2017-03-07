@@ -243,7 +243,7 @@ def runTests() {
             _setupWebapp();
 
             def parallelTests = ["failFast": params.FAILFAST];
-            for (def j = firstSplit; j <= lastSplit; split++) {
+            for (def j = firstSplit; j <= lastSplit; j++) {
                // That restriction in `parallel` again.
                def split = j;
                parallelTests["job-$split"] = { _runOneTest(split); };
