@@ -37,7 +37,7 @@ def runScript() {
       // requirements.txt.  Not sure if it should be, but I just
       // install it here.
       dir("webapp") {
-         sh("pip install dropbox");
+         sh("pip install dropbox==1.6");
       }
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
