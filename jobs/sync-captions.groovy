@@ -23,7 +23,7 @@ new Setup(steps
   <li>Stage 2 = Download from Amara.</li>
   <li>Stage 3 = Upload to Youtube.</li>
   <li>Stage 4 = Upload to production.</li>
-p</ul>""",
+</ul>""",
     ""
 
 ).apply();
