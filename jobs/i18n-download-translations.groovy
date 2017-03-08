@@ -35,12 +35,12 @@ def runScript() {
       dir("../../i18n-update-strings/workspace") {
          // Remove output from a previous run.  Re-created by
          // update-translations.
-         sh('rm -f updated_locales.txt')
+         sh("rm -f updated_locales.txt")
 
-         withEnv(['DOWNLOAD_TRANSLATIONS=1',
-                  'NUM_LANGS_TO_DOWNLOAD=1',
-                  'OVERRIDE_LANGS=${params.LOCALES}']) {
-            sh('jenkins-tools/update-translations.sh')
+         withEnv(["DOWNLOAD_TRANSLATIONS=1",
+                  "NUM_LANGS_TO_DOWNLOAD=1",
+                  "OVERRIDE_LANGS=${params.LOCALES}"]) {
+            sh("jenkins-tools/update-translations.sh")
          }
 
          return readFile("updated_locales.txt").split("\n").join(" ");

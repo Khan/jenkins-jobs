@@ -29,10 +29,10 @@ def runScript() {
 
       // Remove output from a previous run.  Re-created by
       // update-translations.
-      sh('rm -f updated_locales.txt')
+      sh("rm -f updated_locales.txt")
 
-      withEnv(['UPDATE_STRINGS=1']) {
-         sh('jenkins-tools/update-translations.sh')
+      withEnv(["UPDATE_STRINGS=1"]) {
+         sh("jenkins-tools/update-translations.sh")
       }
 
       return readFile("updated_locales.txt").split("\n").join(" ");
