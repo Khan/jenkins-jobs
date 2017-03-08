@@ -4,9 +4,7 @@
 
 def _getKey(key) {
    onMaster('1m') {
-      return sh(
-         script: "redis-cli --raw GET ${exec.shellEscape(key)}",
-         returnStdout: true).trim();
+      return exec.outputOf(["redis-cli", "--raw", "GET", key]);
    }
 }
 

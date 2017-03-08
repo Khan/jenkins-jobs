@@ -43,10 +43,9 @@ def resolveCommitish(repo, commit) {
    stage("Resolving commit") {
       node("master") {
          timeout(1) {
-            sha1 = sh(script: ("git ls-remote -q ${exec.shellEscape(repo)} " +
-                               "${exec.shellEscape(commit)}" +
-                               " | cut -f1"),
-                      returnStdout: true).trim();
+            def lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
+                                                repo, commit]);
+            sha1 = lsRemoteOutput.split("\t")[0];
          }
       }
    }

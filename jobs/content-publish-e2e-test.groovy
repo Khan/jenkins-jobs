@@ -82,10 +82,8 @@ def _success(def msg) {
 // don't want to redo work if nothing has changed since the last run!
 def getRedisKey() {
    onMaster('30m') {
-      def versionJson = sh(
-         script: ("curl -s ${exec.shellEscape(params.URL)}" +
-                  "/api/internal/dev/version"),
-         returnStdout: true).trim();
+      def versionJson = exec.outputOf(
+         ["curl", "-s", "${params.URL}/api/internal/dev/version"]);
       def versionId = sh(
          script: ("echo ${exec.shellEscape(versionJson)} | " +
                   "python -c 'import json, sys;" +
@@ -95,10 +93,9 @@ def getRedisKey() {
                   " print v if v == s else v + \"-\" + s'"),
          returnStdout: true).trim();
 
-      def publishCommitJson = sh(
-         script: ("curl -s ${exec.shellEscape(params.URL)}" +
-                  "/api/internal/misc/last_published_commit"),
-         returnStdout: true).trim();
+      def publishCommitJson = exec.outputOf(
+         ["curl", "-s",
+          "${params.URL}/api/internal/misc/last_published_commit"]);
       def publishCommitId = sh(
          script: ("echo ${exec.shellEscape(publishCommitJson)} | " +
                   "python -c 'import json, sys;" +

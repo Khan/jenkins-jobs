@@ -22,3 +22,9 @@ def shellEscapeList(lst) {
 def call(arglist) {
    sh(shellEscapeList(arglist));
 }
+
+
+// A useful utility, similar to backticks in perl.
+def outputOf(arglist) {
+   return sh(script: shellEscapeList(arglist), returnStdout: true).trim();
+}
