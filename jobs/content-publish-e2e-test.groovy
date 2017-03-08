@@ -62,7 +62,7 @@ manually, but rather by other jobs that call this one.""",
 
 
 // This should be called from workspace-root.
-def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
+def _alert(def msg, def isError=true) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo ${exec.shellEscape(msg)} | " +
          "jenkins-tools/alertlib/alert.py " +
@@ -70,6 +70,10 @@ def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
+}
+
+def _success(def msg) {
+   _alert(msg, false);
 }
 
 
@@ -122,13 +126,12 @@ def runAndroidTests() {
          withSecrets() {  // we need secrets to talk to slack!
             try {
                sh("jenkins-tools/run_android_db_generator.sh");
-               _alert("Mobile integration tests succeeded",
-                      isError=false);
+               _success("Mobile integration tests succeeded");
             } catch (e) {
                def msg = ("Mobile integration tests failed " +
                           "(search for 'ANDROID' in " +
                           "${env.BUILD_URL}consoleFull)");
-               _alert(msg, isError=true);
+               _alert(msg);
                // TODO(charlie): Re-enable sending these failures to
                // #mobile-1s-and-0s.  They're too noisy right now,
                // making the channel unusable on some days, and these
@@ -183,7 +186,7 @@ def analyzeResults(label) {
                        "(could be due to timeouts or framework " +
                        "errors; check ${env.BUILD_URL}consoleFull " +
                        "to see exactly why)");
-            _alert(msg, isError=true);
+            _alert(msg);
             return;
          }
 

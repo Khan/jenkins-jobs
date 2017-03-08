@@ -108,7 +108,7 @@ def _setupWebapp() {
 
 
 // This should be called from workspace-root.
-def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
+def _do_alert(def msg, def isError, def channel) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo ${exec.shellEscape(msg)} | " +
          "jenkins-tools/alertlib/alert.py " +
@@ -116,6 +116,18 @@ def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
          "--severity=${isError ? 'error' : 'info'} " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
+}
+
+def _alert(def msg) {
+   _do_alert(msg, true, params.SLACK_CHANNEL);
+}
+
+def _alert_to(def msg, def slackChannel) {
+   _do_alert(msg, true, slackChannel);
+}
+
+def _success(def msg) {
+   _do_alert(msg, false, params.SLACK_CHANNEL);
 }
 
 
@@ -206,8 +218,7 @@ def runTests() {
                withSecrets() {  // we need secrets to talk to slack!
                   try {
                      sh("jenkins-tools/run_android_db_generator.sh");
-                     _alert("Mobile integration tests succeeded",
-                            isError=false);
+                     _success("Mobile integration tests succeeded");
                   } catch (e) {
                      // end-to-end failures are not blocking
                      // currently, so if tests fail set the status to
@@ -216,8 +227,8 @@ def runTests() {
                      def msg = ("Mobile integration tests failed " +
                                 "(search for 'ANDROID' in " +
                                 "${env.BUILD_URL}consoleFull)");
-                     _alert(msg, isError=true);
-                     _alert(msg, isError=true, channel="#mobile-1s-and-0s");
+                     _alert(msg);
+                     _alert_to(msg, channel="#mobile-1s-and-0s");
                      throw e;
                   }
                }
@@ -305,7 +316,7 @@ def analyzeResults() {
                     "not even finish (could be due to timeouts or framework " +
                     "errors; check ${env.BUILD_URL}consoleFull " +
                     "to see exactly why)");
-         _alert(msg, isError=true);
+         _alert(msg);
          // One could imagine it's useful to go on in this case, and
          // analyze the pickle-file we *did* get back.  But in my
          // experience it's too confusing: people think that the

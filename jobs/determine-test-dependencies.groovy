@@ -76,12 +76,12 @@ def _setupWebapp() {
 
 
 // This should be called from workspace-root.
-def _alert(def msg, def isError=true, def channel=params.SLACK_CHANNEL) {
+def _alert(def msg) {
    withSecrets() {     // you need secrets to talk to slack
       sh("echo ${exec.shellEscape(msg)} | " +
          "jenkins-tools/alertlib/alert.py " +
          "--slack=${exec.shellEscape(channel)} " +
-         "--severity=${isError ? 'error' : 'info'} " +
+         "--severity='error' " +
          "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
    }
 }
@@ -195,7 +195,7 @@ def publishResults() {
                     "errors; check ${env.BUILD_URL}consoleFull " +
                     "to see exactly why), so not updating test-dependency " +
                     "information");
-         _alert(msg, isError=true);
+         _alert(msg);
          // Let notify() know not to send any messages to slack,
          // because we just did it above.
          env.SENT_TO_SLACK = '1';
