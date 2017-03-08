@@ -38,6 +38,17 @@ def runScript() {
       // install it here.
       dir("webapp") {
          sh("pip install dropbox==1.6");
+         // The cert file that comes with this super-old dropbox isn't
+         // up to date.  Use the more up-to-date system cert file.
+         // Sadly, this seems to be hard-coded into dropbox.py
+         dir dropboxDir = sh(
+            script: "python -c 'import dropbox, os; print os.path.dirname(dropbox.__file__)'",
+            returnStdout: true).trim();
+         dir certFile = "${exec.shellEscape(dropboxDir)}/trusted-certs.crt";
+         // This 'yes no' and '-i' does the mv only if the destination file
+         // does not already exist.
+         sh("yes no | mv -i ${certFile} ${certFile}.bak");
+         sh("cp -f /etc/ssl/certs/ca-certificates.crt ${certFile}");
       }
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
