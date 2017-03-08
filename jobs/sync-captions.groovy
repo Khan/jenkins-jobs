@@ -41,10 +41,10 @@ def runScript() {
          // The cert file that comes with this super-old dropbox isn't
          // up to date.  Use the more up-to-date system cert file.
          // Sadly, this seems to be hard-coded into dropbox.py
-         dir dropboxDir = sh(
+         def dropboxDir = sh(
             script: "python -c 'import dropbox, os; print os.path.dirname(dropbox.__file__)'",
             returnStdout: true).trim();
-         dir certFile = "${exec.shellEscape(dropboxDir)}/trusted-certs.crt";
+         def certFile = "${exec.shellEscape(dropboxDir)}/trusted-certs.crt";
          // This 'yes no' and '-i' does the mv only if the destination file
          // does not already exist.
          sh("yes no | mv -i ${certFile} ${certFile}.bak");
