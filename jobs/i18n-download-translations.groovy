@@ -61,10 +61,14 @@ notify([slack: [channel: '#i18n',
 
    currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
 
-   stage("Uploading to gcs") {
-      build(job: 'i18n-gcs-upload',
-            parameters: [
-               string(name: 'LOCALES', value: updatedLocales),
-            ])
+   // It's possible that no locale was updated. Only trigger the
+   // upload job when there are changes.
+   if (updatedLocales) {
+      stage("Uploading to gcs") {
+         build(job: 'i18n-gcs-upload',
+               parameters: [
+                  string(name: 'LOCALES', value: updatedLocales),
+               ])
+      }
    }
 }
