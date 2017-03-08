@@ -32,6 +32,12 @@ p</ul>""",
 def runScript() {
    onMaster('23h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      // sync-captions.sh calls webapp/tools/dropbox_sync_source.py
+      // which tries to import `dropbox`.  This is not listed in
+      // requirements.txt.  Not sure if it should be, but I just
+      // install it here.
+      sh("pip install dropbox");
+
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}",
                // Needed to get appengine_tool_setup.py
                "PYTHONPATH+TOOLS=${pwd()}/webapp/tools"]) {
