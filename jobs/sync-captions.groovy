@@ -40,11 +40,7 @@ def runScript() {
          sh("pip install dropbox");
       }
 
-      def PYTHONPATH = (
-         sh(script: 'echo $PYTHONPATH', returnStdout: true).trim());
-      withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}",
-               // Needed to get appengine_tool_setup.py
-               "PYTHONPATH=${pwd()}/webapp/tools:${PYTHONPATH}"]) {
+      withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
          sh("jenkins-tools/sync-captions.sh");
       }
    }

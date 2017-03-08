@@ -31,6 +31,8 @@ published_prod="$DATA_DIR/captions/published_prod/"
 video_list_path="$DATA_DIR/captions/video_list.txt"
 
 tools="$WEBSITE_ROOT/tools"
+# Needed to get appengine_tool_setup.py
+PYTHONPATH="$tools:$PYTHONPATH"
 
 # Download a list of videos that exist in production
 "$tools/get_video_list.py" > "$video_list_path"
