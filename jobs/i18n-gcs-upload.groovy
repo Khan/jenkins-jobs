@@ -21,23 +21,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-// This script uses a lot of memory, so normally we'd block on
-// "builds-using-a-lot-of-memory".  But we can't do that because
-// this job is called by other jobs that also run under
-// "builds-using-a-lot-of-memory", which causes deadlock. :-(
-// The solution is to move to
-// https://wiki.jenkins-ci.org/display/JENKINS/Lockable+Resources+Plugin
-// instead of using the "throttle concurrent builds" plugin.
-// TODO(csilvers): once all i18n jobs are moved over to groovy,
-// change the script to use lock() instead.
-//
-// For now we use the hacky solution of requiring all callers
-// of this script to make sure they block on
-// builds-using-a-lot-of-memory themselves.  Note this means that
-// we do not properly block when running this job manually.
-// Hopefully that is a rare or non-existent event.
-//).blockBuilds(["builds-using-a-lot-of-memory"]
-
 ).addStringParam(
     "LOCALES",
     """A whitespace-separated list of locales to upload to GCS.
@@ -98,7 +81,12 @@ def runScript() {
    onMaster("23h") {
       withEnv(["GIT_TAG=${params.GIT_TAG}",
                "I18N_GCS_UPLOAD_LOCALES=${params.LOCALES}"]) {
-         sh("jenkins-tools/i18n-gcs-upload.sh");
+         // TODO(csilvers): see if we can break up this script into
+         // pieces, so we can put using-a-lot-of-memory only around
+         // the parts that use a lot of memory.
+         lock("using-a-lot-of-memory") {
+            sh("jenkins-tools/i18n-gcs-upload.sh");
+         }
       }
    }
 }

@@ -14,12 +14,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-// We run on the test-workers a few different times during this job,
-// and we want to make sure no other job sneaks in between those times
-// and steals our test-workers from us.  So we acquire this lock.  It
-// depends on everyone else who uses the test-workers using this lock too.
-).blockBuilds(['builds-using-test-workers']
-
 ).addStringParam(
    "URL",
    "The url-base to run these tests against.",
@@ -360,19 +354,26 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
    initializeGlobals();
 
-   stage("Determining splits") {
-      determineSplits();
-   }
-
-   try {
-      stage("Running tests") {
-         runTests();
+   // We run on the test-workers a few different times during this
+   // job, and we want to make sure no other job sneaks in between
+   // those times and steals our test-workers from us.  So we acquire
+   // this lock for the entire job.  It depends on everyone else who
+   // uses the test-workers using this lock too.
+   lock('using-test-workers') {
+      stage("Determining splits") {
+         determineSplits();
       }
-   } finally {
-      // We want to analyze results even if -- especially if -- there
-      // were failures; hence we're in the `finally`.
-      stage("Analyzing results") {
-         analyzeResults();
+
+      try {
+         stage("Running tests") {
+            runTests();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if -- there
+         // were failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
+         }
       }
    }
 }

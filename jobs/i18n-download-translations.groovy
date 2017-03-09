@@ -11,9 +11,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).blockBuilds(["builds-using-update-strings-workspace",
-               "builds-using-a-lot-of-memory"]
-
 ).addCronSchedule("H/5 * * * *"
 
 ).addStringParam(
@@ -37,10 +34,15 @@ def runScript() {
          // update-translations.
          sh("rm -f updated_locales.txt")
 
-         withEnv(["DOWNLOAD_TRANSLATIONS=1",
-                  "NUM_LANGS_TO_DOWNLOAD=1",
-                  "OVERRIDE_LANGS=${params.LOCALES}"]) {
-            sh("jenkins-tools/update-translations.sh")
+         // TODO(csilvers): see if we can break up this script into
+         // pieces, so we can put using-a-lot-of-memory only around
+         // the parts that use a lot of memory.
+         lock("using-a-lot-of-memory") {
+            withEnv(["DOWNLOAD_TRANSLATIONS=1",
+                     "NUM_LANGS_TO_DOWNLOAD=1",
+                     "OVERRIDE_LANGS=${params.LOCALES}"]) {
+               sh("jenkins-tools/update-translations.sh")
+            }
          }
 
          return readFile("updated_locales.txt").split("\n").join(" ");
@@ -57,8 +59,13 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
    def updatedLocales = '';
 
-   stage("Running script") {
-      updatedLocales = runScript();
+   // We modify files in this workspace -- which is not our own! -- so
+   // we acquire a lock to make sure update-strings doesn't try to run
+   // at the same time.
+   lock("using-update-strings-workspace") {
+      stage("Running script") {
+         updatedLocales = runScript();
+      }
    }
 
    currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";

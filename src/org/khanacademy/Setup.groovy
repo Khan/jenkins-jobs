@@ -25,10 +25,8 @@ class Setup implements Serializable {
 
    // How many log files to keep around for this job.
    def numBuildsToKeep;
-   // Values can be 'this' to say this job cannot be run concurrently,
-   // or a list of labels to use with the 'throttle concurrent builds'
-   // plugin.  We block (no concurrent builds) by default.
-   def concurrentBuildCategories;
+   // If true, we only allow one instance of this job to run at a time.
+   def disableConcurrentBuilds;
    // The cron schedule, if this job should be run on a schedule.
    def cronSchedule;
    // The values users set when running this job.
@@ -37,7 +35,7 @@ class Setup implements Serializable {
    Setup(steps) {
       this.steps = steps;
       this.numBuildsToKeep = 100;
-      this.concurrentBuildCategories = ['this'];
+      this.disableConcurrentBuilds = true;
       this.cronSchedule = null;
       this.params = [];
    }
@@ -52,14 +50,7 @@ class Setup implements Serializable {
    }
 
    def allowConcurrentBuilds() {
-      this.concurrentBuildCategories = null;
-      return this;
-   }
-   // By default, block builds so only one instance of this job
-   // runs at a time.  If you pass in labels, the only one job
-   // with a given label can run at a time.
-   def blockBuilds(labels=['this']) {
-      this.concurrentBuildCategories = labels;
+      this.disableConcurrentBuilds = false;
       return this;
    }
 
@@ -98,17 +89,8 @@ class Setup implements Serializable {
                                   daysToKeepStr: '',
                                   numToKeepStr: this.numBuildsToKeep.toString()));
       }
-      if (this.concurrentBuildCategories &&
-          this.concurrentBuildCategories.contains('this')) {
+      if (this.disableConcurrentBuilds) {
          props << this.steps.disableConcurrentBuilds();
-         this.concurrentBuildCategories.removeElement('this');
-      }
-      if (this.concurrentBuildCategories) {
-         props << [$class: 'ThrottleJobProperty',
-                   categories: this.concurrentBuildCategories,
-                   throttleEnabled: true,
-                   throttleOption: 'category'
-                  ];
       }
       if (this.cronSchedule) {
          props << this.steps.pipelineTriggers(

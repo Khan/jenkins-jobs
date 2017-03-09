@@ -22,8 +22,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).blockBuilds(["builds-using-saucelabs"]
-
 ).addCronSchedule("H/10 * * * *"
 
 ).addStringParam(
@@ -159,13 +157,16 @@ def runEndToEndTests() {
                "TMPDIR=/tmp"]) {
          withSecrets() {   // we need secrets to talk to saucelabs
             dir("webapp") {
-               exec(["tools/rune2etests.py",
-                     "--pickle", "--pickle-file=genfiles/test-results.pickle",
-                     // JOBS=9 leaves one sauce machine available
-                     // for deploy e2e tests (which uses sauce on
-                     // test failure).
-                     "--quiet", "--jobs=9", "--retries=3",
-                     "--url", params.URL, "--driver=sauce"])
+               lock("using-saucelabs") {
+                  exec(["tools/rune2etests.py",
+                        "--pickle",
+                        "--pickle-file=genfiles/test-results.pickle",
+                        // JOBS=9 leaves one sauce machine available
+                        // for deploy e2e tests (which uses sauce on
+                        // test failure).
+                        "--quiet", "--jobs=9", "--retries=3",
+                        "--url", params.URL, "--driver=sauce"])
+               }
             }
          }
       }
