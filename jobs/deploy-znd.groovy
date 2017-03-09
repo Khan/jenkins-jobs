@@ -107,6 +107,7 @@ def verifyVersion() {
 
 
 // `version` as converted to znd-YYMMDD-<username>-foo form.
+// This must be called within a node() (because _currentUser needs that).
 def canonicalVersion() {
    def user = _currentUser();
    def versionMatcher = params.VERSION =~ "(znd-)?(\\d{6}-)?(${user}-)?(.*)";
@@ -121,8 +122,8 @@ def canonicalVersion() {
 
 
 def deploy() {
-   def user = _currentUser();
    onMaster('90m') {
+      def user = _currentUser();
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
       withEnv(["DEPLOY_VERSION=${canonicalVersion()}",
