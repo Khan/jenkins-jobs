@@ -25,13 +25,12 @@ possible: a commit-sha1 to deploy. Basically, this is passed to
 
 ).addStringParam(
     "VERSION",
-    """<b>REQUIRED</b>. The name of the this release on appengine. The
-version must be in the form <code>znd-YYMMDD-&lt;your username&gt
-;-other-stuff</code>. If you do not include the necessary prefix, we
-will add it in for you automatically, so you can just put 'other-
-stuff' here!  <i>Due to DNS limitations, please keep this short,
-especially if your username is long and/or you are deploying non-
-default modules!</i>""",
+    """<b>REQUIRED</b>. The name of the this release on appengine.
+If your VERSION does not start with
+<code>znd-YYMMDD-&lt;your username&gt-</code>, that text will be
+automatically prepended.  <i>Due to DNS limitations, please keep
+this short, especially if your username is long and/or you are
+deploying non-default modules!</i>""",
     ""
 
 ).addBooleanParam(
