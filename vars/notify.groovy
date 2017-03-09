@@ -3,14 +3,13 @@
 // will not only fail the build, it will include `msg` in the slack
 // and/or email notifications.
 
+@Library("kautils")
+// Classes we use, under jenkins-tools/src/.
+import org.khanacademy.FailedBuild;
 // We use these user-defined steps from vars/:
 //import vars.exec
 //import vars.onMaster
 //import vars.withSecrets
-
-
-// Used to set status to FAILED and emit the failure reason to slack/email.
-class FailedBuild extends Exception { };
 
 
 // True if our status matches one of the statuses in the `when` list.
