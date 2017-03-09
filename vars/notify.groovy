@@ -10,7 +10,11 @@
 
 
 // Used to set status to FAILED and emit the failure reason to slack/email.
-class FailedBuild extends Exception { };
+class FailedBuild extends Exception {
+   FailedBuild(def msg) {
+      super(msg);
+   }
+};
 
 
 // True if our status matches one of the statuses in the `when` list.
