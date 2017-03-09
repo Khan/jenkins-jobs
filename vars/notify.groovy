@@ -1,7 +1,16 @@
+// Normally you will just use notify() directly (via `call()` below).
+// But you may also find it useful to use `notify.fail(msg)`.  This
+// will not only fail the build, it will include `msg` in the slack
+// and/or email notifications.
+
 // We use these user-defined steps from vars/:
 //import vars.exec
 //import vars.onMaster
 //import vars.withSecrets
+
+
+// Used to set status to FAILED and emit the failure reason to slack/email.
+class FailedBuild extends Exception { };
 
 
 // True if our status matches one of the statuses in the `when` list.
@@ -97,18 +106,14 @@ def _logSuffix() {
 // channel (required): what slack channel to send to
 // when (required): under what circumstances to send to jenkins; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-// extraTextClosure: if specified, a closure that, when called with
-//    no arguments, resolves to text to put below the status line
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
-def sendToSlack(slackOptions, status) {
+// [extraText: if specified, text to add to the message send to slack.]
+def sendToSlack(slackOptions, status, extraText='') {
    def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
               "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
-   if (slackOptions.extraTextClosure) {
-      def extraText = slackOptions.extraTextClosure.call();
-      if (extraText) {
-         msg += "\n${extraText}";
-      }
+   if (extraText) {
+      msg += "\n${extraText}";
    }
    def severity = _failed(status) ? 'error' : 'info';
    onMaster("1m") {
@@ -130,12 +135,15 @@ def sendToSlack(slackOptions, status) {
 //    If you want to send to multiple people, use a comma: "sal, team".
 // cc: a string saying who to cc on the email.  Format is the same as
 //    for `to`.
-def sendToEmail(emailOptions, status) {
+// [extraText: if specified, text to add to the email body.]
+def sendToEmail(emailOptions, status, extraText='') {
    def severity = _failed(status) ? 'error' : 'info';
    def subject = ("${env.JOB_NAME} ${currentBuild.displayName} " +
                   "${_statusText(status)}");
    def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
-
+   if (extraText) {
+      body += "\n${extraText}";
+   }
    if (_failed(status)) {
       body += """
 Below is the tail of the build log.
@@ -159,8 +167,14 @@ ${_logSuffix()}
 }
 
 
+def fail(def msg) {
+   throw new FailedBuild(msg);
+}
+
+
 def call(options, Closure body) {
    def abortState = [complete: false, aborted: false];
+   def failureText = '';
 
    currentBuild.result = "SUCCESS";
    try {
@@ -194,6 +208,15 @@ def call(options, Closure body) {
          },
          "failFast": true,
       );
+   } catch (FailedBuild e) {
+         currentBuild.result = "FAILED";
+         failureText = e.getMessage();
+         echo("Failure message: ${failureText}");
+         // Log a message to help us ignore this post-build action when
+         // analyzing the logs for errors.
+         ansiColor('xterm') {
+            echo("\033[1;33m===== JOB FAILED =====\033[0m");
+         }
    } catch (e) {
       if (abortState.aborted) {
          currentBuild.result = "ABORTED";
@@ -202,8 +225,6 @@ def call(options, Closure body) {
          }
       } else {
          currentBuild.result = "FAILED";
-         // Log a message to help us ignore this post-build action when
-         // analyzing the logs for errors.
          ansiColor('xterm') {
             echo("\033[1;33m===== JOB FAILED =====\033[0m");
          }
@@ -222,11 +243,11 @@ def call(options, Closure body) {
       if (options.slack && _shouldReport(status, options.slack.when)) {
          // Make sure the user hasn't already sent to slack.
          if (!env.SENT_TO_SLACK) {
-            sendToSlack(options.slack, status);
+            sendToSlack(options.slack, status, failureText);
          }
       }
       if (options.email && _shouldReport(status, options.email.when)) {
-         sendToEmail(options.email, status);
+         sendToEmail(options.email, status, failureText);
       }
    }
 }
