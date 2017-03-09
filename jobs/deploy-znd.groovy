@@ -1,4 +1,4 @@
-// Groovy script to deploy a znd to khanacademy.appspot.com.
+// Groovy script to deploy a znd to khan-academy.appspot.com.
 //
 // A 'znd' is a non-default deploy -- a deploy of webapp that is
 // never intended to be made the default for users.  It can be used
@@ -109,7 +109,7 @@ def verifyVersion() {
 // `version` as converted to znd-YYMMDD-<username>-foo form.
 def canonicalVersion() {
    def user = _currentUser();
-   def versionMatcher = params.VERSION =~ "(znd-)?(\d{6}-)?(${user}-)?(.*)";
+   def versionMatcher = params.VERSION =~ "(znd-)?(\\d{6}-)?(${user}-)?(.*)";
    if (!versionMatcher.matches()) {
       notify.fail("Unexpected regexp-parse error for '${params.VERSION}'");
    }
