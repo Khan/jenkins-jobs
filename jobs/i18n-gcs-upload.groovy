@@ -78,7 +78,7 @@ def syncRepos() {
             // We want the last release that's successfully been tagged.
             // This can differ from the current release when a deploy
             // is going on (after deploying to GAE and before finishing).
-            gitTag = exec.outputOf("deploy/git_tags.py").split("\n")[-1];
+            gitTag = exec.outputOf(["deploy/git_tags.py"]).split("\n")[-1];
          }
       }
       kaGit.safeSyncTo("git@github.com:Khan/webapp", gitTag);
