@@ -1,1 +1,0 @@
-tools/jenkins/analyze_make_output.py:112:1: E999 lint error from txt-file.
