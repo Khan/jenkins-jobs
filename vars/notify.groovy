@@ -112,6 +112,8 @@ def _logSuffix() {
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
+// emojiOnFailure: the emoji to use for the bot when sending a message that
+//    the job failed.  If not specified, falls back to emoji.
 // [extraText: if specified, text to add to the message send to slack.]
 def sendToSlack(slackOptions, status, extraText='') {
    def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
@@ -119,16 +121,22 @@ def sendToSlack(slackOptions, status, extraText='') {
    if (extraText) {
       msg += "\n\u00BB ${extraText}";
    }
-   def severity = _failed(status) ? 'error' : 'info';
+   def sender = slackOptions.sender ?: 'Janet Jenkins';
+   def emoji = slackOptions.emoji ?: ':crocodile:';
+   def severity = 'info';
+   if (_failed(status)) {
+      emoji = slackOptions.emojiOnFailure ?: emoji;
+      severity = 'error';
+   }
    onMaster("1m") {
       withSecrets() {     // you need secrets to talk to slack
          sh("echo ${exec.shellEscape(msg)} | " +
             "jenkins-tools/alertlib/alert.py " +
             "--slack=${exec.shellEscape(slackOptions.channel)} " +
             // TODO(csilvers): make success green, not gray.
-            "--severity=${severity} " +
-            "--chat-sender=${exec.shellEscape(slackOptions.sender ?: 'Janet Jenkins')} " +
-            "--icon-emoji=${exec.shellEscape(slackOptions.emoji ?: ':crocodile:')}");
+            "--severity=${exec.shellEscape(severity)} " +
+            "--chat-sender=${exec.shellEscape(sender)} " +
+            "--icon-emoji=${exec.shellEscape(emoji)}");
       }
    }
 }

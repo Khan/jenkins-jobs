@@ -59,8 +59,8 @@ def runScript() {
 
 
 notify([slack: [channel: '#i18n',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
+                sender: 'I18N Imp',
+                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {

@@ -50,6 +50,8 @@ def runScript() {
 
 
 notify([slack: [channel: '#i18n',
+                sender: 'I18N Imp',
+                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
