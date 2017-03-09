@@ -59,22 +59,6 @@ manually, but rather by other jobs that call this one.""",
 ).apply();
 
 
-// This should be called from workspace-root.
-def _alert(def msg, def isError=true) {
-   withSecrets() {     // you need secrets to talk to slack
-      sh("echo ${exec.shellEscape(msg)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(params.SLACK_CHANNEL)} " +
-         "--severity=${isError ? 'error' : 'info'} " +
-         "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
-   }
-}
-
-def _success(def msg) {
-   _alert(msg, false);
-}
-
-
 // This is used to check if we've already run this exact e2e test.
 // This is necessary because this job gets run on a schedule; we
 // don't want to redo work if nothing has changed since the last run!
@@ -116,17 +100,25 @@ def syncWebapp() {
 
 
 def runAndroidTests() {
+   def slackArgsWithoutChannel = ["jenkins-tools/alertlib/alert.py",
+                                  "--chat-sender=Testing Turtle",
+                                  "--icon-emoji=:turtle:"];
+   def slackArgs = (slackArgsWithoutChannel +
+                    ["--slack=${params.SLACK_CHANNEL}"]);
+   def successMsg = "Mobile integration tests succeeded";
+   def failureMsg = ("Mobile integration tests failed " +
+                     "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
+
    onMaster('1h') {       // timeout
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
                sh("jenkins-tools/run_android_db_generator.sh");
-               _success("Mobile integration tests succeeded");
+               sh("echo ${exec.shellEscape(successMsg)} | " +
+                  "${exec.shellEscapeList(slackArgs)} --severity=info");
             } catch (e) {
-               def msg = ("Mobile integration tests failed " +
-                          "(search for 'ANDROID' in " +
-                          "${env.BUILD_URL}consoleFull)");
-               _alert(msg);
+               sh("echo ${exec.shellEscape(failureMsg)} | " +
+                  "${exec.shellEscapeList(slackArgs)} --severity=error");
                // TODO(charlie): Re-enable sending these failures to
                // #mobile-1s-and-0s.  They're too noisy right now,
                // making the channel unusable on some days, and these
@@ -135,7 +127,9 @@ def runAndroidTests() {
                // run, that's fine). Note that the tests are mostly
                // failing during the publish e2es.  See:
                // https://app.asana.com/0/31965416896056/268841235736013.
-               //_alert(msg, isError=true, channel="#mobile-1s-and-0s");
+               //sh("echo ${exec.shellEscape(failureMsg)} | " +
+               //     "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
+               //     "--slack='#mobile-1s-and-0s' --severity=error");
                throw e;
             }
          }
@@ -179,13 +173,12 @@ def analyzeResults(label) {
    onMaster("15m") {
       dir("webapp") {
          if (!fileExists("genfiles/test-results.pickle")) {
-            currentBuild.result = "UNSTABLE";
-            def msg = ("The e2e tests did not even finish " +
-                       "(could be due to timeouts or framework " +
-                       "errors; check ${env.BUILD_URL}consoleFull " +
-                       "to see exactly why)");
-            _alert(msg);
-            return;
+            def msg = ("The e2e tests did not even finish (could be due " +
+                       "to timeouts or framework errors; search for " +
+                       "`Failed` at ${env.BUILD_URL}consoleFull to see " +
+                       "exactly why)");
+            // e2e test failures are not currently fatal, so mark as UNSTABLE.
+            notify.fail(msg, "UNSTABLE");
          }
 
          withSecrets() {      // we need secrets to talk to slack.

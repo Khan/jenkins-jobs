@@ -11,8 +11,11 @@
 
 // Used to set status to FAILED and emit the failure reason to slack/email.
 class FailedBuild extends Exception {
-   FailedBuild(def msg) {
+   def statusToSet;
+
+   FailedBuild(def msg, def statusToSet="FAILED") {
       super(msg);
+      this.statusToSet = statusToSet;
    }
 };
 
@@ -179,8 +182,8 @@ ${_logSuffix()}
 }
 
 
-def fail(def msg) {
-   throw new FailedBuild(msg);
+def fail(def msg, def statusToSet="FAILED") {
+   throw new FailedBuild(msg, statusToSet);
 }
 
 
@@ -221,14 +224,14 @@ def call(options, Closure body) {
          "failFast": true,
       );
    } catch (FailedBuild e) {
-         currentBuild.result = "FAILED";
-         failureText = e.getMessage();
-         echo("Failure message: ${failureText}");
-         // Log a message to help us ignore this post-build action when
-         // analyzing the logs for errors.
-         ansiColor('xterm') {
-            echo("\033[1;33m===== JOB FAILED =====\033[0m");
-         }
+      currentBuild.result = e.getStatusToSet();
+      failureText = e.getMessage();
+      echo("Failure message: ${failureText}");
+      // Log a message to help us ignore this post-build action when
+      // analyzing the logs for errors.
+      ansiColor('xterm') {
+         echo("\033[1;33m===== JOB FAILED =====\033[0m");
+      }
    } catch (e) {
       if (abortState.aborted) {
          currentBuild.result = "ABORTED";

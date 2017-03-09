@@ -115,18 +115,6 @@ def _setupWebapp() {
 }
 
 
-// This should be called from workspace-root.
-def _alert(def msg) {
-   withSecrets() {     // you need secrets to talk to slack
-      sh("echo ${exec.shellEscape(msg)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(params.SLACK_CHANNEL)} " +
-         "--severity='error' " +
-         "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
-   }
-}
-
-
 // Figures out what tests to run based on TEST_TYPE and writes them to
 // a file in workspace-root.  Should be called in the webapp dir.
 def _determineTests() {
@@ -274,17 +262,16 @@ def analyzeResults() {
          }
       }
       if (numPickleFileErrors) {
-         def msg = ("TESTS FAILED: ${numPickleFileErrors} test workers did " +
-                    "not even finish (could be due to timeouts or framework " +
-                    "errors; check ${env.BUILD_URL}consoleFull " +
-                    "to see exactly why)");
-         _alert(msg);
+         def msg = ("${numPickleFileErrors} test workers did not " +
+                    "even finish (could be due to timeouts or framework " +
+                    "errors; search for `Failed in branch` at " +
+                    "${env.BUILD_URL}consoleFull to see exactly why)");
          // One could imagine it's useful to go on in this case, and
          // analyze the pickle-file we *did* get back.  But in my
          // experience it's too confusing: people think that the
          // results we emit are the full results, even though this
          // error indicates some results could not be processed.
-         return;
+         notify.fail(msg);
       }
 
       withSecrets() {     // we need secrets to talk to slack!

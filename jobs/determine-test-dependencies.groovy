@@ -69,18 +69,6 @@ def _setupWebapp() {
 }
 
 
-// This should be called from workspace-root.
-def _alert(def msg) {
-   withSecrets() {     // you need secrets to talk to slack
-      sh("echo ${exec.shellEscape(msg)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(channel)} " +
-         "--severity='error' " +
-         "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
-   }
-}
-
-
 def determineSplits() {
    // The main goal of this stage is to determine the splits, which
    // happens on master.  But while we're waiting for that, we might
@@ -183,17 +171,16 @@ def publishResults() {
       }
 
       if (numWorkerErrors) {
-         def msg = ("*determine-test-dependencies:* " +
-                    "${numWorkerErrors} test workers did not even " +
-                    "finish (could be due to timeouts or framework " +
-                    "errors; check ${env.BUILD_URL}consoleFull " +
-                    "to see exactly why), so not updating test-dependency " +
-                    "information");
-         _alert(msg);
-         // Let notify() know not to send any messages to slack,
-         // because we just did it above.
-         env.SENT_TO_SLACK = '1';
-         return;
+         def msg = ("${numPickleFileErrors} test workers did not " +
+                    "even finish (could be due to timeouts or framework " +
+                    "errors; search for `Failed in branch` at " +
+                    "${env.BUILD_URL}consoleFull to see exactly why)");
+         // One could imagine it's useful to go on in this case, and
+         // analyze the pickle-file we *did* get back.  But in my
+         // experience it's too confusing: people think that the
+         // results we emit are the full results, even though this
+         // error indicates some results could not be processed.
+         notify.fail(msg);
       }
 
       // Get ready to overwrite a file in our repo.

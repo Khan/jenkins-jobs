@@ -101,30 +101,6 @@ def _setupWebapp() {
 }
 
 
-// This should be called from workspace-root.
-def _do_alert(def msg, def isError, def channel) {
-   withSecrets() {     // you need secrets to talk to slack
-      sh("echo ${exec.shellEscape(msg)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--slack=${exec.shellEscape(channel)} " +
-         "--severity=${isError ? 'error' : 'info'} " +
-         "--chat-sender='Testing Turtle' --icon-emoji=:turtle:");
-   }
-}
-
-def _alert(def msg) {
-   _do_alert(msg, true, params.SLACK_CHANNEL);
-}
-
-def _alert_to(def msg, def slackChannel) {
-   _do_alert(msg, true, slackChannel);
-}
-
-def _success(def msg) {
-   _do_alert(msg, false, params.SLACK_CHANNEL);
-}
-
-
 def determineSplits() {
    // The main goal of this stage is to determine the splits, which
    // happens on master.  But while we're waiting for that, we might
@@ -201,34 +177,42 @@ def _runOneTest(splitId) {
 }
 
 
+def runAndroidTests() {
+   def slackArgsWithoutChannel = ["jenkins-tools/alertlib/alert.py",
+                                  "--chat-sender=Testing Turtle",
+                                  "--icon-emoji=:turtle:"];
+   def slackArgs = (slackArgsWithoutChannel +
+                    ["--slack=${params.SLACK_CHANNEL}"]);
+   def successMsg = "Mobile integration tests succeeded";
+   def failureMsg = ("Mobile integration tests failed " +
+                     "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
+
+   onMaster('1h') {       // timeout
+      withEnv(["URL=${params.URL}"]) {
+         withSecrets() {  // we need secrets to talk to slack!
+            try {
+               sh("jenkins-tools/run_android_db_generator.sh");
+               sh("echo ${exec.shellEscape(successMsg)} | " +
+                  "${exec.shellEscapeList(slackArgs)} --severity=info");
+            } catch (e) {
+               sh("echo ${exec.shellEscape(failureMsg)} | " +
+                  "${exec.shellEscapeList(slackArgs)} --severity=error");
+               sh("echo ${exec.shellEscape(failureMsg)} | " +
+                  "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
+                  "--slack='#mobile-1s-and-0s' --severity=error");
+               throw e;
+            }
+         }
+      }
+   }
+}
+
+
 def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST == "true",
-
-      "mobile-integration-test": {
-         onMaster('1h') {       // timeout
-            withEnv(["URL=${params.URL}"]) {
-               withSecrets() {  // we need secrets to talk to slack!
-                  try {
-                     sh("jenkins-tools/run_android_db_generator.sh");
-                     _success("Mobile integration tests succeeded");
-                  } catch (e) {
-                     // end-to-end failures are not blocking
-                     // currently, so if tests fail set the status to
-                     // UNSTABLE, not FAILED.
-                     currentBuild.result = "UNSTABLE";
-                     def msg = ("Mobile integration tests failed " +
-                                "(search for 'ANDROID' in " +
-                                "${env.BUILD_URL}consoleFull)");
-                     _alert(msg);
-                     _alert_to(msg, channel="#mobile-1s-and-0s");
-                     throw e;
-                  }
-               }
-            }
-         }
-      },
+      "mobile-integration-test": { runAndroidTests(); },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
@@ -305,18 +289,16 @@ def analyzeResults() {
          }
       }
       if (numPickleFileErrors) {
-         currentBuild.result = "UNSTABLE";
-         def msg = ("TESTS FAILED: ${numPickleFileErrors} test workers did " +
-                    "not even finish (could be due to timeouts or framework " +
-                    "errors; check ${env.BUILD_URL}consoleFull " +
-                    "to see exactly why)");
-         _alert(msg);
+         def msg = ("${numPickleFileErrors} test workers did not " +
+                    "even finish (could be due to timeouts or framework " +
+                    "errors; search for `Failed in branch` at " +
+                    "${env.BUILD_URL}consoleFull to see exactly why)");
          // One could imagine it's useful to go on in this case, and
          // analyze the pickle-file we *did* get back.  But in my
          // experience it's too confusing: people think that the
          // results we emit are the full results, even though this
          // error indicates some results could not be processed.
-         return;
+         notify.fail(msg, "UNSTABLE");
       }
 
       withSecrets() {     // we need secrets to talk to slack!
