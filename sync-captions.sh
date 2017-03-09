@@ -7,7 +7,7 @@ source "${SCRIPT_DIR}/build.lib"
 ensure_virtualenv
 decrypt_secrets_py_and_add_to_pythonpath
 
-( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
+( cd "$WEBSITE_ROOT" && "$MAKE" python_deps )
 
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1

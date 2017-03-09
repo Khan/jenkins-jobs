@@ -20,7 +20,7 @@ safe_merge_from_master . translations
 # We also make sure the intl/translations sub-repo is up to date.
 safe_pull intl/translations
 
-"$MAKE" install_deps
+"$MAKE" python_deps
 
 # --- The actual work:
 

@@ -44,7 +44,7 @@ fi
 
 cd "$WEBSITE_ROOT"
 
-make install_deps
+make python_deps
 
 # These kake jobs can use a lot of memory; to avoid trouble we build
 # just one at a time.
