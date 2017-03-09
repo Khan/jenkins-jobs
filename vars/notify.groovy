@@ -117,7 +117,7 @@ def sendToSlack(slackOptions, status, extraText='') {
    def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
               "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
    if (extraText) {
-      msg += "\n${extraText}";
+      msg += "\n\u00BB ${extraText}";
    }
    def severity = _failed(status) ? 'error' : 'info';
    onMaster("1m") {
