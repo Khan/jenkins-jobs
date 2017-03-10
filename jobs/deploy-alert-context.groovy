@@ -26,6 +26,7 @@ def installDeps() {
       // These secrets are installed into the workspace when we run the
       // jenkins setup script (in Khan/aws-config).
       sh("ln -snf ../secrets.py alert-context/src/secrets.py");
+      sh("chmod 644 alert-context/src/secrets.py");
 
       dir("alert-context") {
          sh("make deps");
