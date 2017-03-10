@@ -147,7 +147,7 @@ def _determineTests() {
       // TODO(csilvers): Instead of `origin/master`, what we really want
       // is "the last time tests passed on a commit that is in master."
       // We could use redis for this.
-      sh("tools/tests_for.py origin/master " +
+      sh("tools/tests_for.py -i origin/master " +
          " | ${runtestsCmd} -" +
          " > genfiles/test_splits.txt");
    } else {
