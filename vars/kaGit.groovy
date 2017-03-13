@@ -115,3 +115,9 @@ def safeCommitAndPush(dir, args) {
    exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_commit_and_push",
          dir] + args);
 }
+
+// Submodules is as in _submodulesArg`.
+def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_merge_from_master",
+         dir, commitToMergeInto] + _submodulesArg(submodules));
+}
