@@ -217,33 +217,6 @@ GAE_VERSION = null;
 GCS_VERSION = null;
 
 
-// severity should be 'info' or 'warning' or 'error'.
-// attachments should follow https://api.slack.com/docs/attachments
-// and be a string which is a json-encoding of a list-of-dicts.
-def _alert(text, severity='info', attachments=None,
-           prefixWithUsername=true, simpleMessage=false) {
-   def intro = "";
-   if (prefixWithUsername) {
-      text = "${DEPLOYER_USERNAME}: ${text}";
-      if (!simpleMessage) {
-         intro = "Hey ${DEPLOYER_USERNAME},"
-      }
-   }
-   def args = ["jenkins_tools/alert.py",
-               "--slack=${SLACK_CHANNEL}",
-               "--slack-intro=${intro}",
-               "--chat-sender=${CHAT_SENDER}",
-               "--icon-emoji=${ICON_EMOJI}"];
-   if (simpleMessage) {
-      args += ["--slack-simple-message"];
-   }
-   if (attachments) {
-      args += ["--slack-attachments=${attachments}"];
-   }
-   sh("echo ${exec.shellEscape(text) | ${exec.shellEscapeList(args)}");
-}
-
-
 // This must be run in the workspace directory, inside a node.
 def _callDeployPipeline(whichStage) {
    // While not necessary to always pass in all the args when calling
