@@ -38,8 +38,7 @@ def runScript() {
 
          if (!overrideLangs) {
              dir("webapp") {
-                // This is in requirements.txt but is somehow not installed.
-                sh("pip install tabulate==0.7.5");
+                sh("make python_deps");
                 // If not passed in as a param, get the single highest priority 
                 // lang
                 overrideLangs = exec.outputOf(["deploy/order_download_i18n.py", 
