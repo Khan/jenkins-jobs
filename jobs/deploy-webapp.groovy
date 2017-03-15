@@ -151,7 +151,7 @@ all modules.""",
 
 ).addBooleanParam(
     "SKIP_PRIMING",
-    """If set to True, we'll change the default version without priming any
+    """If set to True, we will change the default version without priming any
 of the new instances. THIS IS DANGEROUS, and will definitely cause
 disruptions to users. Only to be used in case of urgent emergency.""",
     false
@@ -227,9 +227,6 @@ def _callDeployPipeline(whichStage) {
                "--lockdir=../tmp/deploy.lockdir",
                "--deployer-username=${DEPLOYER_USERNAME}",
                "--git_revision=${GIT_REVISION}",
-               "--skip-priming=${params.SKIP_PRIMING}",
-               "--no-deploy-dynamic=${!DEPLOY_DYNAMIC}",
-               "--no-deploy-static=${!DEPLOY_STATIC}",
                "--jenkins_url=${env.JENKINS_URL}",
                "--chat-sender=Mr Monkey",
                "--slack_channel=${SLACK_CHANNEL}",
@@ -237,6 +234,15 @@ def _callDeployPipeline(whichStage) {
                "--token=T${GIT_SHA1}",
                "--monitoring_time=${params.MONITORING_TIME}",
                "--jenkins-build-url=${env.BUILD_URL}"];
+   if (params.SKIP_PRIMING) {
+      args += ["--skip-priming"];
+   }
+   if (!DEPLOY_DYNAMIC) {
+      args += ["--no-deploy-dynamic"];
+   }
+   if (!DEPLOY_STATIC) {
+      args += ["--no-deploy-static"];
+   }
    // We set the current build to UNSTABLE if promote() or monitor() fail.
    if (currentBuild.result == "UNSTABLE") {
       args += ["--num-failed-jobs=1"];
