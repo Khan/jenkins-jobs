@@ -37,9 +37,12 @@ def runScript() {
          def overrideLangs = params.LOCALES;
 
          if (!overrideLangs) {
-            // If not passed in as a param, get the single highest priority lang
-            overrideLangs = exec.outputOf(["deploy/order_download_i18n.py", 
-                                           "--verbose"]).split("\n")[0]
+             dir("webapp") {
+                // If not passed in as a param, get the single highest priority 
+                // lang
+                overrideLangs = exec.outputOf(["deploy/order_download_i18n.py", 
+                                               "--verbose"]).split("\n")[0]
+             }
          }
 
          currentBuild.displayName = ("${currentBuild.displayName} " +
