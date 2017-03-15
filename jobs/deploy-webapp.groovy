@@ -571,9 +571,9 @@ notify([slack: [channel: '#1s-and-0s-deploys',
             propagate: false,  // e2e errors are not fatal for a deploy
             parameters: [
                string(name: 'URL', value: DEPLOY_URL),
-               string(name: 'SLACK_CHANNEL', SLACK_CHANNEL),
+               string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
                string(name: 'GIT_REVISION', value: GIT_SHA1),
-               booleanParam(name: 'FAILFAST', values: false),
+               booleanParam(name: 'FAILFAST', value: false),
                string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
             ]);
    }
