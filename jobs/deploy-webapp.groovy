@@ -163,7 +163,7 @@ disruptions to users. Only to be used in case of urgent emergency.""",
   <li> <b>some</b>: Clean the workspaces (including .pyc files) but
        not genfiles. </li>
   <li> <b>most</b>: Clean the workspaces and genfiles, excluding
-       js/ruby/python modules. </li>
+       js/python modules. </li>
   <li> <b>all</b>: Full clean that results in a pristine working copy. </li>
   <li> <b>none</b>: Do not clean at all. </li>
 </ul>""",
@@ -484,6 +484,14 @@ def setDefaultAndMonitor() {
    onMaster('120m') {
       _callDeployPipeline("set-default-start");
 
+      // Note that while we start these jobs at the same time, the
+      // monitor script has code to wait until well after the
+      // promotion has finished before declaring monitoring finished.
+      // The reason we do these in parallel -- and don't just do
+      // _monitor() after _promote() -- is that not all instances
+      // switch to the new version at the same time; we want to start
+      // monitoring as soon as the first instance switches, not after
+      // the last one does.
       parallel(
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
@@ -496,6 +504,11 @@ def promptToFinish() {
    onMaster('1m') {
       _callDeployPipeline("set-default-end");
    }
+   // TODO(csilvers); let this timeout be configurable?  Then if you
+   // want to run a new version live for a few hours to collect some
+   // data, and automatically revert back to the previous version when
+   // you're done, you could just set a timeout for '5h' or whatever
+   // and let the timeout-trigger abort the deploy.
    withTimeout('1h') {   // we give people 1 hour to say "finish".
       input(message: "Finish up?", id: "Finish");
    }
