@@ -368,7 +368,7 @@ def runTests() {
             string(name: 'GIT_REVISION', value: GIT_SHA1),
             string(name: 'TEST_TYPE', value: TEST_TYPE),
             string(name: 'MAX_SIZE', value: "medium"),
-            booleanParam(name: 'FAILFAST', values: false),
+            booleanParam(name: 'FAILFAST', value: false),
             string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
             booleanParam(name: 'FORCE', value: params.FORCE),
          ]);
@@ -443,7 +443,7 @@ def _promote() {
                                value: "https://www.khanacademy.org"),
                         string(name: 'SLACK_CHANNEL', SLACK_CHANNEL),
                         string(name: 'GIT_REVISION', value: GIT_SHA1),
-                        booleanParam(name: 'FAILFAST', values: false),
+                        booleanParam(name: 'FAILFAST', value: false),
                         string(name: 'DEPLOYER_USERNAME',
                                value: DEPLOYER_USERNAME),
                      ]);

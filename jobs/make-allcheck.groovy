@@ -46,7 +46,7 @@ notify([slack: [channel: '#1s-and-0s',
             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
             string(name: 'TEST_TYPE', value: "all"),
             string(name: 'MAX_SIZE', value: "huge"),
-            booleanParam(name: 'FAILFAST', values: params.FAILFAST),
+            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
             booleanParam(name: 'FORCE', value: params.FORCE),
          ]);
@@ -55,6 +55,6 @@ notify([slack: [channel: '#1s-and-0s',
          parameters: [
             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            booleanParam(name: 'FAILFAST', values: params.FAILFAST),
+            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
          ]);
 }
