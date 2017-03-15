@@ -38,9 +38,8 @@ def runScript() {
 
          if (!overrideLangs) {
             // If not passed in as a param, get the single highest priority lang
-            overrideLangs = sh(script: "deploy/order_download_i18n.py " + 
-                               "--verbose | head -n 1 ", 
-                               returnStdout: true).strip();
+            overrideLangs = exec.outputOf(["deploy/order_download_i18n.py", 
+                                           "--verbose"]).split("\n")[0]
          }
 
          currentBuild.displayName = ("${currentBuild.displayName} " +
