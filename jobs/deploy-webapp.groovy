@@ -100,8 +100,7 @@ We will automatically merge master into the branch and then deploy it.""",
        user-facing code (js, images) in any way!, and you're
        confident, the existing-live user-facing code will work with your
        changes. </li>
-  <li> <b>both</b>: Deploy to both GCS and GAE. (<b>dangerous!</b> --
-       do not use lightly).  Select this for tools-only changes. </li>
+  <li> <b>both</b>: Deploy to both GCS and GAE. </li>
   <li> <b>none</b>: Do not deploy to GCS or GAE (<b>dangerous!</b> --
        do not use lightly).  Select this for tools-only changes. </li>
 </ul>
@@ -216,6 +215,33 @@ DEPLOY_URL = null;
 // The dynamic-deploy and static-deploy version-names.
 GAE_VERSION = null;
 GCS_VERSION = null;
+
+
+// severity should be 'info' or 'warning' or 'error'.
+// attachments should follow https://api.slack.com/docs/attachments
+// and be a string which is a json-encoding of a list-of-dicts.
+def _alert(text, severity='info', attachments=None,
+           prefixWithUsername=true, simpleMessage=false) {
+   def intro = "";
+   if (prefixWithUsername) {
+      text = "${DEPLOYER_USERNAME}: ${text}";
+      if (!simpleMessage) {
+         intro = "Hey ${DEPLOYER_USERNAME},"
+      }
+   }
+   def args = ["jenkins_tools/alert.py",
+               "--slack=${SLACK_CHANNEL}",
+               "--slack-intro=${intro}",
+               "--chat-sender=${CHAT_SENDER}",
+               "--icon-emoji=${ICON_EMOJI}"];
+   if (simpleMessage) {
+      args += ["--slack-simple-message"];
+   }
+   if (attachments) {
+      args += ["--slack-attachments=${attachments}"];
+   }
+   sh("echo ${exec.shellEscape(text) | ${exec.shellEscapeList(args)}");
+}
 
 
 // This must be run in the workspace directory, inside a node.
