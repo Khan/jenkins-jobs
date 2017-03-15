@@ -250,7 +250,7 @@ def _callDeployPipeline(whichStage) {
 
 
 def mergeFromMasterAndInitializeGlobals() {
-   onMaster('10m') {
+   onMaster('1h') {    // should_deploy builds files, which can take forever
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
       } else if (params.BUILD_USER_ID_FROM_SCRIPT) {
