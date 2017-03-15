@@ -238,7 +238,7 @@ def _callDeployPipeline(whichStage) {
                "--monitoring_time=${params.MONITORING_TIME}",
                "--jenkins-build-url=${env.BUILD_URL}"];
    // We set the current build to UNSTABLE if promote() or monitor() fail.
-   if (currentBuild.status == "UNSTABLE") {
+   if (currentBuild.result == "UNSTABLE") {
       args += ["--num-failed-jobs=1"];
    }
    withSecrets() {   // secrets are needed because this talks to slack
@@ -446,7 +446,7 @@ def _promote() {
                // Failure to promote is not a fatal error: we'll tell
                // people on slack so they can promote manually.  But
                // we don't want to abort the deploy, like a FAILURE would.
-               currentBuild.status = "UNSTABLE";
+               currentBuild.result = "UNSTABLE";
             }
          }
       }
@@ -472,7 +472,7 @@ def _monitor() {
                // Failure to monitor is not a fatal error: we'll tell
                // people on slack so they can monitor manually.  But
                // we don't want to abort the deploy, like a FAILURE would.
-               currentBuild.status = "UNSTABLE";
+               currentBuild.result = "UNSTABLE";
             }
          }
       }
