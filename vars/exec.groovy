@@ -28,3 +28,8 @@ def call(arglist) {
 def outputOf(arglist) {
    return sh(script: shellEscapeList(arglist), returnStdout: true).trim();
 }
+
+// A useful utility, similar to system() in perl.
+def statusOf(arglist) {
+   return sh(script: shellEscapeList(arglist), returnStatus: true);
+}
