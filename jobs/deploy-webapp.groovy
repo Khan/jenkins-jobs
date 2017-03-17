@@ -281,10 +281,8 @@ def mergeFromMasterAndInitializeGlobals() {
                                    ["third_party"]);
          if (params.MERGE_TRANSLATIONS) {
             // We only merge translations if we are on a branch.
-            def rc = sh(
-               script: ("git ls-remote --exit-code webapp " +
-                        "origin/${exec.shellEscape(params.GIT_REVISION)}"),
-               returnStatus: true);
+            def rc = exec.statusOf(["git", "ls-remote", "--exit-code", "webapp",
+                                    "origin/${params.GIT_REVISION}"]);
             if (rc == 0) {
                // We have to source build.lib since it has a guard
                // requiring it to be run in webapp. :-(
@@ -309,15 +307,15 @@ def mergeFromMasterAndInitializeGlobals() {
          }
 
          if (params.DEPLOY == "default") {
-            def output = exec.outputOf(["deploy/should_deploy.py", "static"]);
-            DEPLOY_STATIC = (output == "yes");
+            def rc = exec.statusOf(["deploy/should_deploy.py", "static"]);
+            DEPLOY_STATIC = (rc == 1);
          } else {
             DEPLOY_STATIC = (params.DEPLOY in ["static", "both"]);
          }
 
          if (params.DEPLOY == "default") {
-            def output = exec.outputOf(["deploy/should_deploy.py", "dynamic"]);
-            DEPLOY_DYNAMIC = (output == "yes");
+            def rc = exec.statusOf(["deploy/should_deploy.py", "dynamic"]);
+            DEPLOY_DYNAMIC = (rc == 1);
          } else {
             DEPLOY_DYNAMIC = (params.DEPLOY in ["dynamic", "both"]);
          }
