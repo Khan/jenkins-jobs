@@ -256,6 +256,12 @@ def _callDeployPipeline(whichStage) {
 
 def mergeFromMasterAndInitializeGlobals() {
    onMaster('1h') {    // should_deploy builds files, which can take forever
+      // deploy_pipeline.py creates a lockdir that we may not clean up
+      // properly on failure.  So just clean it up before starting
+      // each job.  That's safe in a groovy everything-in-one-job world.
+      // TODO(csilvers): remove after we get rid of deploy_pipeline.py.
+      sh("rm -rf tmp/deploy.lockdir");
+
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
       } else if (params.BUILD_USER_ID_FROM_SCRIPT) {
