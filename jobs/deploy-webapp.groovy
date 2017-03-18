@@ -51,6 +51,8 @@
 
 
 @Library("kautils")
+// Standard classes we use.
+import groovy.json.JsonBuilder;
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
@@ -198,6 +200,8 @@ DEPLOYER_USERNAME = null;
 
 // The sha1 of the deploy (after merging in master and translations).
 GIT_SHA1 = null;
+// The tag we will use to tag this deploy.
+GIT_TAG = null;
 
 // True if we should deploy to GCS/GAE (respectively).
 DEPLOY_STATIC = null;
@@ -215,6 +219,59 @@ DEPLOY_URL = null;
 // The dynamic-deploy and static-deploy version-names.
 GAE_VERSION = null;
 GCS_VERSION = null;
+// This is `GIT_TAG` but without the `gae-` prefix.
+COMBINED_VERSION = null;
+
+
+alertMsgs = load("deploy-webapp_slackmsgs.groovy");
+
+// This sends a message to slack.  `slackArgs` is a dict saying how to
+// format the message; it should be a constant from
+// jobs/deploy-webapp_slackmsgs.groovy.  The text in `slackArgs` may
+// include interpolation placeholders like `%(foo)s`.  In that that
+// case, `interpolationArgs` are used to resolve those placeholders.
+// It should be a dict whose keys are the placeholder keywords and
+// whose values are the proper values for this alert.  Example:
+//    _alert(alert.STARTING_DEPLOY, [deployType: "static", branch: GIT_COMMIT]);
+// Should be run under a node in the workspace-root directory.
+def _alert(def slackArgs, def interpolationArgs) {
+   // Arguments to replaceAll().  `all` is the entire regexp match,
+   // `keyword` is the part that matches our one parenthetical group.
+   def interpolationPattern = ~"%\\(([^)]*)\\)s";
+   def interpolate = { all, keyword -> interpolationArgs[keyword]; };
+
+   def msg = "${DEPLOYER_USERNAME}: ${slackArgs.text}";
+   def intro = slackArgs.simpleMessage ? "" : "Hey ${DEPLOYER_USERNAME},";
+
+   // Do string interpolation on msg.
+   msg = msg.replaceAll(interpolationPattern, interpolate);
+
+   args = ["jenkins-tools/alertlib/alert.py",
+           "--slack=${props.SLACK_CHANNEL}",
+           "--chat-sender=Mr Monkey",
+           "--icon_emoji=:monkey_face:",
+           "--severity=${slackArgs.severity}",
+           "--slack-intro=${intro}",
+          ];
+   if (slackArgs.simpleMessage) {
+      args += ["--slack-simple-message"];
+   }
+   if (slackArgs.attachments) {
+      // As promised in the docstring from deploy-webapp_slackmsgs.groovy,
+      // We add `text` as a fallback for attachments.
+      for (def i = 0; i < slackArgs.attachments.size(); i++) {
+         if (!slackArgs.attachments[i].fallback) {
+            slackArgs.attachments[i].fallback = slackArgs.text;
+         }
+      }
+      def attachmentString = new JsonBuilder(slackArgs.attachments).toString();
+      // Do string interpolation on attachments.
+      attachmentString = attachmentString.replaceAll(interpolationPattern,
+                                                     interpolation);
+      args += ["--slack-attachments=${attachmentString}"];
+   }
+   sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+}
 
 
 // This must be run in the workspace directory, inside a node.
@@ -344,6 +401,11 @@ def mergeFromMasterAndInitializeGlobals() {
             GCS_VERSION = gaeVersionName;
             DEPLOY_URL = "https://${GAE_VERSION}-dot-khan-academy.appspot.com";
          }
+
+         GIT_TAG = exec.outputOf(["deploy/git_tags.py",
+                                  GAE_VERSION, GCS_VERSION]);
+         // The same as GIT_TAG, but without the "gae-" prefix.
+         COMBINED_VERSION = GIT_TAG.substring("gae-".length());
       }
    }
 }
@@ -538,7 +600,58 @@ def promptToFinish() {
 
 def finishWithSuccess() {
    onMaster('10m') {
-      _callDeployPipeline("finish-with-success");
+      // Create the git tag (if we actually deployed something somewhere).
+      if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+         if (exec.statusOf(["git", "tag", "-l", GIT_TAG]) != 0) {
+            exec(["git", "tag", "-m",
+                  "Deployed to appengine from branch ${params.GIT_REVISION}",
+                  GIT_TAG, GIT_SHA1]);
+         }
+      }
+      try {
+         def branchName = "${GIT_SHA1} (${params.GIT_REVISION})";
+
+         // Set our local version of master to be the same as the origin
+         // master.  This is needed in cases when a previous deploy set the
+         // local (jenkins) master to commit X, but subsequent commits have
+         // moved the remote (github) version of master to commit Y.  It
+         // also makes sure the ref exists locally, so we can do the merge.
+         exec(["git", "fetch", "origin",
+               "+refs/heads/master:refs/remotes/origin/master"]);
+         exec(["git", "checkout", "master"]);
+         exec(["git", "reset", "--hard", "origin/master"]);
+         def headCommit = exec.outputOf(["git", "rev-parse", "HEAD"]);
+
+         // The merge exits with rc > 0 if there were conflicts.
+         echo("Merging ${branchName} into master");
+         try {
+            exec(["git", "merge", GIT_SHA1]);
+         } catch (e) {
+            // Best-effort attempt to abort.  We ignore the status code.
+            exec.statusOf(["git", "merge", "--abort"]);
+            throw e;
+         }
+
+         // There's a race condition if someone commits to master
+         // while this script is running, so check for that.
+         try {
+            exec(["git", "push", "--tags", "origin", "master"]);
+         } catch (e) {
+            // Best-effort attempt to reset.  We ignore the status code.
+            exec.statusOf(["git", "reset", "--hard", headCommit]);
+            throw e;
+         }
+
+         echo("Done merging ${branchName} into master");
+      } catch (e) {
+         _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
+                [combinedVersion: COMBINED_VERSION,
+                 branch: params.GIT_REVISION]);
+         throw e;
+      }
+
+      _alert(alertMsgs.SUCCESS,
+             [combinedVersion: COMBINED_VERSION, branch: params.GIT_REVISION]);
       env.SENT_TO_SLACK = '1';
    }
 }
