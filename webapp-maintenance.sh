@@ -141,7 +141,8 @@ clean_ka_translations() {
             # `basename $version` looks like "2016-04-17-2329",
             # but `date` wants "2016-04-17 23:29".
             date="`basename "$version" | cut -b1-10` `basename "$version" | cut -b12-13`:`basename "$version" | cut -b14-15`"
-            time_t=`date -d "$date" +%s`
+            # It seems like this file uses UTC dates.
+            time_t=`env TZ=UTC date -d "$date" +%s`
             if [ "$time_t" -lt "$week_ago_time_t" ]; then
                 # Very basic sanity-check: never delete files from today!
                 if echo "$version" | grep -q `date +%Y-%m-%d-`; then
