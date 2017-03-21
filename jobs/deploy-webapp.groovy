@@ -523,6 +523,7 @@ def promptToFinish() {
 def finishWithSuccess() {
    onMaster('10m') {
       _callDeployPipeline("finish-with-success");
+      env.SENT_TO_SLACK = '1';
    }
 }
 
@@ -530,6 +531,7 @@ def finishWithSuccess() {
 def finishWithFailure() {
    onMaster('20m') {
       _callDeployPipeline("finish-with-rollback");
+      env.SENT_TO_SLACK = '1';
    }
 }
 
