@@ -415,48 +415,46 @@ def promptForSetDefault() {
 
 
 def _promote() {
-   onMaster('25m') {
-      def cmd = ["deploy/set_default.py",
-                 GAE_VERSION,
-                 "--slack-channel=${SLACK_CHANNEL}",
-                 "--deployer_username=${DEPLOYER_USERNAME}"];
-      if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
-         cmd += ["--static-content-version=${GCS_VERSION}"];
-      }
-      if (params.SKIP_PRIMING) {
-         cmd += ["--no-priming"];
-      }
+   def cmd = ["deploy/set_default.py",
+              GAE_VERSION,
+              "--slack-channel=${SLACK_CHANNEL}",
+              "--deployer_username=${DEPLOYER_USERNAME}"];
+   if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
+      cmd += ["--static-content-version=${GCS_VERSION}"];
+   }
+   if (params.SKIP_PRIMING) {
+      cmd += ["--no-priming"];
+   }
 
-      withSecrets() {
-         dir("webapp") {
-            try {
-               exec(cmd);
+   withSecrets() {
+      dir("webapp") {
+         try {
+            exec(cmd);
 
-               // Once we finish (successfully) promoting, let's run
-               // the e2e tests again.  I'd rather do this at the top
-               // level, but since we run in a `parallel` it's better
-               // to do this here so we don't have to wait for the
-               // monitor job to finish before running this.  We could
-               // set `wait` to false, but I think it's better to wait
-               // for e2e's before saying set-default is finished,
-               // just like we wait for the other kind of monitoring.
-               build(job: 'e2e-test',
-                     propagate: false,  // e2e errors are not fatal for deploy
-                     parameters: [
-                        string(name: 'URL',
-                               value: "https://www.khanacademy.org"),
-                        string(name: 'SLACK_CHANNEL', SLACK_CHANNEL),
-                        string(name: 'GIT_REVISION', value: GIT_SHA1),
-                        booleanParam(name: 'FAILFAST', value: false),
-                        string(name: 'DEPLOYER_USERNAME',
-                               value: DEPLOYER_USERNAME),
-                     ]);
-            } catch (e) {
-               // Failure to promote is not a fatal error: we'll tell
-               // people on slack so they can promote manually.  But
-               // we don't want to abort the deploy, like a FAILURE would.
-               currentBuild.result = "UNSTABLE";
-            }
+            // Once we finish (successfully) promoting, let's run
+            // the e2e tests again.  I'd rather do this at the top
+            // level, but since we run in a `parallel` it's better
+            // to do this here so we don't have to wait for the
+            // monitor job to finish before running this.  We could
+            // set `wait` to false, but I think it's better to wait
+            // for e2e's before saying set-default is finished,
+            // just like we wait for the other kind of monitoring.
+            build(job: 'e2e-test',
+                  propagate: false,  // e2e errors are not fatal for deploy
+                  parameters: [
+                     string(name: 'URL',
+                            value: "https://www.khanacademy.org"),
+                     string(name: 'SLACK_CHANNEL', SLACK_CHANNEL),
+                     string(name: 'GIT_REVISION', value: GIT_SHA1),
+                     booleanParam(name: 'FAILFAST', value: false),
+                     string(name: 'DEPLOYER_USERNAME',
+                            value: DEPLOYER_USERNAME),
+                  ]);
+         } catch (e) {
+            // Failure to promote is not a fatal error: we'll tell
+            // people on slack so they can promote manually.  But
+            // we don't want to abort the deploy, like a FAILURE would.
+            currentBuild.result = "UNSTABLE";
          }
       }
    }
@@ -468,21 +466,19 @@ def _monitor() {
       return;
    }
 
-   onMaster('30m') {
-      cmd = ["deploy/monitor.py", GAE_VERSION, GCS_VERSION,
-             "--monitor=${params.MONITORING_TIME}",
-             "--slack-channel=${SLACK_CHANNEL}",
-             "--monitor-error-is-fatal"];
-      withSecrets() {
-         dir("webapp") {
-            try {
-               exec(cmd);
-            } catch (e) {
-               // Failure to monitor is not a fatal error: we'll tell
-               // people on slack so they can monitor manually.  But
-               // we don't want to abort the deploy, like a FAILURE would.
-               currentBuild.result = "UNSTABLE";
-            }
+   cmd = ["deploy/monitor.py", GAE_VERSION, GCS_VERSION,
+          "--monitor=${params.MONITORING_TIME}",
+          "--slack-channel=${SLACK_CHANNEL}",
+          "--monitor-error-is-fatal"];
+   withSecrets() {
+      dir("webapp") {
+         try {
+            exec(cmd);
+         } catch (e) {
+            // Failure to monitor is not a fatal error: we'll tell
+            // people on slack so they can monitor manually.  But
+            // we don't want to abort the deploy, like a FAILURE would.
+            currentBuild.result = "UNSTABLE";
          }
       }
    }
