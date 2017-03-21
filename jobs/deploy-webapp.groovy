@@ -418,7 +418,7 @@ def _promote() {
    def cmd = ["deploy/set_default.py",
               GAE_VERSION,
               "--slack-channel=${SLACK_CHANNEL}",
-              "--deployer_username=${DEPLOYER_USERNAME}"];
+              "--deployer-username=${DEPLOYER_USERNAME}"];
    if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
       cmd += ["--static-content-version=${GCS_VERSION}"];
    }
