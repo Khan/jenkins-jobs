@@ -127,7 +127,10 @@ def sendToSlack(slackOptions, status, extraText='') {
    def sender = slackOptions.sender ?: 'Janet Jenkins';
    def emoji = slackOptions.emoji ?: ':crocodile:';
    def severity = 'info';
-   if (_failed(status)) {
+   if (status == "UNSTABLE") {
+      emoji = slackOptions.emojiOnFailure ?: emoji;
+      severity = 'warning';
+   } else if (_failed(status)) {
       emoji = slackOptions.emojiOnFailure ?: emoji;
       severity = 'error';
    }
