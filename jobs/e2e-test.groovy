@@ -211,7 +211,7 @@ def runAndroidTests() {
 def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
-      "failFast": params.FAILFAST == "true",
+      "failFast": params.FAILFAST,
       "mobile-integration-test": { runAndroidTests(); },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
