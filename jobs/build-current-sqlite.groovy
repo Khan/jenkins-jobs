@@ -16,15 +16,15 @@ new Setup(steps
 ).addCronSchedule("H 21 * * 2-6"
 
 ).addStringParam(
-    "SNAPSHOT_BUCKETS",
-    """GCS buckets to download snapshots from. We assume that the locale name
-is the part of the bucket name that follows that last underscore character.""",
+    "SNAPSHOT_NAMES",
+    """We assume that the locale name is the part of the bucket name that
+follows that last underscore character.""",
     "snapshot_en snapshot_es"
 
 ).addStringParam(
     "CURRENT_SQLITE_BUCKET",
     "GCS bucket to upload current.sqlite to",
-    "gs://ka_dev_sync/current.sqlite"
+    "gs://ka_dev_sync/"
 
 ).apply();
 
@@ -45,7 +45,7 @@ def runScript() {
                withSecrets() {
                   withEnv(
                      ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
-                      "SNAPSHOT_BUCKETS=${params.SNAPSHOT_BUCKETS}"]) {
+                      "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
                      sh("jenkins-tools/build_current_sqlite.sh");
                   }
                }

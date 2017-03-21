@@ -11,25 +11,27 @@
 
 
 # Space-separated list of GCS buckets to download snapshots from.
-: ${SNAPSHOT_BUCKETS:="snapshot_en snapshot_es"}
+: ${SNAPSHOT_NAMES:="snapshot_en snapshot_es"}
 # GCS bucket to upload current.sqlite to.
-: ${CURRENT_SQLITE_BUCKET:="gs://ka_dev_sync/current.sqlite"}
+: ${CURRENT_SQLITE_BUCKET:="gs://ka_dev_sync/"}
 
 
 # fetch sync snapshots
-for snapshot_bucket in $SNAPSHOT_BUCKETS; do
+for snapshot_bucket in $SNAPSHOT_NAMES; do
     gsutil cp "gs://ka_dev_sync/$snapshot_bucket" "./$snapshot_bucket"
 done
 
 # remove any existing database
 rm -f current.sqlite
+# And clean up existing memcache prefill files
+rm -rf webapp/genfiles/content_prefill
 
 # make deps
 cd webapp
 make deps
 
 
-for snapshot_bucket in $SNAPSHOT_BUCKETS; do
+for snapshot_bucket in $SNAPSHOT_NAMES; do
     # start dev server serving locally on port 9085
     # write logs to genfiles/appserver.log
     timeout 10h python third_party/frankenserver/dev_appserver.py \
@@ -71,12 +73,14 @@ for snapshot_bucket in $SNAPSHOT_BUCKETS; do
 done
 
 
-# upload current.sqlite
 cd ..
-gsutil cp current.sqlite "$CURRENT_SQLITE_BUCKET"
+# upload current.sqlite and new content prefill files (deleteing old ones)
+gsutil cp current.sqlite "$CURRENT_SQLITE_BUCKET/current.sqlite"
+gsutil -m rsync -d webapp/genfiles/content_prefill/ "$CURRENT_SQLITE_BUCKET/content_prefill/"
 
 # cleanup
 rm -f current.sqlite
-for snapshot_bucket in $SNAPSHOT_BUCKETS; do
+rm -rf webapp/genfiles/content_prefill
+for snapshot_bucket in $SNAPSHOT_NAMES; do
     rm -f "$snapshot_bucket"
 done
