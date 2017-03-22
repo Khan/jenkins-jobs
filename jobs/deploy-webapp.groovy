@@ -454,6 +454,7 @@ def _promote() {
             // Failure to promote is not a fatal error: we'll tell
             // people on slack so they can promote manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
+            echo("Marking unstable due to promotion failure: ${e}");
             currentBuild.result = "UNSTABLE";
          }
       }
@@ -478,6 +479,7 @@ def _monitor() {
             // Failure to monitor is not a fatal error: we'll tell
             // people on slack so they can monitor manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
+            echo("Marking unstable due to monitoring failure: ${e}");
             currentBuild.result = "UNSTABLE";
          }
       }
