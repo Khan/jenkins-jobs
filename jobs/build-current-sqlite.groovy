@@ -24,7 +24,7 @@ follows that last underscore character.""",
 ).addStringParam(
     "CURRENT_SQLITE_BUCKET",
     "GCS bucket to upload current.sqlite to",
-    "gs://ka_dev_sync/"
+    "gs://ka_dev_sync"
 
 ).apply();
 
