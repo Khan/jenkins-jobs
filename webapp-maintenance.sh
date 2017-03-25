@@ -82,7 +82,7 @@ clean_docker() {
 # Every week, we do a 'partial' clean of genfiles directories that
 # gets rid of certain files that are "probably" obsolete.
 clean_genfiles() {
-    for dir in $HOME/jobs/*/workspace/webapp/genfiles; do
+    for dir in $HOME/jobs/*/workspace/webapp/genfiles $HOME/jobs/*/jobs/*/workspace/webapp/genfiles; do
         (
         echo "Cleaning genfiles in $dir"
         cd "$dir"
