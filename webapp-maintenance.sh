@@ -90,8 +90,8 @@ clean_genfiles() {
         # This means that slow-changing languages may get nuked even
         # though they're up to date, but we'll just redownload them so
         # no harm done.
-        find translations/pofiles -mtime +7 -print0 | xargs -0r rm -v
-        find translations/approved_pofiles -mtime +7 -print0 | xargs -0r rm -v
+        find translations/pofiles -mtime +7 -a -type f -print0 | xargs -0r rm -v
+        find translations/approved_pofiles -mtime +7 -a -type f -print0 | xargs -0r rm -v
         )
     done
 }
