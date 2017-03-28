@@ -298,19 +298,12 @@ def _callDeployPipeline(whichStage) {
                "--token=T${GIT_SHA1}",
                "--monitoring_time=${params.MONITORING_TIME}",
                "--jenkins-build-url=${env.BUILD_URL}"];
-   if (params.SKIP_PRIMING) {
-      args += ["--skip-priming"];
-   }
-   if (!DEPLOY_DYNAMIC) {
-      args += ["--no-deploy-dynamic"];
-   }
-   if (!DEPLOY_STATIC) {
-      args += ["--no-deploy-static"];
-   }
+   args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
+   args += DEPLOY_DYNAMIC ? [] : ["--no-deploy-dynamic"];
+   args += DEPLOY_STATIC ? [] : ["--no-deploy-static"];
    // We set the current build to UNSTABLE if promote() or monitor() fail.
-   if (currentBuild.result == "UNSTABLE") {
-      args += ["--num-failed-jobs=1"];
-   }
+   args += currentBuild.result == "UNSTABLE" ? ["--num-failed-jobs=1"] : [];
+
    withSecrets() {   // secrets are needed because this talks to slack
       dir("webapp") {
          exec(args);
@@ -367,7 +360,12 @@ def mergeFromMasterAndInitializeGlobals() {
       }
 
       dir("webapp") {
-         sh("make python_deps");
+         sh("make deps");
+      }
+      if (params.CLEAN != "none") {
+         // TODO(csilvers): move clean() to a var rather than build.lib.
+         sh(". ./jenkins-tools/build.lib; cd webapp; " +
+            "clean ${exec.shellEscape(params.CLEAN)}");
       }
 
       dir("webapp") {
@@ -451,24 +449,65 @@ def runTests() {
 }
 
 
-def deployToGAEAndGCS() {
-   if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
-      onMaster('120m') {
-         withEnv(["DEPLOY_VERSION=default",
-                  "DEPLOY_STATIC=${DEPLOY_STATIC}",
-                  "DEPLOY_DYNAMIC=${DEPLOY_DYNAMIC}",
-                  "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}",
-                  "SKIP_PRIMING=${params.SKIP_PRIMING}",
-                  "SLACK_CHANNEL=${SLACK_CHANNEL}",
-                  "SUBMODULE_REVERTS=${params.ALLOW_SUBMODULE_REVERTS}",
-                  "CLEAN=${params.CLEAN}",
-                  "FORCE=${params.FORCE}"]) {
-            withSecrets() {     // secrets are needed to talk to slack
-               // TODO(csilvers): separate out deploy-static and
-               // deploy-dynamic into separate scripts.
-               sh("jenkins-tools/deploy.sh");
-            }
-            // TODO(csilvers): check for "Precompilation failed." in the logs?
+def deployToGAE() {
+   if (!DEPLOY_DYNAMIC) {
+      return;
+   }
+   def args = ["deploy/deploy_to_gae.py",
+               "--version=default",
+               "--no-browser", "--no-up", "--clean-versions",
+               "--slack-channel=${SLACK_CHANNEL}",
+               "--deployer-username=${DEPLOYER_USERNAME}"];
+   args += params.FORCE ? ["--force-deploy"] : [];
+   args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
+   args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
+
+   onMaster('120m') {
+      withSecrets() {     // we need to deploy secrets.py.
+         // We need to deploy secrets.py to production, so it needs to
+         // be in webapp/, not just in $SECRETS_DIR.
+         sh(". ./jenkins-tools/build.lib; " +
+            "cp -p \"$SECRETS_DIR/secrets.py\" webapp/");
+
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         // TODO(csilvers): do we need secrets for this part?
+         dir("webapp") {
+            sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+         }
+      }
+   }
+}
+
+
+def deployToGCS() {
+   // We always "deploy" to gcs, even for python-only deploys, though
+   // for python-only deploys the gcs-deploy is very simple.
+   def args = ["deploy/deploy_to_gcs.py", GCS_VERSION];
+   if (!DEPLOY_STATIC) {
+      args += ["--copy-from=default"];
+   }
+   // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
+   if (DEPLOY_DYNAMIC) {
+      args += ["--slack-channel=", "--deployer-username="];
+   } else {
+      args += ["--slack-channel=${SLACK_CHANNEL}",
+               "--deployer-username=${DEPLOYER_USERNAME}"];
+   }
+   args += params.FORCE ? ["--force"] : [];
+
+   onMaster('120m') {
+      withSecrets() {     // TODO(csilvers): do we actually need secrets?
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         dir("webapp") {
+            sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
          }
       }
    }
@@ -695,7 +734,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
 
    stage("Deploying and testing") {
       parallel(
-         "deploy": { deployToGAEAndGCS(); },
+         "deploy-to-gae": { deployToGAE(); },
+         "deploy-to-gcs": { deployToGCS(); },
          "test": { runTests(); },
          "failFast": true,
       )
