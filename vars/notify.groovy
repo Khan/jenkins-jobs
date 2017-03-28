@@ -211,6 +211,7 @@ def call(options, Closure body) {
             } catch (e) {
                if (!abortState.complete) {
                   abortState.aborted = true;
+                  currentBuild.result = "ABORTED";
                }
                throw e;
             } finally {

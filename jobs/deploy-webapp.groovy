@@ -451,6 +451,13 @@ def _promote() {
                             value: DEPLOYER_USERNAME),
                   ]);
          } catch (e) {
+            sleep(1);   // give the watchdog a chance to notice an abort
+            if (currentBuild.result == "ABORTED") {
+               // Means that we aborted while running this, which
+               // the watchdog (in vars/notify.groovy) noticed.
+               // We want to continue with the abort process.
+               throw e;
+            }
             // Failure to promote is not a fatal error: we'll tell
             // people on slack so they can promote manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
@@ -476,6 +483,13 @@ def _monitor() {
          try {
             exec(cmd);
          } catch (e) {
+            sleep(1);   // give the watchdog a chance to notice an abort
+            if (currentBuild.result == "ABORTED") {
+               // Means that we aborted while running this, which
+               // the watchdog (in vars/notify.groovy) noticed.
+               // We want to continue with the abort process.
+               throw e;
+            }
             // Failure to monitor is not a fatal error: we'll tell
             // people on slack so they can monitor manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
@@ -593,7 +607,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
          stage("Prompt 2") {
             promptToFinish();
          }
-      } catch(e) {
+      } catch (e) {
          finishWithFailure();
          throw e;
       }
