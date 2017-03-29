@@ -467,7 +467,7 @@ def deployToGAE() {
          // We need to deploy secrets.py to production, so it needs to
          // be in webapp/, not just in $SECRETS_DIR.
          sh(". ./jenkins-tools/build.lib; " +
-            "cp -p \"$SECRETS_DIR/secrets.py\" webapp/");
+            'cp -p "$SECRETS_DIR/secrets.py" webapp/');
 
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
