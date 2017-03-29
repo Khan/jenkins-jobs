@@ -223,7 +223,7 @@ GCS_VERSION = null;
 COMBINED_VERSION = null;
 
 
-alertMsgs = load("deploy-webapp_slackmsgs.groovy");
+alertMsgs = null;
 
 // This sends a message to slack.  `slackArgs` is a dict saying how to
 // format the message; it should be a constant from
@@ -313,6 +313,8 @@ def _callDeployPipeline(whichStage) {
 
 def mergeFromMasterAndInitializeGlobals() {
    onMaster('1h') {    // should_deploy builds files, which can take forever
+      alertMsgs = load("${pwd()}@script/deploy-webapp_slackmsgs.groovy");
+
       // deploy_pipeline.py creates a lockdir that we may not clean up
       // properly on failure.  So just clean it up before starting
       // each job.  That's safe in a groovy everything-in-one-job world.
