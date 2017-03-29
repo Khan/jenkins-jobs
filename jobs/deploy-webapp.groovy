@@ -707,10 +707,57 @@ def finishWithSuccess() {
 }
 
 
-def finishWithFailure(shouldRollback) {
+def finishWithFailure(why) {
+   currentBuild.result = "FAILURE";
+
+   def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
+
    onMaster('20m') {
-      _callDeployPipeline(shouldRollback ? "finish-with-rollback"
-                                         : "finish-with-failure");
+      def currentGAEGitTag = exec.outputOf(
+         ["webapp/deploy/current_version.py", "--git-tag"]);
+
+      if (currentGAEGitTag != GIT_TAG) {
+         echo("No need to roll back: our deploy did not succeed");
+         echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
+              "rollback-to: ${ROLLBACK_TO}");
+         _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
+                [combinedVersion: COMBINED_VERSION,
+                 branch: params.GIT_REVISION,
+                 why: why]);
+         env.SENT_TO_SLACK = '1';
+         return
+      }
+
+      // Have to roll back.
+      _alert(alertMsgs.ROLLING_BACK,
+             [rollbackToAsVersion: rollbackToAsVersion,
+              gitTag: GIT_TAG]);
+      try {
+         dir("webapp") {
+            exec(["deploy/rollback.py",
+                  "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
+            // If the version we rolled back *to* is marked bad, warn
+            // about that.
+            def existingTag = exec.outputOf(["git", "tag", "-l",
+                                             "${ROLLBACK_TO}-bad"]);
+            if (existingTag) {
+               _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
+                      [rollbackToAsVersion: rollbackToAsVersion]);
+            }
+         }
+      } catch (e) {
+         echo("Auto-rollback failed");
+         _alert(alertMsgs.ROLLBACK_FAILED,
+                [rollbackToAsVersion: rollbackToAsVersion,
+                 gitTag: GIT_TAG,
+                 rollbackTo: ROLLBACK_TO]);
+      }
+
+      _alert(alertsMsgs.FAILED_WITH_ROLLBACK,
+             [combinedVersion: COMBINED_VERSION,
+              branch: params.GIT_REVISION,
+              rollbackToAsVersion: rollbackToAsVersion,
+              why: why]);
       env.SENT_TO_SLACK = '1';
    }
 }
@@ -744,8 +791,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
 
       // (Note: we run the e2e tests even for tools-only deploys, to make
       // sure the deploy doesn't break the e2e test system.)  In theory
-      // we can start the e2e tests as soon as deployToGAEAndGCS
-      // finishes, but since the e2e tests use the same machines as the
+      // we can start the e2e tests as soon as deployToGAE()/deployToGCS()
+      // finish, but since the e2e tests use the same machines as the
       // (unit) tests, we might as well just wait until both complete
       // before doing this.  TODO(csilvers): remove "wait: false"?  It
       // means people would have to wait for e2e tests to finish before
@@ -764,7 +811,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                ]);
       }
    } catch (e) {
-      finishWithFailure(false);
+      finishWithFailure(e.toString());
       throw e;
    }
 
@@ -780,7 +827,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
             promptToFinish();
          }
       } catch (e) {
-         finishWithFailure(true);
+         finishWithFailure(e.toString());
          throw e;
       }
    }

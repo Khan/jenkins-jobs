@@ -200,14 +200,14 @@ succeeded, but we did not successfully merge `%(branch)s` into
 FAILED_WITHOUT_ROLLBACK = [
    "severity": "error",
    "text": """\
-:ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed%(why)s.
+:ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed: %(why)s.
 """];
 
 
 FAILED_WITH_ROLLBACK = [
    "severity": "error",
    "text": """\
-:ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed%(why)s.
+:ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed: %(why)s.
 Rolled back to %(rollbackToAsVersion)s.
 """];
 
