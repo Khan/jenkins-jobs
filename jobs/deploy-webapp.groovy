@@ -449,6 +449,7 @@ def runTests() {
 }
 
 
+// This should be called from within a node().
 def deployToGAE() {
    if (!DEPLOY_DYNAMIC) {
       return;
@@ -461,29 +462,26 @@ def deployToGAE() {
    args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
    args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
 
-   onMaster('120m') {
-      withSecrets() {     // we need to deploy secrets.py.
-         // We need to deploy secrets.py to production, so it needs to
-         // be in webapp/, not just in $SECRETS_DIR.
-         sh(". ./jenkins-tools/build.lib; " +
-            'cp -p "$SECRETS_DIR/secrets.py" webapp/');
+   withSecrets() {     // we need to deploy secrets.py.
+      // We need to deploy secrets.py to production, so it needs to
+      // be in webapp/, not just in $SECRETS_DIR.
+      sh(". ./jenkins-tools/build.lib; " +
+         'cp -p "$SECRETS_DIR/secrets.py" webapp/');
 
-         // Since this runs in parallel(), there's a chance it will end
-         // up in workspace@2 which we don't want.  So we force things.
-         dir("../workspace/webapp") {
-            // Increase the the maximum number of open file descriptors.
-            // This is necessary because kake keeps a lockfile open for
-            // every file it's compiling, and that can easily be
-            // thousands of files.  4096 is as much as linux allows.
-            // We also use python -u to get maximally unbuffered output.
-            // TODO(csilvers): do we need secrets for this part?
-            sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
-         }
+      dir("webapp") {
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         // TODO(csilvers): do we need secrets for this part?
+         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
 }
 
 
+// This should be called from within a node().
 def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
@@ -500,18 +498,14 @@ def deployToGCS() {
    }
    args += params.FORCE ? ["--force"] : [];
 
-   onMaster('120m') {
-      withSecrets() {     // TODO(csilvers): do we actually need secrets?
-         // Since this runs in parallel(), there's a chance it will end
-         // up in workspace@2 which we don't want.  So we force things.
-         dir("../workspace/webapp") {
-            // Increase the the maximum number of open file descriptors.
-            // This is necessary because kake keeps a lockfile open for
-            // every file it's compiling, and that can easily be
-            // thousands of files.  4096 is as much as linux allows.
-            // We also use python -u to get maximally unbuffered output.
-            sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
-         }
+   withSecrets() {     // TODO(csilvers): do we actually need secrets?
+      dir("webapp") {
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
 }
@@ -736,12 +730,14 @@ notify([slack: [channel: '#1s-and-0s-deploys',
    }
 
    stage("Deploying and testing") {
-      parallel(
-         "deploy-to-gae": { deployToGAE(); },
-         "deploy-to-gcs": { deployToGCS(); },
-         "test": { runTests(); },
-         "failFast": true,
-      )
+      onMaster('120m') {
+         parallel(
+            "deploy-to-gae": { deployToGAE(); },
+            "deploy-to-gcs": { deployToGCS(); },
+            "test": { runTests(); },
+            "failFast": true,
+         )
+      }
    }
 
    // (Note: we run the e2e tests even for tools-only deploys, to make
