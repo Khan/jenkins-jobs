@@ -468,13 +468,15 @@ def deployToGAE() {
          sh(". ./jenkins-tools/build.lib; " +
             'cp -p "$SECRETS_DIR/secrets.py" webapp/');
 
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         // TODO(csilvers): do we need secrets for this part?
-         dir("webapp") {
+         // Since this runs in parallel(), there's a chance it will end
+         // up in workspace@2 which we don't want.  So we force things.
+         dir("../workspace/webapp") {
+            // Increase the the maximum number of open file descriptors.
+            // This is necessary because kake keeps a lockfile open for
+            // every file it's compiling, and that can easily be
+            // thousands of files.  4096 is as much as linux allows.
+            // We also use python -u to get maximally unbuffered output.
+            // TODO(csilvers): do we need secrets for this part?
             sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
          }
       }
@@ -500,12 +502,14 @@ def deployToGCS() {
 
    onMaster('120m') {
       withSecrets() {     // TODO(csilvers): do we actually need secrets?
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         dir("webapp") {
+         // Since this runs in parallel(), there's a chance it will end
+         // up in workspace@2 which we don't want.  So we force things.
+         dir("../workspace/webapp") {
+            // Increase the the maximum number of open file descriptors.
+            // This is necessary because kake keeps a lockfile open for
+            // every file it's compiling, and that can easily be
+            // thousands of files.  4096 is as much as linux allows.
+            // We also use python -u to get maximally unbuffered output.
             sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
          }
       }
