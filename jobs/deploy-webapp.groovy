@@ -313,7 +313,7 @@ def _callDeployPipeline(whichStage) {
 
 def mergeFromMasterAndInitializeGlobals() {
    onMaster('1h') {    // should_deploy builds files, which can take forever
-      alertMsgs = load("${pwd()}@script/deploy-webapp_slackmsgs.groovy");
+      alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
 
       // deploy_pipeline.py creates a lockdir that we may not clean up
       // properly on failure.  So just clean it up before starting
