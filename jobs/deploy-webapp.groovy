@@ -454,7 +454,6 @@ def deployToGAE() {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
-               "--version=default",
                "--no-browser", "--no-up", "--clean-versions",
                "--slack-channel=${SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}"];
