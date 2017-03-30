@@ -104,6 +104,11 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
     if [ -n "$OVERRIDE_LANGS" ]; then
         list_of_langs="$OVERRIDE_LANGS"
+        # Even when we override the langs, we still call the ordering script as
+        # it also updates the first time we have seen any changed string counts
+        # so we know how long a language has been waiting to be updated
+        # correctly.
+        deploy/order_download_i18n.py
     else
         # Download the next NUM_LANGS_TO_DOWNLOAD most important langs
         # pofiles and stats files in parallel and create the combined
