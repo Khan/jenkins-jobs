@@ -125,6 +125,7 @@ def _determineTests() {
    def runtestsCmd = ("tools/runtests.py " +
                       "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
                       "--jobs=${NUM_WORKER_MACHINES} " +
+                      "--timing-db=genfiles/test-info.db " +
                       "--dry-run --just-split");
 
    if (params.TEST_TYPE == "all") {
