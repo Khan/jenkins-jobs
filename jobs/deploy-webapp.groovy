@@ -282,45 +282,9 @@ def _alert(def slackArgs, def interpolationArgs) {
 }
 
 
-// This must be run in the workspace directory, inside a node.
-def _callDeployPipeline(whichStage) {
-   // While not necessary to always pass in all the args when calling
-   // deploy-pipeline, I do it to make it easier to carve out bits
-   // of deploy-pipeline to move somewhere else.
-   def args = ["deploy/deploy_pipeline.py", whichStage,
-               "--lockdir=../tmp/deploy.lockdir",
-               "--deployer-username=${DEPLOYER_USERNAME}",
-               "--git_revision=${GIT_REVISION}",
-               "--jenkins_url=${env.JENKINS_URL}",
-               "--chat-sender=Mr Monkey",
-               "--slack_channel=${SLACK_CHANNEL}",
-               "--icon_emoji=:monkey_face:",
-               "--token=T${GIT_SHA1}",
-               "--monitoring_time=${params.MONITORING_TIME}",
-               "--jenkins-build-url=${env.BUILD_URL}"];
-   args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
-   args += DEPLOY_DYNAMIC ? [] : ["--no-deploy-dynamic"];
-   args += DEPLOY_STATIC ? [] : ["--no-deploy-static"];
-   // We set the current build to UNSTABLE if promote() or monitor() fail.
-   args += currentBuild.result == "UNSTABLE" ? ["--num-failed-jobs=1"] : [];
-
-   withSecrets() {   // secrets are needed because this talks to slack
-      dir("webapp") {
-         exec(args);
-      }
-   }
-}
-
-
 def mergeFromMasterAndInitializeGlobals() {
    onMaster('1h') {    // should_deploy builds files, which can take forever
       alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
-
-      // deploy_pipeline.py creates a lockdir that we may not clean up
-      // properly on failure.  So just clean it up before starting
-      // each job.  That's safe in a groovy everything-in-one-job world.
-      // TODO(csilvers): remove after we get rid of deploy_pipeline.py.
-      sh("rm -rf tmp/deploy.lockdir");
 
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
@@ -420,14 +384,21 @@ def mergeFromMasterAndInitializeGlobals() {
 
 
 def sendStartMessage() {
-   // TODO(csilvers): all we need to really do from this step is send
-   // the message to slack (once nothing depends on the props file).
-   onMaster("10m") {
-      _callDeployPipeline("acquire-lock");
+   def deployType;
+   if (DEPLOY_STATIC && DEPLOY_DYNAMIC) {
+      deployType = "";
+   } else if (DEPLOY_STATIC) {
+      deployType = "static (js)-only ";
+   } else if (DEPLOY_DYNAMIC) {
+      deployType = "dynamic (python)-only ";
+   } else {
+      deployType = "tools-only ";
+   }
 
-      // TODO(csilvers): this is just to update the props file again;
-      // we can get rid of it once we no longer have a props file.
-      _callDeployPipeline("check-merge");
+   onMaster("1m") {
+      _alert(alertMsgs.STARTING_DEPLOY,
+             [deployType: deployType,
+              branch: params.GIT_REVISION]);
    }
 }
 
@@ -512,10 +483,13 @@ def deployToGCS() {
 
 
 def promptForSetDefault() {
-   // TODO(csilvers): do the alerting here.  manual-test has the wrong links.
    onMaster('1m') {
-      _callDeployPipeline("manual-test");
+      _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
+             [deployUrl: DEPLOY_URL,
+              combinedVersion: COMBINED_VERSION,
+              branch: params.GIT_REVISION]);
    }
+
    withTimeout('1h') {   // we give people 1 hour to say "set-default".
       input(message: "Set default?", id: "SetDefault");
    }
@@ -611,7 +585,8 @@ def _monitor() {
 
 def setDefaultAndMonitor() {
    onMaster('120m') {
-      _callDeployPipeline("set-default-start");
+      _alert(alertMsgs.SETTING_DEFAULT,
+             [combinedVersion: COMBINED_VERSION]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the
@@ -631,9 +606,21 @@ def setDefaultAndMonitor() {
 
 def promptToFinish() {
    onMaster('1m') {
-      _callDeployPipeline("set-default-end");
+      def logsUrl = (
+         "https://console.developers.google.com/project/khan-academy/logs" +
+         "?service=appengine.googleapis.com&key1=default&key2=${GAE_VERSION}");
+
+      // The build is unstable if monitoring detected problems (or died).
+      if (currentBuild.result == "UNSTABLE") {
+         _alert(alertMsgs.FINISH_WITH_WARNING,
+                [logsUrl: logsUrl, combinedVersion: COMBINED_VERSION]);
+      } else {
+         _alert(alertMsgs.FINISH_WITH_NO_WARNING,
+                [logsUrl: logsUrl, combinedVersion: COMBINED_VERSION]);
+      }
    }
-   // TODO(csilvers); let this timeout be configurable?  Then if you
+
+   // TODO(csilvers): let this timeout be configurable?  Then if you
    // want to run a new version live for a few hours to collect some
    // data, and automatically revert back to the previous version when
    // you're done, you could just set a timeout for '5h' or whatever
