@@ -757,7 +757,7 @@ def finishWithFailure(why) {
                  rollbackTo: ROLLBACK_TO]);
       }
 
-      _alert(alertsMsgs.FAILED_WITH_ROLLBACK,
+      _alert(alertMsgs.FAILED_WITH_ROLLBACK,
              [combinedVersion: COMBINED_VERSION,
               branch: params.GIT_REVISION,
               rollbackToAsVersion: rollbackToAsVersion,
