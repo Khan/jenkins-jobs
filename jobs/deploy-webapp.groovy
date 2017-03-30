@@ -780,12 +780,12 @@ notify([slack: [channel: '#1s-and-0s-deploys',
             promptToFinish();
          }
       } catch (e) {
-         finishWithFailure();
+         finishWithFailure(true);
          throw e;
       }
    }
 
    stage("Merging to master") {
-      finishWithSuccess(true);
+      finishWithSuccess();
    }
 }
