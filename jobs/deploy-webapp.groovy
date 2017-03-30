@@ -708,7 +708,11 @@ def finishWithSuccess() {
 
 
 def finishWithFailure(why) {
-   currentBuild.result = "FAILURE";
+   if (currentBuild.result == "ABORTED") {
+      why = "the deploy was manually aborted";   // a prettier error message
+   } else {
+      currentBuild.result = "FAILURE";
+   }
 
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
