@@ -34,51 +34,57 @@
 // `text` plus `simpleMessage`==false.  The third has just
 // `attachments`.
 
+
+// TODO(csilvers): do some simple text-formatting here.
+def _textWrap(String s) {
+   return s;
+}
+
+
 // An attachment field for instructions on how to abort.
 _abortField = [
    "title": "abort the deploy :skull:",
-   "value": "`sun: abort`",
+   "value": ":speech_balloon: `sun: abort`",
    "short": true,
 ];
-
 
 STARTING_DEPLOY = [
    "severity": "info",
    "simpleMessage": true,
-   "text": """\
+   "text": _textWrap("""\
 *Starting a %(deployType)sdeploy of branch `%(branch)s`.* :treeeee:
 
 I'll post again when tests are done & the deploy is finished.
 If you wish to cancel before then you can abort the deploy by
 typing `sun: abort`.
-"""];
+""")];
 
 
 ROLLING_BACK = [
    "severity": "info",
-   "text": """\
+   "text": _textWrap("""\
 Automatically rolling the default back to %(rollbackToAsVersion)s and tagging
 %(gitTag)s as bad (in git)
-"""];
+""")];
 
 
 ROLLED_BACK_TO_BAD_VERSION = [
    "severity": "warning",
-   "text": """\
+   "text": _textWrap("""\
 :poop: WARNING: Rolled back to %(rollbackToAsVersion)s, but that version has
 itself been marked as bad.  You may need to manually run
 set_default.py to roll back to a safe version.  (Run 'git tag' to see
 all versions, good and bad.)
-"""];
+""")];
 
 
 ROLLBACK_FAILED = [
    "severity": "critical",
-   "text": """\
+   "text": _textWrap("""\
 :ohnoes: :ohnoes: Auto-rollback failed!
 Roll back to %(rollbackToAsVersion)s manually by running
 `deploy/rollback.py --bad '%(gitTag)s' --good '%(rollbackTo)s'`
-"""];
+""")];
 
 
 MANUAL_TEST_THEN_SET_DEFAULT = [
@@ -89,10 +95,13 @@ MANUAL_TEST_THEN_SET_DEFAULT = [
             "\n- abort the deploy: type `sun: abort`"),
    "attachments": [
       [
-         "pretext": """\
+         "pretext": _textWrap("""\
 <%(deployUrl)s|%(combinedVersion)s> (branch `%(branch)s`)
 is uploaded to App Engine!
-""",
+
+Do some manual testing while I run the
+<https://jenkins.khanacademy.org/job/deploy/job/e2e-test/lastBuild/|end-to-end tests>.
+Then:"""),
          "fields": [
             [
                "title": "all looks good :rocket:",
@@ -108,11 +117,11 @@ is uploaded to App Engine!
 ];
 
 
-_settingDefaultText = """\
+_settingDefaultText = _textWrap("""\
 I'm setting default to `%(combinedVersion)s`, and monitoring the logs.
 If you notice a problem before monitoring finishes, you can cancel the
 deploy.
-""".replace("\n", " ");
+""");
 
 
 SETTING_DEFAULT = [
@@ -139,12 +148,11 @@ FINISH_WITH_WARNING = [
             "abort and roll back: type `sun: abort`\n"),
    "attachments": [
       [
-         "pretext": """\
+         "pretext": _textWrap("""\
 :ohnoes: Monitoring detected errors for the new default
 (%(combinedVersion)s). Please double-check manually that everything is
-okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the
-logs>.
-""",
+okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the logs>.
+"""),
          "fields": [
             ["title": "deploy anyway :yolo:",
              "value": ":speech_balloon: `sun: finish up`",
@@ -168,12 +176,12 @@ FINISH_WITH_NO_WARNING = [
             "abort and roll back: type `sun: abort`\n"),
    "attachments": [
       [
-         "pretext": """\
+         "pretext": _textWrap("""\
 Monitoring passed for the new default
 (%(combinedVersion)s). You can double-check manually that everything is
 okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the
 logs>.
-""",
+"""),
          "fields": [
             ["title": "finish up :checkered_flag:",
              "value": ":speech_balloon: `sun: finish up`",
@@ -189,36 +197,36 @@ logs>.
 
 FAILED_MERGE_TO_MASTER = [
    "severity": "error",
-   "text": """\
+   "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`)
 succeeded, but we did not successfully merge `%(branch)s` into
 `master`. Merge and then push manually via
 `git --no-verify push origin master`.
-"""];
+""")];
 
 
 FAILED_WITHOUT_ROLLBACK = [
    "severity": "error",
-   "text": """\
+   "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed: %(why)s.
-"""];
+""")];
 
 
 FAILED_WITH_ROLLBACK = [
    "severity": "error",
-   "text": """\
+   "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed: %(why)s.
 Rolled back to %(rollbackToAsVersion)s.
-"""];
+""")];
 
 
 SUCCESS = [
    "severity": "info",
    "simpleMessage": true,
-   "text": """\
+   "text": _textWrap("""\
 :party_dino: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) succeeded!
 Time for a happy dance!
-"""];
+""")];
 
 
 return this;
