@@ -90,12 +90,13 @@ Roll back to %(rollbackToAsVersion)s manually by running
 """)];
 
 
-// TODO(csilvers): add `tools/manual_webapp_testing.py https://170331-1143-43f3cb7dc15b-dot-khan-academy.appspot.com`
 MANUAL_TEST_THEN_SET_DEFAULT = [
    "severity": "info",
    "text": _textWrap("""\
 %(deployUrl)s (branch %(branch)s) is uploaded to appengine!
-Do some manual testing on it, then either:
+Do some manual testing on it, perhaps via
+`tools/manual_webapp_testing.py %(deployUrl)s`,
+then either:
 \n- set it as default: type `sun: set default`
 \n- abort the deploy: type `sun: abort`
 """),
