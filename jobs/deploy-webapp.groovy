@@ -529,7 +529,7 @@ def _promote() {
                   parameters: [
                      string(name: 'URL',
                             value: "https://www.khanacademy.org"),
-                     string(name: 'SLACK_CHANNEL', SLACK_CHANNEL),
+                     string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
                      string(name: 'GIT_REVISION', value: GIT_SHA1),
                      booleanParam(name: 'FAILFAST', value: false),
                      string(name: 'DEPLOYER_USERNAME',
