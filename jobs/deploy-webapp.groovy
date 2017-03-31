@@ -486,6 +486,8 @@ def promptForSetDefault() {
    onMaster('1m') {
       _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
              [deployUrl: DEPLOY_URL,
+              setDefaultUrl: "${env.BUILD_URL}input/",
+              abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,
               branch: params.GIT_REVISION]);
    }
@@ -586,7 +588,8 @@ def _monitor() {
 def setDefaultAndMonitor() {
    onMaster('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
-             [combinedVersion: COMBINED_VERSION]);
+             [combinedVersion: COMBINED_VERSION,
+              abortUrl: "${env.BUILD_URL}stop"]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the
@@ -609,14 +612,16 @@ def promptToFinish() {
       def logsUrl = (
          "https://console.developers.google.com/project/khan-academy/logs" +
          "?service=appengine.googleapis.com&key1=default&key2=${GAE_VERSION}");
-
+      def interpolationArgs = [logsUrl: logsUrl,
+                               combinedVersion: COMBINED_VERSION,
+                               finishUrl: "${env.BUILD_URL}input/",
+                               abortUrl: "${env.BUILD_URL}stop",
+                              ];
       // The build is unstable if monitoring detected problems (or died).
       if (currentBuild.result == "UNSTABLE") {
-         _alert(alertMsgs.FINISH_WITH_WARNING,
-                [logsUrl: logsUrl, combinedVersion: COMBINED_VERSION]);
+         _alert(alertMsgs.FINISH_WITH_WARNING, interpolationArgs);
       } else {
-         _alert(alertMsgs.FINISH_WITH_NO_WARNING,
-                [logsUrl: logsUrl, combinedVersion: COMBINED_VERSION]);
+         _alert(alertMsgs.FINISH_WITH_NO_WARNING, interpolationArgs);
       }
    }
 

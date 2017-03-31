@@ -47,7 +47,7 @@ def _textWrap(String s) {
 // An attachment field for instructions on how to abort.
 _abortField = [
    "title": "abort the deploy :skull:",
-   "value": ":speech_balloon: `sun: abort`",
+   "value": ":speech_balloon: `sun: abort` (or <%(abortUrl)s|click me>)",
    "short": true,
 ];
 
@@ -97,8 +97,8 @@ MANUAL_TEST_THEN_SET_DEFAULT = [
 Do some manual testing on it, perhaps via
 `tools/manual_webapp_testing.py %(deployUrl)s`,
 then either:
-\n- set it as default: type `sun: set default`
-\n- abort the deploy: type `sun: abort`
+\n- set it as default: type `sun: set default` or visit %(setDefaultUrl)s
+\n- abort the deploy: type `sun: abort` or visit %(abortUrl)s
 """),
    "attachments": [
       [
@@ -112,7 +112,8 @@ Then:"""),
          "fields": [
             [
                "title": "all looks good :rocket:",
-               "value": ":speech_balloon: `sun: set default`",
+               "value": (":speech_balloon: `sun: set default` " +
+                         "(or <%(setDefaultUrl)s|use jenkins directly>)"),
                "short": true,
             ],
             _abortField,
@@ -134,7 +135,7 @@ deploy.
 SETTING_DEFAULT = [
    "severity": "info",
    "text": ("${_settingDefaultText}\n" +
-            "To cancel, type `sun: abort`"),
+            "To cancel, type `sun: abort` or visit %(abortUrl)s"),
    "attachments": [
       [
          "pretext": _settingDefaultText,
@@ -152,8 +153,8 @@ FINISH_WITH_WARNING = [
 (%(combinedVersion)s). Please double-check manually that
 everything is okay at https://www.khanacademy.org and in
 the logs.  Then:
-\n- finish up: type `sun: finish up`
-\n- abort and roll back: type `sun: abort`
+\n- finish up: type `sun: finish up` or visit %(finishUrl)s
+\n- abort and roll back: type `sun: abort` or visit %(abortUrl)s
 """),
    "attachments": [
       [
@@ -164,7 +165,8 @@ okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the logs>.
 """),
          "fields": [
             ["title": "deploy anyway :yolo:",
-             "value": ":speech_balloon: `sun: finish up`",
+             "value": (":speech_balloon: `sun: finish up` " +
+                       "(or <%(finishUrl)s|use jenkins directly>)"),
              "short": true,
             ],
             _abortField,
@@ -181,8 +183,8 @@ FINISH_WITH_NO_WARNING = [
 Monitoring passed for the new default (%(combinedVersion)s).
 You can double-check manually that everything is okay at
 https://www.khanacademy.org and in the logs.  Then:
-\n- finish up: type `sun: finish up`
-\n- abort and roll back: type `sun: abort`
+\n- finish up: type `sun: finish up` or visit %(finishUrl)s
+\n- abort and roll back: type `sun: abort` or visit %(abortUrl)s
 """),
    "attachments": [
       [
@@ -194,7 +196,8 @@ logs>.
 """),
          "fields": [
             ["title": "finish up :checkered_flag:",
-             "value": ":speech_balloon: `sun: finish up`",
+             "value": (":speech_balloon: `sun: finish up` " +
+                       "(or <%(finishUrl)s|use jenkins directly>)"),
              "short": true,
             ],
             _abortField,
