@@ -172,7 +172,7 @@ okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the logs>.
             ],
             _abortField,
          ],
-         "mrkdown_in": ["fields", "text", "pretext"],
+         "mrkdwn_in": ["fields", "text", "pretext"],
       ],
    ],
 ];
@@ -203,7 +203,7 @@ logs>.
             ],
             _abortField,
          ],
-         "mrkdown_in": ["fields", "text", "pretext"],
+         "mrkdwn_in": ["fields", "text", "pretext"],
       ],
    ],
 ];
