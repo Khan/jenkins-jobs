@@ -106,7 +106,8 @@ then either:
 <%(deployUrl)s|%(combinedVersion)s> (branch `%(branch)s`)
 is uploaded to App Engine!
 
-Do some manual testing while I run the
+Do some manual testing, perhaps via
+`tools/manual_webapp_testing.py %(deployUrl)s`, while I run the
 <https://jenkins.khanacademy.org/job/deploy/job/e2e-test/lastBuild/|end-to-end tests>.
 Then:"""),
          "fields": [
