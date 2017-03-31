@@ -365,7 +365,8 @@ def mergeFromMasterAndInitializeGlobals() {
          if (DEPLOY_STATIC && !DEPLOY_DYNAMIC) {
             // In this case, the GAE version stays the same as before
             // (so we can use ROLLBACK_TO) but the static version is new.
-            GAE_VERSION = ROLLBACK_TO;
+            GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
+                                         ROLLBACK_TO]);
             GCS_VERSION = gaeVersionName;
             DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
          } else {
@@ -781,7 +782,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                "deploy-to-gcs": { deployToGCS(); },
                "test": { runTests(); },
                "failFast": true,
-            )
+            );
          }
       }
 
