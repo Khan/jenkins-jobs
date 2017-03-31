@@ -35,12 +35,15 @@
 // `attachments`.
 
 
-// TODO(csilvers): do some simple text-formatting here.
+// A very simple whitespace markup language: two+ blank lines -> newline,
+// all other newlines -> space
+@NonCPS     // for replaceAll()
 def _textWrap(String s) {
-   return s;
+   return s.replaceAll("\\n+", { match -> match.length() > 1 ? "\n" : " "; });
 }
 
 
+// TODO(csilvers): include jenkins links for aborting and set-default/finish.
 // An attachment field for instructions on how to abort.
 _abortField = [
    "title": "abort the deploy :skull:",
@@ -87,12 +90,15 @@ Roll back to %(rollbackToAsVersion)s manually by running
 """)];
 
 
+// TODO(csilvers): add `tools/manual_webapp_testing.py https://170331-1143-43f3cb7dc15b-dot-khan-academy.appspot.com`
 MANUAL_TEST_THEN_SET_DEFAULT = [
    "severity": "info",
-   "text": ("%(deployUrl)s (branch %(branch)s) is uploaded to appengine! " +
-            "Do some manual testing on it, then either:" +
-            "\n- set it as default: type `sun: set default`" +
-            "\n- abort the deploy: type `sun: abort`"),
+   "text": _textWrap("""\
+%(deployUrl)s (branch %(branch)s) is uploaded to appengine!
+Do some manual testing on it, then either:
+\n- set it as default: type `sun: set default`
+\n- abort the deploy: type `sun: abort`
+"""),
    "attachments": [
       [
          "pretext": _textWrap("""\
@@ -140,12 +146,14 @@ SETTING_DEFAULT = [
 
 FINISH_WITH_WARNING = [
    "severity": "warning",
-   "text": (":ohnoes: Monitoring detected errors for the new default " +
-            "(%(combinedVersion)s). Please double-check manually that " +
-            "everything is okay at https://www.khanacademy.org and in " +
-            "the logs.  Then:\n" +
-            "finish up: type `sun: finish up`\n" +
-            "abort and roll back: type `sun: abort`\n"),
+   "text": _textWrap("""\
+:ohnoes: Monitoring detected errors for the new default
+(%(combinedVersion)s). Please double-check manually that
+everything is okay at https://www.khanacademy.org and in
+the logs.  Then:
+\n- finish up: type `sun: finish up`
+\n- abort and roll back: type `sun: abort`
+"""),
    "attachments": [
       [
          "pretext": _textWrap("""\
@@ -168,12 +176,13 @@ okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the logs>.
 
 FINISH_WITH_NO_WARNING = [
    "severity": "info",
-   "text": ("Monitoring passed for the new default " +
-            "(%(combinedVersion)s). You can double-check manually that " +
-            "everything is okay at https://www.khanacademy.org and in " +
-            "the logs.  Then:\n" +
-            "finish up: type `sun: finish up`\n" +
-            "abort and roll back: type `sun: abort`\n"),
+   "text": _textWrap("""\
+Monitoring passed for the new default (%(combinedVersion)s).
+You can double-check manually that everything is okay at
+https://www.khanacademy.org and in the logs.  Then:
+\n- finish up: type `sun: finish up`
+\n- abort and roll back: type `sun: abort`
+"""),
    "attachments": [
       [
          "pretext": _textWrap("""\
