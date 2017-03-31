@@ -86,6 +86,10 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.VERSION}:${params.GIT_REVISION})");
 
 
+// This is hard-coded.
+SLACK_CHANNEL = "#1s-and-0s-deploys";
+
+
 def _currentUser() {
    wrap([$class: 'BuildUser']) {
       // It seems like BUILD_USER_ID is typically an email address.
@@ -120,23 +124,84 @@ def canonicalVersion() {
 }
 
 
+// This should be called from within a node().
+def deployToGAE() {
+   if (!params.DEPLOYING_DYNAMIC) {
+      return;
+   }
+   def args = ["deploy/deploy_to_gae.py",
+               "--version=${canonicalVersion()}",
+               "--modules=${params.MODULES}",
+               "--no-browser", "--no-up", "--clean-versions",
+               "--slack-channel=${SLACK_CHANNEL}",
+               "--deployer-username=@${_currentUser()}"];
+   args += params.SKIP_I18N ? ["--no-i18n"] : [];
+   args += params.PRIME ? [] : ["--no-priming"];
+
+   withSecrets() {     // we need to deploy secrets.py.
+      // We need to deploy secrets.py to production, so it needs to
+      // be in webapp/, not just in $SECRETS_DIR.
+      sh(". ./jenkins-tools/build.lib; " +
+         'cp -p "$SECRETS_DIR/secrets.py" webapp/');
+
+      dir("webapp") {
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         // TODO(csilvers): do we need secrets for this part?
+         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+      }
+   }
+}
+
+
+// This should be called from within a node().
+def deployToGCS() {
+   // We always "deploy" to gcs, even for python-only deploys, though
+   // for python-only deploys the gcs-deploy is very simple.
+   def args = ["deploy/deploy_to_gcs.py", canonicalVersion()];
+   if (!params.DEPLOYING_STATIC) {
+      args += ["--copy-from=default"];
+   }
+   // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
+   if (params.DEPLOYING_DYNAMIC) {
+      args += ["--slack-channel=", "--deployer-username="];
+   } else {
+      args += ["--slack-channel=${SLACK_CHANNEL}",
+               "--deployer-username=@${_currentUser()}"];
+   }
+   args += params.SKIP_I18N ? ["--no-i18n"] : [];
+
+   withSecrets() {     // TODO(csilvers): do we actually need secrets?
+      dir("webapp") {
+         // Increase the the maximum number of open file descriptors.
+         // This is necessary because kake keeps a lockfile open for
+         // every file it's compiling, and that can easily be
+         // thousands of files.  4096 is as much as linux allows.
+         // We also use python -u to get maximally unbuffered output.
+         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+      }
+   }
+}
+
+
 def deploy() {
    onMaster('90m') {
-      def user = _currentUser();
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
-      withEnv(["DEPLOY_VERSION=${canonicalVersion()}",
-               "DEPLOY_STATIC=${params.DEPLOYING_STATIC}",
-               "DEPLOY_DYNAMIC=${params.DEPLOYING_DYNAMIC}",
-               "DEPLOYER_USERNAME=@${user}",
-               "MODULES=${params.MODULES}",
-               "SKIP_I18N=${params.SKIP_I18N}",
-               "SKIP_PRIMING=${!params.PRIME}",
-               "SLACK_CHANNEL=#1s-and-0s-deploys",
-               "CLEAN=${params.CLEAN}",
-               "FORCE=true"]) {
-         sh("jenkins-tools/deploy.sh");
+      if (params.CLEAN != "none") {
+         // TODO(csilvers): move clean() to a var rather than build.lib.
+         sh(". ./jenkins-tools/build.lib; cd webapp; " +
+            "clean ${exec.shellEscape(params.CLEAN)}");
       }
+
+      parallel(
+         "deploy-to-gae": { deployToGAE(); },
+         "deploy-to-gcs": { deployToGCS(); },
+         "failFast": true,
+      );
    }
 }
 
