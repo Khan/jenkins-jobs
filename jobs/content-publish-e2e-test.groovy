@@ -171,22 +171,22 @@ def runEndToEndTests() {
 // 'label' is attached to the slack message to help identify the job.
 def analyzeResults(label) {
    onMaster("15m") {
-      dir("webapp") {
-         if (!fileExists("genfiles/test-results.pickle")) {
-            def msg = ("The e2e tests did not even finish (could be due " +
-                       "to timeouts or framework errors; search for " +
-                       "`Failed` at ${env.BUILD_URL}consoleFull to see " +
-                       "exactly why)");
-            // e2e test failures are not currently fatal, so mark as UNSTABLE.
-            notify.fail(msg, "UNSTABLE");
-         }
+      if (!fileExists("webapp/genfiles/test-results.pickle")) {
+         def msg = ("The e2e tests did not even finish (could be due " +
+                    "to timeouts or framework errors; search for " +
+                    "`Failed` at ${env.BUILD_URL}consoleFull to see " +
+                    "exactly why)");
+         // e2e test failures are not currently fatal, so mark as UNSTABLE.
+         notify.fail(msg, "UNSTABLE");
+      }
 
-         withSecrets() {      // we need secrets to talk to slack.
-            if (params.PUBLISH_MESSAGE) {
-               label += ": ${params.PUBLISH_MESSAGE}";
-            }
-            // We prefer to say the publisher "did" the deploy, if available.
-            def deployer = params.PUBLISH_USERNAME or params.DEPLOYER_USERNAME;
+      if (params.PUBLISH_MESSAGE) {
+         label += ": ${params.PUBLISH_MESSAGE}";
+      }
+      // We prefer to say the publisher "did" the deploy, if available.
+      def deployer = params.PUBLISH_USERNAME or params.DEPLOYER_USERNAME;
+      withSecrets() {      // we need secrets to talk to slack.
+         dir("webapp") {
             exec(["tools/test_pickle_util.py", "summarize-to-slack",
                   "genfiles/test-results.pickle", params.SLACK_CHANNEL,
                   "--jenkins-build-url", env.BUILD_URL,
@@ -195,12 +195,13 @@ def analyzeResults(label) {
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
-         }
 
-         sh("rm -rf genfiles/test-reports");
-         sh("tools/test_pickle_util.py to-junit " +
-            "genfiles/test-results.pickle genfiles/test-reports");
+            sh("rm -rf genfiles/test-reports");
+            sh("tools/test_pickle_util.py to-junit " +
+               "genfiles/test-results.pickle genfiles/test-reports");
+         }
       }
+
       junit("webapp/genfiles/test-reports/*.xml");
    }
 }
