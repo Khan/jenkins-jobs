@@ -30,7 +30,9 @@ def runScript() {
       // these jobs update intl/translations, which is huge.
       // TODO(csilvers): does this matter anymore with git-workdir?
       dir("../../i18n-update-strings/workspace") {
-         sh("make python_deps");
+         dir("webapp") {
+            sh("make python_deps");
+         }
 
          // Remove output from a previous run.  Re-created by
          // update-translations.
