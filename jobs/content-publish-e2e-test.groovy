@@ -184,7 +184,7 @@ def analyzeResults(label) {
          label += ": ${params.PUBLISH_MESSAGE}";
       }
       // We prefer to say the publisher "did" the deploy, if available.
-      def deployer = params.PUBLISH_USERNAME or params.DEPLOYER_USERNAME;
+      def deployer = params.PUBLISH_USERNAME || params.DEPLOYER_USERNAME;
       withSecrets() {      // we need secrets to talk to slack.
          dir("webapp") {
             exec(["tools/test_pickle_util.py", "summarize-to-slack",
