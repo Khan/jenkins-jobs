@@ -30,6 +30,8 @@ def runScript() {
       // these jobs update intl/translations, which is huge.
       // TODO(csilvers): does this matter anymore with git-workdir?
       dir("../../i18n-update-strings/workspace") {
+         sh("make python_deps");
+
          // Remove output from a previous run.  Re-created by
          // update-translations.
          sh("rm -f updated_locales.txt")
@@ -38,8 +40,7 @@ def runScript() {
 
          if (!overrideLangs) {
             withSecrets() {   // secrets are needed to talk to crowdin
-               dir("webapp") {
-                  sh("make python_deps");
+               dir("webapp") { 
                   // If not passed in as a param, get the single highest 
                   // priority lang
                   overrideLangs = exec.outputOf([
