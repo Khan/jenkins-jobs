@@ -229,10 +229,26 @@ clean_ka_static() {
         | xargs -0r gsutil rm
 }
 
+backup_network_config() {
+    # TODO(csilvers): figure out how to automate the runs of the other dirs too
+    NETWORK_CONFIG_BACKUP_DIRS="bigquery gce gcs s3"
+
+    safe_sync_to_origin "git@github.com:Khan/network-config" "master"
+    for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
+        (
+            cd "network-config/$dir"
+            make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg
+        )
+    done
+    safe_commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
+}
+
+
 clean_docker
 clean_genfiles
 clean_invalid_branches
 clean_ka_translations
 clean_ka_static
+backup_network_config
 svgcrush
 pngcrush
