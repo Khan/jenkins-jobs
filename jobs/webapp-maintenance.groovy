@@ -1,4 +1,5 @@
-// Pipeline job that does weekly maintenance on the webapp directory.
+// Pipeline job that does weekly maintenance on our webapp repo, other
+// repos, the jenkins machine itself, etc.
 // Tasks include things like:
 //    * compressing all png and svg images
 //    * cleaning out old docker containers
@@ -25,7 +26,7 @@ new Setup(steps
 def runScript() {
    onMaster('6h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      sh("jenkins-tools/webapp-maintenance.sh");
+      sh("jenkins-tools/weekly-maintenance.sh");
    }
 }
 
