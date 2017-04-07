@@ -171,7 +171,7 @@ def _runOneTest(splitId) {
       sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
    } catch (e) {
       // end-to-end failures are not blocking currently, so if
-      // tests fail set the status to UNSTABLE, not FAILED.
+      // tests fail set the status to UNSTABLE, not FAILURE.
       currentBuild.result = "UNSTABLE";
    }
 }

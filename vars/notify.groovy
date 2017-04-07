@@ -9,11 +9,11 @@
 //import vars.withSecrets
 
 
-// Used to set status to FAILED and emit the failure reason to slack/email.
+// Used to set status to FAILURE and emit the failure reason to slack/email.
 class FailedBuild extends Exception {
    def statusToSet;
 
-   FailedBuild(def msg, def statusToSet="FAILED") {
+   FailedBuild(def msg, def statusToSet="FAILURE") {
       super(msg);
       this.statusToSet = statusToSet;
    }
@@ -148,6 +148,8 @@ def sendToSlack(slackOptions, status, extraText='') {
 }
 
 // Supported options:
+// when (required): under what circumstances to send to jenkins; a list.
+//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 // to (required): a string saying who to send mail to.  We automatically
 //    append "@khanacademy.org" to each email address in the list.
 //    If you want to send to multiple people, use a comma: "sal, team".
@@ -184,8 +186,49 @@ ${_logSuffix()}
    }
 }
 
+// Supported options:
+// when (required): under what circumstances to send to jenkins; a list.
+//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+// project (required): a string saying what asana project to send to,
+//    e.g. "Engineering support".
+// tags: a list of tags to add to the project
+// followers: a commas-delimited string of asana email addresses of
+//    who to add to this asana task.
+// [extraText: if specified, text to add to the task body.]
+def sendToAsana(asanaOptions, status, extraText='') {
+   def severity = _failed(status) ? 'error' : 'info';
+   // We don't include the build-name so the subject stays consistent
+   // from run to run.  That way we don't open a new asana task for each
+   // failure.
+   def subject = ("${env.JOB_NAME} ${_statusText(status)}");
+   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
+   if (extraText) {
+      body += "\n${extraText}";
+   }
+   if (_failed(status)) {
+      body += """
+Below is the tail of the build log.
+If there's a failure it is probably near the bottom!
 
-def fail(def msg, def statusToSet="FAILED") {
+---------------------------------------------------------------------
+
+${_logSuffix()}
+""";
+   }
+
+   onMaster("1m") {
+      sh("echo ${exec.shellEscape(body)} | " +
+         "jenkins-tools/alertlib/alert.py " +
+         "--asana=${exec.shellEscape(asanaOptions.project)} " +
+         "--summary=${exec.shellEscape(subject)} " +
+         "--cc=${exec.shellEscape(asanaOptions.followers ?: '')} " +
+         "--asana-tags=${exec.shellEscape((asanaOptions.tags ?: []).join(','))} " +
+         "--severity=${severity}");
+   }
+}
+
+
+def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
 }
 
@@ -243,7 +286,7 @@ def call(options, Closure body) {
             echo("\033[1;33m===== JOB ABORTED =====\033[0m");
          }
       } else {
-         currentBuild.result = "FAILED";
+         currentBuild.result = "FAILURE";
          ansiColor('xterm') {
             echo("\033[1;33m===== JOB FAILED =====\033[0m");
          }

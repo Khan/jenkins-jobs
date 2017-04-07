@@ -40,7 +40,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // to notify how it did because the sub-jobs will each notify
 // individually.
 notify([slack: [channel: '#1s-and-0s',
-                when: ['STARTED', 'ABORTED']]]) {
+                when: ['STARTED', 'ABORTED']],
+        asana: [project: 'Infrastructure',
+                when: ['FAILURE']]]) {
    build(job: '../deploy/webapp-test',
          parameters: [
             string(name: 'GIT_REVISION', value: params.GIT_REVISION),

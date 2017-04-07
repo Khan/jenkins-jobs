@@ -224,7 +224,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
             runAndroidTests();
          } catch (e) {
             // end-to-end failures are not blocking currently, so if
-            // tests fail set the status to UNSTABLE, not FAILED.
+            // tests fail set the status to UNSTABLE, not FAILURE.
             // We also keep going to do the other tests.
             currentBuild.result = "UNSTABLE";
          }
@@ -234,7 +234,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
             runEndToEndTests();
          } catch (e) {
             // end-to-end failures are not blocking currently, so if
-            // tests fail set the status to UNSTABLE, not FAILED.
+            // tests fail set the status to UNSTABLE, not FAILURE.
             // We also keep going to analyze the results.
             currentBuild.result = "UNSTABLE";
          }
