@@ -111,8 +111,9 @@ def _logSuffix() {
 
 // Supported options:
 // channel (required): what slack channel to send to
-// when (required): under what circumstances to send to jenkins; a list.
+// when (required): under what circumstances to send to slack; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 // emojiOnFailure: the emoji to use for the bot when sending a message that
@@ -148,8 +149,9 @@ def sendToSlack(slackOptions, status, extraText='') {
 }
 
 // Supported options:
-// when (required): under what circumstances to send to jenkins; a list.
+// when (required): under what circumstances to send to email; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
 // to (required): a string saying who to send mail to.  We automatically
 //    append "@khanacademy.org" to each email address in the list.
 //    If you want to send to multiple people, use a comma: "sal, team".
@@ -187,8 +189,9 @@ ${_logSuffix()}
 }
 
 // Supported options:
-// when (required): under what circumstances to send to jenkins; a list.
+// when (required): under what circumstances to send to asana; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
 // project (required): a string saying what asana project to send to,
 //    e.g. "Engineering support".
 // tags: a list of tags to add to the project
@@ -217,13 +220,15 @@ ${_logSuffix()}
    }
 
    onMaster("1m") {
-      sh("echo ${exec.shellEscape(body)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--asana=${exec.shellEscape(asanaOptions.project)} " +
-         "--summary=${exec.shellEscape(subject)} " +
-         "--cc=${exec.shellEscape(asanaOptions.followers ?: '')} " +
-         "--asana-tags=${exec.shellEscape((asanaOptions.tags ?: []).join(','))} " +
-         "--severity=${severity}");
+      withSecrets() {     // you need secrets to talk to asana
+         sh("echo ${exec.shellEscape(body)} | " +
+            "jenkins-tools/alertlib/alert.py " +
+            "--asana=${exec.shellEscape(asanaOptions.project)} " +
+            "--summary=${exec.shellEscape(subject)} " +
+            "--cc=${exec.shellEscape(asanaOptions.followers ?: '')} " +
+            "--asana-tags=${exec.shellEscape((asanaOptions.tags ?: []).join(','))} " +
+            "--severity=${severity}");
+      }
    }
 }
 
@@ -310,6 +315,9 @@ def call(options, Closure body) {
       }
       if (options.email && _shouldReport(status, options.email.when)) {
          sendToEmail(options.email, status, failureText);
+      }
+      if (options.asana && _shouldReport(status, options.asana.when)) {
+         sendToAsana(options.asana, status, failureText);
       }
    }
 }
