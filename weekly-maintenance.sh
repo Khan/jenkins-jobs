@@ -233,6 +233,8 @@ backup_network_config() {
     # TODO(csilvers): figure out how to automate the runs of the other dirs too
     NETWORK_CONFIG_BACKUP_DIRS="bigquery gce gcs s3"
 
+    (
+    cd "$WORKSPACE_ROOT"
     safe_sync_to_origin "git@github.com:Khan/network-config" "master"
     for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
         (
@@ -241,6 +243,7 @@ backup_network_config() {
         )
     done
     safe_commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
+    )
 }
 
 
