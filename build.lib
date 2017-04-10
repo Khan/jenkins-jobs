@@ -407,6 +407,7 @@ safe_sync_to_origin() {
         (
             cd "$repo_workspace"
             git branch -f "$orig_commit" origin/"$orig_commit"
+            git checkout "$orig_commit"
         )
     else
         safe_sync_to "$repo" "$commit" "$@"
