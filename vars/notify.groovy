@@ -56,9 +56,10 @@ def _ordinal(num) {
 }
 
 
-def _statusText(status) {
+def _statusText(status, includeNumConsecutiveFailures=true) {
    if (status == "FAILURE") {
-      def numFailures = _numConsecutiveFailures(status);
+      def numFailures = (
+         includeNumConsecutiveFailures ? _numConsecutiveFailures(status) : 0);
       if (numFailures > 1) {
          return "failed (${_ordinal(numFailures)} time in a row)";
       }
@@ -203,7 +204,7 @@ def sendToAsana(asanaOptions, status, extraText='') {
    // We don't include the build-name so the subject stays consistent
    // from run to run.  That way we don't open a new asana task for each
    // failure.
-   def subject = ("${env.JOB_NAME} ${_statusText(status)}");
+   def subject = ("${env.JOB_NAME} ${_statusText(status, false)}");
    def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
    if (extraText) {
       body += "\n${extraText}";
