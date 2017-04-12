@@ -56,7 +56,7 @@ def runScript() {
 }
 
 
-notify([slack: [channel: '#infrastructure-alerts',
+notify([slack: [channel: '#infrastructure',
                 when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    stage("Running script") {
       runScript();
