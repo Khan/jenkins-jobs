@@ -30,7 +30,7 @@ languages=`intl/locale_main.py | grep "locales for packages:" | cut -d: -f2`
 for language in $languages; do
     [ "$language" = "en" ] && continue
     echo "Translating graphie labels for $language."
-    kake/build_prod_main.py -v1 i18n_graphie_labels --language="$language"
+    kake/build_prod_main.py i18n_graphie_labels --language="$language"
 done
 
 echo "Uploading labels to S3."
