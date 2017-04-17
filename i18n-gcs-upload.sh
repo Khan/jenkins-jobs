@@ -19,7 +19,7 @@
 # This should be a space-separated list of locales.
 : ${I18N_GCS_UPLOAD_LOCALES:=}
 
-# If the webapp repo at WEBSITE_ROOT is synced to a commit that has
+# If the webapp repo (in webapp/) is synced to a commit that has
 # been deployed live, set this to the git-tag of that commit.
 # (`gae-<version>`).  In that case, we'll rebuild the js/css
 # files and upload them to prod, to replace the existing js/css at

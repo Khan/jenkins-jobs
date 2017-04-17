@@ -9,12 +9,12 @@ source "${SCRIPT_DIR}/build.lib"
 ensure_virtualenv
 decrypt_secrets_py_and_add_to_pythonpath
 
-( cd "$WEBSITE_ROOT" && "$MAKE" python_deps )
+( cd webapp && make python_deps )
 
 
 # --- The actual work:
 
-cd "$WEBSITE_ROOT"
+cd webapp
 
 echo "Updating the webapp repo."
 # We do our work in the 'translations' branch.

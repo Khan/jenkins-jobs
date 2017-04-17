@@ -34,7 +34,7 @@ ensure_virtualenv
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
-cd "$WEBSITE_ROOT"
+cd webapp
 
 safe_pull .
 
@@ -234,7 +234,7 @@ backup_network_config() {
     NETWORK_CONFIG_BACKUP_DIRS="bigquery gce gcs s3"
 
     (
-    cd "$WORKSPACE_ROOT"
+    cd ..        # back to workspace root (from webapp)
     safe_sync_to_origin "git@github.com:Khan/network-config" "master"
     for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
         (

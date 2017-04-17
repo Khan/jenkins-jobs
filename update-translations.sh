@@ -42,7 +42,7 @@ source "${SCRIPT_DIR}/build.lib"
 ensure_virtualenv
 decrypt_secrets_py_and_add_to_pythonpath
 
-( cd "$WEBSITE_ROOT" && "$MAKE" install_deps )
+( cd webapp && make install_deps )
 
 
 # After downloading a lang.po file from crowdin, splits it up like we want.
@@ -82,7 +82,7 @@ busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
 
 echo "Dropbox folders are ready and fully synched"
 
-cd "$WEBSITE_ROOT"
+cd webapp
 
 echo "Updating the webapp repo."
 # We do our work in the 'translations' branch.
@@ -92,13 +92,13 @@ safe_merge_from_master . translations
 # We also make sure the intl/translations sub-repo is up to date.
 safe_pull intl/translations
 
-TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/pofiles
-APPROVED_TRANSLATIONS_DIR="$WEBSITE_ROOT"/intl/translations/approved_pofiles
+TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/pofiles
+APPROVED_TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/approved_pofiles
 
 # Locales whose .po files have been updated from running this script
 # are listed here, one per line. This is used by the Jenkins job to
 # determine which languages need to be uploaded to production.
-UPDATED_LOCALES_FILE="$WORKSPACE_ROOT"/updated_locales.txt
+UPDATED_LOCALES_FILE=`pwd`/updated_locales.txt
 
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 

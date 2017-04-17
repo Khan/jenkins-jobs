@@ -7,7 +7,7 @@ source "${SCRIPT_DIR}/build.lib"
 ensure_virtualenv
 decrypt_secrets_py_and_add_to_pythonpath
 
-( cd "$WEBSITE_ROOT" && "$MAKE" python_deps )
+( cd webapp && make python_deps )
 
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
@@ -30,7 +30,7 @@ published="$DATA_DIR/captions/published/"
 published_prod="$DATA_DIR/captions/published_prod/"
 video_list_path="$DATA_DIR/captions/video_list.txt"
 
-tools="$WEBSITE_ROOT/tools"
+tools="`pwd`/webapp/tools"
 # Needed to get appengine_tool_setup.py
 PYTHONPATH="$tools:$PYTHONPATH"
 
