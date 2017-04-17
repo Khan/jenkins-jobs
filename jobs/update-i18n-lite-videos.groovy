@@ -42,7 +42,7 @@ def updateRepo() {
 
 def runAndCommit() {
    onMaster('22h') {
-      var GIT_SHA1 = null;
+      def GIT_SHA1 = null;
       withSecrets() {
          dir("webapp") {
             exec(["tools/update_i18n_lite_videos.py", "intl/translations"])
