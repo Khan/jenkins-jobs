@@ -17,6 +17,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -81,11 +82,13 @@ def runScript() {
    onMaster("23h") {
       withEnv(["GIT_TAG=${params.GIT_TAG}",
                "I18N_GCS_UPLOAD_LOCALES=${params.LOCALES}"]) {
-         // TODO(csilvers): see if we can break up this script into
-         // pieces, so we can put using-a-lot-of-memory only around
-         // the parts that use a lot of memory.
-         lock("using-a-lot-of-memory") {
-            sh("jenkins-tools/i18n-gcs-upload.sh");
+         withSecrets() {
+            // TODO(csilvers): see if we can break up this script into
+            // pieces, so we can put using-a-lot-of-memory only around
+            // the parts that use a lot of memory.
+            lock("using-a-lot-of-memory") {
+               sh("jenkins-tools/i18n-gcs-upload.sh");
+            }
          }
       }
    }

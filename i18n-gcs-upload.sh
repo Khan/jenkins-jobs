@@ -10,6 +10,9 @@
 #    translations the webapp will load from Google Cloud Storage
 # 6) change the Setting `js_css_md5sum`, which controls the set of js/css
 #    files that webapp will serve from Google Cloud Storage
+#
+# NOTE: this script requires access to secrets to run, since it sends
+# to slack.
 
 # This should be a space-separated list of locales.
 : ${I18N_GCS_UPLOAD_LOCALES:=}
