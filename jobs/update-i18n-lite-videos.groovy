@@ -20,12 +20,38 @@ new Setup(steps
 ).apply();
 
 
-def runScript() {
-   onMaster('23h') {
+def updateRepo() {
+   onMaster('1h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      withSecrets() {
-         sh("jenkins-tools/update-i18n-lite-videos.sh");
+
+      // We do our work in the 'translations' branch.
+      kaGit.safePullInBranch("webapp", "translations");
+
+      // ...which we want to make sure is up-to-date with master.
+      kaGit.safeMergeFromMaster("webapp", "translations");
+
+      // We also make sure the intl/translations sub-repo is up to date.
+      kaGit.safePull("webapp/intl/translations");
+
+      dir("webapp") {
+         sh("make python_deps");
       }
+   }
+}
+
+
+def runAndCommit() {
+   onMaster('22h') {
+      var GIT_SHA1 = null;
+      withSecrets() {
+         dir("webapp") {
+            exec(["tools/update_i18n_lite_videos.py", "intl/translations"])
+            GIT_SHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
+         }
+      }
+      kaGit.safeCommitAndPush("webapp/intl/translations",
+                              ["-m", "Automatic update of video_*.json",
+                               "-m", "(at webapp commit ${GIT_SHA1})"]);
    }
 }
 
@@ -36,7 +62,10 @@ notify([slack: [channel: '#i18n',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+   stage("Updating webapp repo") {
+      updateRepo();
+   }
    stage("Updating lite videos") {
-      runScript();
+      runAndCommit();
    }
 }

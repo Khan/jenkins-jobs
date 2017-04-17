@@ -1,5 +1,6 @@
 // A wrapper around build.lib, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
+// You should always run kaGit commands from workspace-root.
 
 // We use these user-defined steps from vars/:
 //import vars.exec
@@ -109,11 +110,21 @@ def safePull(dir) {
    exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_pull", dir]);
 }
 
+// dir is the directory to run the pull in (can be in a sub-repo)
+// branch is the branch to pull.  Submodules is as in _submodulesArg`.
+def safePullInBranch(dir, branch, submodules=[]) {
+   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_pull_in_branch",
+         dir, branch] + _submodulesArg(submodules));
+}
+
 // dir is the directory to commit in (can be in a sub-repo)
 // args are the arguments to git commit (we add '-a' automatically).
 def safeCommitAndPush(dir, args) {
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_commit_and_push",
-         dir] + args);
+   // Automatic commits from jenkins don't need a test plan.
+   withEnv(["FORCE_COMMIT=1"]) {
+      exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_commit_and_push",
+            dir] + args);
+   }
 }
 
 // Submodules is as in _submodulesArg`.
