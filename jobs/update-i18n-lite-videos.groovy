@@ -10,6 +10,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -22,7 +23,9 @@ new Setup(steps
 def runScript() {
    onMaster('23h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      sh("jenkins-tools/update-i18n-lite-videos.sh");
+      withSecrets() {
+         sh("jenkins-tools/update-i18n-lite-videos.sh");
+      }
    }
 }
 
