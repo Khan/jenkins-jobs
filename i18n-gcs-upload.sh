@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/sh -xe
 
 # This script is run by the jenkins 'upload-translations-to-gcs' job to:
 # 1) build index and chunk files
@@ -10,6 +10,8 @@
 #    translations the webapp will load from Google Cloud Storage
 # 6) change the Setting `js_css_md5sum`, which controls the set of js/css
 #    files that webapp will serve from Google Cloud Storage
+#
+# This must be run from workspace-root.
 #
 # NOTE: this script requires access to secrets to run, since it sends
 # to slack.
@@ -28,12 +30,6 @@
 # should be an integer.
 : ${JOBS:=}
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-WORKSPACE_ROOT=`pwd -P`
-source "${SCRIPT_DIR}/build.lib"
-ensure_virtualenv
-decrypt_secrets_py_and_add_to_pythonpath
-
 
 if [ -z "$I18N_GCS_UPLOAD_LOCALES" ]; then
     echo "You must specify a value for I18N_GCS_UPLOAD_LOCALES!"
@@ -45,7 +41,7 @@ if [ -n "$JOBS" ]; then
 fi
 
 
-cd "$WEBSITE_ROOT"
+cd webapp
 
 make python_deps
 
