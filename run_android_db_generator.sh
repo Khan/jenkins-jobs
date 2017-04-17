@@ -1,13 +1,12 @@
-#!/bin/bash -xe
+#!/bin/sh -xe
 
 # This script runs Android's database-generator against webapp
 # as an integration test, in order to verify that the API responses
 # are compatible with the mobile clients.
+#
+# This must be run in the workspace-root directory (not webapp/).
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-source "${SCRIPT_DIR}/build.lib"
-
-safe_sync_to_origin "git@github.com:Khan/android" "master"
+jenkins-tools/build.lib safe_sync_to "git@github.com:Khan/android" "master"
 
 # We want to make sure the request goes to the frontend-highmem module.
 # TODO(csilvers): figure out the module by parsing dispatch.yaml,
