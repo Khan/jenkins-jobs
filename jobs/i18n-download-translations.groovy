@@ -7,6 +7,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.notify
 //import vars.onMaster
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -59,10 +60,12 @@ def runScript() {
          // pieces, so we can put using-a-lot-of-memory only around
          // the parts that use a lot of memory.
          lock("using-a-lot-of-memory") {
-            withEnv(["DOWNLOAD_TRANSLATIONS=1",
-                     "NUM_LANGS_TO_DOWNLOAD=1",
-                     "OVERRIDE_LANGS=${overrideLangs}"]) {
-               sh("jenkins-tools/update-translations.sh")
+            withSecrets() {
+               withEnv(["DOWNLOAD_TRANSLATIONS=1",
+                        "NUM_LANGS_TO_DOWNLOAD=1",
+                        "OVERRIDE_LANGS=${overrideLangs}"]) {
+                  sh("jenkins-tools/update-translations.sh")
+               }
             }
          }
 

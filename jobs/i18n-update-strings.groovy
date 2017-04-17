@@ -11,6 +11,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -32,8 +33,10 @@ def runScript() {
       // pieces, so we can put using-a-lot-of-memory only around
       // the parts that use a lot of memory.
       lock("using-a-lot-of-memory") {
-         withEnv(["UPDATE_STRINGS=1"]) {
-            sh("jenkins-tools/update-translations.sh")
+         withSecrets() {
+            withEnv(["UPDATE_STRINGS=1"]) {
+               sh("jenkins-tools/update-translations.sh")
+            }
          }
       }
 

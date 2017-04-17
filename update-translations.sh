@@ -36,18 +36,12 @@ if [ -z "$DOWNLOAD_TRANSLATIONS" -a -z "$UPDATE_STRINGS" ]; then
 fi
 
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-WORKSPACE_ROOT=`pwd -P`
-source "${SCRIPT_DIR}/build.lib"
-ensure_virtualenv
-decrypt_secrets_py_and_add_to_pythonpath
-
 ( cd webapp && make install_deps )
 
 
 # After downloading a lang.po file from crowdin, splits it up like we want.
 # $1: the directory the contains the unsplit po file.
-# We split up the file in this way so compile_small_mo kake rule can run more 
+# We split up the file in this way so compile_small_mo kake rule can run more
 # quickly.
 split_po() {
     # Just look at the lang.po files, ignoring lang.rest.po/etc.
@@ -76,21 +70,19 @@ DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
 # Start dropbox service if it is not running
 ! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
 
-busy_wait_on_dropbox "$DATA_DIR"/upload_to_crowdin
-busy_wait_on_dropbox "$DATA_DIR"/download_from_crowdin
-busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
+jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/upload_to_crowdin
+jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/download_from_crowdin
+jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
 
 echo "Dropbox folders are ready and fully synched"
 
-cd webapp
-
 echo "Updating the webapp repo."
 # We do our work in the 'translations' branch.
-safe_pull_in_branch . translations
+jenkins-tools/build.lib safe_pull_in_branch webapp translations
 # ...which we want to make sure is up-to-date with master.
-safe_merge_from_master . translations
+jenkins-tools/build.lib safe_merge_from_master webapp translations
 # We also make sure the intl/translations sub-repo is up to date.
-safe_pull intl/translations
+jenkins-tools/build.lib safe_pull webapp/intl/translations
 
 TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/pofiles
 APPROVED_TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/approved_pofiles
@@ -99,6 +91,8 @@ APPROVED_TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/approved_pofiles
 # are listed here, one per line. This is used by the Jenkins job to
 # determine which languages need to be uploaded to production.
 UPDATED_LOCALES_FILE=`pwd`/updated_locales.txt
+
+cd webapp
 
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
@@ -228,9 +222,10 @@ updated_locales=`xargs <"$UPDATED_LOCALES_FILE"`
 
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
+cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
-safe_commit_and_push intl/translations \
+jenkins-tools/build.lib safe_commit_and_push webapp/intl/translations \
    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
    -m "(locales: $updated_locales)" \
    -m "(at webapp commit `git rev-parse HEAD`)"
