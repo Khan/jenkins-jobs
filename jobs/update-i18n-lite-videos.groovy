@@ -49,9 +49,11 @@ def runAndCommit() {
             GIT_SHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
          }
       }
-      kaGit.safeCommitAndPush("webapp/intl/translations",
-                              ["-m", "Automatic update of video_*.json",
-                               "-m", "(at webapp commit ${GIT_SHA1})"]);
+      dir("webapp") {
+         kaGit.safeCommitAndPush("intl/translations",
+                                 ["-m", "Automatic update of video_*.json",
+                                  "-m", "(at webapp commit ${GIT_SHA1})"]);
+      }
    }
 }
 

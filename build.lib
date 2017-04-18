@@ -494,6 +494,8 @@ safe_update_submodule_pointer_to_master() {
 
 # $1: the directory to commit in (can be in a sub-repo)
 # $2+: arguments to 'git commit' (we add '-a' automatically)
+# If "$1" is a sub-repo, this function *must* be called from within
+# the main repo that includes the sub-repo.
 # NOTE: This 'git add's all new files in the commit-directory.
 safe_commit_and_push() {
     dir="$1"
