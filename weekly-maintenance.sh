@@ -27,20 +27,19 @@
 #   clean up the bottom of lint_blacklist.txt
 #   move not-commonly-used s3 data to glacier
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-source "${SCRIPT_DIR}/build.lib"
-ensure_virtualenv
-
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
-cd webapp
+# Sync the repos we're going to be pushing changes to.
+safe_sync_to_origin "git@github.com:Khan/webapp" "master"
+safe_sync_to_origin "git@github.com:Khan/network-config" "master"
 
-safe_pull .
+( cd webapp && make deps )
 
-make install_deps
 
 pngcrush() {
+    (
+    cd webapp
     deploy/pngcrush.py
     {
         echo "Automatic compression of webapp images via $0"
@@ -52,10 +51,13 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    } | safe_commit_and_push . -a -F -
+    }
+    ) | jenkins-tools/build.lib safe_commit_and_push webapp -a -F -
 }
 
 svgcrush() {
+    (
+    cd webapp
     deploy/svgcrush.py
     {
         echo "Automatic compression of webapp svg files via $0"
@@ -67,8 +69,10 @@ svgcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    } | safe_commit_and_push . -a -F -
+    }
+    ) | jenkins-tools/build.lib safe_commit_and_push webapp -a -F -
 }
+
 
 # Every week, make sure that /var/lib/docker's size is under control.
 # We then re-do a docker run to re-create the docker images we
@@ -232,18 +236,14 @@ clean_ka_static() {
 backup_network_config() {
     # TODO(csilvers): figure out how to automate the runs of the other dirs too
     NETWORK_CONFIG_BACKUP_DIRS="bigquery gce gcs s3"
-
-    (
-    cd ..        # back to workspace root (from webapp)
-    safe_sync_to_origin "git@github.com:Khan/network-config" "master"
     for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
         (
             cd "network-config/$dir"
             make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg
         )
     done
-    safe_commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
-    )
+
+    jenkins-tools/build.lib safe_commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
 }
 
 
