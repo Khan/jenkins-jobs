@@ -100,30 +100,6 @@ EOF
     . "$VIRTUALENV_ROOT/bin/activate"
 }
 
-# Renames $1 to $2 quickly, even if $2 already exists.
-# (This is most useful if $2 is a directory.)  It does this by
-# registering an at-exit handler, using trap.  (We choose to
-# fully delete $2 at exit and not earlier so that the disk
-# I/O of deletion doesn't interfere with other tasks we're doing.)
-# WARNING: This overwrites other trap handlers, so be careful with it!
-
-DIRS_TO_DELETE=""
-trap '[ -z "$DIRS_TO_DELETE" ] || rm -rf $DIRS_TO_DELETE &' 0
-
-fast_mv_f() {
-    # Where we put the dest directory before we delete it.  By default
-    # it's just <destdir>.to-delete but you can override that with $3.
-    tmploc=${3-"$2.to-delete"}
-    # This is almost certainly a noop, but needed if you run fast_mv_f
-    # twice in succession, or twice in the same script.
-    rm -rf "$tmploc"
-    if [ -e "$2" ]; then
-       mv "$2" "$tmploc"
-    fi
-    mv "$1" "$2"
-    DIRS_TO_DELETE="$DIRS_TO_DELETE $tmploc"
-}
-
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use
 # $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
 # project. Then make it importable by setting PYTHONPATH.
@@ -141,15 +117,12 @@ decrypt_secrets_py_and_add_to_pythonpath() {
     export PYTHONPATH="$SECRETS_DIR":$PYTHONPATH
 }
 
-# ubuntu defines its own alert by default, that we don't care about.
-if type alert >/dev/null; then unalias alert 2>/dev/null; fi
-
 # Send an alert to Slack and the logs.  Decrypts secrets if necessary.
 # The alertlib subrepo in webapp must be checked out for this to work.
 # $1: severity level
 # $2+: message
 # If $DEPLOYER_USERNAME is set, then that is prepended to the alert message.
-alert() {
+_alert() {
     severity="$1"
     shift
     decrypt_secrets_py_and_add_to_pythonpath
@@ -257,7 +230,7 @@ _safe_destructive_checkout() {
     fi
 
    if ! timeout 10m git checkout "$1" -- ; then
-       alert error "'$1' is not a valid git revision"
+       _alert error "'$1' is not a valid git revision"
        exit 1
    fi
 
@@ -550,7 +523,7 @@ safe_merge_from_branch() {
     (
     cd "$dir"
     if [ "$git_revision" = "master" ] ; then
-        alert error "You must deploy from a branch, you can't deploy from master"
+        _alert error "You must deploy from a branch, you can't deploy from master"
         exit 1
     fi
 
@@ -575,7 +548,7 @@ safe_merge_from_branch() {
         git reset --hard "origin/$git_revision"
     else
         if ! git checkout "$git_revision" -- ; then
-            alert error "'$git_revision' is not a valid git revision"
+            _alert error "'$git_revision' is not a valid git revision"
             exit 1
         fi
     fi
@@ -585,7 +558,7 @@ safe_merge_from_branch() {
 
     # Sanity check: HEAD should be at the revision we want to deploy from.
     if [ "$head_commit" != "`git rev-parse "$git_revision"`" ] ; then
-        alert error "HEAD unexpectedly at '$head_commit', not '$git_revision'"
+        _alert error "HEAD unexpectedly at '$head_commit', not '$git_revision'"
         exit 1
     fi
 
@@ -599,7 +572,7 @@ safe_merge_from_branch() {
     # Now we need to merge merge_from into our branch.  First, make sure
     # we *are* a branch.  git show-ref returns line like 'd41eba92 refs/...'
     if ! git show-ref | cut -d ' ' -f 2 | grep -q "^refs/remotes/origin/$git_revision$" ; then
-        alert error "$git_revision is not a branch name on the remote"
+        _alert error "$git_revision is not a branch name on the remote"
         exit 1
     fi
 
@@ -607,7 +580,7 @@ safe_merge_from_branch() {
     echo "Merging $merge_from into $git_revision"
     if ! git merge "$merge_from" ; then
         git merge --abort
-        alert error "Merge conflict: must merge $merge_from into $git_revision manually."
+        _alert error "Merge conflict: must merge $merge_from into $git_revision manually."
         exit 1
     fi
 
@@ -615,7 +588,7 @@ safe_merge_from_branch() {
     # this script is running, so check for that.
     if ! git push origin "$git_revision" ; then
         git reset --hard "$head_commit"
-        alert error "Someone committed to $git_revision while we've been deploying!"
+        _alert error "Someone committed to $git_revision while we've been deploying!"
         exit 1
     fi
 
