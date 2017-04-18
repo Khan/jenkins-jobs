@@ -225,12 +225,10 @@ export FORCE_COMMIT=1
 cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
-(
-    cd webapp
-    jenkins-tools/build.lib safe_commit_and_push intl/translations \
-        -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
-        -m "(locales: $updated_locales)" \
-        -m "(at webapp commit `git rev-parse HEAD`)"
-)
+jenkins-tools/build.lib safe_commit_and_push_submodule \
+    webapp intl/translations \
+    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+    -m "(locales: $updated_locales)" \
+    -m "(at webapp commit `git rev-parse HEAD`)"
 
 echo "DONE"
