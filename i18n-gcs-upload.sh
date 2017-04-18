@@ -61,7 +61,7 @@ if [ -n "$GIT_TAG" ]; then
     # content for.
     # TODO(csilvers): update deploy_to_gcs to take a list of languages, rather
     # than all-or-nothing.
-    locales_with_packages="`intl/locale_main.py | sed -ne 's/locales for packages: //p' | tr ' ' '\012' | grep -vx en`"
+    locales_with_packages="`intl/locale_main.py locales_for_packages --exclude-english`"
     locales_for_static_upload=""
     for locale in $I18N_GCS_UPLOAD_LOCALES; do
         if echo "$locales_with_packages" | grep -qx "$locale"; then
