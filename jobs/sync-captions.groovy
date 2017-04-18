@@ -8,6 +8,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -52,7 +53,9 @@ def runScript() {
       }
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
-         sh("jenkins-tools/sync-captions.sh");
+         withSecrets() {   // We need sleep-secret to post transcripts to prod
+            sh("jenkins-tools/sync-captions.sh");
+         }
       }
    }
 }

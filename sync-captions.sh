@@ -1,16 +1,9 @@
 #!/bin/bash -xe
 
+# This script must be called from workspace-root.
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
-WORKSPACE_ROOT="$(pwd -P)"
-source "${SCRIPT_DIR}/build.lib"
-ensure_virtualenv
-decrypt_secrets_py_and_add_to_pythonpath
 
 ( cd webapp && make python_deps )
-
-# This lets us commit messages without a test plan
-export FORCE_COMMIT=1
 
 # Keep track of which scripts failed after making partial progress.
 # It's a string that keeps growing
@@ -37,7 +30,7 @@ PYTHONPATH="$tools:$PYTHONPATH"
 # Download a list of videos that exist in production
 "$tools/get_video_list.py" > "$video_list_path"
 
-busy_wait_on_dropbox "$DATA_DIR/captions/"
+jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR/captions/"
 
 # Flow is something like:
 # hired             YouTube FanCaptions
