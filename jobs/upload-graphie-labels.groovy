@@ -19,10 +19,47 @@ new Setup(steps
 ).apply();
 
 
-def runScript() {
-   onMaster('23h') {
+def updateRepo() {
+   onMaster('1h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      sh("jenkins-tools/upload-graphie-labels.sh");
+
+      // We do our work in the 'translations' branch.
+      kaGit.safePullInBranch("webapp", "translations");
+
+      // ...which we want to make sure is up-to-date with master.
+      kaGit.safeMergeFromMaster("webapp", "translations");
+
+      // We also make sure the intl/translations sub-repo is up to date.
+      kaGit.safePull("webapp/intl/translations");
+
+      dir("webapp") {
+         sh("make python_deps");
+      }
+   }
+}
+
+
+def buildLabels() {
+   onMaster('16h') {
+      dir("webapp") {
+         def languages = exec.outputOf(["intl/locale_main.py",
+                                        "locales_for_packages",
+                                        "--exclude-english"]).split("\n");
+         for (def i = 0; i < languages.size(); i++) {
+            echo("Translating graphie labels for ${languages[i]}.");
+            exec(["kake/build_prod_main.py", "i18n_graphie_labels",
+                  "--language=${languages[i]}"]);
+         }
+      }
+   }
+}
+
+
+def uploadLabels() {
+   onMaster('6h') {
+      dir("webapp") {
+         sh("tools/upload_graphie_labels.py");
+      }
    }
 }
 
@@ -33,7 +70,13 @@ notify([slack: [channel: '#i18n',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
-   stage("Building/uploading labels") {
-      runScript();
+   stage("Updating webapp repo") {
+      updateRepo();
+   }
+   stage("Building labels") {
+      buildLabels();
+   }
+   stage("Uploading labels") {
+      uploadLabels();
    }
 }
