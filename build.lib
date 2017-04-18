@@ -519,7 +519,7 @@ safe_commit_and_push() {
 safe_commit_and_push_submodule() {
     dir=$1
     shift
-    submodule_dir=$2
+    submodule_dir=$1
     shift
     safe_commit_and_push "$dir/$submodule_dir" "$@"
 
