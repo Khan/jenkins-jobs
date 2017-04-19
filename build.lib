@@ -8,12 +8,6 @@
 # First, define configuration options that may be overridden, e.g.:
 # $ APPENGINE_ROOT=/home/ci/google_appengine build-commit.sh
 
-# Commands:
-: ${BASE_PYTHON:=python}
-: ${DBG_PYTHON:=python2.7-dbg}
-: ${MAKE:=make}
-: ${VIRTUALENV:=virtualenv}
-
 # Paths:
 : ${APPENGINE_ROOT:=/usr/local/google_appengine}
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
@@ -62,43 +56,6 @@ export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
 # Make sure we do the things a login shell normally does.
 . ~/.profile
 
-# Set up a virtualenv and enter it.  If already in a virtualenv this
-# does nothing.
-
-ensure_virtualenv() {
-    if [ -n "$VIRTUAL_ENV" ]; then
-        echo "You are already in a virtualenv"
-        return 0
-    elif [ -d "$VIRTUALENV_ROOT" ]; then
-        echo "Virtualenv already exists"
-    else
-        echo "Creating new virtualenv(s)"
-        # We create a "normal" virtualenv we use most of the time, and
-        # a "dbg" virtualenv that uses python2.7-dbg and lets us debug
-        # running python processes using gdb.
-        "$VIRTUALENV" --python="$BASE_PYTHON" "$VIRTUALENV_ROOT".normal
-        if `which "$DBG_PYTHON" >/dev/null 2>&1`; then
-            "$VIRTUALENV" --python="$DBG_PYTHON" "$VIRTUALENV_ROOT".dbg
-            # Need one more fix, as per http://stackoverflow.com/questions/22931774/how-to-use-gdb-python-debugging-extension-inside-virtualenv
-            cp -a /usr/lib/debug/usr/bin/python*gdb.py \
-                "$VIRTUALENV_ROOT".dbg/bin
-        fi
-        # Have 'env' point to 'env.normal'.  To debug, you just manually
-        # change the symlink to point to env.dbg
-        ln -snf "`basename $VIRTUALENV_ROOT`".normal "$VIRTUALENV_ROOT"
-        cat <<EOF >"$WORKSPACE_ROOT/README.debugging"
-If you want to be able to debug a running python process using gdb
-(to debug hangs or segfaults, say), do the following:
-    ln -snf env.dbg env
-    <run your python process>
-    gdb -p <python process id, from 'ps' or similar>
-    (gdb) py-bt    # etc
-For more information, see https://wiki.python.org/moin/DebuggingWithGdb
-EOF
-    fi
-
-    . "$VIRTUALENV_ROOT/bin/activate"
-}
 
 # Decrypt secrets.py into a file outside of the Jenkins workspace, we use
 # $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
@@ -147,10 +104,10 @@ _alert() {
 clean() {
     case "$1" in
         all)
-            "$MAKE" allclean
+            make allclean
             ;;
         most)
-            "$MAKE" clean
+            make clean
             # Be a bit more aggressive: delete un-git-added files, for instance.
             git clean -qffdx --exclude genfiles --exclude node_modules
             git submodule foreach git clean -qffdx --exclude node_modules
