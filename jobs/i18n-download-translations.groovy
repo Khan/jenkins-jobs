@@ -43,13 +43,13 @@ def runScript() {
 
          if (!overrideLangs) {
             withSecrets() {   // secrets are needed to talk to crowdin
-               dir("webapp") { 
-                  // If not passed in as a param, get the single highest 
-                  // priority lang
+               dir("webapp") {
+                  // If not passed in as a param, get the single
+                  // highest priority lang.
                   overrideLangs = exec.outputOf([
-                    "deploy/order_download_i18n.py", 
+                    "deploy/order_download_i18n.py",
                     "--verbose"]).split("\n")[0];
-               } 
+               }
             }
          }
 

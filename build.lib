@@ -12,16 +12,13 @@
 : ${APPENGINE_ROOT:=/usr/local/google_appengine}
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
 : ${WORKSPACE_ROOT:=.}
-: ${WEBSITE_ROOT:=$WORKSPACE_ROOT/webapp}
 : ${VIRTUALENV_ROOT:=$WORKSPACE_ROOT/env}
 : ${JENKINS_TMPDIR:=$WORKSPACE_ROOT/tmp}
-: ${SECRETS_DIR:=$HOME/secrets_py}
 
 # Make all the paths absolute, so clients can chdir with impunity.
 # We use the nice side-effect of readlink -f that it absolutizes.
 APPENGINE_ROOT=`readlink -f "$APPENGINE_ROOT"`
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
-WEBSITE_ROOT=`readlink -f "$WEBSITE_ROOT"`
 VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
@@ -57,24 +54,7 @@ export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
 . ~/.profile
 
 
-# Decrypt secrets.py into a file outside of the Jenkins workspace, we use
-# $HOME/secrets_py/ as set up by jenkins/setup.sh in the Khan/aws-config
-# project. Then make it importable by setting PYTHONPATH.
-# This is idempotent; it's a noop the second and subsequent calls.
-decrypt_secrets_py_and_add_to_pythonpath() {
-    if echo "$PYTHONPATH" | grep -q "$SECRETS_DIR":; then
-      return       # So it's safe to call this twice
-    fi
-    # Copy the .cast5, which secrets.py uses to do a freshness check.
-    cp "$WEBSITE_ROOT"/secrets.py.cast5 "$SECRETS_DIR"
-    # The decryption command was copied from the make target "secrets_decrypt"
-    # in the webapp project.
-    openssl cast5-cbc -d -in "$SECRETS_DIR"/secrets.py.cast5 -out "$SECRETS_DIR"/secrets.py -kfile "$SECRETS_DIR"/secrets.py.cast5.password
-    chmod 600 "$SECRETS_DIR"/secrets.py
-    export PYTHONPATH="$SECRETS_DIR":$PYTHONPATH
-}
-
-# Send an alert to Slack and the logs.  Decrypts secrets if necessary.
+# Send an alert to Slack and the logs.  You must have secrets decrypted.
 # The alertlib subrepo in webapp must be checked out for this to work.
 # $1: severity level
 # $2+: message
@@ -82,7 +62,6 @@ decrypt_secrets_py_and_add_to_pythonpath() {
 _alert() {
     severity="$1"
     shift
-    decrypt_secrets_py_and_add_to_pythonpath
     if echo "$@" | grep -q '<[^ ].*>'; then    # a hack, but a pretty good one
        html=--html
     else

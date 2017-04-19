@@ -141,8 +141,7 @@ def deployToGAE() {
    withSecrets() {     // we need to deploy secrets.py.
       // We need to deploy secrets.py to production, so it needs to
       // be in webapp/, not just in $SECRETS_DIR.
-      sh(". ./jenkins-tools/build.lib; " +
-         'cp -p "$SECRETS_DIR/secrets.py" webapp/');
+      exec(["cp", "${withSecrets.secretsDir()}/secrets.py", "webapp/"]);
 
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.

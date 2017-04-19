@@ -4,6 +4,7 @@
 
 // We use these user-defined steps from vars/:
 //import vars.exec
+//import vars.withSecrets
 
 // Turn a list of submodules into arguments to pass to build.lib functions.
 // Submodules is the empty list (default) for "clone all submodules".
@@ -139,6 +140,10 @@ def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
 
 // Submodules is as in _submodulesArg`.
 def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
-   exec(["jenkins-tools/build.lib", "safe_merge_from_master",
-         dir, commitToMergeInto] + _submodulesArg(submodules));
+   // This job talks directly to slack on error (for better or worse),
+   // so it needs secrets.
+   withSecrets() {
+      exec(["jenkins-tools/build.lib", "safe_merge_from_master",
+            dir, commitToMergeInto] + _submodulesArg(submodules));
+   }
 }
