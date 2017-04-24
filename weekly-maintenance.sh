@@ -80,7 +80,7 @@ svgcrush() {
 clean_docker() {
     docker rm `docker ps -a | grep Exited | cut -f1 -d" "` || true
     docker rmi `docker images -aq` || true
-    make docker-prod-staging-dir
+    ( cd webapp && make docker-prod-staging-dir )
 }
 
 # Every week, we do a 'partial' clean of genfiles directories that
