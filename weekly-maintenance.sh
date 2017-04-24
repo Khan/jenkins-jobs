@@ -31,8 +31,8 @@
 export FORCE_COMMIT=1
 
 # Sync the repos we're going to be pushing changes to.
-safe_sync_to_origin "git@github.com:Khan/webapp" "master"
-safe_sync_to_origin "git@github.com:Khan/network-config" "master"
+jenkins-tools/build.lib safe_sync_to_origin "git@github.com:Khan/webapp" "master"
+jenkins-tools/build.lib safe_sync_to_origin "git@github.com:Khan/network-config" "master"
 
 ( cd webapp && make deps )
 
