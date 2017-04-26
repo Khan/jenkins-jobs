@@ -58,7 +58,9 @@ def buildLabels() {
 def uploadLabels() {
    onMaster('6h') {
       dir("webapp") {
-         sh("tools/upload_graphie_labels.py");
+          withSecrets() {  // We need secrets to talk to S3
+              sh("tools/upload_graphie_labels.py");
+          }
       }
    }
 }
