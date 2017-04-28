@@ -64,7 +64,7 @@ def runTests() {
         dir("khanalytics") {
             // TODO(colin): this should be `make lint`, but can't be because of
             // an implicit dependency of the makefile on docker.
-            sh("../khan-linter/bin/ka-lint --blacklist=yes");
+            sh("python3.6 ../khan-linter/bin/ka-lint --blacklist=yes");
             // TODO(colin): this should make `make flow`, but can't be because
             // of an implicit dependency of the makefile on docker.
             dir("core/monitor/src") {
