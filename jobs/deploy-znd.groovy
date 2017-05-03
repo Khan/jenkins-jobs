@@ -191,6 +191,10 @@ def deploy() {
    onMaster('90m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
+      dir("webapp") {
+        sh("make deps");
+      }
+
       if (params.CLEAN != "none") {
          // TODO(csilvers): move clean() to a var rather than build.lib.
          sh(". ./jenkins-tools/build.lib; cd webapp; " +
