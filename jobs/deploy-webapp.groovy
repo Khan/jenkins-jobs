@@ -323,9 +323,6 @@ def mergeFromMasterAndInitializeGlobals() {
          }
       }
 
-      dir("webapp") {
-         sh("make deps");
-      }
       if (params.CLEAN != "none") {
          // TODO(csilvers): move clean() to a var rather than build.lib.
          sh(". ./jenkins-tools/build.lib; cd webapp; " +
@@ -333,6 +330,8 @@ def mergeFromMasterAndInitializeGlobals() {
       }
 
       dir("webapp") {
+         sh("make deps");
+
          GIT_SHA1 = exec.outputOf(["git", "rev-parse", params.GIT_REVISION]);
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
