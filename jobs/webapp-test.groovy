@@ -112,6 +112,11 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make deps");
    }
+   // Webapp's lint tests also look for the linter in ../devtools/khan-linter
+   // so make sure we sync that to the latest version.
+   kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
+   sh("rm -rf devtools/khan-linter");
+   sh("cp -r khan-linter devtools/");
 }
 
 
