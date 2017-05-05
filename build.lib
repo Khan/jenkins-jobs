@@ -621,5 +621,6 @@ busy_wait_on_dropbox() {
 # also call it from the commandline, in which case you can run
 # any function here with args (typically a safe_* git function).
 if [ -n "$1" ]; then
+    set -ex
    "$@"
 fi

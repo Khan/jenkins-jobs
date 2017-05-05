@@ -85,7 +85,7 @@ def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
       return;
    }
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_sync_to",
+   exec(["jenkins-tools/build.lib", "safe_sync_to",
          repoToClone, commit] + _submodulesArg(submodules));
    // Document who synced this repo and to where, for future reference.
    writeFile(file: _buildTagFile(repoToClone),
@@ -99,7 +99,7 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncToOrigin")) {
       return;
    }
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_sync_to_origin",
+   exec(["jenkins-tools/build.lib", "safe_sync_to_origin",
          repoToClone, commit] + _submodulesArg(submodules));
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
@@ -107,13 +107,13 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 def safePull(dir) {
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_pull", dir]);
+   exec(["jenkins-tools/build.lib", "safe_pull", dir]);
 }
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 // branch is the branch to pull.  Submodules is as in _submodulesArg`.
 def safePullInBranch(dir, branch, submodules=[]) {
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_pull_in_branch",
+   exec(["jenkins-tools/build.lib", "safe_pull_in_branch",
          dir, branch] + _submodulesArg(submodules));
 }
 
@@ -122,8 +122,7 @@ def safePullInBranch(dir, branch, submodules=[]) {
 def safeCommitAndPush(dir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {
-      exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_commit_and_push",
-            dir] + args);
+      exec(["jenkins-tools/build.lib", "safe_commit_and_push", dir] + args);
    }
 }
 
@@ -133,14 +132,13 @@ def safeCommitAndPush(dir, args) {
 def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {
-      exec(["sh", "-ex", "jenkins-tools/build.lib",
-            "safe_commit_and_push_submodule",
+      exec(["jenkins-tools/build.lib", "safe_commit_and_push_submodule",
             repoDir, submoduleDir] + args);
    }
 }
 
 // Submodules is as in _submodulesArg`.
 def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
-   exec(["sh", "-ex", "jenkins-tools/build.lib", "safe_merge_from_master",
+   exec(["jenkins-tools/build.lib", "safe_merge_from_master",
          dir, commitToMergeInto] + _submodulesArg(submodules));
 }
