@@ -103,7 +103,7 @@ clean_genfiles() {
 # Every week, we prune invalid branches that creep into our repos somehow.
 # See http://stackoverflow.com/questions/6265502/getting-rid-of-does-not-point-to-a-valid-object-for-an-old-git-branch
 clean_invalid_branches() {
-    find $HOME/jobs/ -maxdepth 4 -name ".git" -type d | while read dir; do
+    find $HOME/jobs/*/jobs -maxdepth 4 -name ".git" -type d | while read dir; do
         (
         dir=`dirname "$dir"`
         echo "Cleaning invalid branches in $dir"
