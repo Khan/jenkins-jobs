@@ -26,6 +26,14 @@ follows that last underscore character.""",
     "GCS bucket to upload current.sqlite to",
     "gs://ka_dev_sync"
 
+).addStringParam(
+    "GIT_REVISION",
+    """The name of a webapp branch to use when building current.sqlite.
+Most of the time master (the default) is the correct choice. The main
+reason to use a different branch is to test changes to the sync process
+that haven't yet been merged to master.""",
+    "master"
+
 ).apply();
 
 
@@ -39,7 +47,8 @@ def runScript() {
 
          withVirtualenv() {
             withTimeout("7h") {
-               kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+               kaGit.safeSyncTo("git@github.com:Khan/webapp",
+                                params.GIT_REVISION);
 
                // We need secrets to talk to gcs, prod.
                withSecrets() {
