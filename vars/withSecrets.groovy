@@ -19,3 +19,12 @@ def call(Closure body) {
       body();
    }
 }
+
+
+// Only try to decrypt secrets if webapp is checked out.
+// Use cautiously! -- this may not decrypt secrets for you.
+def ifAvailable(Closure body) {
+   if (fileExists("webapp")) {
+      call(body);
+   }
+}
