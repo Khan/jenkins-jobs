@@ -1,0 +1,9 @@
+Does a variant of 'make clean' inside a repo.
+
+You can say how clean you want it.
+
+This should be called from repo-root (e.g. webapp-root).  The repo
+may have a top-level Makefile that defines `make clean` and `make
+allclean` rules; otherwise we'll use `git clean` for cleaning.
+
+

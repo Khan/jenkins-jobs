@@ -5,6 +5,7 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+//import vars.clean
 //import vars.kaGit
 //import vars.notify
 //import vars.onMaster
@@ -26,7 +27,7 @@ https://github.com/Khan/react-render-server/blob/master/deploy.sh""",
   <li> <b>none</b>: Don't clean at all
   <li> <b>all</b>: Full clean that results in a pristine working copy
 </ul>
-TODO(jlfwong): Make this clean node_modules""",
+""",
     ["none", "all"]
 
 ).addBooleanParam(
@@ -43,6 +44,8 @@ def installDeps() {
       kaGit.safeSyncTo("git@github.com:Khan/react-render-server", "master");
 
       dir("react-render-server") {
+         clean(params.CLEAN);
+
          // The secret is installed into the workspace when we run the
          // jenkins setup script (in Khan/aws-config), but we need the
          // secret to be in the working directory of the repository so that

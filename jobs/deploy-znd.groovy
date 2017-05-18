@@ -8,6 +8,7 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+//import vars.clean
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -190,14 +191,9 @@ def deploy() {
    onMaster('90m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
-      if (params.CLEAN != "none") {
-         // TODO(csilvers): move clean() to a var rather than build.lib.
-         sh(". ./jenkins-tools/build.lib; cd webapp; " +
-            "clean ${exec.shellEscape(params.CLEAN)}");
-      }
-
       dir("webapp") {
-        sh("make deps");
+         clean(params.CLEAN);
+         sh("make deps");
       }
 
       parallel(

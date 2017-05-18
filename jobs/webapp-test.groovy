@@ -10,6 +10,7 @@
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+//import vars.clean
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -219,9 +220,9 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
-            // TODO(csilvers): move clean() to a var rather than build.lib.
-            sh(". ./jenkins-tools/build.lib; cd webapp; " +
-               "clean ${exec.shellEscape(params.CLEAN)}");
+            dir("webapp") {
+               clean(params.CLEAN);
+            }
 
             try {
                sh("cd webapp; ../jenkins-tools/timeout_output.py 45m " +

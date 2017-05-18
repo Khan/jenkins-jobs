@@ -56,6 +56,7 @@ import groovy.json.JsonBuilder;
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+//import vars.clean
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -323,13 +324,8 @@ def mergeFromMasterAndInitializeGlobals() {
          }
       }
 
-      if (params.CLEAN != "none") {
-         // TODO(csilvers): move clean() to a var rather than build.lib.
-         sh(". ./jenkins-tools/build.lib; cd webapp; " +
-            "clean ${exec.shellEscape(params.CLEAN)}");
-      }
-
       dir("webapp") {
+         clean(params.CLEAN);
          sh("make deps");
 
          GIT_SHA1 = exec.outputOf(["git", "rev-parse", params.GIT_REVISION]);

@@ -77,37 +77,6 @@ _alert() {
               --slack "$SLACK_CHANNEL" --logs
 }
 
-# Clean out a repo before doing work in it.
-# $1: how much to clean: all, most, some, none
-clean() {
-    case "$1" in
-        all)
-            make allclean
-            ;;
-        most)
-            make clean
-            # Be a bit more aggressive: delete un-git-added files, for instance.
-            git clean -qffdx --exclude genfiles --exclude node_modules
-            git submodule foreach git clean -qffdx --exclude node_modules
-            ;;
-        some)
-            git clean -qffdx --exclude genfiles --exclude node_modules
-            git submodule foreach git clean -qffdx --exclude node_modules
-            # genfiles is excluded from "git clean" so we need to manually
-            # remove artifacts that should not be kept across builds.
-            rm -rf genfiles/test-reports genfiles/lint_errors.txt
-            rm -rf genfiles/selenium_test_reports
-            ;;
-        none)
-            ;;
-        *)
-            echo "Unknown value for CLEAN: '$1'"
-            exit 1
-    esac
-}
-
-
-## Some Git utilities
 
 # The filename to use as a lock in order to serialize fetches.
 # TODO(csilvers): have there be a lock per repo, rather than one
