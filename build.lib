@@ -5,21 +5,14 @@
 # working directory is assumed to be the root of a workspace where the
 # website code is checked out into a subdirectory.
 
-# First, define configuration options that may be overridden, e.g.:
-# $ APPENGINE_ROOT=/home/ci/google_appengine build-commit.sh
-
 # Paths:
-: ${APPENGINE_ROOT:=/usr/local/google_appengine}
-: ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
 : ${WORKSPACE_ROOT:=.}
-: ${VIRTUALENV_ROOT:=$WORKSPACE_ROOT/env}
+: ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
 : ${JENKINS_TMPDIR:=$WORKSPACE_ROOT/tmp}
 
 # Make all the paths absolute, so clients can chdir with impunity.
 # We use the nice side-effect of readlink -f that it absolutizes.
-APPENGINE_ROOT=`readlink -f "$APPENGINE_ROOT"`
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
-VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 
 # Default Slack channel to use for alerting:
@@ -44,13 +37,10 @@ find "$JENKINS_TMPDIR" -mindepth 1 -maxdepth 1 -ctime +5 -print0 \
     | xargs -0 rm -rf                     # keep temp files for 5 days
 
 export TMPDIR="$JENKINS_TMPDIR"
-export PATH="$VIRTUALENV_ROOT/bin:$PATH:$APPENGINE_ROOT"
+export PATH="$WORKSPACE_ROOT/env/bin:$HOME/git-bigfile/bin:$PATH"
 # I have no idea why this isn't the default, but...
 # (Needed for boto, used by git-bigfiles.)
 export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
-
-# Make sure we do the things a login shell normally does.
-. ~/.profile
 
 
 # Send an alert to Slack and the logs.  You must have secrets decrypted.
