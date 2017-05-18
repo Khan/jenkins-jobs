@@ -38,6 +38,7 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
    // There's no point in calling activate directly since we are not
    // a shell.  Instead, we just set up the environment the same way
    // activate does.
+   echo("Activating virtualenv ${pwd()}/env");
    withEnv(["VIRTUAL_ENV=${pwd()}/env",
             "PATH=${pwd()}/env/bin:${env.PATH}"]) {
       body();
