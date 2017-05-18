@@ -21,7 +21,6 @@ APPENGINE_ROOT=`readlink -f "$APPENGINE_ROOT"`
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
 VIRTUALENV_ROOT=`readlink -f "$VIRTUALENV_ROOT"`
 JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
-SECRETS_DIR=`readlink -f "$SECRETS_DIR"`
 
 # Default Slack channel to use for alerting:
 : ${SLACK_CHANNEL:=#bot-testing}
