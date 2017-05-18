@@ -315,11 +315,14 @@ def mergeFromMasterAndInitializeGlobals() {
             def rc = exec.statusOf(["git", "ls-remote", "--exit-code", "webapp",
                                     "origin/${params.GIT_REVISION}"]);
             if (rc == 0) {
-               // We have to source build.lib since it has a guard
-               // requiring it to be run in webapp. :-(
-               sh(". jenkins-tools/build.lib; cd webapp; " +
-                  "safe_pull intl/translations; " +
-                  "safe_update_submodule_pointer_to_master intl/translations");
+               dir("webapp") {
+                  withEnv(["WORKSPACE_ROOT=.."]) {
+                     sh("jenkins-tools/build.lib safe_pull intl/translations");
+                     sh("jenkins-tools/build.lib " +
+                        "safe_update_submodule_pointer_to_master " +
+                        "intl/translations");
+                  }
+               }
             }
          }
       }

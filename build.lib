@@ -24,11 +24,13 @@ JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 # -- the make-check-worker workspace, in particular, doesn't look like
 # any of the others -- so we try to catch the most common error, that
 # we're inside some git repo or another.
-
-if git rev-parse 2>/dev/null; then
-    echo "$WORKSPACE_ROOT is a git repo, not the workspace dir"
-    exit 1
-fi
+(
+    cd "$WORKSPACE_ROOT"
+    if git rev-parse 2>/dev/null; then
+        echo "$WORKSPACE_ROOT is a git repo, not the workspace dir"
+        exit 1
+    fi
+)
 
 # Set up the environment for subprocesses.
 
