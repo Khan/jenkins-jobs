@@ -8,12 +8,10 @@
 # Paths:
 : ${WORKSPACE_ROOT:=.}
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
-: ${JENKINS_TMPDIR:=$WORKSPACE_ROOT/tmp}
 
 # Make all the paths absolute, so clients can chdir with impunity.
 # We use the nice side-effect of readlink -f that it absolutizes.
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
-JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 
 # Default Slack channel to use for alerting:
 : ${SLACK_CHANNEL:=#bot-testing}
@@ -34,11 +32,6 @@ JENKINS_TMPDIR=`readlink -f "$JENKINS_TMPDIR"`
 
 # Set up the environment for subprocesses.
 
-mkdir -p "$JENKINS_TMPDIR"
-find "$JENKINS_TMPDIR" -mindepth 1 -maxdepth 1 -ctime +5 -print0 \
-    | xargs -0 rm -rf                     # keep temp files for 5 days
-
-export TMPDIR="$JENKINS_TMPDIR"
 export PATH="$WORKSPACE_ROOT/env/bin:$HOME/git-bigfile/bin:$PATH"
 # I have no idea why this isn't the default, but...
 # (Needed for boto, used by git-bigfiles.)
