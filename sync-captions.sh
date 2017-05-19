@@ -30,7 +30,7 @@ PYTHONPATH="$tools:$PYTHONPATH"
 # Download a list of videos that exist in production
 "$tools/get_video_list.py" > "$video_list_path"
 
-jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR/captions/"
+jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
 
 # Flow is something like:
 # hired             YouTube FanCaptions

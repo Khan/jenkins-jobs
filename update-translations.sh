@@ -70,9 +70,9 @@ DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
 # Start dropbox service if it is not running
 ! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
 
-jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/upload_to_crowdin
-jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/download_from_crowdin
-jenkins-tools/build.lib busy_wait_on_dropbox "$DATA_DIR"/crowdin_data.pickle
+jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/upload_to_crowdin
+jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/download_from_crowdin
+jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/crowdin_data.pickle
 
 echo "Dropbox folders are ready and fully synched"
 

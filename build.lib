@@ -494,14 +494,6 @@ safe_merge_from_master() {
     safe_merge_from_branch "$dir" "$git_revision" "master" "$@"
 }
 
-busy_wait_on_dropbox() {
-    dir="$1"
-    while HOME=/mnt/dropbox dropbox.py filestatus "$dir" | grep -v "up to date" ; do
-       echo Waiting for "$dir" to be up to date
-       sleep 30
-    done
-}
-
 
 # Typically, you'll source this file into your own shell script
 # (`. build.lib`) to have access to its functions, but you can
