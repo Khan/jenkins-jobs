@@ -31,6 +31,12 @@ https://github.com/Khan/react-render-server/blob/master/deploy.sh""",
     ["none", "all"]
 
 ).addBooleanParam(
+    "SET_DEFAULT",
+    """If set (the default), set the new version as default.
+Otherwise, this is left to the deployer to do manually.""",
+    true
+
+).addBooleanParam(
     "PRIME",
     """If set, prime the version after deploying.
 TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
@@ -87,7 +93,9 @@ notify([slack: [channel: '#1s-and-0s-deploys',
    stage("Deploying") {
       deploy();
    }
-   stage("Setting default") {
-      setDefault();
+   if (params.SET_DEFAULT) {
+      stage("Setting default") {
+         setDefault();
+      }
    }
 }
