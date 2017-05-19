@@ -9,8 +9,8 @@
 : ${WORKSPACE_ROOT:=.}
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
 
-# Make all the paths absolute, so clients can chdir with impunity.
-# We use the nice side-effect of readlink -f that it absolutizes.
+# Make this path absolute, so clients can chdir with impunity.  We use
+# the nice side-effect of readlink -f that it absolutizes.
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
 
 # Default Slack channel to use for alerting:
@@ -29,14 +29,6 @@ WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
         exit 1
     fi
 )
-
-# Set up the environment for subprocesses.
-
-export PATH="$WORKSPACE_ROOT/env/bin:$HOME/git-bigfile/bin:$PATH"
-# I have no idea why this isn't the default, but...
-# (Needed for boto, used by git-bigfiles.)
-export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
-
 
 # Send an alert to Slack and the logs.  You must have secrets decrypted.
 # The alertlib subrepo in webapp must be checked out for this to work.
@@ -93,6 +85,10 @@ _safe_pull_bigfiles() {
           timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
               | xargs -r0 rm -f
       done
+      export PATH="$HOME/git-bigfile/bin:$PATH"
+      # I don't know if this is still needed, but it seems to be
+      # necessary for boto, used by git-bigfiles.
+      export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
       timeout 120m git bigfile pull "$@"
       timeout 120m git submodule foreach git bigfile pull "$@"
     ) 9>"`_flock_file`"
@@ -319,7 +315,9 @@ safe_push() {
         exit 1
     }
     # If this repo uses bigfiles, we have to push them to S3 now, as well.
-    timeout 60m git bigfile push
+    timeout 60m env PATH="$HOME/git-bigfile/bin:$PATH" \
+                    PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH" \
+                    git bigfile push
     # Cleanup bigfile objects older than two days, both in the main
     # module and in submodules
     find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
