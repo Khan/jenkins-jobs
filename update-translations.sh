@@ -78,11 +78,11 @@ echo "Dropbox folders are ready and fully synched"
 
 echo "Updating the webapp repo."
 # We do our work in the 'translations' branch.
-jenkins-tools/build.lib safe_pull_in_branch webapp translations
+jenkins-tools/safe_git.sh pull_in_branch webapp translations
 # ...which we want to make sure is up-to-date with master.
-jenkins-tools/build.lib safe_merge_from_master webapp translations
+jenkins-tools/safe_git.sh merge_from_master webapp translations
 # We also make sure the intl/translations sub-repo is up to date.
-jenkins-tools/build.lib safe_pull webapp/intl/translations
+jenkins-tools/safe_git.sh pull webapp/intl/translations
 
 TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/pofiles
 APPROVED_TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/approved_pofiles
@@ -225,7 +225,7 @@ export FORCE_COMMIT=1
 cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
-jenkins-tools/build.lib safe_commit_and_push_submodule \
+jenkins-tools/safe_git.sh commit_and_push_submodule \
     webapp intl/translations \
     -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
     -m "(locales: $updated_locales)" \
