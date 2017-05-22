@@ -38,10 +38,11 @@ jenkins-tools/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "m
 
 
 pngcrush() {
+    # Note: this can't be combined with the subshell below; we need to
+    # make sure it terminates *before* the pipe starts.
+    ( cd webapp && deploy/pngcrush.sh )
     (
-    cd webapp
-    deploy/pngcrush.py
-    {
+        cd webapp
         echo "Automatic compression of webapp images via $0"
         echo
         echo "| size % | old size | new size | filename"
@@ -51,15 +52,15 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    }
     ) | jenkins-tools/safe_git.sh commit_and_push webapp -a -F -
 }
 
 svgcrush() {
+    # Note: this can't be combined with the subshell below; we need to
+    # make sure it terminates *before* the pipe starts.
+    ( cd webapp && deploy/svgcrush.py )
     (
-    cd webapp
-    deploy/svgcrush.py
-    {
+        cd webapp
         echo "Automatic compression of webapp svg files via $0"
         echo
         echo "| size % | old size | new size | filename"
@@ -69,7 +70,6 @@ svgcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    }
     ) | jenkins-tools/safe_git.sh commit_and_push webapp -a -F -
 }
 
