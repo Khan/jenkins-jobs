@@ -21,7 +21,7 @@ new Setup(steps
 
 REPOSITORY = "git@github.com:Khan/webapp";
 CHAT_SENDER = "History Hawk";
-EMOJI = ":hawk";
+EMOJI = ":hawk:";
 
 def doSetup() {
     onMaster('30m') {
