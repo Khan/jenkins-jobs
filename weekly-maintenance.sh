@@ -40,7 +40,7 @@ jenkins-tools/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "m
 pngcrush() {
     # Note: this can't be combined with the subshell below; we need to
     # make sure it terminates *before* the pipe starts.
-    ( cd webapp && deploy/pngcrush.sh )
+    ( cd webapp && deploy/pngcrush.py )
     (
         cd webapp
         echo "Automatic compression of webapp images via $0"
