@@ -22,6 +22,8 @@
 # this, you should not use a command that starts with an
 # underscore; those are private to this file.
 
+set -ex
+
 
 : ${WORKSPACE_ROOT:=.}
 # Make this path absolute, so clients can chdir with impunity.  We use
