@@ -317,9 +317,9 @@ def mergeFromMasterAndInitializeGlobals() {
             if (rc == 0) {
                dir("webapp") {
                   withEnv(["WORKSPACE_ROOT=.."]) {
-                     sh("../jenkins-tools/build.lib safe_pull intl/translations");
-                     sh("../jenkins-tools/build.lib " +
-                        "safe_update_submodule_pointer_to_master " +
+                     sh("../jenkins-tools/safe_git.sh pull intl/translations");
+                     sh("../jenkins-tools/safe_git.sh " +
+                        "update_submodule_pointer_to_master " +
                         "intl/translations");
                   }
                }

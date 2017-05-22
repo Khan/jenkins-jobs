@@ -6,7 +6,7 @@
 #
 # This must be run in the workspace-root directory (not webapp/).
 
-jenkins-tools/build.lib safe_sync_to "git@github.com:Khan/android" "master"
+jenkins-tools/safe_git.sh sync_to "git@github.com:Khan/android" "master"
 
 # We want to make sure the request goes to the frontend-highmem module.
 # TODO(csilvers): figure out the module by parsing dispatch.yaml,

@@ -1,4 +1,4 @@
-// A wrapper around build.lib, providing "safe" checkout tools for repos.
+// A wrapper around safe_git.sh, providing "safe" checkout tools for repos.
 // This should be run from a workspace that has checked out jenkins-tools.
 // You should always run kaGit commands from workspace-root.
 
@@ -6,7 +6,7 @@
 //import vars.exec
 //import vars.withSecrets
 
-// Turn a list of submodules into arguments to pass to build.lib functions.
+// Turn a list of submodules into arguments to pass to safe_git.sh functions.
 // Submodules is the empty list (default) for "clone all submodules".
 // Submodules is null for "clone no submodules".
 // Otherwise it's a list of prefixes; we clone all submodules matching
@@ -86,8 +86,8 @@ def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
       return;
    }
-   exec(["jenkins-tools/build.lib", "safe_sync_to",
-         repoToClone, commit] + _submodulesArg(submodules));
+   exec(["jenkins-tools/safe_git.sh", "sync_to", repoToClone, commit] +
+        _submodulesArg(submodules));
    // Document who synced this repo and to where, for future reference.
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncTo ${commit} ${env.BUILD_TAG}");
@@ -100,22 +100,22 @@ def safeSyncToOrigin(repoToClone, commit, submodules=[], force=false) {
    if (!force && wasSyncedTo(repoToClone, commit, "safeSyncToOrigin")) {
       return;
    }
-   exec(["jenkins-tools/build.lib", "safe_sync_to_origin",
-         repoToClone, commit] + _submodulesArg(submodules));
+   exec(["jenkins-tools/safe_git.sh", "sync_to_origin", repoToClone, commit] +
+        _submodulesArg(submodules));
    writeFile(file: _buildTagFile(repoToClone),
              text: "safeSyncToOrigin ${commit} ${env.BUILD_TAG}");
 }
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 def safePull(dir) {
-   exec(["jenkins-tools/build.lib", "safe_pull", dir]);
+   exec(["jenkins-tools/safe_git.sh", "pull", dir]);
 }
 
 // dir is the directory to run the pull in (can be in a sub-repo)
 // branch is the branch to pull.  Submodules is as in _submodulesArg`.
 def safePullInBranch(dir, branch, submodules=[]) {
-   exec(["jenkins-tools/build.lib", "safe_pull_in_branch",
-         dir, branch] + _submodulesArg(submodules));
+   exec(["jenkins-tools/safe_git.sh", "pull_in_branch", dir, branch] +
+        _submodulesArg(submodules));
 }
 
 // dir is the directory to commit in (*cannot* be a submodule).
@@ -123,7 +123,7 @@ def safePullInBranch(dir, branch, submodules=[]) {
 def safeCommitAndPush(dir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {
-      exec(["jenkins-tools/build.lib", "safe_commit_and_push", dir] + args);
+      exec(["jenkins-tools/safe_git.sh", "commit_and_push", dir] + args);
    }
 }
 
@@ -133,7 +133,7 @@ def safeCommitAndPush(dir, args) {
 def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {
-      exec(["jenkins-tools/build.lib", "safe_commit_and_push_submodule",
+      exec(["jenkins-tools/safe_git.sh", "commit_and_push_submodule",
             repoDir, submoduleDir] + args);
    }
 }
@@ -143,7 +143,7 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
    // This job talks directly to slack on error (for better or worse),
    // so it needs secrets.
    withSecrets() {
-      exec(["jenkins-tools/build.lib", "safe_merge_from_master",
+      exec(["jenkins-tools/safe_git.sh", "merge_from_master",
             dir, commitToMergeInto] + _submodulesArg(submodules));
    }
 }

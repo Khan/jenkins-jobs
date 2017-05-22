@@ -1,19 +1,37 @@
 #!/bin/sh
-# This shell script library sets variables and supplies functions shared
-# between continuous integration build scripts.  It is intended to be
-# loaded, e.g.,  by scripts that are run by the Jenkins CI server.  The
-# working directory is assumed to be the root of a workspace where the
-# website code is checked out into a subdirectory.
 
-# Paths:
+# This script lets you run various high-level git operations in a
+# "safe" way.  For instance, destructive_checkout() does
+# `git reset --hard` + `git clean`, in both the main repo and
+# all submodules.  This is a very "safe" reset!  Similarly for
+# other operations, which do pull, push, merge, and clone, all
+# in a way that's super-safe (though not super-speedy).
+#
+# This script also automatically supports a few wrinkles to the
+# way we use git:
+# 1) It does git bigfile pull and push when appropriate
+# 2) It uses git new-workdir to share objects across repos.
+#    This is a big win on jenkins, where we have a dozen
+#    directories that all have cloned Khan/webapp.  Using
+#    safe_git.sh, we make sure they each share a single copy
+#    of .git/objects.  safe_git.sh not only implements that,
+#    it does all the locking to make sure it's safe.
+#
+# USAGE: safe_git.sh <command> <args>, where <command> is one
+# of the function names defined below.  While we don't enforce
+# this, you should not use a command that starts with an
+# underscore; those are private to this file.
+
+
 : ${WORKSPACE_ROOT:=.}
-: ${REPOS_ROOT:=/var/lib/jenkins/repositories}   # where the git repos live
-
 # Make this path absolute, so clients can chdir with impunity.  We use
 # the nice side-effect of readlink -f that it absolutizes.
 WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
 
-# Default Slack channel to use for alerting:
+# Where the shared git objects (used by git new-workdir) live.
+: ${REPOS_ROOT:=/var/lib/jenkins/repositories}
+
+# Default Slack channel to use for alerting.
 : ${SLACK_CHANNEL:=#bot-testing}
 
 
@@ -28,7 +46,7 @@ WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
         echo "$WORKSPACE_ROOT is a git repo, not the workspace dir"
         exit 1
     fi
-)
+) || exit 1
 
 # Send an alert to Slack and the logs.  You must have secrets decrypted.
 # The alertlib subrepo in webapp must be checked out for this to work.
@@ -64,7 +82,7 @@ _flock_file() {
 }
 
 # Call this from within the repo that you want to do the fetching.
-_safe_fetch() {
+_fetch() {
     # We use flock to protect against two clients trying to fetch in
     # the same dir at the same time.  This is because different
     # clients will both, in the end, be fetching into $REPOS_ROOT.
@@ -76,7 +94,7 @@ _safe_fetch() {
 # to be at (which is why we can't have a separate fetch step here).
 # This pulls bigfiles in both the main repo and all subrepos.
 # $1+ (optional): specific files to pull
-_safe_pull_bigfiles() {
+_pull_bigfiles() {
     # 'bigfile pull' stores the objects in a shared dir in
     # $REPOS_ROOT, so we need the lock for this.
     ( flock 9        # use fd 9 for locking (see the end of this paren)
@@ -95,7 +113,7 @@ _safe_pull_bigfiles() {
 }
 
 # $1: the branch we're in.  We assume this branch also exists on the remote.
-_safe_rebase() {
+_rebase() {
     timeout 10m git rebase "origin/$1" || {
         timeout 10m git rebase --abort
         exit 1
@@ -105,7 +123,7 @@ _safe_rebase() {
 # $1: the commit-ish to check out to.
 # NOTE: this does a bunch of 'git reset --hard's.  Do not call this
 # if you have stuff you want to commit.
-_safe_destructive_checkout() {
+_destructive_checkout() {
     # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
    if [ -n "`git status --porcelain | head -n 1`" ]; then
         timeout 10m git reset --hard
@@ -126,7 +144,7 @@ _safe_destructive_checkout() {
         timeout 10m git submodule foreach --recursive git clean -ffd
     fi
 
-    # We could also do _safe_pull_bigfiles here to fetch any new
+    # We could also do _pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
     # make clients call it directly if interested.
 }
@@ -135,7 +153,7 @@ _safe_destructive_checkout() {
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
 # NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
-_safe_update_submodules() {
+_update_submodules() {
     if [ "$*" = "no_submodules" ]; then
         return
     fi
@@ -200,7 +218,7 @@ _safe_update_submodules() {
 # $3+ (optional): submodules to update to that commit as well.  If
 #     left out, update all submodules.  If the string 'no_submodules',
 #     update no submodules.
-safe_sync_to() {
+sync_to() {
     repo="$1"
     shift
     commit="$1"
@@ -209,15 +227,15 @@ safe_sync_to() {
     repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
     if [ -d "$repo_workspace" ]; then
         cd "$repo_workspace"
-        _safe_fetch
-        _safe_destructive_checkout "$commit"
+        _fetch
+        _destructive_checkout "$commit"
     else
         # The git objects/etc live under REPOS_ROOT (all workspaces
         # share the same objects).
         repo_dir="$REPOS_ROOT/`basename "$repo"`"
         # Clone or update into repo-dir, the canonical home.
         if [ -d "$repo_dir" ]; then
-            ( cd "$repo_dir" && _safe_fetch )
+            ( cd "$repo_dir" && _fetch )
         else
             timeout 60m git clone "$repo" "$repo_dir"
         fi
@@ -228,18 +246,18 @@ safe_sync_to() {
 
     # Merge from origin if need be.
     if timeout 10m git ls-remote --exit-code . origin/"$commit"; then
-        _safe_rebase "$commit"
+        _rebase "$commit"
     fi
 
-    _safe_update_submodules "$@"
+    _update_submodules "$@"
 
-    # We could also do _safe_pull_bigfiles here to fetch any new
+    # We could also do _pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
     # make clients call it directly if interested.
     )
 }
 
-# Like safe_sync_to, but if the commit-ish exists on origin -- e.g.
+# Like sync_to, but if the commit-ish exists on origin -- e.g.
 # it's a branch that's been pushed to github -- sync to origin/commit
 # and set commit to be that.  This is useful when we only care about
 # what exists on github, because no local changes are expected.
@@ -250,7 +268,7 @@ safe_sync_to() {
 # $3+ (optional): submodules to update to that commit as well.  If
 #     left out, update all submodules.  If the string 'no_submodules',
 #     update no submodules.
-safe_sync_to_origin() {
+sync_to_origin() {
     repo="$1"
     shift
     commit="$1"
@@ -259,8 +277,8 @@ safe_sync_to_origin() {
     repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
     if timeout 10m \
        git ls-remote --exit-code "$repo_workspace" origin/"$commit"; then
-        orig_commit="$commit"    # safe_sync_to overwrites '$commit', ugh
-        safe_sync_to "$repo" "origin/$commit" "$@"
+        orig_commit="$commit"    # sync_to overwrites '$commit', ugh
+        sync_to "$repo" "origin/$commit" "$@"
         # Make it so our local branch matches what's on origin
         (
             cd "$repo_workspace"
@@ -268,7 +286,7 @@ safe_sync_to_origin() {
             git checkout "$orig_commit"
         )
     else
-        safe_sync_to "$repo" "$commit" "$@"
+        sync_to "$repo" "$commit" "$@"
     fi
 }
 
@@ -278,39 +296,39 @@ safe_sync_to_origin() {
 #     submodules.  If the string 'no_submodules', update no submodules.
 # NOTE: this does a git reset, and always changes the branch to master!
 # It also always inits and updates listed subrepos.
-safe_pull_in_branch() {
+pull_in_branch() {
     (
     cd "$1"
     shift
     branch="$1"
     shift
-    _safe_destructive_checkout "$branch"
-    _safe_fetch
-    _safe_rebase "$branch"
-    _safe_update_submodules "$@"
-    # We could also do _safe_pull_bigfiles here to fetch any new
+    _destructive_checkout "$branch"
+    _fetch
+    _rebase "$branch"
+    _update_submodules "$@"
+    # We could also do _pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
     # make clients call it directly if interested.
     )
 }
 
-# Does a safe_pull after switching to the 'master' branch.
+# Does a pull after switching to the 'master' branch.
 # $1: directory to run the pull in (can be in a sub-repo)
-safe_pull() {
+pull() {
     dir="$1"
     shift
-    safe_pull_in_branch "$dir" "master" "$@"
+    pull_in_branch "$dir" "master" "$@"
 }
 
 # $1: directory to run the push in (can be in a sub-repo)
-safe_push() {
+push() {
     (
     cd "$1"
     branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
-    _safe_fetch
-    _safe_rebase "$branch" || {
+    _fetch
+    _rebase "$branch" || {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
@@ -336,18 +354,18 @@ safe_push() {
 
 # This updates our repo to point to the current master of the given subrepo.
 # $1: the directory of the submodule
-safe_update_submodule_pointer_to_master() {
+update_submodule_pointer_to_master() {
     dir="$1"
     shift
     branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
-    safe_pull_in_branch . "$branch"
+    pull_in_branch . "$branch"
     ( cd "$dir" && timeout 10m git checkout master )
     timeout 10m git add "$dir"
     if git commit --dry-run | grep -q -e 'no changes added' -e 'nothing to commit' -e 'nothing added'; then
         echo "No need to update substate for $dir: no new content created"
     else
         timeout 10m git commit -m "$dir substate [auto]"
-        safe_push .
+        push .
     fi
 }
 
@@ -357,7 +375,7 @@ safe_update_submodule_pointer_to_master() {
 # If "$1" is a sub-repo, this function *must* be called from within
 # the main repo that includes the sub-repo.
 # NOTE: This 'git add's all new files in the commit-directory.
-safe_commit_and_push() {
+commit_and_push() {
     dir="$1"
     shift
     (
@@ -369,23 +387,23 @@ safe_commit_and_push() {
         timeout 10m git commit -a "$@"
     fi
     )
-    safe_push "$dir"
+    push "$dir"
 }
 
 # $1: the directory of the main repository
 # $2: the directory of the submodule relative to "$1"
 # $3+: arguments to 'git commit' (we add '-a' automatically)
 # NOTE: This 'git add's all new files in the commit-directory ($2).
-safe_commit_and_push_submodule() {
+commit_and_push_submodule() {
     repo_dir=$1
     shift
     submodule_dir=$1
     shift
-    safe_commit_and_push "$repo_dir/$submodule_dir" "$@"
+    commit_and_push "$repo_dir/$submodule_dir" "$@"
 
     (
         cd "$repo_dir"
-        safe_update_submodule_pointer_to_master "$submodule_dir"
+        update_submodule_pointer_to_master "$submodule_dir"
     )
 }
 
@@ -400,7 +418,7 @@ safe_commit_and_push_submodule() {
 #     all submodules.  If the string 'no_submodules', update no submodules.
 # TODO(benkraft): wrap this whole assembly in failure-handling, so that if
 # something unexpected fails, at least it doesn't fail silently.
-safe_merge_from_branch() {
+merge_from_branch() {
     dir="$1"
     shift
     git_revision="$1"
@@ -479,27 +497,21 @@ safe_merge_from_branch() {
         exit 1
     fi
 
-    _safe_update_submodules "$@"
+    _update_submodules "$@"
 
     echo "Done merging $merge_from into $git_revision"
     )
 }
 
 # Checks out a branch and merges master into it
-safe_merge_from_master() {
+merge_from_master() {
     dir="$1"
     shift
     git_revision="$1"
     shift
-    safe_merge_from_branch "$dir" "$git_revision" "master" "$@"
+    merge_from_branch "$dir" "$git_revision" "master" "$@"
 }
 
 
-# Typically, you'll source this file into your own shell script
-# (`. build.lib`) to have access to its functions, but you can
-# also call it from the commandline, in which case you can run
-# any function here with args (typically a safe_* git function).
-if [ -n "$1" ]; then
-    set -ex
-   "$@"
-fi
+[ -n "$1" ] || { echo "USAGE: $0 <command> <args>"; exit 1; }
+"$@"
