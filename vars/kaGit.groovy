@@ -139,6 +139,17 @@ def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
 }
 
 // Submodules is as in _submodulesArg`.
+def safeMergeFromBranch(dir, commitToMergeInto, branchToMerge, submodules=[]) {
+   // This job talks directly to slack on error (for better or worse),
+   // so it needs secrets.
+   withSecrets() {
+      exec(["jenkins-tools/safe_git.sh", "merge_from_branch",
+            dir, commitToMergeInto, branchToMerge]
+           + _submodulesArg(submodules));
+   }
+}
+
+// Submodules is as in _submodulesArg`.
 def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
    // This job talks directly to slack on error (for better or worse),
    // so it needs secrets.

@@ -8,8 +8,9 @@
 //
 // Here are the steps in a deploy.  Some can happen in parallel:
 //
-// 1. Merge master into your branch (i.e. the branch to be deployed).
-//    If specified, also merge the latest translations into your branch.
+// 1. Create a new branch off master, named after this deploy.  Merge
+//    in your branch (i.e. the branch to be deployed.)  If specified,
+//    also merge the latest translations into your branch.
 //
 // 2. Determine what kind of deploy we are running: full, static, dynamic,
 //    or tools-only.  This is determined by whether we have changed any
@@ -70,7 +71,9 @@ new Setup(steps
 ).addStringParam(
     "GIT_REVISION",
     """<b>REQUIRED</b>. The name of a branch to deploy (can't be master).
-We will automatically merge master into the branch and then deploy it.""",
+Can also be a list of branches to deploy separated by `+` ('br1+br2+br3').
+We will automatically merge these branches (plus translations if specified)
+into a new branch based off master, and deploy it.""",
     ""
 
 ).addChoiceParam(
@@ -199,6 +202,10 @@ SLACK_CHANNEL = "#1s-and-0s-deploys";
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
+// The branch we will create and deploy.  It is a merge of master,
+// the branch the user asked to deploy, and (probably) translations.
+DEPLOY_BRANCH = null;
+
 // The sha1 of the deploy (after merging in master and translations).
 GIT_SHA1 = null;
 // The tag we will use to tag this deploy.
@@ -301,29 +308,26 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      // Merge to master.
+      DEPLOY_BRANCH = "deploy-${new Date().format('yyyymmdd-HHmmss')}";
+
+      // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
-         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                params.GIT_REVISION);
-         kaGit.safeMergeFromMaster("webapp", params.GIT_REVISION,
-                                   ["third_party"]);
+         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+         exec(["git", "checkout", "-b", DEPLOY_BRANCH]);
+         sh("git push -f");
+
+         def allBranches = params.GIT_REVISION.split("+");
          if (params.MERGE_TRANSLATIONS) {
-            // We only merge translations if we are on a branch.
-            def rc = exec.statusOf(["git", "ls-remote", "--exit-code", "webapp",
-                                    "origin/${params.GIT_REVISION}"]);
-            if (rc == 0) {
-               dir("webapp") {
-                  withEnv(["WORKSPACE_ROOT=.."]) {
-                     sh("../jenkins-tools/safe_git.sh pull intl/translations");
-                     sh("../jenkins-tools/safe_git.sh " +
-                        "update_submodule_pointer_to_master " +
-                        "intl/translations");
-                  }
-               }
-            }
+            // Jenkins jobs only update intl/translations in the
+            // "translations" branch.
+            allBranches << "translations";
+         }
+         for (def i = 0; i < allBranches.length(); i++) {
+            kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
+                                      allBranches[i].trim());
          }
       }
 
@@ -331,7 +335,7 @@ def mergeFromMasterAndInitializeGlobals() {
          clean(params.CLEAN);
          sh("make deps");
 
-         GIT_SHA1 = exec.outputOf(["git", "rev-parse", params.GIT_REVISION]);
+         GIT_SHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_BRANCH]);
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
          if (GIT_SHA1 != headSHA1) {
@@ -399,7 +403,7 @@ def sendStartMessage() {
    onMaster("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
-              branch: params.GIT_REVISION]);
+              branch: DEPLOY_BRANCH]);
    }
 }
 
@@ -489,7 +493,7 @@ def promptForSetDefault() {
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,
-              branch: params.GIT_REVISION]);
+              branch: params.DEPLOY_BRANCH]);
    }
 
    withTimeout('1h') {   // we give people 1 hour to say "set-default".
@@ -644,7 +648,8 @@ def finishWithSuccess() {
             def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
             if (!existingTag) {
                exec(["git", "tag", "-m",
-                     "Deployed to appengine from branch ${params.GIT_REVISION}",
+                     "Deployed to appengine from branch " +
+                     "${params.GIT_REVISION} (via branch ${DEPLOY_BRANCH})"
                      GIT_TAG, GIT_SHA1]);
             }
          }
