@@ -343,14 +343,14 @@ def mergeFromMasterAndInitializeGlobals() {
             // TODO(csilvers): look for output == yes/no instead, and
             // if it's neither raise an exception.
             def rc = exec.statusOf(["deploy/should_deploy.py", "static"]);
-            DEPLOY_STATIC = (rc == 1);
+            DEPLOY_STATIC = (rc != 0);
          } else {
             DEPLOY_STATIC = (params.DEPLOY in ["static", "both"]);
          }
 
          if (params.DEPLOY == "default") {
             def rc = exec.statusOf(["deploy/should_deploy.py", "dynamic"]);
-            DEPLOY_DYNAMIC = (rc == 1);
+            DEPLOY_DYNAMIC = (rc != 0);
          } else {
             DEPLOY_DYNAMIC = (params.DEPLOY in ["dynamic", "both"]);
          }
