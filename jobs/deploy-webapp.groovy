@@ -328,7 +328,7 @@ def mergeFromMasterAndInitializeGlobals() {
             // "translations" branch.
             allBranches += ["translations"];
          }
-         for (def i = 0; i < allBranches.length(); i++) {
+         for (def i = 0; i < allBranches.size(); i++) {
             kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
                                       allBranches[i].trim());
          }
