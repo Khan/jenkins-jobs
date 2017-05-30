@@ -406,7 +406,7 @@ def sendStartMessage() {
    onMaster("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
-              branch: DEPLOY_BRANCH]);
+              branch: "$(DEPLOY_BRANCH) (containing ${params.GIT_REVISION})"]);
    }
 }
 
@@ -496,7 +496,7 @@ def promptForSetDefault() {
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,
-              branch: params.DEPLOY_BRANCH]);
+              branch: DEPLOY_BRANCH]);
    }
 
    withTimeout('1h') {   // we give people 1 hour to say "set-default".
