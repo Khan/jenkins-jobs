@@ -322,7 +322,7 @@ def mergeFromMasterAndInitializeGlobals() {
                   DEPLOY_BRANCH]);
          }
 
-         def allBranches = params.GIT_REVISION.split("+");
+         def allBranches = params.GIT_REVISION.split("\+");
          if (params.MERGE_TRANSLATIONS) {
             // Jenkins jobs only update intl/translations in the
             // "translations" branch.
