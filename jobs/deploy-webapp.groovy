@@ -316,8 +316,10 @@ def mergeFromMasterAndInitializeGlobals() {
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-         exec(["git", "checkout", "-b", DEPLOY_BRANCH]);
-         sh("git push -f");
+         dir("webapp") {
+            exec(["git", "checkout", "-b", DEPLOY_BRANCH]);
+            sh("git push -f");
+         }
 
          def allBranches = params.GIT_REVISION.split("+");
          if (params.MERGE_TRANSLATIONS) {
