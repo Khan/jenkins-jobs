@@ -318,7 +318,7 @@ def mergeFromMasterAndInitializeGlobals() {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          dir("webapp") {
             exec(["git", "checkout", "-b", DEPLOY_BRANCH]);
-            sh("git push -f");
+            sh("git push --set-upstream origin -f");
          }
 
          def allBranches = params.GIT_REVISION.split("+");
