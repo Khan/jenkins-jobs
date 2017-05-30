@@ -406,7 +406,7 @@ def sendStartMessage() {
    onMaster("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
-              branch: "$(DEPLOY_BRANCH) (containing ${params.GIT_REVISION})"]);
+              branch: "${DEPLOY_BRANCH} (containing ${params.GIT_REVISION})"]);
    }
 }
 
