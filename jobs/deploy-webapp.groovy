@@ -326,7 +326,7 @@ def mergeFromMasterAndInitializeGlobals() {
          if (params.MERGE_TRANSLATIONS) {
             // Jenkins jobs only update intl/translations in the
             // "translations" branch.
-            allBranches << "translations";
+            allBranches += ["translations"];
          }
          for (def i = 0; i < allBranches.length(); i++) {
             kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
