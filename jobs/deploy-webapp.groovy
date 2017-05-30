@@ -649,7 +649,7 @@ def finishWithSuccess() {
             if (!existingTag) {
                exec(["git", "tag", "-m",
                      "Deployed to appengine from branch " +
-                     "${params.GIT_REVISION} (via branch ${DEPLOY_BRANCH})"
+                     "${params.GIT_REVISION} (via branch ${DEPLOY_BRANCH})",
                      GIT_TAG, GIT_SHA1]);
             }
          }
