@@ -22,7 +22,7 @@ def call(def timeoutString, Closure body) {
                   def ip = exec.outputOf(
                      ["curl", "-s",
                       "http://169.254.169.254/latest/meta-data/public-ipv4"]);
-                  echo("Running on ${instanceId} at ${ip}");
+                  echo("Running on ec2 instance ${instanceId} at ip ${ip}");
 
                   body();
                }
