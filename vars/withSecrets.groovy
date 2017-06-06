@@ -21,10 +21,11 @@ def call(Closure body) {
 }
 
 
-// Only try to decrypt secrets if webapp is checked out.
+// Only try to decrypt secrets if webapp is checked out
+// and secrets are present.
 // Use cautiously! -- this may not decrypt secrets for you.
 def ifAvailable(Closure body) {
-   if (fileExists("webapp")) {
+   if (fileExists("webapp/secrets.py.cast5")) {
       call(body);
    }
 }
