@@ -13,7 +13,7 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 21 * * 2-6"
+).addCronSchedule("H 21 * * *"
 
 ).addStringParam(
     "SNAPSHOT_NAMES",
