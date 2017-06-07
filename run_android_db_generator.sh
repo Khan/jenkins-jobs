@@ -6,7 +6,7 @@
 #
 # This must be run in the workspace-root directory (not webapp/).
 
-jenkins-tools/safe_git.sh sync_to "git@github.com:Khan/android" "master"
+jenkins-tools/safe_git.sh sync_to "git@github.com:Khan/mobile" "master"
 
 # We want to make sure the request goes to the frontend-highmem module.
 # TODO(csilvers): figure out the module by parsing dispatch.yaml,
@@ -20,7 +20,7 @@ else
     # working url. :-(
     export API_BASE_URL=`echo "$URL" | sed s/-dot-khan-academy.appspot.com/-dot-frontend-highmem-dot-khan-academy.appspot.com/`
 fi
-if android/make-dbs.sh; then
+if mobile/android/make-dbs.sh; then
     echo "RUN_ANDROID_DB_GENERATOR PASSED"
 else
     echo "RUN_ANDROID_DB_GENERATOR FAILED"
