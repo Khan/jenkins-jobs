@@ -42,7 +42,7 @@ to click on 'advanced' to see the instance cap.""",
    "6"
 
 ).addCronSchedule(
-   'H 3 * * *'
+   '0 3 * * *'
 
 ).apply();
 

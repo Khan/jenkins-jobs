@@ -28,7 +28,7 @@ have already passed at this GIT_REVISION.""",
    false
 
 ).addCronSchedule(
-   'H 2 * * 1-5'        // Run every weekday morning at 2am
+   '0 2 * * 1-5'        // Run every weekday morning at 2am
 
 ).apply();
 
