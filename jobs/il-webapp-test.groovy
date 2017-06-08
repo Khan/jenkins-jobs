@@ -36,16 +36,12 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-// Don't actually need to notify anyone explicitly, since the sub-jobs will
-// notify the appropriate people.
-notify([]) {
-   build(job: '../deploy/webapp-test',
-         parameters: [
-            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            string(name: 'TEST_TYPE', value: "all"),
-            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            string(name: 'SLACK_CHANNEL', value: "#il-eng"),
-            booleanParam(name: 'FORCE', value: params.FORCE),
-         ]);
-}
+build(job: '../deploy/webapp-test',
+     parameters: [
+        string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+        string(name: 'TEST_TYPE', value: "all"),
+        booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+        string(name: 'SLACK_CHANNEL', value: "#il-eng"),
+        booleanParam(name: 'FORCE', value: params.FORCE),
+     ]);
 
