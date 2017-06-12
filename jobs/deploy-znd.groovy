@@ -201,6 +201,14 @@ def deploy() {
          "deploy-to-gcs": { deployToGCS(); },
          "failFast": true,
       );
+
+      def deployUrl = "https://${_canonicalVersion()}-dot-khan-academy.appspot.com"
+      withSecrets() {  // required to talk to slack
+          _alert(alertMsgs.JUST_DEPLOYED,
+                 [deployUrl: deployUrl,
+                  deployer: _currentUser(),
+                  version: _canonicalVersion()]);
+      }
    }
 }
 

@@ -90,6 +90,13 @@ Roll back to %(rollbackToAsVersion)s manually by running
 """)];
 
 
+JUST_DEPLOYED = [
+    "severity": "info",
+    "text": _textWrap("""\
+%(deployer)s just deployed <%(deployUrl)s|%(version)s>.
+""")];
+
+
 MANUAL_TEST_THEN_SET_DEFAULT = [
    "severity": "info",
    "text": _textWrap("""\

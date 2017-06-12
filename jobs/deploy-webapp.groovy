@@ -489,6 +489,22 @@ def deployToGCS() {
 }
 
 
+// This should be called from within a node().
+def deployAndReport() {
+    parallel(
+        "deploy-to-gae": { deployToGAE(); },
+        "deploy-to-gcs": { deployToGCS(); },
+        "failFast": true,
+    );
+    withSecrets() {  // required to talk to slack
+        _alert(alertMsgs.JUST_DEPLOYED,
+               [deployUrl: DEPLOY_URL,
+                deployer: DEPLOYER_USERNAME,
+                version: COMBINED_VERSION]);
+    }
+}
+
+
 def promptForSetDefault() {
    onMaster('1m') {
       _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
@@ -785,8 +801,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
       stage("Deploying and testing") {
          onMaster('120m') {
             parallel(
-               "deploy-to-gae": { deployToGAE(); },
-               "deploy-to-gcs": { deployToGCS(); },
+               "deploy-and-report": { deployAndReport(); },
                "test": { runTests(); },
                "failFast": true,
             );
