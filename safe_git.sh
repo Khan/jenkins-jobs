@@ -410,12 +410,12 @@ commit_and_push_submodule() {
 }
 
 
-# Checks out a branch and merges another branch into it
+# Merge one branch into another.
 # $1: the directory to run the merge in
 # $2: the commit-ish (branch or sha1) into which to merge the other branch.
-#     If it's a sha1, it must be a superset of "branch".  We check out $2
-#     in the working dir $1 in order to do the merge.  Cannot be master.
-# $3: the branch to merge into $2.  Must be a branch name, not a sha1.
+#     If it's a sha1, it must be a superset of "branch" ($3).  We check out
+#     $2 in the working dir $1 in order to do the merge.
+# $3: the commit-ish (branch or sha1) to merge into $2.
 # $4+ (optional): submodules to update after the merge.  If left out, update
 #     all submodules.  If the string 'no_submodules', update no submodules.
 # TODO(benkraft): wrap this whole assembly in failure-handling, so that if
@@ -423,39 +423,36 @@ commit_and_push_submodule() {
 merge_from_branch() {
     dir="$1"
     shift
-    git_revision="$1"
+    merge_into="$1"
     shift
     merge_from="$1"
     shift
     (
     cd "$dir"
-    if [ "$git_revision" = "master" ] ; then
-        _alert error "You must deploy from a branch, you can't deploy from master"
-        exit 1
+
+    # If merge-from is a commit-ish, we'll use the version at origin.
+    if git ls-remote --exit-code . "origin/$merge_from"; then
+        git fetch origin "+refs/heads/$merge_from:refs/remotes/origin/$merge_from"
+        merge_from="origin/$merge_from"
     fi
 
-    # Make sure our local merge_from matches the remote
-    git fetch origin +"refs/heads/$merge_from:refs/remotes/origin/$merge_from"
-    git checkout "$merge_from"
-    git reset --hard "origin/$merge_from"
-
-    # Set our local branch to be the same as the origin branch.  This
+    # Set our local merge_into to be the same as the origin merge_into.  This
     # is needed in cases when a previous deploy set the local (jenkins)
-    # branch to commit X, but subsequent commits have moved the remote
-    # (github) version of the branch to commit Y.  This also moves us
+    # merge_into to commit X, but subsequent commits have moved the remote
+    # (github) version of the merge_into to commit Y.  This also moves us
     # from a (potentially) detached-head state to a head-at-branch state.
     # Finally, it makes sure the ref exists locally, so we can do
     # 'git rev-parse branch' rather than 'git rev-parse origin/branch'
     # (though only if we're given a branch rather than a commit as $2).
-    if git ls-remote --exit-code . "origin/$git_revision" ; then
-        git fetch origin "+refs/heads/$git_revision:refs/remotes/origin/$git_revision"
-        # The '--' is needed if git_revision is both a branch and
+    if git ls-remote --exit-code . "origin/$merge_into"; then
+        git fetch origin "+refs/heads/$merge_into:refs/remotes/origin/$merge_into"
+        # The '--' is needed if merge_into is both a branch and
         # directory, e.g. 'sat'.  '--' says 'treat it as a branch'.
-        git checkout "$git_revision" --
-        git reset --hard "origin/$git_revision"
+        git checkout "$merge_into" --
+        git reset --hard "origin/$merge_into"
     else
-        if ! git checkout "$git_revision" -- ; then
-            _alert error "'$git_revision' is not a valid git revision"
+        if ! git checkout "$merge_into" -- ; then
+            _alert error "'$merge_into' is not a valid git revision"
             exit 1
         fi
     fi
@@ -464,44 +461,37 @@ merge_from_branch() {
     merge_from_commit="`git rev-parse "$merge_from"`"
 
     # Sanity check: HEAD should be at the revision we want to deploy from.
-    if [ "$head_commit" != "`git rev-parse "$git_revision"`" ] ; then
-        _alert error "HEAD unexpectedly at '$head_commit', not '$git_revision'"
+    if [ "$head_commit" != "`git rev-parse "$merge_into"`" ]; then
+        _alert error "HEAD unexpectedly at '$head_commit', not '$merge_into'"
         exit 1
     fi
 
     # If the current commit is a super-set of merge_from, we're done, yay!
-    base="`git merge-base "$git_revision" "$merge_from_commit"`"
-    if [ "$base" = "$merge_from_commit" ] ; then
-        echo "$git_revision is a superset of $merge_from, no need to merge"
+    base="`git merge-base "$merge_into" "$merge_from_commit"`"
+    if [ "$base" = "$merge_from_commit" ]; then
+        echo "$merge_into is a superset of $merge_from, no need to merge"
         exit 0
     fi
 
-    # Now we need to merge merge_from into our branch.  First, make sure
-    # we *are* a branch.  git show-ref returns line like 'd41eba92 refs/...'
-    if ! git show-ref | cut -d ' ' -f 2 | grep -q "^refs/remotes/origin/$git_revision$" ; then
-        _alert error "$git_revision is not a branch name on the remote"
-        exit 1
-    fi
-
     # The merge exits with rc > 0 if there were conflicts
-    echo "Merging $merge_from into $git_revision"
-    if ! git merge "$merge_from" ; then
+    echo "Merging $merge_from into $merge_into"
+    if ! git merge "$merge_from"; then
         git merge --abort
-        _alert error "Merge conflict: must merge $merge_from into $git_revision manually."
+        _alert error "Merge conflict: must merge $merge_from into $merge_into manually."
         exit 1
     fi
 
     # There's a race condition if someone commits to this branch while
     # this script is running, so check for that.
-    if ! git push origin "$git_revision" ; then
+    if ! git push origin "$merge_into"; then
         git reset --hard "$head_commit"
-        _alert error "Someone committed to $git_revision while we've been deploying!"
+        _alert error "Someone committed to $merge_into while we've been deploying!"
         exit 1
     fi
 
     _update_submodules "$@"
 
-    echo "Done merging $merge_from into $git_revision"
+    echo "Done merging $merge_from into $merge_into"
     )
 }
 
