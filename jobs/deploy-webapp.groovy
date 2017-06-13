@@ -499,7 +499,6 @@ def deployAndReport() {
     withSecrets() {  // required to talk to slack
         _alert(alertMsgs.JUST_DEPLOYED,
                [deployUrl: DEPLOY_URL,
-                deployer: DEPLOYER_USERNAME,
                 version: COMBINED_VERSION]);
     }
 }

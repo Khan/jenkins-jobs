@@ -89,6 +89,8 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 // This is hard-coded.
 SLACK_CHANNEL = "#1s-and-0s-deploys";
+CHAT_SENDER =  'Mr Monkey';
+EMOJI = ':monkey_face:';
 
 
 def _currentUser() {
@@ -186,9 +188,39 @@ def deployToGCS() {
    }
 }
 
+// TODO(colin): these messaging functions are mostly duplicated from
+// deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
+// an alertlib (or perhaps just slack messaging) wrapper, since similar
+// functions keep cropping up everywhere.
+
+@NonCPS     // for replaceAll()
+def _interpolateString(def s, def interpolationArgs) {
+   // Arguments to replaceAll().  `all` is the entire regexp match,
+   // `keyword` is the part that matches our one parenthetical group.
+   def interpolate = { all, keyword -> interpolationArgs[keyword]; };
+   def interpolationPattern = "%\\(([^)]*)\\)s";
+   return s.replaceAll(interpolationPattern, interpolate);
+}
+
+def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
+    def msg = _interpolateString(
+        "${_currentUser()}: ${rawMsg}", interpolationArgs);
+
+    def args = ["jenkins-tools/alertlib/alert.py",
+                "--slack=${SLACK_CHANNEL}",
+                "--chat-sender=${CHAT_SENDER}",
+                "--icon-emoji=${EMOJI}",
+                "--slack-simple-message"];
+    // Secrets required to talk to slack.
+    withSecrets() {
+        sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+    }
+}
 
 def deploy() {
    onMaster('90m') {
+      alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
+
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
       dir("webapp") {
@@ -203,19 +235,17 @@ def deploy() {
       );
 
       def deployUrl = "https://${_canonicalVersion()}-dot-khan-academy.appspot.com"
-      withSecrets() {  // required to talk to slack
-          _alert(alertMsgs.JUST_DEPLOYED,
-                 [deployUrl: deployUrl,
-                  deployer: _currentUser(),
-                  version: _canonicalVersion()]);
-      }
+      _sendSimpleInterpolatedMessage(
+          alertMsgs.JUST_DEPLOYED.text,
+          [deployUrl: deployUrl,
+           version: _canonicalVersion()]);
    }
 }
 
 
-notify([slack: [channel: '#1s-and-0s-deploys',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
+notify([slack: [channel: SLACK_CHANNEL,
+                sender: CHAT_SENDER,
+                emoji: EMOJI,
                 // We don't need to notify on success because deploy.sh does.
                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
    verifyVersion();
