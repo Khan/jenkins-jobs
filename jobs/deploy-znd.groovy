@@ -234,11 +234,11 @@ def deploy() {
          "failFast": true,
       );
 
-      def deployUrl = "https://${_canonicalVersion()}-dot-khan-academy.appspot.com"
+      def deployUrl = "https://${canonicalVersion()}-dot-khan-academy.appspot.com"
       _sendSimpleInterpolatedMessage(
           alertMsgs.JUST_DEPLOYED.text,
           [deployUrl: deployUrl,
-           version: _canonicalVersion()]);
+           version: canonicalVersion()]);
    }
 }
 
