@@ -496,11 +496,9 @@ def deployAndReport() {
         "deploy-to-gcs": { deployToGCS(); },
         "failFast": true,
     );
-    withSecrets() {  // required to talk to slack
-        _alert(alertMsgs.JUST_DEPLOYED,
-               [deployUrl: DEPLOY_URL,
-                version: COMBINED_VERSION]);
-    }
+    _alert(alertMsgs.JUST_DEPLOYED,
+           [deployUrl: DEPLOY_URL,
+            version: COMBINED_VERSION]);
 }
 
 
