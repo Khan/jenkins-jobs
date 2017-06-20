@@ -504,8 +504,23 @@ def deployAndReport() {
 
 def promptForSetDefault() {
    onMaster('1m') {
+      // The CMS endpoints must be handled on the vm module. However,
+      // the rules in dispatch.yaml only match *.khanacademy.org,
+      // so the routing doesn't work in dynamic deploys (which are
+      // accessed through *.appspot.com) before the new version is
+      // set as default (but static-only deploys do work). In dynamic
+      // deploys, we therefore show a link directly to the vm module.
+      // TODO(aasmund): Remove when we have a better vm deployment
+      def maybeVmMessage = (
+         DEPLOY_DYNAMIC
+         ? "Note that if you want to test the CMS or the deploy pages," +
+           "you need to do so on the " +
+           "<https://${GAE_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
+           "vm module> instead."
+         : "");
       _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
              [deployUrl: DEPLOY_URL,
+              maybeVmMessage: maybeVmMessage,
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,

@@ -102,8 +102,8 @@ MANUAL_TEST_THEN_SET_DEFAULT = [
    "text": _textWrap("""\
 %(deployUrl)s (branch %(branch)s) is uploaded to appengine!
 Do some manual testing on it, perhaps via
-`tools/manual_webapp_testing.py %(deployUrl)s`,
-then either:
+`tools/manual_webapp_testing.py %(deployUrl)s`.
+%(maybeVmMessage)sThen, either:
 \n- set it as default: type `sun: set default` or visit %(setDefaultUrl)s
 \n- abort the deploy: type `sun: abort` or visit %(abortUrl)s
 """),
@@ -116,7 +116,7 @@ is uploaded to App Engine!
 Do some manual testing, perhaps via
 `tools/manual_webapp_testing.py %(deployUrl)s`, while I run the
 <https://jenkins.khanacademy.org/job/deploy/job/e2e-test/lastBuild/|end-to-end tests>.
-Then:"""),
+%(maybeVmMessage)sThen, either:"""),
          "fields": [
             [
                "title": "all looks good :rocket:",
