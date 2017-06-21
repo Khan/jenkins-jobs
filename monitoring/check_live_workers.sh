@@ -64,6 +64,9 @@ if [ "$actual_workers" -lt "$expected_workers" ]; then
     cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
                       "$HOME/alertlib/alert.py" \
                       --slack "#infrastructure-alerts" \
+                      --aggregator "infrastructure" \
+                      --aggregator-resource "jenkins" \
+                      --aggregator-event-name "Workers Offline" \
                       --severity "error" \
                       --summary "Need to restart some jenkins workers"
 Some of the Jenkins worker machines are in a bad state and must be restarted.
