@@ -513,7 +513,7 @@ def promptForSetDefault() {
       // TODO(aasmund): Remove when we have a better vm deployment
       def maybeVmMessage = (
          DEPLOY_DYNAMIC
-         ? "Note that if you want to test the CMS or the deploy pages, " +
+         ? "Note that if you want to test the CMS or the publish pages, " +
            "you need to do so on the " +
            "<https://${GAE_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
            "vm module> instead. "
