@@ -15,13 +15,13 @@ def call(Closure body) {
    // changed since the last call, there's nothing we need to do.
    // TODO(csilvers): there's a race condition here if multiple jobs
    // (or threads within a job) call this at the same time.
-   rc = exec.statusOf(["cmp", "webapp/secrets.py.cast5",
+   rc = exec.statusOf(["cmp", "webapp/shared/secrets.py.cast5",
                        "${secretsDir()}/secrets.py.cast5"]);
    if (rc != 0) {   // means there are new secrets we need to decrypt
       try {
-         exec(["cp", "webapp/secrets.py.cast5", secretsDir()]);
+         exec(["cp", "webapp/shared/secrets.py.cast5", secretsDir()]);
          dir(secretsDir()) {
-            // This decryption command was copied from the make target
+            // This decryption command was modified from the make target
             // "secrets_decrypt" in the webapp project.
             sh("openssl cast5-cbc -d -in secrets.py.cast5 -out secrets.py " +
                "-kfile secrets.py.cast5.password");
@@ -42,7 +42,7 @@ def call(Closure body) {
 // and secrets are present.
 // Use cautiously! -- this may not decrypt secrets for you.
 def ifAvailable(Closure body) {
-   if (fileExists("webapp/secrets.py.cast5")) {
+   if (fileExists("webapp/shared/secrets.py.cast5")) {
       call(body);
    }
 }

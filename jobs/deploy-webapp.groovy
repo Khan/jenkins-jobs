@@ -444,7 +444,7 @@ def deployToGAE() {
    withSecrets() {     // we need to deploy secrets.py.
       // We need to deploy secrets.py to production, so it needs to
       // be in webapp/, not just in $SECRETS_DIR.
-      exec(["cp", "${withSecrets.secretsDir()}/secrets.py", "webapp/"]);
+      exec(["cp", "${withSecrets.secretsDir()}/secrets.py", "webapp/shared/"]);
 
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
