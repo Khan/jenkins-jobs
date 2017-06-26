@@ -308,7 +308,7 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      DEPLOY_BRANCH = "deploy-${new Date().format('yyyymmdd-HHmmss')}";
+      DEPLOY_BRANCH = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
 
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
