@@ -442,6 +442,10 @@ def deployToGAE() {
    args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
 
    withSecrets() {     // we need to deploy secrets.py.
+      // We need to deploy secrets.py to production, so it needs to
+      // be in webapp/, not just in $SECRETS_DIR.
+      exec(["cp", "${withSecrets.secretsDir()}/secrets.py", "webapp/shared/"]);
+
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
