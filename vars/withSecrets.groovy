@@ -11,15 +11,13 @@ def secretsDir() {
 def call(Closure body) {
    try {
       // First, set up secrets.
-      dir(secretsDir()) {
-         // This decryption command was modified from the make target
-         // "secrets_decrypt" in the webapp project.
-         exec(["openssl", "cast5-cbc", "-d",
-               "-in", "webapp/shared/secrets.py.cast5",
-               "-out", "webapp/shared/secrets.py",
-               "-kfile", "${secretsDir()}/secrets.py.cast5.password"]);
-         sh("chmod 600 webapp/shared/secrets.py");
-      }
+      // This decryption command was modified from the make target
+      // "secrets_decrypt" in the webapp project.
+      exec(["openssl", "cast5-cbc", "-d",
+            "-in", "webapp/shared/secrets.py.cast5",
+            "-out", "webapp/shared/secrets.py",
+            "-kfile", "${secretsDir()}/secrets.py.cast5.password"]);
+      sh("chmod 600 webapp/shared/secrets.py");
 
       // Then, run the wrapped block, with secrets.
       body();
