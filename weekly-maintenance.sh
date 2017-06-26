@@ -141,9 +141,10 @@ clean_old_deploy_branches() {
 
         git fetch origin
         one_week_ago=`date +%s -d "-1 week"`
+        # This pattern-match should be good for another 83 years or so!
         git for-each-ref \
             --format='%(refname:strip=3) %(authordate:unix)' \
-            'refs/remotes/origin/deploy-*' \
+            'refs/remotes/origin/deploy-20*' \
         | while read branch date; do
                [ "$date" -lt "$one_week_ago" ] && echo "$branch"
         done | xargs --verbose git push origin --delete
