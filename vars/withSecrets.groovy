@@ -19,6 +19,13 @@ def call(Closure body) {
                        "${secretsDir()}/secrets.py.cast5"]);
    if (rc != 0) {   // means there are new secrets we need to decrypt
       try {
+         // Create the secrets-dir if it doesn't exist, and make sure it has a
+         // symlink "shared" to itself, so things that expect to find secrets
+         // there can.
+         exec(["mkdir", "-p", secretsDir()]);
+         exec(["ln", "-snfv", ".", "${secretsDir()}/shared"]);
+         exec(["touch", "${secretsDir()}/__init__.py"]);
+
          exec(["cp", "webapp/shared/secrets.py.cast5", secretsDir()]);
          dir(secretsDir()) {
             // This decryption command was modified from the make target
