@@ -131,6 +131,26 @@ clean_invalid_branches() {
     done
 }
 
+# Clean old deploy branches each week.  We need to do this because
+# phabricator daemons do `git branch --contains` which gets very slow
+# when there are a lot of branches.
+clean_old_deploy_branches() {
+    (
+        cd $HOME/jobs/deploy/jobs/deploy-webapp/workspace/webapp
+        echo "Cleaning old deploy branches in `pwd`"
+
+        git fetch origin
+        one_week_ago=`date +%s -d "-1 week"`
+        git for-each-ref \
+            --format='%(refname:strip=3) %(authordate:unix)' \
+            'refs/remotes/origin/deploy-*' \
+        | while read branch date; do
+               [ "$date" -lt "$one_week_ago" ] && echo "$branch"
+        done | xargs --verbose git push origin --delete
+    )
+}
+
+
 # Clean up some gcs directories that have too-complicated cleanup
 # rules to use the gcs lifecycle rules.
 clean_ka_translations() {
@@ -250,6 +270,7 @@ backup_network_config() {
 clean_docker
 clean_genfiles
 clean_invalid_branches
+clean_old_deploy_branches
 clean_ka_translations
 clean_ka_static
 backup_network_config
