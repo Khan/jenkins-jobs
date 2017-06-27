@@ -76,8 +76,7 @@ done
 cd ..
 # upload current.sqlite and new content prefill files (deleteing old ones)
 gsutil cp current.sqlite "$CURRENT_SQLITE_BUCKET/current.sqlite"
-# TODO(amos): re-enable when the worker can handle this
-# gsutil -m rsync -d webapp/genfiles/content_prefill/ "$CURRENT_SQLITE_BUCKET/content_prefill/"
+gsutil -m rsync -d webapp/genfiles/content_prefill/ "$CURRENT_SQLITE_BUCKET/content_prefill/"
 
 # cleanup
 rm -f current.sqlite
