@@ -1,32 +1,39 @@
 //import vars.exec
 
-// This is no longer where we store secrets.py, it's just where the
-// password lives.
-def _secretsPasswordDir() {
+def secretsDir() {
    return "${env.HOME}/secrets_py";
 }
 
 
 // This must be called from workspace-root.
 def call(Closure body) {
-   try {
-      // First, set up secrets.
-      // This decryption command was modified from the make target
-      // "secrets_decrypt" in the webapp project.
-      exec(["openssl", "cast5-cbc", "-d",
-            "-in", "webapp/shared/secrets.py.cast5",
-            "-out", "webapp/shared/secrets.py",
-            "-kfile", "${_secretsPasswordDir()}/secrets.py.cast5.password"]);
-      sh("chmod 600 webapp/shared/secrets.py");
-
-      // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=webapp/shared"]){
-         body();
+   // We enforce, here, the invariant that, inside secretsDir, the
+   // current secrets.py is always the decrypted version of the
+   // current secrets.py.cast5 if it exists.  If we can't enforce that
+   // we delete secrets.py.cast5 (thus trivially restoring the
+   // invariant).  That way, we know that if secrets.py.cast5 hasn't
+   // changed since the last call, there's nothing we need to do.
+   // TODO(csilvers): there's a race condition here if multiple jobs
+   // (or threads within a job) call this at the same time.
+   rc = exec.statusOf(["cmp", "webapp/secrets.py.cast5",
+                       "${secretsDir()}/secrets.py.cast5"]);
+   if (rc != 0) {   // means there are new secrets we need to decrypt
+      try {
+         exec(["cp", "webapp/secrets.py.cast5", secretsDir()]);
+         dir(secretsDir()) {
+            // This decryption command was copied from the make target
+            // "secrets_decrypt" in the webapp project.
+            sh("openssl cast5-cbc -d -in secrets.py.cast5 -out secrets.py " +
+               "-kfile secrets.py.cast5.password");
+            sh("chmod 600 secrets.py");
+         }
+      } catch (e) {
+         echo("Error decrypting secrets: ${e}.  Deleting the cast5 file.");
+         exec(["rm", "-f", "${secretsDir()}/secrets.py.cast5"]);
       }
-   } finally {
-      // Finally, clean up secrets.py so if the next job intends
-      // to run without secrets, it does.
-      sh("rm -f webapp/shared/secrets.py");
+   }
+   withEnv(["PYTHONPATH=${secretsDir()}:${env.PYTHONPATH}"]) {
+      body();
    }
 }
 
@@ -35,7 +42,7 @@ def call(Closure body) {
 // and secrets are present.
 // Use cautiously! -- this may not decrypt secrets for you.
 def ifAvailable(Closure body) {
-   if (fileExists("webapp/shared/secrets.py.cast5")) {
+   if (fileExists("webapp/secrets.py.cast5")) {
       call(body);
    }
 }
