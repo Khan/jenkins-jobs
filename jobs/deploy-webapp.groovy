@@ -290,6 +290,41 @@ def _alert(def slackArgs, def interpolationArgs) {
 }
 
 
+def _inputWithPrompts(message, id, warningsInMinutes) {
+   // We prompt (to remind people to do the input), at
+   // warningsInMinutes[0..-1].  At the last warningsInMinutes we abort.
+   for (def i = 0; i < warningsInMinutes.size; i++) {
+      def sleepTime = (warningsInMinutes[i] -
+                       (i > 0 ? warningsInMinutes[i - 1] : 0));
+      try {
+         withTimeout("${sleepTime}m") {
+            input(message: message, id: id);
+            return;      // we only get here if they clicked "ok" on the input
+         }
+      } catch (e) {
+         sleep(1);   // give the watchdog a chance to notice an abort
+         if (currentBuild.result == "ABORTED") {
+            // Means that we aborted while running this, which the
+            // watchdog (in vars/notify.groovy) noticed.  We want to
+            // continue with the abort process.
+            throw e;
+         } else if (i == warningsInMinutes.size - 1) {
+            // Means we're at the last warningsInMinutes.  We're done warning.
+            throw e;
+         } else {
+            // Means we reached the next timeout, so say we're waiting.
+            _alert(alertMsgs.STILL_WAITING,
+                   [action: message,
+                    minutesSoFar: warningsInMinutes[i],
+                    minutesRemaining: (warningsInMinutes[-1] -
+                                       warningsInMInutes[i])]);
+            // Now we'll continue with the `while` loop, and wait some more.
+         }
+      }
+   }
+}
+
+
 def mergeFromMasterAndInitializeGlobals() {
    onMaster('1h') {    // should_deploy builds files, which can take forever
       alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
@@ -524,9 +559,8 @@ def promptForSetDefault() {
               branch: DEPLOY_BRANCH]);
    }
 
-   withTimeout('1h') {   // we give people 1 hour to say "set-default".
-      input(message: "Set default?", id: "SetDefault");
-   }
+   // Remind people after 30m, 45m, and 55m, then timeout at 60m.
+   _inputWithPrompts("Set default?", "SetDefault", [30, 45, 55, 60]);
 }
 
 
@@ -657,14 +691,13 @@ def promptToFinish() {
       }
    }
 
+   // Remind people after 30m, 45m, and 55m, then timeout at 60m.
    // TODO(csilvers): let this timeout be configurable?  Then if you
    // want to run a new version live for a few hours to collect some
    // data, and automatically revert back to the previous version when
    // you're done, you could just set a timeout for '5h' or whatever
    // and let the timeout-trigger abort the deploy.
-   withTimeout('1h') {   // we give people 1 hour to say "finish".
-      input(message: "Finish up?", id: "Finish");
-   }
+   _inputWithPrompts("Finish up?", "Finish", [30, 45, 55, 60]);
 }
 
 
