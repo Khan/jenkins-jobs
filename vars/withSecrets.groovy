@@ -50,7 +50,7 @@ def call(Closure body) {
       // Finally, iff we're exiting the last withSecrets block, clean up
       // secrets.py so if the next job intends to run without secrets, it does.
       // We remove both versions just in case an old one was floating around.
-      if (!activeSecretsBlocks) {
+      if (!_activeSecretsBlocks) {
          sh("rm -f webapp/shared/secrets.py");
          sh("rm -f webapp/secrets.py");
       }
