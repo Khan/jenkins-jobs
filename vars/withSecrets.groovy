@@ -10,34 +10,23 @@ def _secretsPasswordDir() {
 // This must be called from workspace-root.
 def call(Closure body) {
    try {
-      // If this runs before the move of secrets.py is deployed,
-      // we need to operate on the old secrets file.
-      // TODO(benkraft): remove after the move is deployed, by
-      // 15 June 2017.
-      if (fileExists("webapp/shared/secrets.py.cast5")) {
-         webappSecretsDir = "webapp/shared";
-      } else {
-         webappSecretsDir = "webapp";
-      }
       // First, set up secrets.
       // This decryption command was modified from the make target
       // "secrets_decrypt" in the webapp project.
       exec(["openssl", "cast5-cbc", "-d",
-            "-in", "${webappSecretsDir}/secrets.py.cast5",
-            "-out", "${webappSecretsDir}/secrets.py",
+            "-in", "webapp/shared/secrets.py.cast5",
+            "-out", "webapp/shared/secrets.py",
             "-kfile", "${_secretsPasswordDir()}/secrets.py.cast5.password"]);
-      sh("chmod 600 ${webappSecretsDir}/secrets.py");
+      sh("chmod 600 webapp/shared/secrets.py");
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=${webappSecretsDir}"]){
+      withEnv(["ALERTLIB_SECRETS_DIR=webapp/shared"]){
          body();
       }
    } finally {
       // Finally, clean up secrets.py so if the next job intends
-      // to run without secrets, it does.  We remove both versions
-      // just in case an old one was floating around.
+      // to run without secrets, it does.
       sh("rm -f webapp/shared/secrets.py");
-      sh("rm -f webapp/secrets.py");
    }
 }
 
