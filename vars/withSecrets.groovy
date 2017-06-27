@@ -9,40 +9,28 @@ import groovy.transform.Field
 // TODO(benkraft): Make sure updates to this are actually atomic.
 @Field _activeSecretsBlocks = 0;
 
-// This is no longer where we store secrets.py, it's just where the
-// password lives.
-def _secretsPasswordDir() {
-   return "${env.HOME}/secrets_py";
+def _secretsPasswordPath() {
+   return "${env.HOME}/secrets_py/secrets.py.cast5.password";
 }
 
 
 // This must be called from workspace-root.
 def call(Closure body) {
    try {
-      // If this runs before the move of secrets.py is deployed,
-      // we need to operate on the old secrets file.
-      // TODO(benkraft): remove after the move is deployed, by
-      // 15 June 2017.
-      if (fileExists("webapp/shared/secrets.py.cast5")) {
-         webappSecretsDir = "webapp/shared";
-      } else {
-         webappSecretsDir = "webapp";
-      }
-
       // First, set up secrets.
       // This decryption command was modified from the make target
       // "secrets_decrypt" in the webapp project.
       // Note that we do this even if ACTIVE_SECRETS_BLOCKS > 0;
       // secrets.py.cast5 might have changed.
       exec(["openssl", "cast5-cbc", "-d",
-            "-in", "${webappSecretsDir}/secrets.py.cast5",
-            "-out", "${webappSecretsDir}/secrets.py",
-            "-kfile", "${_secretsPasswordDir()}/secrets.py.cast5.password"]);
-      sh("chmod 600 ${webappSecretsDir}/secrets.py");
+            "-in", "webapp/shared/secrets.py.cast5",
+            "-out", "webapp/shared/secrets.py",
+            "-kfile", _secretsPasswordPath()]);
+      sh("chmod 600 webapp/shared/secrets.py");
       _activeSecretsBlocks++;
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=${webappSecretsDir}"]){
+      withEnv(["ALERTLIB_SECRETS_DIR=webapp/shared"]){
          body();
       }
    } finally {
@@ -52,7 +40,6 @@ def call(Closure body) {
       // We remove both versions just in case an old one was floating around.
       if (!_activeSecretsBlocks) {
          sh("rm -f webapp/shared/secrets.py");
-         sh("rm -f webapp/secrets.py");
       }
    }
 }
