@@ -299,8 +299,8 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
       try {
          withTimeout("${sleepTime}m") {
             input(message: message, id: id);
-            return;      // we only get here if they clicked "ok" on the input
          }
+         return;      // we only get here if they clicked "ok" on the input
       } catch (e) {
          sleep(1);   // give the watchdog a chance to notice an abort
          if (currentBuild.result == "ABORTED") {
