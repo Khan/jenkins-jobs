@@ -65,6 +65,6 @@ notify([slack: [channel: '#1s-and-0s-deploys',
           parameters: [
              string(name: 'URL', value: "https://www.khanacademy.org"),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
-             string(name: 'FORCE', value: true),
+             booleanParam(name: 'FORCE', value: true),
           ]);
 }
