@@ -317,7 +317,7 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
                    [action: message,
                     minutesSoFar: warningsInMinutes[i],
                     minutesRemaining: (warningsInMinutes[-1] -
-                                       warningsInMInutes[i])]);
+                                       warningsInMinutes[i])]);
             // Now we'll continue with the `while` loop, and wait some more.
          }
       }
