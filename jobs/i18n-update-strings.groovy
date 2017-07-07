@@ -50,7 +50,9 @@ notify([slack: [channel: '#i18n',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         email: [to: 'jenkins-admin+builds, james',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
    def updatedLocales = '';
 
    // i18n-download-translations also uses our workspace, and edits files

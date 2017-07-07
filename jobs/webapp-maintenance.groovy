@@ -36,7 +36,9 @@ notify([slack: [channel: '#infrastructure',
                 emoji: ':monkey_face:',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, csilvers',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
    stage("Running maintenance") {
       runScript();
    }

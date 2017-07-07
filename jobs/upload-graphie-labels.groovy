@@ -71,7 +71,9 @@ notify([slack: [channel: '#i18n',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, james',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
    stage("Updating webapp repo") {
       updateRepo();
    }

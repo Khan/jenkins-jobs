@@ -110,40 +110,41 @@ def _logSuffix() {
 }
 
 
-// Supported options:
-// channel (required): what slack channel to send to
-// when (required): under what circumstances to send to slack; a list.
-//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-//    (Used in call(), below.)
-// sender: the name to use for the bot message (e.g. "Jenny Jenkins")
-// emoji: the emoji to use for the bot (e.g. ":crocodile:")
-// emojiOnFailure: the emoji to use for the bot when sending a message that
-//    the job failed.  If not specified, falls back to emoji.
-// [extraText: if specified, text to add to the message send to slack.]
-def sendToSlack(slackOptions, status, extraText='') {
-   def msg = ("${env.JOB_NAME} ${currentBuild.displayName} " +
-              "${_statusText(status)} (<${env.BUILD_URL}|Open>)");
+// Returns shared alertlib requirements, including severity, subject,
+// and body text. Individual sendTo functions (slack, asana, email,
+// and alerta) can build upon these, as needed.
+def _dataForAlertlib(status, extraText) {
+   // Potential additions to the subject may include currentBuild.displayName
+   // and env.BUILD_URL. These may be added in the individual service's sendTo.
+   // Do not add if want subject to stay consistent (e.g. for sending to Asana,
+   // we don't want to open a new task for each failure)
+   def subject = "${env.JOB_NAME} ${_statusText(status, false)}";
+   def severity = _failed(status) ? 'error' : 'info';
+   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
    if (extraText) {
-      msg += "\n\u00BB ${extraText}";
+      body += "\n${extraText}";
    }
-   def sender = slackOptions.sender ?: 'Janet Jenkins';
-   def emoji = slackOptions.emoji ?: ':crocodile:';
-   def severity = 'info';
-   if (status == "UNSTABLE") {
-      emoji = slackOptions.emojiOnFailure ?: emoji;
-      severity = 'warning';
-   } else if (_failed(status)) {
-      emoji = slackOptions.emojiOnFailure ?: emoji;
-      severity = 'error';
-   }
+   if (_failed(status)) {
+      body += """
+Below is the tail of the build log.
+If there's a failure it is probably near the bottom!
 
-   def shellCommand = ("echo ${exec.shellEscape(msg)} | " +
+---------------------------------------------------------------------
+
+${_logSuffix()}
+""";
+   }
+   return [subject, severity, body];
+}
+
+
+// Given all necessary arguments, builds shellcommand and sends to alertlib.
+def _sendToAlertlib(subject, severity, body, extraFlags) {
+   def shellCommand = ("echo ${exec.shellEscape(body)} | " +
                        "jenkins-tools/alertlib/alert.py " +
-                       "--slack=${exec.shellEscape(slackOptions.channel)} " +
-                       // TODO(csilvers): make success green, not gray.
                        "--severity=${exec.shellEscape(severity)} " +
-                       "--chat-sender=${exec.shellEscape(sender)} " +
-                       "--icon-emoji=${exec.shellEscape(emoji)}");
+                       "--summary=${exec.shellEscape(subject)} " +
+                       exec.shellEscapeList(extraFlags));
 
    // We go through great efforts to make this function robust, since
    // it's how we notify if there are problems and if it fails we don't
@@ -175,6 +176,38 @@ def sendToSlack(slackOptions, status, extraText='') {
    }
 }
 
+
+// Supported options:
+// channel (required): what slack channel to send to
+// when (required): under what circumstances to send to slack; a list.
+//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
+// sender: the name to use for the bot message (e.g. "Jenny Jenkins")
+// emoji: the emoji to use for the bot (e.g. ":crocodile:")
+// emojiOnFailure: the emoji to use for the bot when sending a message that
+//    the job failed.  If not specified, falls back to emoji.
+// [extraText: if specified, text to add to the message send to slack.]
+// TODO(csilvers): make success green, not gray.
+def sendToSlack(slackOptions, status, extraText='') {
+   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   subject += "${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
+   def sender = slackOptions.sender ?: 'Janet Jenkins';
+   def emoji = slackOptions.emoji ?: ':crocodile:';
+   if (status == "UNSTABLE") {
+      emoji = slackOptions.emojiOnFailure ?: emoji;
+      severity = 'warning';
+   } else if (_failed(status)) {
+      emoji = slackOptions.emojiOnFailure ?: emoji;
+   }
+
+   def extraFlags = ["--slack=${slackOptions.channel}",
+                     "--chat-sender=${sender}",
+                     "--icon-emoji=${emoji}"];
+
+   _sendToAlertlib(subject, severity, body, extraFlags);
+}
+
+
 // Supported options:
 // when (required): under what circumstances to send to email; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
@@ -186,34 +219,16 @@ def sendToSlack(slackOptions, status, extraText='') {
 //    for `to`.
 // [extraText: if specified, text to add to the email body.]
 def sendToEmail(emailOptions, status, extraText='') {
-   def severity = _failed(status) ? 'error' : 'info';
-   def subject = ("${env.JOB_NAME} ${currentBuild.displayName} " +
-                  "${_statusText(status)}");
-   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
-   if (extraText) {
-      body += "\n${extraText}";
-   }
-   if (_failed(status)) {
-      body += """
-Below is the tail of the build log.
-If there's a failure it is probably near the bottom!
+   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   subject += "${currentBuild.displayName}";
 
----------------------------------------------------------------------
+   def extraFlags = ["--mail=${emailOptions.to}",
+                     "--cc=${emailOptions.cc ?: ''}",
+                     "--sender-suffix=${env.JOB_NAME.replace(' ', '_')}"];
 
-${_logSuffix()}
-""";
-   }
-
-   onMaster("1m") {
-      sh("echo ${exec.shellEscape(body)} | " +
-         "jenkins-tools/alertlib/alert.py " +
-         "--mail=${exec.shellEscape(emailOptions.to)} " +
-         "--summary=${exec.shellEscape(subject)} " +
-         "--cc=${exec.shellEscape(emailOptions.cc ?: '')} " +
-         "--sender-suffix=${exec.shellEscape(env.JOB_NAME.replace(' ', '_'))} " +
-         "--severity=${severity}");
-   }
+   _sendToAlertlib(subject, severity, body, extraFlags);
 }
+
 
 // Supported options:
 // when (required): under what circumstances to send to asana; a list.
@@ -226,37 +241,33 @@ ${_logSuffix()}
 //    who to add to this asana task.
 // [extraText: if specified, text to add to the task body.]
 def sendToAsana(asanaOptions, status, extraText='') {
-   def severity = _failed(status) ? 'error' : 'info';
-   // We don't include the build-name so the subject stays consistent
-   // from run to run.  That way we don't open a new asana task for each
-   // failure.
-   def subject = ("${env.JOB_NAME} ${_statusText(status, false)}");
-   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
-   if (extraText) {
-      body += "\n${extraText}";
-   }
-   if (_failed(status)) {
-      body += """
-Below is the tail of the build log.
-If there's a failure it is probably near the bottom!
+   def (subject, severity, body) = _dataForAlertlib(status, extraText);
 
----------------------------------------------------------------------
+   def extraFlags = ["--asana=${asanaOptions.project}",
+                     "--cc=${asanaOptions.followers ?: ''}",
+                     "--asana-tags=${(asanaOptions.tags ?: []).join(',')}"];
 
-${_logSuffix()}
-""";
-   }
+   _sendToAlertlib(subject, severity, body, extraFlags);
+}
 
-   onMaster("1m") {
-      withSecrets() {     // you need secrets to talk to asana
-         sh("echo ${exec.shellEscape(body)} | " +
-            "jenkins-tools/alertlib/alert.py " +
-            "--asana=${exec.shellEscape(asanaOptions.project)} " +
-            "--summary=${exec.shellEscape(subject)} " +
-            "--cc=${exec.shellEscape(asanaOptions.followers ?: '')} " +
-            "--asana-tags=${exec.shellEscape((asanaOptions.tags ?: []).join(','))} " +
-            "--severity=${severity}");
-      }
-   }
+
+// Supported options:
+// when (required): under what circumstances to send to aggregator; a list.
+//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
+// initiative (required): a string indicating which initiative this pertains,
+//    to e.g. "infrastructure"
+// [extraText: if specified, text to add to the task body.]
+def sendToAggregator(aggregatorOptions, status, extraText='') {
+   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   subject += "${currentBuild.displayName} See ${env.BUILD_URL} for full details.";
+   def event_name = "${env.JOB_NAME} ${_statusText(status, false)}";
+
+   def extraFlags = ["--aggregator=${aggregatorOptions.initiative}",
+                     "--aggregator-resource=jenkins",
+                     "--aggregator-event-name=${event_name}"];
+
+   _sendToAlertlib(subject, severity, body, extraFlags);
 }
 
 
@@ -345,6 +356,9 @@ def call(options, Closure body) {
       }
       if (options.asana && _shouldReport(status, options.asana.when)) {
          sendToAsana(options.asana, status, failureText);
+      }
+      if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
+         sendToAggregator(options.aggregator, status, failureText);
       }
    }
 }
