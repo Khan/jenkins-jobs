@@ -142,10 +142,6 @@ def deployToGAE() {
    args += params.PRIME ? [] : ["--no-priming"];
 
    withSecrets() {     // we need to deploy secrets.py.
-      // We need to deploy secrets.py to production, so it needs to
-      // be in webapp/, not just in $SECRETS_DIR.
-      exec(["cp", "${withSecrets.secretsDir()}/secrets.py", "webapp/"]);
-
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
@@ -234,11 +230,26 @@ def deploy() {
          "failFast": true,
       );
 
-      def deployUrl = "https://${canonicalVersion()}-dot-khan-academy.appspot.com"
+      def deployUrl = "https://${canonicalVersion()}-dot-khan-academy.appspot.com";
+      // The CMS endpoints must be handled on the vm module. However,
+      // the rules in dispatch.yaml only match *.khanacademy.org,
+      // so the routing doesn't work in ZNDs; therefore, we show
+      // a link directly to the vm module if it is deployed
+      // or a suggestion to deploy the vm module if it is not.
+      def vmIsDeployed = params.MODULES.split(",").contains("vm");
+      def vmMessage = (
+         " Note that if you want to test the CMS or the publish pages " +
+         "(`/devadmin/content` or `/devadmin/publish`), " +
+         (vmIsDeployed
+          ? "you need to do so on the " +
+            "<https://${canonicalVersion()}-dot-vm-dot-khan-academy.appspot.com|" +
+            "vm module> instead."
+          : "you need to <https://jenkins.khanacademy.org/job/deploy/job/deploy-znd/build|" +
+            "redeploy this ZND> and add `vm` to the `MODULES` parameter in Jenkins."));
       _sendSimpleInterpolatedMessage(
-          alertMsgs.JUST_DEPLOYED.text,
-          [deployUrl: deployUrl,
-           version: canonicalVersion()]);
+         alertMsgs.JUST_DEPLOYED.text + vmMessage,
+         [deployUrl: deployUrl,
+          version: canonicalVersion()]);
    }
 }
 

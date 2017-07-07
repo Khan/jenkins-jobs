@@ -26,6 +26,9 @@ EMOJI = ":hawk:";
 def doSetup() {
     onMaster('30m') {
         kaGit.safeSyncToOrigin(REPOSITORY, "master");
+        dir("webapp") {
+           sh("make python_deps");
+        }
     }
 }
 

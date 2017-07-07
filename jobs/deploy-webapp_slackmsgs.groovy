@@ -154,6 +154,16 @@ SETTING_DEFAULT = [
 ];
 
 
+STILL_WAITING = [
+   "severity": "warning",
+   "simpleMessage": true,
+   "text": _textWrap("""\
+Are you ready to %(action)s?
+Waited %(minutesSoFar)s minutes so far.
+Will wait %(minutesRemaining)s minutes more, then abort.
+"""),
+];
+
 FINISH_WITH_WARNING = [
    "severity": "warning",
    "text": _textWrap("""\
