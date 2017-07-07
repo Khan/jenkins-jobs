@@ -239,6 +239,37 @@ ${_logSuffix()}
    }
 }
 
+def sendToAggregator(aggregatorOptions, status, extraText='') {
+   def severity = _failed(status) ? 'error' : 'info';
+
+   def subject = ("${env.JOB_NAME} ${_statusText(status, false)}");
+   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
+   if (extraText) {
+      body += "\n${extraText}";
+   }
+   if (_failed(status)) {
+      body += """
+Below is the tail of the build log.
+If there's a failure it is probably near the bottom!
+
+---------------------------------------------------------------------
+
+${_logSuffix()}
+""";
+   }
+
+   onMaster("1m") {
+      withSecrets() {     // you need secrets to talk to aggregator
+         sh("echo ${exec.shellEscape(body)} | " +
+            "jenkins-tools/alertlib/alert.py " +
+            "--aggregator=${exec.shellEscape(aggregatorOptions.initiative)} " +
+            "--summary=${exec.shellEscape(subject)} " +
+            "--aggregator-resource=${exec.shellEscape(aggregatorOptions.resource)} " +
+            "--aggregator-event-name=${exec.shellEscape(aggregatorOptions.event-name)} " +
+            "--severity=${severity}");
+      }
+   }
+}
 
 def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
@@ -325,6 +356,9 @@ def call(options, Closure body) {
       }
       if (options.asana && _shouldReport(status, options.asana.when)) {
          sendToAsana(options.asana, status, failureText);
+      }
+      if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
+         sendToAggregator(options.aggregator, status, failureText);
       }
    }
 }
