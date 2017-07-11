@@ -363,11 +363,9 @@ def mergeFromMasterAndInitializeGlobals() {
             // "translations" branch.
             allBranches += ["translations"];
          }
-         withSecrets() {     // safeMergeFromBranch can talk to slack!
-            for (def i = 0; i < allBranches.size(); i++) {
-               kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
-                                         allBranches[i].trim());
-            }
+         for (def i = 0; i < allBranches.size(); i++) {
+            kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
+                                      allBranches[i].trim());
          }
       }
 
