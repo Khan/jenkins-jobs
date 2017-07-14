@@ -313,11 +313,13 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
             throw e;
          } else {
             // Means we reached the next timeout, so say we're waiting.
-            _alert(alertMsgs.STILL_WAITING,
-                   [action: message,
-                    minutesSoFar: warningsInMinutes[i],
-                    minutesRemaining: (warningsInMinutes[-1] -
-                                       warningsInMinutes[i])]);
+            onMaster('1m') {
+               _alert(alertMsgs.STILL_WAITING,
+                      [action: message,
+                       minutesSoFar: warningsInMinutes[i],
+                       minutesRemaining: (warningsInMinutes[-1] -
+                                          warningsInMinutes[i])]);
+            }
             // Now we'll continue with the `while` loop, and wait some more.
          }
       }
