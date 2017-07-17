@@ -13,8 +13,10 @@ new Setup(steps
 ).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring
-to such a commit-hash.""",
-   "il-support"
+to such a commit-hash. Multiple jobs can be scheduled (and run sequentially)
+by specifying multiple values here, separated by commas (,).
+Whitespace is ignored.""",
+   "il-support, il-study-guide"
 
 ).addBooleanParam(
    "FAILFAST",
@@ -35,13 +37,16 @@ have already passed at this GIT_REVISION.""",
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
+revisions = params.GIT_REVISION.split(/\s*,\s*/)
 
-build(job: '../deploy/webapp-test',
-     parameters: [
-        string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-        string(name: 'TEST_TYPE', value: "all"),
-        booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-        string(name: 'SLACK_CHANNEL', value: "#il-eng"),
-        booleanParam(name: 'FORCE', value: params.FORCE),
-     ]);
+for (def i = 0; i < revisions.size(); i++) {
+    build(job: '../deploy/webapp-test',
+         parameters: [
+            string(name: 'GIT_REVISION', value: revisions[i]),
+            string(name: 'TEST_TYPE', value: "all"),
+            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+            string(name: 'SLACK_CHANNEL', value: "#il-eng"),
+            booleanParam(name: 'FORCE', value: params.FORCE),
+         ]);
+}
 
