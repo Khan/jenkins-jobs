@@ -777,19 +777,25 @@ def finishWithFailure(why) {
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
    onMaster('20m') {
-      def currentGAEGitTag = exec.outputOf(
-         ["webapp/deploy/current_version.py", "--git-tag"]);
+      try {
+         def currentGAEGitTag = exec.outputOf(
+            // Don't trust git here -- we likely haven't merged to master yet
+            // even if we did set default.
+            ["webapp/deploy/current_version.py", "--git-tag", "--no-git"]);
 
-      if (currentGAEGitTag != GIT_TAG) {
-         echo("No need to roll back: our deploy did not succeed");
-         echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
-              "rollback-to: ${ROLLBACK_TO}");
-         _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-                [combinedVersion: COMBINED_VERSION,
-                 branch: params.GIT_REVISION,
-                 why: why]);
-         env.SENT_TO_SLACK = '1';
-         return
+         if (currentGAEGitTag != GIT_TAG) {
+            echo("No need to roll back: our deploy did not succeed");
+            echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
+                 "rollback-to: ${ROLLBACK_TO}");
+            _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
+                   [combinedVersion: COMBINED_VERSION,
+                    branch: params.GIT_REVISION,
+                    why: why]);
+            env.SENT_TO_SLACK = '1';
+            return
+         }
+      } catch (e) {
+         echo("Couldn't get current version: ${e}.  Rolling back to be safe.");
       }
 
       // Have to roll back.
