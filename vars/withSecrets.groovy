@@ -30,7 +30,7 @@ def call(Closure body) {
       _activeSecretsBlocks++;
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=webapp/shared"]){
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]){
          body();
       }
    } finally {
