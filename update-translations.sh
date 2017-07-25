@@ -133,6 +133,15 @@ fi
 
 if [ -n "$UPDATE_STRINGS" ]; then
 
+    echo "Downloading and extracting sync snapshot"
+    # find_graphie_images_in_items.js needs this snapshot of article content in
+    # order to extract images from articles.
+    gsutil cp gs://ka_dev_sync/snapshot_en snapshot_en
+    tools/extract_lintable_content.py \
+        --articles \
+        --input snapshot_en \
+        --output article_content.zip
+
     echo "Updating the list of graphie images."
     # find_graphie_images_in_items.js caches items here, so we create the directory
     # for it.
