@@ -52,7 +52,7 @@ def runScript() {
          sh("cp -f /etc/ssl/certs/ca-certificates.crt ${certFile}");
          
          // now install the other deps
-         sh("make deps");
+         sh("make python_deps");
       }
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
