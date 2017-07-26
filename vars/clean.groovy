@@ -17,11 +17,13 @@ def call(howClean) {
    } else if (howClean == "most") {
       sh("if grep -w clean Makefile >dev/null 2>&1; then make clean; fi");
       // Be a bit more aggressive: delete un-git-added files, for instance.
-      sh("git clean -qffdx --exclude genfiles --exclude node_modules");
+      sh("git clean -qffdx --exclude genfiles --exclude node_modules " +
+         "--exclude third_party/vendored");
       sh("git submodule foreach git clean -qffdx --exclude node_modules");
 
    } else if (howClean == "some") {
-      sh("git clean -qffdx --exclude genfiles --exclude node_modules");
+      sh("git clean -qffdx --exclude genfiles --exclude node_modules " +
+         "--exclude third_party/vendored");
       sh("git submodule foreach git clean -qffdx --exclude node_modules");
       // genfiles is excluded from "git clean" so we need to manually
       // remove artifacts that should not be kept across builds.
