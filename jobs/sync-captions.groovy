@@ -50,6 +50,9 @@ def runScript() {
          // does not already exist.
          sh("yes no | mv -i ${certFile} ${certFile}.bak");
          sh("cp -f /etc/ssl/certs/ca-certificates.crt ${certFile}");
+         
+         // now install the other deps
+         sh("make deps");
       }
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
