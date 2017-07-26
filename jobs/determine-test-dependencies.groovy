@@ -186,6 +186,8 @@ def publishResults() {
       // Get ready to overwrite a file in our repo.
       kaGit.safePull("webapp");
       dir("webapp") {
+         // Make deps again in case they've changed.
+         sh("make deps");
          // Combine all the dicts into one dict.
          sh("tools/determine_tests_for.py --merge " +
             "-o tools/tests_for.json " +
