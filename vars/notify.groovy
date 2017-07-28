@@ -189,7 +189,10 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 // [extraText: if specified, text to add to the message send to slack.]
 // TODO(csilvers): make success green, not gray.
 def sendToSlack(slackOptions, status, extraText='') {
-   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   def arr = _dataForAlertlib(status, extraText);
+   def subject = arr[0];
+   def severity = arr[1];
+   def body = arr[2];
    subject += "${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
    def sender = slackOptions.sender ?: 'Janet Jenkins';
    def emoji = slackOptions.emoji ?: ':crocodile:';
@@ -219,7 +222,10 @@ def sendToSlack(slackOptions, status, extraText='') {
 //    for `to`.
 // [extraText: if specified, text to add to the email body.]
 def sendToEmail(emailOptions, status, extraText='') {
-   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   def arr = _dataForAlertlib(status, extraText);
+   def subject = arr[0];
+   def severity = arr[1];
+   def body = arr[2];
    subject += "${currentBuild.displayName}";
 
    def extraFlags = ["--mail=${emailOptions.to}",
@@ -241,8 +247,10 @@ def sendToEmail(emailOptions, status, extraText='') {
 //    who to add to this asana task.
 // [extraText: if specified, text to add to the task body.]
 def sendToAsana(asanaOptions, status, extraText='') {
-   def (subject, severity, body) = _dataForAlertlib(status, extraText);
-
+   def arr = _dataForAlertlib(status, extraText);
+   def subject = arr[0];
+   def severity = arr[1];
+   def body = arr[2];
    def extraFlags = ["--asana=${asanaOptions.project}",
                      "--cc=${asanaOptions.followers ?: ''}",
                      "--asana-tags=${(asanaOptions.tags ?: []).join(',')}"];
@@ -259,7 +267,10 @@ def sendToAsana(asanaOptions, status, extraText='') {
 //    to e.g. "infrastructure"
 // [extraText: if specified, text to add to the task body.]
 def sendToAggregator(aggregatorOptions, status, extraText='') {
-   def (subject, severity, body) = _dataForAlertlib(status, extraText);
+   def arr = _dataForAlertlib(status, extraText);
+   def subject = arr[0];
+   def severity = arr[1];
+   def body = arr[2];
    subject += "${currentBuild.displayName} See ${env.BUILD_URL} for full details.";
    def event_name = "${env.JOB_NAME} ${_statusText(status, false)}";
 
