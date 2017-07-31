@@ -28,7 +28,10 @@ def runScript() {
    onMaster('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need secrets to talk to slack
-         sh("webapp/deploy/notify_znd_owners.py --notify_slack");
+         dir("webapp") {
+            exec(["make python_deps"]);
+            sh("deploy/notify_znd_owners.py --notify_slack");
+         }
       }
    }
 }

@@ -39,7 +39,10 @@ def verifyZnd() {
 def deleteZnd() {
    onMaster('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      exec(["webapp/deploy/delete_gae_versions.py", params.ZND_NAME]);
+      dir("webapp") {
+         exec(["make python_deps"]);
+         exec(["deploy/delete_gae_versions.py", params.ZND_NAME]);
+      }
    }
 }
 
