@@ -21,6 +21,9 @@
 # up).  If so, we require there to be 4 ssh connections to workers.
 # If not, we complain to slack so that people can handle it properly.
 #
+# When all worker machines are running normally, we send a cleared
+# alert to resolve any existing open alerts from the previous cronjob.
+#
 # This script is meant to be run as the `ubuntu` user.
 
 # How many minutes we wait for the jenkins workers to start up.
@@ -79,5 +82,14 @@ that is offline and then click the big "Launch agent" button.
 
 (If you do not see the "Launch agent" button, you may lack the necessary
 permissions; ask for help on the #infrastructure slack room.)
+EOF
+elif [ "$actual_workers" -eq "$expected_workers" ]; then
+    cat <<EOF | env PYTHONPATH="$HOME/alertlib_secret" \
+                    "$HOME/alertlib/alert.py" \
+                    --aggregator "infrastructure" \
+                    --aggregator-resource "jenkins" \
+                    --aggregator-event-name "Workers Offline" \
+                    --severity "info"
+Jenkins machines functioning as expected.
 EOF
 fi
