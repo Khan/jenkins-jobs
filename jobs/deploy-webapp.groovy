@@ -838,7 +838,10 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 emoji: ':monkey_face:',
                 // We don't need to notify on success because
                 // deploy_pipeline.py does it for us.
-                when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    stage("Merging in master") {
       mergeFromMasterAndInitializeGlobals();
    }

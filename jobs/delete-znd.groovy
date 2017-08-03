@@ -50,7 +50,10 @@ def deleteZnd() {
 notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    verifyZnd();
    stage("Deleting") {
       deleteZnd();

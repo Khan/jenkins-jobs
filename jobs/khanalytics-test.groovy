@@ -83,7 +83,10 @@ def runTests() {
 notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: 'Testing Turtle',
                 emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED', 'SUCCESS']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED', 'SUCCESS']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
     initializeGlobals();
     runTests();
 }

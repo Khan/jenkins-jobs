@@ -109,7 +109,10 @@ def resetRepo() {
 notify([slack: [channel: '#i18n',
                 sender: 'I18N Imp',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    // Make sure LOCALES was specified -- it's an error not to list a
    // locale to update!
    if (!params.LOCALES) {

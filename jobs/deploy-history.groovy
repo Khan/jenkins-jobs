@@ -85,7 +85,10 @@ def reportHistory() {
 notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: CHAT_SENDER,
                 emoji: EMOJI,
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+        aggregator: [initiative: 'infrastructure',
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
     stage("setup") {
         doSetup();
     }

@@ -71,7 +71,8 @@ notify([slack: [channel: '#i18n',
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
-                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    stage("Syncing captions") {
       runScript();
    }

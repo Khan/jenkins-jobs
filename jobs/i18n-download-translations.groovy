@@ -82,7 +82,8 @@ notify([slack: [channel: '#i18n',
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
-                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                     when: ['SUCCESS', 'BACK TO NORMAL',
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
    def updatedLocales = '';
 
    // We modify files in this workspace -- which is not our own! -- so

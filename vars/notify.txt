@@ -1,13 +1,14 @@
-Send notifications to slack and/or email when a job is done.
+Send notifications to slack, email, asana, and/or the aggregator
+when a job is done.
 
 The intent is you wrap your *entire* job inside a `notify()` call.
 Then when the body is done executing, looks at the build status (or
 exception-handling) and sends notifications as appropriate.
 
-The argument is a map that has `slack` and `email` as possible keys.
-Each value is itself a map with options for that notification mode.
-For instance `slack` has an option what channel to talk to, etc.
-See the code for what options are supported.
+The argument is a map that has `slack`, `email`, 'asana', and
+'aggregator' as possible keys. Each value is itself a map with options
+for that notification mode. For instance `slack` has an option what
+channel to talk to, etc. See the code for what options are supported.
 
 If you set the envvar `env.SENT_TO_SLACK` in the body, then we will
 suppress any sending to slack, under the assumption the body did all
@@ -15,4 +16,3 @@ appropriate sending.  This is useful for test jobs, when if they fail
 due to test-failures we want to send a customized slack message.  (But
 if they fail for some other reason such as a timeout, we still want to
 send to slack from here!)
-
