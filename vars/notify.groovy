@@ -272,7 +272,10 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
    def severity = arr[1];
    def body = arr[2];
    subject += "${currentBuild.displayName} See ${env.BUILD_URL} for full details.";
-   def event_name = "${env.JOB_NAME} ${_statusText(status, false)}";
+   // 'failed' rather than actual status included so as to provide a consistent
+   // event name, otherwise dashboard will not recognize entries as corresponding
+   // to the same issue and will open a new issue
+   def event_name = "${env.JOB_NAME} failed";
 
    def extraFlags = ["--aggregator=${aggregatorOptions.initiative}",
                      "--aggregator-resource=jenkins",
