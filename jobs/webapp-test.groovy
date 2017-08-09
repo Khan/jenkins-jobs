@@ -151,7 +151,15 @@ def _determineTests() {
    }
 
    dir("genfiles") {
+      // Make sure to clean out any stray old splits files.  (This probably
+      // only matters if we changed the number of workers, but it never hurts.)
+      sh("rm -f test_splits.*.txt");
+
       def allSplits = readFile("test_splits.txt").split("\n\n");
+      if (allSplits.size() != NUM_WORKER_MACHINES) {
+         error("Got ${allSplits.size()} splits, " +
+               "expected ${NUM_WORKER_MACHINES}.");
+      }
       for (def i = 0; i < allSplits.size(); i++) {
          writeFile(file: "test_splits.${i}.txt",
                    text: allSplits[i]);
