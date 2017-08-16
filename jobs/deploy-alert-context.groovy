@@ -23,9 +23,9 @@ def installDeps() {
    onMaster('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/alert-context", "master");
 
-      // These secrets are installed into the workspace when we run the
+      // These secrets are installed above the workspace when we run the
       // jenkins setup script (in Khan/aws-config).
-      sh("ln -snf ../../secrets.py alert-context/src/secrets.py");
+      sh("ln -snf ../../../secrets.py alert-context/src/secrets.py");
       sh("chmod 644 alert-context/src/secrets.py");
 
       dir("alert-context") {
@@ -38,8 +38,8 @@ def installDeps() {
 def deploy() {
    onMaster('1h') {
       // This is also installed via setup.sh.
-      def AWS_ACCESS_KEY_ID = readFile("aws_access_key").trim();
-      def AWS_SECRET_ACCESS_KEY = readFile("aws_secret").trim();
+      def AWS_ACCESS_KEY_ID = readFile("../aws_access_key").trim();
+      def AWS_SECRET_ACCESS_KEY = readFile("../aws_secret").trim();
 
       dir("alert-context") {
          withEnv(["AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",

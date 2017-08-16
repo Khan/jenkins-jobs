@@ -52,12 +52,12 @@ def installDeps() {
       dir("react-render-server") {
          clean(params.CLEAN);
 
-         // The secret is installed into the workspace when we run the
+         // The secret is installed above the workspace when we run the
          // jenkins setup script (in Khan/aws-config), but we need the
          // secret to be in the working directory of the repository so that
          // it gets built into the docker container.
-         sh("cp -a ../secret secret");
-         sh("cp -a ../hostedgraphite.api_key hostedgraphite.api_key");
+         sh("cp -a ../../secret secret");
+         sh("cp -a ../../hostedgraphite.api_key hostedgraphite.api_key");
 
          sh("npm install");
       }
