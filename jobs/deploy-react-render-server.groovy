@@ -68,7 +68,7 @@ def installDeps() {
 def deploy() {
    onMaster('90m') {
       dir("react-render-server") {
-         sh("sh -x ./deploy.sh");
+         sh("sh -ex ./deploy.sh");
       }
    }
 }
@@ -76,7 +76,7 @@ def deploy() {
 def setDefault() {
    onMaster('90m') {
       dir("react-render-server") {
-         sh("sh -x ./set_default.sh");
+         sh("sh -ex ./set_default.sh");
       }
    }
 }
