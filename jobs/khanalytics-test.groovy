@@ -53,7 +53,7 @@ def _setupKhanalytics() {
         // sh("pip install -r ./requirements_dev.txt")
         dir("core/monitor/src") {
             // TODO(colin): move this into `make deps`?
-            sh("npm install");
+            sh("npm install --no-save");
         }
     }
 }
