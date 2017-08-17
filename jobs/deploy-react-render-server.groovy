@@ -59,7 +59,7 @@ def installDeps() {
          sh("cp -a ../../secret secret");
          sh("cp -a ../../hostedgraphite.api_key hostedgraphite.api_key");
 
-         sh("npm install");
+         sh("npm install --no-save");
       }
    }
 }
