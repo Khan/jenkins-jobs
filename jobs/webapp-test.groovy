@@ -111,6 +111,7 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
+      clean(params.CLEAN);
       sh("make deps");
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
