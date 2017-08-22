@@ -30,6 +30,7 @@ def doSetup() {
     onMaster('30m') {
         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
         dir("webapp") {
+           sh("make clean_pyc");
            sh("make python_deps");
         }
     }

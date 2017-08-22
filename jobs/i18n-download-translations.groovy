@@ -32,6 +32,7 @@ def runScript() {
       // TODO(csilvers): does this matter anymore with git-workdir?
       dir("../../i18n-update-strings/workspace") {
          dir("webapp") {
+            sh("make clean_pyc");
             sh("make python_deps");
          }
 

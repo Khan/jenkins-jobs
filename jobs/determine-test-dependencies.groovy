@@ -64,6 +64,7 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
+      sh("make clean_pyc");    // in case some .py files went away
       sh("make deps");
    }
 }
@@ -187,6 +188,7 @@ def publishResults() {
       kaGit.safePull("webapp");
       dir("webapp") {
          // Make deps again in case they've changed.
+         sh("make clean_pyc");
          sh("make deps");
          // Combine all the dicts into one dict.
          sh("tools/determine_tests_for.py --merge " +

@@ -29,6 +29,7 @@ def runScript() {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need secrets to talk to slack
          dir("webapp") {
+            sh("make clean_pyc");    // in case some .py files went away
             sh("make python_deps");
             sh("deploy/notify_znd_owners.py --notify_slack");
          }

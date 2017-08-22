@@ -50,8 +50,9 @@ def runScript() {
          // does not already exist.
          sh("yes no | mv -i ${certFile} ${certFile}.bak");
          sh("cp -f /etc/ssl/certs/ca-certificates.crt ${certFile}");
-         
+
          // now install the other deps
+         sh("make clean_pyc");    // in case some .py files went away
          sh("make python_deps");
       }
 

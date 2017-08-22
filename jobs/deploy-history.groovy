@@ -27,6 +27,7 @@ def doSetup() {
     onMaster('30m') {
         kaGit.safeSyncToOrigin(REPOSITORY, "master");
         dir("webapp") {
+           sh("make clean_pyc");    // in case some .py files went away
            sh("make python_deps");
         }
     }

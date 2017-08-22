@@ -33,6 +33,7 @@ def updateRepo() {
       kaGit.safePull("webapp/intl/translations");
 
       dir("webapp") {
+         sh("make clean_pyc");    // in case some .py files went away
          sh("make python_deps");
       }
    }
