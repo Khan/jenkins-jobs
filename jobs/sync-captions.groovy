@@ -1,4 +1,4 @@
-// Pipeline job to download captions from Amara, then upload them to YouTube.
+// Pipeline job to download captions from YouTube, then upload them production.
 
 @Library("kautils")
 // Classes we use, under jenkins-tools/src/.
@@ -19,11 +19,8 @@ new Setup(steps
     "SKIP_TO_STAGE",
     """Skip some stages of the sync.
 <ul>
-  <li>Stage 0 = Download from dropbox. </li>
-  <li>Stage 1 = Move professional translations into incoming folder.</li>
-  <li>Stage 2 = Download from Amara.</li>
-  <li>Stage 3 = Upload to Youtube.</li>
-  <li>Stage 4 = Upload to production.</li>
+  <li>Stage 0 = Download from YouTube.</li>
+  <li>Stage 1 = Upload to production.</li>
 </ul>""",
     ""
 
@@ -33,24 +30,7 @@ new Setup(steps
 def runScript() {
    onMaster('23h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      // sync-captions.sh calls webapp/tools/dropbox_sync_source.py
-      // which tries to import `dropbox`.  This is not listed in
-      // requirements.txt.  Not sure if it should be, but I just
-      // install it here.
       dir("webapp") {
-         sh("pip install dropbox==1.6");
-         // The cert file that comes with this super-old dropbox isn't
-         // up to date.  Use the more up-to-date system cert file.
-         // Sadly, this seems to be hard-coded into dropbox.py
-         def dropboxDir = exec.outputOf(
-            ["python", "-c",
-             "import dropbox, os; print os.path.dirname(dropbox.__file__)"]);
-         def certFile = "${exec.shellEscape(dropboxDir)}/trusted-certs.crt";
-         // This 'yes no' and '-i' does the mv only if the destination file
-         // does not already exist.
-         sh("yes no | mv -i ${certFile} ${certFile}.bak");
-         sh("cp -f /etc/ssl/certs/ca-certificates.crt ${certFile}");
-
          // now install the other deps
          sh("make clean_pyc");    // in case some .py files went away
          sh("make python_deps");

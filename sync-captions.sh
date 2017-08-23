@@ -1,138 +1,97 @@
-#!/bin/bash -xe
+#!/bin/bash
 
-# This script must be called from workspace-root.
+# Downloads YouTube FanCaptions and uploads them to production.
+#
+# This script must be called from workspace-root (i.e., a folder with both
+# jenkins-tools and webapp)
+#
+# Data flow:
+#  - Captions are created using YouTube FanCaptions.
+#  - Then khantube.py puts them into /published.
+#  - Finally, upload_captions_to_production uploads captions to production (as
+#    advertised) and moves them to /published_prod.
+#
+# To run locally without uploading anything to production:
+#  - clone git@github.com:Khan/webapp-i18n-data into
+#    /mnt/dropbox/Dropbox/webapp-i18n-data
+#  - cd into workspace-root (see above)
+#  - env SKIP_DROPBOX_SYNC=1 SKIP_PROD_UPLOAD=1 ./jenkins-tools/sync-captions.sh
 
+# Unofficial strict mode -- http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+IFS=$'\n\t'
+
+# Echo all commands for enhanced debugging
+set -x
+
+# Set defaults for optional environment variables
+SKIP_DROPBOX_SYNC=${SKIP_DROPBOX_SYNC:-}
+SKIP_PROD_UPLOAD=${SKIP_PROD_UPLOAD:-}
+SKIP_TO_STAGE=${SKIP_TO_STAGE:=0}
 
 ( cd webapp && make python_deps )
-
-# Keep track of which scripts failed after making partial progress.
-# It's a string that keeps growing
-error=""
 
 echo "Checking status of dropbox holding historical data"
 
 # dropbox.py doesn't like it when the directory is a symlink
-DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
+# Use GNU readlink if found, since the built-in macOS one doesn't support -f
+if type greadlink; then
+    DATA_DIR=`greadlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
+else
+    DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
+fi
 
 # Start dropbox service if it is not running
-! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
+if [[ -z "$SKIP_DROPBOX_SYNC" ]] && ! env HOME=/mnt/dropbox dropbox.py running; then
+     HOME=/mnt/dropbox dropbox.py start
+fi
 
-prof_incoming="$DATA_DIR/captions/professional_incoming/"
-incoming="$DATA_DIR/captions/incoming/"
 published="$DATA_DIR/captions/published/"
 published_prod="$DATA_DIR/captions/published_prod/"
 video_list_path="$DATA_DIR/captions/video_list.txt"
 
 tools="`pwd`/webapp/tools"
-# Needed to get appengine_tool_setup.py
-PYTHONPATH="$tools:$PYTHONPATH"
 
 # Download a list of videos that exist in production
 "$tools/get_video_list.py" > "$video_list_path"
 
-jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
+if [[ -z "$SKIP_DROPBOX_SYNC" ]]; then
+    jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
+fi
 
-# Flow is something like:
-# hired             YouTube FanCaptions
-# transcribers      |
-# | [dss]           | [kt]
-# v                 v
-# prof_incoming --> incoming ----> published ----> published_prod
-#               ^[move]       ^[kt]           ^[uptp]
-#
-# [dss]: tools/dropbox_sync_source.py
-# [move]: moving professional captions to incoming
-# [kt]: tools/khantube.py
-# [uptp]: tools/upload_captions_to_production.py
-#
-# [dss] has a metadate file /captions/dropbox_info.json
-# For the purposes of SKIP_TO_STAGE
-# [dss] = 0
-# [move] = 1
-# (obsolete, now a no-op) tools/amara_exporter.py = 2
-# [kt] = 3
-# [uptp] = 4
-echo "Starting at stage: ${SKIP_TO_STAGE:=0}"  # Set to 0 if not set
+echo "Starting at stage: $SKIP_TO_STAGE"
 
 version_data="$DATA_DIR/captions/version_data.json"
+
 
 
 # --- The actual work:
 cd "$DATA_DIR"
 
 if [ "$SKIP_TO_STAGE" -le 0 ]; then
-    echo "Pulling from dropbox"
-    # TODO(james): Share professional captions folder with jenkins account and
-    # delete this script.
-    # If it exits with nonzero code, stop the script, fix it.
-    # There is no meaningful partial progress.
-    "$tools/dropbox_sync_source.py" "$DATA_DIR/captions"
-fi
-
-if [ "$SKIP_TO_STAGE" -le 1 ]; then
-    echo "Looking for professional captions"
-    if [ -d "$prof_incoming" ] && \
-       [ -n "$(find "$prof_incoming" -type f | head -n 1)" ]
-    then
-        # Note that `[ -n "" ]` returns false, so there's at least one caption
-        # to process and `|head -n 1` prints the first line and closes,
-        # stopping the search early.
-        echo "Moving them into incoming"
-        for locale in $(ls "$prof_incoming") ; do
-            mkdir -p "$prof_incoming/$locale"
-            for file in $(ls "$prof_incoming/$locale"); do
-                mv "$prof_incoming/$locale/$file" "$incoming/$locale/"
-            done;
-        done;
-    else
-        echo "None found"
-    fi
-fi
-
-if [ "$SKIP_TO_STAGE" -le 2 ]; then
-    echo "Skipping download from Amara (Amara is no longer used)"
-fi
-
-if [ "$SKIP_TO_STAGE" -le 3 ]; then
-    echo "Uploading to Youtube"
+    echo "Downloading captions from Youtube FanCaptions"
 
     stats_file=/var/tmp/khantube_stats.txt
-    if "$tools/khantube.py" "$incoming" "$published" \
+    "$tools/khantube.py" "$published" \
         --youtube-ids-file="$video_list_path" \
         --data-file="$version_data" \
-        --english-caption-dir="$published_prod" \
         --stats-file="$stats_file";
-    then
-        echo "Competed upload to youtube"
-    else
-        echo "FAILED: There were some problems uploading to youtube"
-        error+="Error uploading to youtube\n"
-    fi
+
+    echo "Competed upload to youtube"
     cat "$stats_file"
+else
+    echo "WARNING: NOT FETCHING UPDATED YOUTUBE FANCAPTIONS" >&2
 fi
 
-if [ "$SKIP_TO_STAGE" -le 4 ]; then
+if [ "$SKIP_TO_STAGE" -le 1 ] && [[ -z "$SKIP_PROD_UPLOAD" ]]; then
     mkdir -p "$published_prod"
     stats_file=/var/tmp/upload_to_prod_stats.txt
-    if "$tools/upload_captions_to_production.py" \
+    "$tools/upload_captions_to_production.py" \
         "$published" "$published_prod" 'https://www.khanacademy.org'\
         --stats-file="$stats_file" \
         --youtube-ids-file="$video_list_path";
-    then
-        echo "Completed upload to prod"
-    else
-        echo "FAILED: Something went wrong when uploading to production"
-        error+="Error uploading captions to production\n"
-    fi
+    echo "Completed upload to prod"
     cat "$stats_file"
-fi
-
-if [ -n "$error" ]; then
-    echo "There were some errors"
-    echo "================================================"
-    echo ""
-    echo -n "$error"
-    echo ""
-    echo "================================================"
-    exit 1
+else
+    echo "WARNING: NOT UPLOADING UPDATED CAPTIONS TO PRODUCTION" >&2
 fi
