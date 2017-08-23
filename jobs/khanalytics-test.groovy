@@ -38,6 +38,32 @@ def initializeGlobals() {
     GIT_SHA1 = kaGit.resolveCommitish(REPOSITORY, params.GIT_REVISION);
 }
 
+// This is largely the same as vars/withVirtualenv.groovy, but modified to use
+// python3 (and a different name; some other jenkins code still needs the py2 one).
+// TODO(colin): consolidate them.
+// This must be called from the workspace root.
+def _withPy3Venv(Closure body) {
+   if (env.VIRTUAL_ENV_3) {    // we're already in a py3 virtualenv
+      body();
+      return;
+   }
+   if (!fileExists("env3")) {
+      echo("Creating new virtualenv(s)");
+      sh("virtualenv --python=python3.6 env3");
+   }
+
+   // There's no point in calling activate directly since we are not
+   // a shell.  Instead, we just set up the environment the same way
+   // activate does.
+   echo("Activating virtualenv ${pwd()}/env3");
+   withEnv(["VIRTUAL_ENV=${pwd()}/env3",
+            "VIRTUAL_ENV_3=${pwd()}/env3",
+            "PATH=${pwd()}/env3/bin:${env.PATH}"]) {
+      body();
+   }
+}
+
+
 def _setupKhanalytics() {
     // TODO(colin): something in this script is trying to use secrets.py from
     // the webapp dir, so we have to clone this.  Figure out what and why so we
@@ -45,15 +71,13 @@ def _setupKhanalytics() {
     kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
     kaGit.safeSyncTo("git@github.com:Khan/khan-linter", "master");
     kaGit.safeSyncTo(REPOSITORY, GIT_SHA1);
-    dir("khanalytics") {
-        // TODO(colin): enable deps after figuring out python3 +
-        // virtualenv.
-        // TODO(colin): this should be `make deps`, but can't be because of an
-        // implicit dependency of the makefile on docker.
-        // sh("pip install -r ./requirements_dev.txt")
-        dir("core/monitor/src") {
-            // TODO(colin): move this into `make deps`?
-            sh("npm install --no-save");
+    _withPy3Venv() {
+        dir("khanalytics") {
+            sh("pip install -r ./requirements_dev.txt");
+            dir("core/monitor/src") {
+                // TODO(colin): move this into `make deps`?
+                sh("npm install --no-save");
+            }
         }
     }
 }
@@ -61,22 +85,18 @@ def _setupKhanalytics() {
 def runTests() {
     onMaster('10m') {
         _setupKhanalytics();
-        dir("khanalytics") {
-            // TODO(colin): this should be `make lint`, but can't be because of
-            // an implicit dependency of the makefile on docker.
-            sh("python3.6 ../khan-linter/bin/ka-lint --blacklist=yes");
-            // TODO(colin): this should make `make flow`, but can't be because
-            // of an implicit dependency of the makefile on docker.
-            dir("core/monitor/src") {
-                sh("./node_modules/.bin/flow check .");
-            }
-            // TODO(colin): enable tests after figuring out python3 +
-            // virtualenv.
-            // TODO(colin): this should make `make check`, but can't be because
-            // of an implicit dependency of the makefile on docker.
-            // sh("./runtests.py");
-            // TODO(colin): some kind of summary report?
-        };
+        _withPy3Venv() {
+            dir("khanalytics") {
+                sh("../khan-linter/bin/ka-lint --blacklist=yes");
+                dir("core/monitor/src") {
+                    // TODO(colin): this should be `make flow` but that assumes
+                    // flow is installed globally. Fix.
+                    sh("./node_modules/.bin/flow check .");
+                }
+                sh("make mypy");
+                sh("make check");
+            };
+        }
     }
 }
 
