@@ -52,6 +52,7 @@ def runScript() {
 
                dir("webapp") {
                    sh("make clean_pyc");    // in case some .py files went away
+                   sh("make deps");
                }
 
                // We need secrets to talk to gcs, prod.
