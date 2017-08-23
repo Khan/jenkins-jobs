@@ -18,11 +18,9 @@
 #  - env SKIP_DROPBOX_SYNC=1 SKIP_PROD_UPLOAD=1 ./jenkins-tools/sync-captions.sh
 
 # Unofficial strict mode -- http://redsymbol.net/articles/unofficial-bash-strict-mode/
-set -euo pipefail
+# Also, we set -x to echo all commands for easier debugging
+set -euox pipefail
 IFS=$'\n\t'
-
-# Echo all commands for enhanced debugging
-set -x
 
 # Set defaults for optional environment variables
 SKIP_DROPBOX_SYNC=${SKIP_DROPBOX_SYNC:-}
@@ -63,6 +61,14 @@ echo "Starting at stage: $SKIP_TO_STAGE"
 
 version_data="$DATA_DIR/captions/version_data.json"
 
+all_fancaptions_file=$(mktemp)
+function cleanup {
+    echo "Cleaning up..."
+    # Delete our temporary file, no matter how we exit.
+    rm -f "$all_fancaptions_file"
+}
+trap cleanup EXIT
+
 
 
 # --- The actual work:
@@ -75,7 +81,8 @@ if [ "$SKIP_TO_STAGE" -le 0 ]; then
     "$tools/khantube.py" "$published" \
         --youtube-ids-file="$video_list_path" \
         --data-file="$version_data" \
-        --stats-file="$stats_file";
+        --stats-file="$stats_file" \
+        --all-fancaptions-file="$all_fancaptions_file";
 
     echo "Competed upload to youtube"
     cat "$stats_file"
@@ -89,7 +96,8 @@ if [ "$SKIP_TO_STAGE" -le 1 ] && [[ -z "$SKIP_PROD_UPLOAD" ]]; then
     "$tools/upload_captions_to_production.py" \
         "$published" "$published_prod" 'https://www.khanacademy.org'\
         --stats-file="$stats_file" \
-        --youtube-ids-file="$video_list_path";
+        --youtube-ids-file="$video_list_path" \
+        --all-fancaptions-file="$all_fancaptions_file";
     echo "Completed upload to prod"
     cat "$stats_file"
 else
