@@ -50,6 +50,10 @@ def runScript() {
                kaGit.safeSyncTo("git@github.com:Khan/webapp",
                                 params.GIT_REVISION);
 
+               dir("webapp") {
+                   sh("make clean_pyc");    // in case some .py files went away
+               }
+
                // We need secrets to talk to gcs, prod.
                withSecrets() {
                   withEnv(
