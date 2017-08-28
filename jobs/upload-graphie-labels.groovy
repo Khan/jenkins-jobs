@@ -70,7 +70,7 @@ def uploadLabels() {
 notify([slack: [channel: '#i18n',
                 sender: 'I18N Imp',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         email: [to: 'jenkins-admin+builds, james',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
