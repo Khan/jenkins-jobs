@@ -339,7 +339,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
       // those times and steals our test-workers from us.  So we acquire
       // this lock for the entire job.  It depends on everyone else who
       // uses the test-workers using this lock too.
-      lock(label: 'using-test-workers') {
+      lock(label: 'using-test-workers', quantity: 1) {
          stage("Determining splits") {
             determineSplits();
          }
