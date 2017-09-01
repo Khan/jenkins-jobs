@@ -22,6 +22,9 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+).allowConcurrentBuilds(
+   // We serialize via the using-test-workers lock
+
 ).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring

@@ -14,6 +14,9 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+).allowConcurrentBuilds(
+   // We serialize via the using-test-workers lock
+
 ).addStringParam(
    "URL",
    "The url-base to run these tests against.",
