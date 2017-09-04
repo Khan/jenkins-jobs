@@ -3,6 +3,7 @@
 // This must be called from workspace-root.
 def call(Closure body) {
    if (env.VIRTUAL_ENV) {    // we're already in a virtualenv
+      echo("(Not activating virtualenv; already active at ${env.VIRTUAL_ENV})");
       body();
       return;
    }
