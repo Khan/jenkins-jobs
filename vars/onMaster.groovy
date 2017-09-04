@@ -4,11 +4,13 @@
 //import vars.withVirtualenv
 
 def call(timeoutString, Closure body) {
-   timestamps {
-      kaGit.checkoutJenkinsTools();
-      withVirtualenv() {
-         withTimeout(timeoutString) {
-            body();
+   node("master") {
+      timestamps {
+         kaGit.checkoutJenkinsTools();
+         withVirtualenv() {
+            withTimeout(timeoutString) {
+               body();
+            }
          }
       }
    }
