@@ -7,7 +7,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.onTestWorker
 //import vars.withSecrets
 
@@ -112,7 +112,7 @@ def determineSplits() {
    // That will save time later.
    def jobs = [
       "determine-splits": {
-         onMaster('10m') {        // timeout
+         withTimeout('10m') {
             // Figure out how to split up the tests.  We run 4 jobs on
             // each of 4 workers.  We put this in the location where the
             // 'copy to slave' plugin expects it (e2e-test-<worker> will
@@ -191,7 +191,7 @@ def runAndroidTests() {
    def failureMsg = ("Mobile integration tests failed " +
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
-   onMaster('1h') {       // timeout
+   withTimeout('1h') {
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
@@ -272,7 +272,7 @@ def runTests() {
 
 
 def analyzeResults() {
-   onMaster('5m') {         // timeout
+   withTimeout('5m') {
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
       sh("rm /tmp/make_check.run");
@@ -340,7 +340,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "2h"]) {
    initializeGlobals();
 
    // We run on the test-workers a few different times during this

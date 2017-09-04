@@ -9,7 +9,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 new Setup(steps
@@ -20,7 +20,7 @@ new Setup(steps
 
 
 def updateRepo() {
-   onMaster('1h') {
+   withTimeout('1h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
 
       // We do our work in the 'translations' branch.
@@ -41,7 +41,7 @@ def updateRepo() {
 
 
 def buildLabels() {
-   onMaster('16h') {
+   withTimeout('16h') {
       dir("webapp") {
          def languages = exec.outputOf(["intl/locale_main.py",
                                         "locales_for_packages",
@@ -57,7 +57,7 @@ def buildLabels() {
 
 
 def uploadLabels() {
-   onMaster('6h') {
+   withTimeout('6h') {
       withSecrets() {  // We need secrets to talk to S3
          dir("webapp") {
               sh("tools/upload_graphie_labels.py");
@@ -75,7 +75,8 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "23h"]) {
    stage("Updating webapp repo") {
       updateRepo();
    }

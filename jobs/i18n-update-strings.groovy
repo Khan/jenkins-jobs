@@ -10,7 +10,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -22,7 +22,7 @@ new Setup(steps
 
 
 def runScript() {
-   onMaster('7h') {
+   withTimeout('7h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
 
       // Remove output from a previous run.  Re-created by
@@ -53,7 +53,8 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "8h"]) {
    def updatedLocales = '';
 
    // i18n-download-translations also uses our workspace, and edits files

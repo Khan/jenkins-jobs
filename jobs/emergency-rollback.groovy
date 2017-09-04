@@ -17,7 +17,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 // No bespoke setup: this is as simple a job as they get!
@@ -27,7 +27,7 @@ new Setup(steps).apply();
 // TODO(csilvers): maybe use another workspace to save time syncing?
 // But decrypting secrets is a problem then.
 def doSetup() {
-    onMaster('30m') {
+    withTimeout('30m') {
         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
         dir("webapp") {
            sh("make clean_pyc");
@@ -37,7 +37,7 @@ def doSetup() {
 }
 
 def doRollback() {
-   onMaster('30m') {
+   withTimeout('30m') {
       withSecrets() {
          dir("webapp") {
             sh("deploy/rollback.py");
@@ -54,7 +54,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                        'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "1h"]) {
     stage("setup") {
         doSetup();
     }

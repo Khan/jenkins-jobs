@@ -15,7 +15,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.onTestWorker
 //import vars.withSecrets
 
@@ -77,7 +77,7 @@ def determineSplits() {
    // That will save time later.
    def jobs = [
       "determine-splits": {
-         onMaster('10m') {        // timeout
+         withTimeout('10m') {
             def NUM_SPLITS = NUM_WORKER_MACHINES;
 
             _setupWebapp();
@@ -154,7 +154,7 @@ def runTests() {
 
 
 def publishResults() {
-   onMaster('10m') {         // timeout
+   withTimeout('10m') {
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
       sh("rm /tmp/make_check.run");
@@ -211,7 +211,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "5h"]) {
    initializeGlobals();
 
    // We run on the test-workers a few different times during this

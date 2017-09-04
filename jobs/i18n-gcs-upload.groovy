@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -52,7 +52,7 @@ currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALES})";
 
 
 def syncRepos() {
-   onMaster("10m") {
+   withTimeout("10m") {
       def gitTag = params.GIT_TAG;
       if (!gitTag) {
          // We sync to master so we can get the git-tag of the current
@@ -80,7 +80,7 @@ def syncRepos() {
 
 
 def runScript() {
-   onMaster("23h") {
+   withTimeout("23h") {
       withEnv(["GIT_TAG=${params.GIT_TAG}",
                "I18N_GCS_UPLOAD_LOCALES=${params.LOCALES}"]) {
          withSecrets() {
@@ -97,7 +97,7 @@ def runScript() {
 
 
 def resetRepo() {
-   onMaster("10m") {
+   withTimeout("10m") {
       dir("webapp") {
          sh("git submodule update");
       }
@@ -112,7 +112,8 @@ notify([slack: [channel: '#i18n',
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "23h"]) {
    // Make sure LOCALES was specified -- it's an error not to list a
    // locale to update!
    if (!params.LOCALES) {

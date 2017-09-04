@@ -9,7 +9,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 new Setup(steps
 
@@ -24,7 +24,7 @@ CHAT_SENDER = "History Hawk";
 EMOJI = ":hawk:";
 
 def doSetup() {
-    onMaster('30m') {
+    withTimeout('30m') {
         kaGit.safeSyncToOrigin(REPOSITORY, "master");
         dir("webapp") {
            sh("make clean_pyc");    // in case some .py files went away
@@ -69,7 +69,7 @@ def _sendSimpleMessage(def msg) {
 }
 
 def reportHistory() {
-    onMaster('5m') {
+    withTimeout('5m') {
         dir('webapp') {
             tags = _findMostRecentTags();
         }
@@ -89,7 +89,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "1h"]) {
     stage("setup") {
         doSetup();
     }

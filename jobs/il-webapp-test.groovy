@@ -5,7 +5,6 @@
 @Library("kautils")
 // Classes we use, under jenkins-tools/src/.
 import org.khanacademy.Setup;
-//import vars.notify
 
 
 new Setup(steps
@@ -49,4 +48,3 @@ for (def i = 0; i < revisions.size(); i++) {
             booleanParam(name: 'FORCE', value: params.FORCE),
          ]);
 }
-

@@ -13,7 +13,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 new Setup(steps
@@ -24,7 +24,7 @@ new Setup(steps
 
 
 def runScript() {
-   onMaster('6h') {
+   withTimeout('6h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       sh("jenkins-tools/weekly-maintenance.sh");
    }
@@ -39,7 +39,8 @@ notify([slack: [channel: '#infrastructure',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "7h"]) {
    stage("Running maintenance") {
       runScript();
    }

@@ -61,7 +61,6 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
 //import vars.withSecrets
 //import vars.withTimeout
 
@@ -313,7 +312,7 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
             throw e;
          } else {
             // Means we reached the next timeout, so say we're waiting.
-            onMaster('1m') {
+            withTimeout('1m') {
                _alert(alertMsgs.STILL_WAITING,
                       [action: message,
                        minutesSoFar: warningsInMinutes[i],
@@ -328,7 +327,7 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
 
 
 def mergeFromMasterAndInitializeGlobals() {
-   onMaster('1h') {    // should_deploy builds files, which can take forever
+   withTimeout('1h') {    // should_deploy builds files, which can take forever
       alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
 
       if (params.DEPLOYER_USERNAME) {
@@ -440,7 +439,7 @@ def sendStartMessage() {
       deployType = "tools-only ";
    }
 
-   onMaster("1m") {
+   withTimeout("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
               branch: "${DEPLOY_BRANCH} (containing ${params.GIT_REVISION})"]);
@@ -536,7 +535,7 @@ def deployAndReport() {
 
 
 def promptForSetDefault() {
-   onMaster('1m') {
+   withTimeout('1m') {
       // The CMS endpoints must be handled on the vm module. However,
       // the rules in dispatch.yaml only match *.khanacademy.org,
       // so the routing doesn't work in dynamic deploys (which are
@@ -654,7 +653,7 @@ def _monitor() {
 
 
 def setDefaultAndMonitor() {
-   onMaster('120m') {
+   withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
              [combinedVersion: COMBINED_VERSION,
               abortUrl: "${env.BUILD_URL}stop"]);
@@ -676,7 +675,7 @@ def setDefaultAndMonitor() {
 
 
 def promptToFinish() {
-   onMaster('1m') {
+   withTimeout('1m') {
       def logsUrl = (
          "https://console.developers.google.com/project/khan-academy/logs" +
          "?service=appengine.googleapis.com&key1=default&key2=${GAE_VERSION}");
@@ -704,7 +703,7 @@ def promptToFinish() {
 
 
 def finishWithSuccess() {
-   onMaster('10m') {
+   withTimeout('10m') {
       dir("webapp") {
          // Create the git tag (if we actually deployed something somewhere).
          if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
@@ -776,7 +775,7 @@ def finishWithFailure(why) {
 
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
-   onMaster('20m') {
+   withTimeout('20m') {
       try {
          def currentGAEGitTag = exec.outputOf(
             // Don't trust git here -- we likely haven't merged to master yet
@@ -841,7 +840,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "4h"]) {
    stage("Merging in master") {
       mergeFromMasterAndInitializeGlobals();
    }
@@ -852,7 +852,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
 
    try {
       stage("Deploying and testing") {
-         onMaster('120m') {
+         withTimeout('120m') {
             parallel(
                "deploy-and-report": { deployAndReport(); },
                "test": { runTests(); },

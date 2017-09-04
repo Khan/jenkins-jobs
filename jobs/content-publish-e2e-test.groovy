@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -63,7 +63,7 @@ manually, but rather by other jobs that call this one.""",
 // This is necessary because this job gets run on a schedule; we
 // don't want to redo work if nothing has changed since the last run!
 def getRedisKey() {
-   onMaster('30m') {
+   withTimeout('30m') {
       def versionJson = exec.outputOf(
          ["curl", "-s", "${params.URL}/api/internal/dev/version"]);
       def versionId = sh(
@@ -90,7 +90,7 @@ def getRedisKey() {
 
 
 def syncWebapp() {
-   onMaster('15m') {
+   withTimeout('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make deps");
@@ -109,7 +109,7 @@ def runAndroidTests() {
    def failureMsg = ("Mobile integration tests failed " +
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
-   onMaster('1h') {       // timeout
+   withTimeout('1h') {
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
@@ -139,7 +139,7 @@ def runAndroidTests() {
 
 
 def runEndToEndTests() {
-   onMaster("1h") {
+   withTimeout("1h") {
       // Out with the old, in with the new!
       sh("rm -f webapp/genfiles/test-results.pickle");
 
@@ -170,7 +170,7 @@ def runEndToEndTests() {
 
 // 'label' is attached to the slack message to help identify the job.
 def analyzeResults(label) {
-   onMaster("15m") {
+   withTimeout("15m") {
       if (!fileExists("webapp/genfiles/test-results.pickle")) {
          def msg = ("The e2e tests did not even finish (could be due " +
                     "to timeouts or framework errors; search for " +
@@ -213,7 +213,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "4h"]) {
    def key = getRedisKey();
 
    currentBuild.displayName = "${currentBuild.displayName} (${key})";

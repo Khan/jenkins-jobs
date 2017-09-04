@@ -7,7 +7,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -28,7 +28,7 @@ new Setup(steps
 
 
 def runScript() {
-   onMaster('23h') {
+   withTimeout('23h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          // now install the other deps
@@ -53,7 +53,8 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "23h"]) {
    stage("Syncing captions") {
       runScript();
    }

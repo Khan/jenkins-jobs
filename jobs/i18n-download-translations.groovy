@@ -6,7 +6,7 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -25,7 +25,7 @@ most in need of an update.""",
 
 
 def runScript() {
-   onMaster('1h') {
+   withTimeout('1h') {
       // We run in the i18n-update-strings workspace.  That way we
       // don't need our own copy of webapp.  This matters because
       // these jobs update intl/translations, which is huge.
@@ -84,7 +84,8 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "2h"]) {
    def updatedLocales = '';
 
    // We modify files in this workspace -- which is not our own! -- so

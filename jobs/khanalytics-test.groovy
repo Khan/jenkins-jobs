@@ -12,7 +12,7 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 new Setup(steps
 
@@ -83,7 +83,7 @@ def _setupKhanalytics() {
 }
 
 def runTests() {
-    onMaster('10m') {
+    withTimeout('10m') {
         _setupKhanalytics();
         _withPy3Venv() {
             dir("khanalytics") {
@@ -106,7 +106,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED', 'SUCCESS']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "5h"]) {
     initializeGlobals();
     runTests();
 }

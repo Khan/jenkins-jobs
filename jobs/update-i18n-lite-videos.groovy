@@ -9,7 +9,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -21,7 +21,7 @@ new Setup(steps
 
 
 def updateRepo() {
-   onMaster('1h') {
+   withTimeout('1h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
 
       // We do our work in the 'translations' branch.
@@ -42,7 +42,7 @@ def updateRepo() {
 
 
 def runAndCommit() {
-   onMaster('22h') {
+   withTimeout('22h') {
       def GIT_SHA1 = null;
       withSecrets() {
          dir("webapp") {
@@ -66,7 +66,8 @@ notify([slack: [channel: '#i18n',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "23h"]) {
    stage("Updating webapp repo") {
       updateRepo();
    }

@@ -12,7 +12,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 new Setup(steps
@@ -214,7 +214,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
 }
 
 def deploy() {
-   onMaster('90m') {
+   withTimeout('90m') {
       alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
 
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
@@ -261,7 +261,8 @@ notify([slack: [channel: SLACK_CHANNEL,
                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "2h"]) {
    verifyVersion();
    stage("Deploying") {
       deploy();

@@ -12,7 +12,7 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 // The easiest setup ever! -- we just use the defaults.
@@ -20,7 +20,7 @@ new Setup(steps).apply();
 
 
 def installDeps() {
-   onMaster('15m') {
+   withTimeout('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/alert-context", "master");
 
       // These secrets are installed above the workspace when we run the
@@ -36,7 +36,7 @@ def installDeps() {
 
 
 def deploy() {
-   onMaster('1h') {
+   withTimeout('1h') {
       // This is also installed via setup.sh.
       def AWS_ACCESS_KEY_ID = readFile("../aws_access_key").trim();
       def AWS_SECRET_ACCESS_KEY = readFile("../aws_secret").trim();
@@ -58,7 +58,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                        'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "2h"]) {
    stage("Installing deps") {
       installDeps();
    }

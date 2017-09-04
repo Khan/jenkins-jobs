@@ -8,7 +8,7 @@ import org.khanacademy.Setup;
 //import vars.clean
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 new Setup(steps
@@ -46,7 +46,7 @@ TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
 
 
 def installDeps() {
-   onMaster('15m') {
+   withTimeout('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/react-render-server", "master");
 
       dir("react-render-server") {
@@ -66,7 +66,7 @@ def installDeps() {
 
 
 def deploy() {
-   onMaster('90m') {
+   withTimeout('90m') {
       dir("react-render-server") {
          sh("sh -ex ./deploy.sh");
       }
@@ -74,7 +74,7 @@ def deploy() {
 }
 
 def setDefault() {
-   onMaster('90m') {
+   withTimeout('90m') {
       dir("react-render-server") {
          sh("sh -ex ./set_default.sh");
       }
@@ -89,7 +89,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                        'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "5h"]) {
    stage("Installing deps") {
       installDeps();
    }

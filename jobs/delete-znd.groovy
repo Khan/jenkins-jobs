@@ -7,7 +7,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 
 
 new Setup(steps
@@ -37,7 +37,7 @@ def verifyZnd() {
 
 
 def deleteZnd() {
-   onMaster('15m') {
+   withTimeout('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
@@ -53,7 +53,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "30m"]) {
    verifyZnd();
    stage("Deleting") {
       deleteZnd();

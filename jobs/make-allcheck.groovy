@@ -36,16 +36,19 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-// We want to notify that make-allcheck started, but don't need
-// to notify how it did because the sub-jobs will each notify
-// individually.
-notify([slack: [channel: '#1s-and-0s',
-                when: ['STARTED', 'ABORTED']],
-        asana: [project: 'Infrastructure',
-                when: ['FAILURE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+// We want to notify that make-allcheck started, but don't need to
+// notify how it did because the sub-jobs will each notify
+// individually.  We call runWithNotification() instead of the normal
+// call() because we don't need our own executor.
+notify.runWithNotification(
+   [slack: [channel: '#1s-and-0s',
+            when: ['STARTED', 'ABORTED']],
+    asana: [project: 'Infrastructure',
+            when: ['FAILURE']],
+    aggregator: [initiative: 'infrastructure',
+                 when: ['SUCCESS', 'BACK TO NORMAL',
+                        'FAILURE', 'ABORTED', 'UNSTABLE']],
+    timeout: "5h"]) {
    build(job: '../deploy/webapp-test',
          parameters: [
             string(name: 'GIT_REVISION', value: params.GIT_REVISION),

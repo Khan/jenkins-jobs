@@ -5,3 +5,9 @@ Same as `node("master")` but does a bunch of executor-specific setup too.
 2. It enables virtualenv (for python scripts)
 3. It enables access to secrets.py [optional]
 4. It turns on timestamping of all commands run on that node.
+
+This is normally run by `notify()`, and does not need to be called by
+individual job-scripts.  However, if your job-script calls
+`notify.runWithNotification()` instead of the normal `notify()`, it
+will need to call `onMaster` whenever it needs to allocate an executor
+node.

@@ -74,7 +74,8 @@ notify([slack: [channel: '#infrastructure',
                 when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "8h"]) {
    stage("Running script") {
       runScript();
    }

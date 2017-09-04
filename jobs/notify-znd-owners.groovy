@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-tools/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
-//import vars.onMaster
+//import vars.withTimeout
 //import vars.withSecrets
 
 
@@ -25,7 +25,7 @@ new Setup(steps).apply();
 
 
 def runScript() {
-   onMaster('15m') {
+   withTimeout('15m') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need secrets to talk to slack
          dir("webapp") {
@@ -44,7 +44,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                            'FAILURE', 'ABORTED', 'UNSTABLE']],
+        timeout: "1h"]) {
    stage("Notifying") {
       runScript();
    }
