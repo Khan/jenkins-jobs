@@ -1,17 +1,12 @@
 // We use these user-defined steps from vars/:
 //import vars.exec
-//import vars.onMaster
 
 def _getKey(key) {
-   onMaster('1m') {
-      return exec.outputOf(["redis-cli", "--raw", "GET", key]);
-   }
+   return exec.outputOf(["redis-cli", "--raw", "GET", key]);
 }
 
 def _setKey(key) {
-   onMaster('1m') {
-      exec(["redis-cli", "SET", key, "1"]);
-   }
+   exec(["redis-cli", "SET", key, "1"]);
 }
 
 def _singleton(key, storeOnFailure, Closure body) {

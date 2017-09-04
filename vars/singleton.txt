@@ -11,8 +11,5 @@ If the key is null, we always run body().  This can be useful for an
 idiom like this:
     with singleton(params.FORCE ? null : key) { ... }
 
-singleton() should be called outside a node.  It always runs on the
-master node.
-
 The database is reset upon machine restart, and possibly at other
 times, so this should be treated as an optimization step only.

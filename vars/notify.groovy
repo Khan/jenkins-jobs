@@ -146,33 +146,14 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
                        "--summary=${exec.shellEscape(subject)} " +
                        exec.shellEscapeList(extraFlags));
 
-   // We go through great efforts to make this function robust, since
-   // it's how we notify if there are problems and if it fails we don't
-   // get any notifications.  In particular, if onMaster fails, we try
-   // again with a more limited version of onMaster.
-   try {
-      onMaster("1m") {
-         // Sometimes we want to notify before webapp has even been
-         // cloned, at which point secrets aren't available.  So we just
-         // do best-effort.  Presumably this will only happen once, the
-         // first time a new jenkins job is ever run, so I don't worry
-         // about it too much.  TODO(csilvers): instead, move secrets to
-         // some other repo, or clone webapp in withSecrets().
-         withSecrets.ifAvailable() {     // you need secrets to talk to slack
-            sh(shellCommand);
-         }
-      }
-   } catch (e) {
-      // Try again with a more limited version of onMaster.
-      node("master") {
-         timestamps {
-            timeout(time: 1, unit: "MINUTES") {
-               withSecrets.ifAvailable() {
-                  sh(shellCommand);
-               }
-            }
-         }
-      }
+   // Sometimes we want to notify before webapp has even been
+   // cloned, at which point secrets aren't available.  So we just
+   // do best-effort.  Presumably this will only happen once, the
+   // first time a new jenkins job is ever run, so I don't worry
+   // about it too much.  TODO(csilvers): instead, move secrets to
+   // some other repo, or clone webapp in withSecrets().
+   withSecrets.ifAvailable() {     // you need secrets to talk to slack
+      sh(shellCommand);
    }
 }
 

@@ -39,16 +39,14 @@ def checkoutJenkinsTools() {
 // Turn a commit-ish into a sha1.  If a branch name, we assume the
 // branch exists on the remote and get the sha1 from there.  Otherwise
 // if the input looks like a sha1 we just return it verbatim.
-// Otherwise we error.  This should be run outside a node!
+// Otherwise we error.
 def resolveCommitish(repo, commit) {
    def sha1 = null;
    stage("Resolving commit") {
-      node("master") {
-         timeout(1) {
-            def lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
-                                                repo, commit]);
-            sha1 = lsRemoteOutput.split("\t")[0];
-         }
+      timeout(1) {
+         def lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
+                                             repo, commit]);
+         sha1 = lsRemoteOutput.split("\t")[0];
       }
    }
    if (sha1) {
