@@ -2,7 +2,10 @@
 
 // This must be called from workspace-root.
 def call(Closure body) {
-   if (env.VIRTUAL_ENV) {    // we're already in a virtualenv
+   if (env.VIRTUAL_ENV && fileExists(env.VIRTUAL_ENV)) {
+      // we're already in a virtualenv.  The fileExists is necessary
+      // because a node can inherit the environment from its parent
+      // and have an inaccuarte VIRTUAL_ENV.
       echo("(Not activating virtualenv; already active at ${env.VIRTUAL_ENV})");
       body();
       return;
