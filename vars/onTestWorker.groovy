@@ -23,8 +23,15 @@ def call(def timeoutString, Closure body) {
                      ["curl", "-s",
                       "http://169.254.169.254/latest/meta-data/public-ipv4"]);
                   echo("Running on ec2 instance ${instanceId} at ip ${ip}");
-
-                  body();
+                  // TODO(csilvers): figure out how to get the worker
+                  // to source the .bashrc like it did before.  Now I
+                  // think it's inheriting the PATH from the parent instead.
+                  withEnv(["PATH=/usr/local/google_appengine:" +
+                           "/home/ubuntu/google-cloud-sdk/bin:" +
+                           "$HOME/git-bigfile/bin:" +
+                           "$PATH") {
+                     body();
+                  }
                }
             }
          }
