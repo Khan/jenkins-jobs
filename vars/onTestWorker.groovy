@@ -28,8 +28,8 @@ def call(def timeoutString, Closure body) {
                   // think it's inheriting the PATH from the parent instead.
                   withEnv(["PATH=/usr/local/google_appengine:" +
                            "/home/ubuntu/google-cloud-sdk/bin:" +
-                           "$HOME/git-bigfile/bin:" +
-                           "$PATH") {
+                           "${env.HOME}/git-bigfile/bin:" +
+                           "${env.PATH}") {
                      body();
                   }
                }
