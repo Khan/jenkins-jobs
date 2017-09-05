@@ -32,6 +32,12 @@ GRACE_PERIOD=7
 JENKINS_HOME=`grep ^jenkins: /etc/passwd | cut -d: -f6`
 
 
+# TODO(csilvers): fix this script to correctly deal with the fact we
+# have multiple banks of test-workers now.  And also two different
+# types of worker machines.
+exit 0
+
+
 # Don't bother doing anything if make check hasn't been running for
 # at least $GRACE_PERIOD minutes.
 GT_GRACE_PERIOD=`expr "$GRACE_PERIOD" - 1`

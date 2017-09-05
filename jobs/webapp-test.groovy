@@ -264,7 +264,7 @@ def analyzeResults() {
    withTimeout('5m') {
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
-      sh("rm /tmp/make_check.run");
+      sh("rm -f /tmp/make_check.run");
 
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {

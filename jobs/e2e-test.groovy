@@ -145,7 +145,7 @@ def determineSplits() {
    ];
 
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-      // A restriction in `parallel`: need to redefine the index var here.
+     // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["sync-webapp-${workerNum}"] = {
          onTestWorker('10m') {      // timeout
@@ -275,14 +275,14 @@ def analyzeResults() {
    withTimeout('5m') {
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
-      sh("rm /tmp/make_check.run");
+      sh("rm -f /tmp/make_check.run");
 
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
             unstash("results ${i}");
          } catch (e) {
-            // We'll mark the actual error next.
+           // We'll mark the actual error next.
          }
       }
 

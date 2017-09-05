@@ -157,7 +157,7 @@ def publishResults() {
    withTimeout('10m') {
       // Once we get here, we're done using the worker machines,
       // so let our cron overseer know.
-      sh("rm /tmp/make_check.run");
+      sh("rm -f /tmp/make_check.run");
 
       def numWorkerErrors = 0;
 
