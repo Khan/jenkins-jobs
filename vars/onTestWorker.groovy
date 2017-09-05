@@ -29,7 +29,7 @@ def call(def timeoutString, Closure body) {
                   withEnv(["PATH=/usr/local/google_appengine:" +
                            "/home/ubuntu/google-cloud-sdk/bin:" +
                            "${env.HOME}/git-bigfile/bin:" +
-                           "${env.PATH}") {
+                           "${env.PATH}"]) {
                      body();
                   }
                }
