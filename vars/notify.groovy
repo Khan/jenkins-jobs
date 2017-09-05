@@ -146,6 +146,16 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
                        "--summary=${exec.shellEscape(subject)} " +
                        exec.shellEscapeList(extraFlags));
 
+   // Do our best to make sure alertlib has its deps installed.
+   try {
+      dir("jenkins-tools/alertlib") {
+         sh("make deps");
+      }
+   } catch (e) {
+      echo("Unable to install dependencies for alertlib, but continuing...");
+   }
+
+
    // Sometimes we want to notify before webapp has even been
    // cloned, at which point secrets aren't available.  So we just
    // do best-effort.  Presumably this will only happen once, the
