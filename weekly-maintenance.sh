@@ -256,11 +256,11 @@ clean_ka_static() {
 
 backup_network_config() {
     # TODO(csilvers): figure out how to automate the runs of the other dirs too
-    NETWORK_CONFIG_BACKUP_DIRS="bigquery gce gcs s3"
+    NETWORK_CONFIG_BACKUP_DIRS="bigquery dns gce gcs s3"
     for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
         (
             cd "network-config/$dir"
-            make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg
+            make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default
         )
     done
 
