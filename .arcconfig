@@ -1,5 +1,5 @@
 {
-    "project_id": "jenkins-tools",
+    "project_id": "jenkins-jobs",
     "conduit_uri": "https://phabricator.khanacademy.org/",
     "lint.engine": "ArcanistConfigurationDrivenLintEngine"
 }

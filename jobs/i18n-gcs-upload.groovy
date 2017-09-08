@@ -10,9 +10,9 @@
 
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -70,8 +70,8 @@ def syncRepos() {
       // TODO(csilvers): don't use safe_git.sh internals.
       dir("webapp/intl/translations") {
          withEnv(["WORKSPACE_ROOT=../../.."]) {
-            exec(["../../../jenkins-tools/safe_git.sh", "_fetch"]);
-            exec(["../../../jenkins-tools/safe_git.sh",
+            exec(["../../../jenkins-jobs/safe_git.sh", "_fetch"]);
+            exec(["../../../jenkins-jobs/safe_git.sh",
                   "_destructive_checkout", params.TRANSLATIONS_COMMIT])
          }
       }
@@ -88,7 +88,7 @@ def runScript() {
             // pieces, so we can put using-a-lot-of-memory only around
             // the parts that use a lot of memory.
             lock("using-a-lot-of-memory") {
-               sh("jenkins-tools/i18n-gcs-upload.sh");
+               sh("jenkins-jobs/i18n-gcs-upload.sh");
             }
          }
       }

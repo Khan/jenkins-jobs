@@ -31,8 +31,8 @@
 export FORCE_COMMIT=1
 
 # Sync the repos we're going to be pushing changes to.
-jenkins-tools/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "master"
-jenkins-tools/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
+jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "master"
+jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
 
 ( cd webapp && make deps )
 
@@ -52,7 +52,7 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    ) | jenkins-tools/safe_git.sh commit_and_push webapp -a -F -
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -a -F -
 }
 
 svgcrush() {
@@ -70,7 +70,7 @@ svgcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    ) | jenkins-tools/safe_git.sh commit_and_push webapp -a -F -
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -a -F -
 }
 
 
@@ -264,7 +264,7 @@ backup_network_config() {
         )
     done
 
-    jenkins-tools/safe_git.sh commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
+    jenkins-jobs/safe_git.sh commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
 }
 
 

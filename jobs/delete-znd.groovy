@@ -1,9 +1,9 @@
 // Delete a non-default (znd) version of our application on App Engine.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify

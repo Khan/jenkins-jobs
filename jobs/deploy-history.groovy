@@ -5,7 +5,7 @@
 @Library("kautils")
 
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -57,7 +57,7 @@ def _sendChangelog(def startCommitish, def endCommitish) {
 }
 
 def _sendSimpleMessage(def msg) {
-    def args = ["jenkins-tools/alertlib/alert.py",
+    def args = ["jenkins-jobs/alertlib/alert.py",
                 "--slack=${params.SLACK_CHANNEL}",
                 "--chat-sender=${CHAT_SENDER}",
                 "--icon-emoji=${EMOJI}",

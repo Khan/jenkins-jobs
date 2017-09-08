@@ -3,7 +3,7 @@
 // This really just delegates to webapp-test for various branches.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 
 

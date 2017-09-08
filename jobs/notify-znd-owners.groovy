@@ -11,9 +11,9 @@
 // to make their username part of the znd's name.)
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout

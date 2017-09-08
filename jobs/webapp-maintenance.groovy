@@ -7,9 +7,9 @@
 // etc.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -26,7 +26,7 @@ new Setup(steps
 def runScript() {
    withTimeout('6h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      sh("jenkins-tools/weekly-maintenance.sh");
+      sh("jenkins-jobs/weekly-maintenance.sh");
    }
 }
 

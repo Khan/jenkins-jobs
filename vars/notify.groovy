@@ -141,14 +141,14 @@ ${_logSuffix()}
 // Given all necessary arguments, builds shellcommand and sends to alertlib.
 def _sendToAlertlib(subject, severity, body, extraFlags) {
    def shellCommand = ("echo ${exec.shellEscape(body)} | " +
-                       "jenkins-tools/alertlib/alert.py " +
+                       "jenkins-jobs/alertlib/alert.py " +
                        "--severity=${exec.shellEscape(severity)} " +
                        "--summary=${exec.shellEscape(subject)} " +
                        exec.shellEscapeList(extraFlags));
 
    // Do our best to make sure alertlib has its deps installed.
    try {
-      dir("jenkins-tools/alertlib") {
+      dir("jenkins-jobs/alertlib") {
          sh("make deps");
       }
    } catch (e) {

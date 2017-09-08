@@ -1,9 +1,9 @@
 // Pipeline job that downloads translations from crowdin.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.notify
 //import vars.withTimeout
@@ -65,7 +65,7 @@ def runScript() {
                withEnv(["DOWNLOAD_TRANSLATIONS=1",
                         "NUM_LANGS_TO_DOWNLOAD=1",
                         "OVERRIDE_LANGS=${overrideLangs}"]) {
-                  sh("jenkins-tools/update-translations.sh")
+                  sh("jenkins-jobs/update-translations.sh")
                }
             }
          }

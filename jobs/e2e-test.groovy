@@ -1,9 +1,9 @@
 // The pipeline job for e2e tests.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -182,7 +182,7 @@ def _runOneTest(splitId) {
 
 
 def runAndroidTests() {
-   def slackArgsWithoutChannel = ["jenkins-tools/alertlib/alert.py",
+   def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
                                   "--chat-sender=Testing Turtle",
                                   "--icon-emoji=:turtle:"];
    def slackArgs = (slackArgsWithoutChannel +
@@ -195,7 +195,7 @@ def runAndroidTests() {
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
-               sh("jenkins-tools/run_android_db_generator.sh");
+               sh("jenkins-jobs/run_android_db_generator.sh");
                sh("echo ${exec.shellEscape(successMsg)} | " +
                   "${exec.shellEscapeList(slackArgs)} --severity=info");
             } catch (e) {

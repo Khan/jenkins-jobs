@@ -9,9 +9,9 @@
 // to do it.  This jenkins job, in fact.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -139,7 +139,7 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
-            sh("cd webapp; ../jenkins-tools/timeout_output.py 45m " +
+            sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
                "tools/determine_tests_for.py " +
                "-o ../tests_for.${workerNum}.json " +
                "- < ../test-splits.${workerNum}.txt");

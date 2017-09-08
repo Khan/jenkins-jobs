@@ -69,7 +69,7 @@ _alert() {
         msg="$@"
     fi
     echo "$msg" \
-        | "$WORKSPACE_ROOT"/jenkins-tools/alertlib/alert.py \
+        | "$WORKSPACE_ROOT"/jenkins-jobs/alertlib/alert.py \
               --severity="$severity" $html \
               --slack "$SLACK_CHANNEL" --logs
 }

@@ -1,9 +1,9 @@
 // Pipeline job to download captions from YouTube, then upload them production.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -38,7 +38,7 @@ def runScript() {
 
       withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
          withSecrets() {   // We need sleep-secret to post transcripts to prod
-            sh("jenkins-tools/sync-captions.sh");
+            sh("jenkins-jobs/sync-captions.sh");
          }
       }
    }

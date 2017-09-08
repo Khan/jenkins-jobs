@@ -4,9 +4,9 @@
 // * Triggers running the i18n-gcs-upload Jenkins job.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
@@ -35,7 +35,7 @@ def runScript() {
       lock("using-a-lot-of-memory") {
          withSecrets() {
             withEnv(["UPDATE_STRINGS=1"]) {
-               sh("jenkins-tools/update-translations.sh")
+               sh("jenkins-jobs/update-translations.sh")
             }
          }
       }

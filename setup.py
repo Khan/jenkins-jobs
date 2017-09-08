@@ -3,7 +3,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='jenkins-tools',
+    name='jenkins-jobs',
     version='1.0',
     author='Khan Academy',
     packages=find_packages(),

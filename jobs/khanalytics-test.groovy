@@ -9,7 +9,7 @@
 @Library("kautils")
 
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout

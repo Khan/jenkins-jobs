@@ -5,9 +5,9 @@
 // to test something before deploying it "for realz".
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
@@ -202,7 +202,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
     def msg = _interpolateString(
         "${_currentUser()}: ${rawMsg}", interpolationArgs);
 
-    def args = ["jenkins-tools/alertlib/alert.py",
+    def args = ["jenkins-jobs/alertlib/alert.py",
                 "--slack=${SLACK_CHANNEL}",
                 "--chat-sender=${CHAT_SENDER}",
                 "--icon-emoji=${EMOJI}",

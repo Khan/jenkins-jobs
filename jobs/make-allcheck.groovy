@@ -3,7 +3,7 @@
 // This just calls a few other jobs in order to do the running.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 //import vars.notify
 

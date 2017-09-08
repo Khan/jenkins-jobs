@@ -8,7 +8,7 @@
 // put all the slack messaging here in a separate file.
 //
 // deploy-webapp.groovy can use this via something like:
-//    alert = load("jenkins-tools/deploy-webapp_slackmsgs.groovy");
+//    alert = load("jenkins-jobs/deploy-webapp_slackmsgs.groovy");
 // and then
 //    _alert(alert.STARTING_DEPLOY, [deployKind: kind, branch: GIT_COMMIT]);
 // The second parameter is a dict used to interpolate variables into

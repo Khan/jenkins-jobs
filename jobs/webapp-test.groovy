@@ -7,9 +7,9 @@
 // how parameters are specified.
 
 @Library("kautils")
-// Classes we use, under jenkins-tools/src/.
+// Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-// Vars we use, under jenkins-tools/vars/.  This is just for documentation.
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
@@ -236,7 +236,7 @@ def runTests() {
             }
 
             try {
-               sh("cd webapp; ../jenkins-tools/timeout_output.py 45m " +
+               sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
                   "tools/runtests.py " +
                   "--pickle " +
                   "--pickle-file=../test-results.${workerNum}.pickle " +

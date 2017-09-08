@@ -3,7 +3,7 @@
 # Downloads YouTube FanCaptions and uploads them to production.
 #
 # This script must be called from workspace-root (i.e., a folder with both
-# jenkins-tools and webapp)
+# jenkins-jobs and webapp)
 #
 # Data flow:
 #  - Captions are created using YouTube FanCaptions.
@@ -15,7 +15,7 @@
 #  - clone git@github.com:Khan/webapp-i18n-data into
 #    /mnt/dropbox/Dropbox/webapp-i18n-data
 #  - cd into workspace-root (see above)
-#  - env SKIP_DROPBOX_SYNC=1 SKIP_PROD_UPLOAD=1 ./jenkins-tools/sync-captions.sh
+#  - env SKIP_DROPBOX_SYNC=1 SKIP_PROD_UPLOAD=1 ./jenkins-jobs/sync-captions.sh
 
 # Unofficial strict mode -- http://redsymbol.net/articles/unofficial-bash-strict-mode/
 # Also, we set -x to echo all commands for easier debugging
@@ -54,7 +54,7 @@ tools="`pwd`/webapp/tools"
 "$tools/get_video_list.py" > "$video_list_path"
 
 if [[ -z "$SKIP_DROPBOX_SYNC" ]]; then
-    jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
+    jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
 fi
 
 echo "Starting at stage: $SKIP_TO_STAGE"

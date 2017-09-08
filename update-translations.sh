@@ -70,19 +70,19 @@ DATA_DIR=`readlink -f /mnt/dropbox/Dropbox/webapp-i18n-data`
 # Start dropbox service if it is not running
 ! HOME=/mnt/dropbox dropbox.py running || HOME=/mnt/dropbox dropbox.py start
 
-jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/upload_to_crowdin
-jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/download_from_crowdin
-jenkins-tools/busy_wait_on_dropbox.sh "$DATA_DIR"/crowdin_data.pickle
+jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR"/upload_to_crowdin
+jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR"/download_from_crowdin
+jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR"/crowdin_data.pickle
 
 echo "Dropbox folders are ready and fully synched"
 
 echo "Updating the webapp repo."
 # We do our work in the 'translations' branch.
-jenkins-tools/safe_git.sh pull_in_branch webapp translations
+jenkins-jobs/safe_git.sh pull_in_branch webapp translations
 # ...which we want to make sure is up-to-date with master.
-jenkins-tools/safe_git.sh merge_from_master webapp translations
+jenkins-jobs/safe_git.sh merge_from_master webapp translations
 # We also make sure the intl/translations sub-repo is up to date.
-jenkins-tools/safe_git.sh pull webapp/intl/translations
+jenkins-jobs/safe_git.sh pull webapp/intl/translations
 
 TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/pofiles
 APPROVED_TRANSLATIONS_DIR=`pwd`/webapp/intl/translations/approved_pofiles
@@ -234,7 +234,7 @@ export FORCE_COMMIT=1
 cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
-jenkins-tools/safe_git.sh commit_and_push_submodule \
+jenkins-jobs/safe_git.sh commit_and_push_submodule \
     webapp intl/translations \
     -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
     -m "(locales: $updated_locales)" \
