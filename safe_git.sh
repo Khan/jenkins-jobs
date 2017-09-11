@@ -418,6 +418,7 @@ commit_and_push_submodule() {
 # $3: the commit-ish (branch or sha1) to merge into $2.
 # $4+ (optional): submodules to update after the merge.  If left out, update
 #     all submodules.  If the string 'no_submodules', update no submodules.
+# If $2 is not HEAD, then we push it to master
 # TODO(benkraft): wrap this whole assembly in failure-handling, so that if
 # something unexpected fails, at least it doesn't fail silently.
 merge_from_branch() {
@@ -444,7 +445,8 @@ merge_from_branch() {
     # Finally, it makes sure the ref exists locally, so we can do
     # 'git rev-parse branch' rather than 'git rev-parse origin/branch'
     # (though only if we're given a branch rather than a commit as $2).
-    if git ls-remote --exit-code . "origin/$merge_into"; then
+    if [ "$merge_into" != "HEAD" ] && \
+           git ls-remote --exit-code . "origin/$merge_into"; then
         git fetch origin "+refs/heads/$merge_into:refs/remotes/origin/$merge_into"
         # The '--' is needed if merge_into is both a branch and
         # directory, e.g. 'sat'.  '--' says 'treat it as a branch'.
@@ -483,10 +485,12 @@ merge_from_branch() {
 
     # There's a race condition if someone commits to this branch while
     # this script is running, so check for that.
-    if ! git push origin "$merge_into"; then
-        git reset --hard "$head_commit"
-        _alert error "Someone committed to $merge_into while we've been deploying!"
-        exit 1
+    if [ "$merge_into" != "HEAD" ]; then
+        if ! git push origin "$merge_into"; then
+            git reset --hard "$head_commit"
+            _alert error "Someone committed to $merge_into while we've been deploying!"
+            exit 1
+        fi
     fi
 
     _update_submodules "$@"

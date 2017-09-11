@@ -28,7 +28,9 @@ new Setup(steps
 ).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring
-to such a commit-hash.""",
+to such a commit-hash.  Can also be a list of branches to deploy separated
+by `+` ('br1+br2+br3').  In that case we will merge the branches together --
+dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
 ).addChoiceParam(
@@ -100,19 +102,29 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-GIT_SHA1 = null;
+// GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
+GIT_SHA1S = null;
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
+   GIT_SHA1S = [];
+   def allBranches = params.GIT_REVISION.split(/\+/);
+   for (def i = 0; i < allBranches.size(); i++) {
+      def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                        allBranches[i].trim());
+      GIT_SHA1S += [sha1];
+   }
 }
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1S[0]);
+   for (def i = 1; i < GIT_SHA1S.size(); i++) {
+      kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
+   }
+
    dir("webapp") {
       clean(params.CLEAN);
       sh("make deps");
@@ -231,10 +243,6 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
-            dir("webapp") {
-               clean(params.CLEAN);
-            }
-
             try {
                sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
                   "tools/runtests.py " +
@@ -333,7 +341,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         timeout: "5h"]) {
    initializeGlobals();
 
-   def key = ["rGW${GIT_SHA1}", params.TEST_TYPE, params.MAX_SIZE];
+   def key = ["rGW${GIT_SHA1S.join('+')}", params.TEST_TYPE, params.MAX_SIZE];
    singleton(params.FORCE ? null : key.join(":")) {
       // We run on the test-workers a few different times during this
       // job, and we want to make sure no other job sneaks in between
