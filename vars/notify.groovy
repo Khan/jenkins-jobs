@@ -272,6 +272,10 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
                      "--aggregator-resource=jenkins",
                      "--aggregator-event-name=${event_name}"];
 
+   // If job is successful mark alerta alert resolved
+   if (!_failed(status)) {
+      extraFlags += ["--aggregator-resolve"];
+   }
    _sendToAlertlib(subject, severity, body, extraFlags);
 }
 

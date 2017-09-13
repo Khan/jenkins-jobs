@@ -95,6 +95,7 @@ elif [ "$actual_workers" -eq "$expected_workers" ]; then
                     --aggregator "infrastructure" \
                     --aggregator-resource "jenkins" \
                     --aggregator-event-name "Workers Offline" \
+                    --aggregator-resolve \
                     --severity "info"
 Jenkins machines functioning as expected.
 EOF
