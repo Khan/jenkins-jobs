@@ -38,9 +38,10 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 // We want to notify that make-allcheck started, but don't need to
 // notify how it did because the sub-jobs will each notify
-// individually.  We call runWithNotification() instead of the normal
-// call() because we don't need our own executor.
-notify.runWithNotification(
+// individually.
+// TODO(csilvers): use notify.runWithNotification instead, and
+//     just allocate the executor in the notify clean-up steps.
+notify(
    [slack: [channel: '#1s-and-0s',
             when: ['STARTED', 'ABORTED']],
     asana: [project: 'Infrastructure',
