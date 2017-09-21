@@ -136,6 +136,16 @@ def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
    }
 }
 
+// repoDir is the root of the repo that holds the submodule.
+// submoduleDir is the dir of the submodule, relative to repoDir.
+def safeUpdateSubmodulePointerToMaster(repoDir, submoduleDir) {
+    // Automatic commits from jenkins don't need a test plan.
+    withEnv(["FORCE_COMMIT=1"]) {
+        exec(["jenkins-jobs/safe_git.sh", "update_submodule_pointer_to_master",
+              repoDir, submoduleDir]);
+    }
+}
+
 // Submodules is as in _submodulesArg`.
 def safeMergeFromBranch(dir, commitToMergeInto, branchToMerge, submodules=[]) {
    // This job talks directly to slack on error (for better or worse),
@@ -146,6 +156,7 @@ def safeMergeFromBranch(dir, commitToMergeInto, branchToMerge, submodules=[]) {
            + _submodulesArg(submodules));
    }
 }
+
 
 // Submodules is as in _submodulesArg`.
 def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {

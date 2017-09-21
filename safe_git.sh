@@ -355,8 +355,12 @@ push() {
 }
 
 # This updates our repo to point to the current master of the given subrepo.
-# $1: the directory of the submodule
+# $1: the directory of the repository
+# $2: the directory of the submodule relative to "$1"
 update_submodule_pointer_to_master() {
+    (
+    cd "$1"
+    shift
     dir="$1"
     shift
     branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
@@ -369,6 +373,7 @@ update_submodule_pointer_to_master() {
         timeout 10m git commit -m "$dir substate [auto]"
         push .
     fi
+    )
 }
 
 
@@ -403,10 +408,7 @@ commit_and_push_submodule() {
     shift
     commit_and_push "$repo_dir/$submodule_dir" "$@"
 
-    (
-        cd "$repo_dir"
-        update_submodule_pointer_to_master "$submodule_dir"
-    )
+    update_submodule_pointer_to_master "$repo_dir" "$submodule_dir"
 }
 
 

@@ -28,7 +28,7 @@ new Setup(steps
    "#future-of-pipelines"
 ).apply();
 
-REPOSITORY = "git@github.com:Khan/khanalytics";
+REPOSITORY = "git@github.com:Khan/khanalytics-private";
 
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
@@ -72,7 +72,7 @@ def _setupKhanalytics() {
     kaGit.safeSyncTo("git@github.com:Khan/khan-linter", "master");
     kaGit.safeSyncTo(REPOSITORY, GIT_SHA1);
     _withPy3Venv() {
-        dir("khanalytics") {
+        dir("khanalytics-private/khanalytics") {
             sh("pip install -r ./requirements_dev.txt");
             dir("core/monitor/src") {
                 // TODO(colin): move this into `make deps`?
@@ -86,8 +86,8 @@ def runTests() {
     withTimeout('10m') {
         _setupKhanalytics();
         _withPy3Venv() {
-            dir("khanalytics") {
-                sh("../khan-linter/bin/ka-lint --blacklist=yes");
+            dir("khanalytics-private/khanalytics") {
+                sh("../../khan-linter/bin/ka-lint --blacklist=yes");
                 dir("core/monitor/src") {
                     // TODO(colin): this should be `make flow` but that assumes
                     // flow is installed globally. Fix.
