@@ -470,7 +470,7 @@ def deployToGAE() {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
-               "--no-browser", "--no-up", "--clean-versions",
+               "--no-browser", "--no-up",
                "--slack-channel=${SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}"];
    args += params.FORCE ? ["--force-deploy"] : [];
@@ -551,6 +551,15 @@ def deployAndReport() {
     }
 }
 
+
+def spawnDeleteVersions() {
+    stage("Spawn version deletion job") {
+        build(job: 'audit-gae-versions',
+              wait: false,       // the whole point of using a separate job!
+              propagate: false,  // errors are nonfatal
+              parameters: [string(name: 'GIT_REVISION', value: GIT_SHA1)]);
+    }
+}
 
 def promptForSetDefault() {
    withTimeout('1m') {
@@ -881,6 +890,13 @@ notify([slack: [channel: '#1s-and-0s-deploys',
    } catch (e) {
       finishWithFailure(e.toString());
       throw e;
+   } finally {
+      // We do this here so as to give us as much time as possible before
+      // deleting the old versions, but making sure it still happens even in
+      // failure cases, and happens before the very end of the job (when it is
+      // more likely to run in parallel to the next deploy, potentially causing
+      // us to delete a version sooner than necessary).
+      spawnDeleteVersions();
    }
 
    if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {

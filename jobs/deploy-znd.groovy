@@ -135,7 +135,7 @@ def deployToGAE() {
    def args = ["deploy/deploy_to_gae.py",
                "--version=${canonicalVersion()}",
                "--modules=${params.MODULES}",
-               "--no-browser", "--no-up", "--clean-versions",
+               "--no-browser", "--no-up",
                "--slack-channel=${SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
