@@ -531,6 +531,24 @@ def deployAndReport() {
     _alert(alertMsgs.JUST_DEPLOYED,
            [deployUrl: DEPLOY_URL,
             version: COMBINED_VERSION]);
+
+    // (Note: we run the e2e tests even for tools-only deploys, to make
+    // sure the deploy doesn't break the e2e test system.)
+    // TODO(csilvers): remove "wait: false"?  It means people would have to
+    // wait for e2e tests to finish before being able to set default, and
+    // we'd have to refactor `deploy_pipeline manual-test`.
+    stage("First e2e test") {
+        build(job: 'e2e-test',
+              wait: false,
+              propagate: false,  // e2e errors are not fatal for a deploy
+              parameters: [
+                  string(name: 'URL', value: DEPLOY_URL),
+                  string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
+                  string(name: 'GIT_REVISION', value: GIT_SHA1),
+                  booleanParam(name: 'FAILFAST', value: false),
+                  string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
+              ]);
+    }
 }
 
 
@@ -859,28 +877,6 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                "failFast": true,
             );
          }
-      }
-
-      // (Note: we run the e2e tests even for tools-only deploys, to make
-      // sure the deploy doesn't break the e2e test system.)  In theory
-      // we can start the e2e tests as soon as deployToGAE()/deployToGCS()
-      // finish, but since the e2e tests use the same machines as the
-      // (unit) tests, we might as well just wait until both complete
-      // before doing this.  TODO(csilvers): remove "wait: false"?  It
-      // means people would have to wait for e2e tests to finish before
-      // being able to set default, and we'd have to refactor
-      // `deploy_pipeline manual-test`.
-      stage("First e2e test") {
-         build(job: 'e2e-test',
-               wait: false,
-               propagate: false,  // e2e errors are not fatal for a deploy
-               parameters: [
-                  string(name: 'URL', value: DEPLOY_URL),
-                  string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                  string(name: 'GIT_REVISION', value: GIT_SHA1),
-                  booleanParam(name: 'FAILFAST', value: false),
-                  string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
-               ]);
       }
    } catch (e) {
       finishWithFailure(e.toString());
