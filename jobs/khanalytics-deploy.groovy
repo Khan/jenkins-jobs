@@ -39,6 +39,7 @@ def cloneKhanalyticsPrivate() {
 }
 
 def substateKhanalytics() {
+    kaGit.safePull("khanalytics-private/khanalytics");
     kaGit.safeUpdateSubmodulePointerToMaster('khanalytics-private', 'khanalytics');
 }
 
