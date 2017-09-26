@@ -39,6 +39,10 @@ def cloneKhanalyticsPrivate() {
 }
 
 def substateKhanalytics() {
+    // TODO(colin): my reading of the code was that the code to update the
+    // submodule pointer should have done this pull, but empirically it's not
+    // happening. Figure out what's going on.
+    kaGit.safePull("khanalytics-private/khanalytics");
     kaGit.safeUpdateSubmodulePointerToMaster('khanalytics-private', 'khanalytics');
 }
 
