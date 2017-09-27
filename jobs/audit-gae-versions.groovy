@@ -35,6 +35,8 @@ def deleteVersions() {
          def args = ["deploy/audit_gae_versions.py"]
          if (params.DRY_RUN) {
             args += ["--dry_run"];
+         } else {
+            args += ["--force"];
          }
          exec(args);
       }
