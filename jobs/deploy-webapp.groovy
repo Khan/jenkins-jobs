@@ -762,6 +762,7 @@ def finishWithSuccess() {
             try {
                exec(["git", "merge", GIT_SHA1]);
             } catch (e) {
+               echo("FATAL ERROR running 'git merge ${GIT_SHA1}': ${e}");
                // Best-effort attempt to abort.  We ignore the status code.
                exec.statusOf(["git", "merge", "--abort"]);
                throw e;
@@ -772,6 +773,7 @@ def finishWithSuccess() {
             try {
                exec(["git", "push", "--tags", "origin", "master"]);
             } catch (e) {
+               echo("FATAL ERROR running 'git push': ${e}");
                // Best-effort attempt to reset.  We ignore the status code.
                exec.statusOf(["git", "reset", "--hard", headCommit]);
                throw e;
@@ -779,6 +781,7 @@ def finishWithSuccess() {
 
             echo("Done merging ${branchName} into master");
          } catch (e) {
+            echo("FATAL ERROR merging to master: ${e}");
             _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
                    [combinedVersion: COMBINED_VERSION,
                     branch: params.GIT_REVISION]);
@@ -888,6 +891,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
          }
       }
    } catch (e) {
+      echo("FATAL ERROR deploying and testing: ${e}");
       finishWithFailure(e.toString());
       throw e;
    } finally {
@@ -911,6 +915,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
             promptToFinish();
          }
       } catch (e) {
+         echo("FATAL ERROR promoting and monitoring and prompting: ${e}");
          finishWithFailure(e.toString());
          throw e;
       }
