@@ -825,10 +825,10 @@ def finishWithFailure(why) {
       }
 
       // Have to roll back.
-      _alert(alertMsgs.ROLLING_BACK,
-             [rollbackToAsVersion: rollbackToAsVersion,
-              gitTag: GIT_TAG]);
       try {
+         _alert(alertMsgs.ROLLING_BACK,
+                [rollbackToAsVersion: rollbackToAsVersion,
+                 gitTag: GIT_TAG]);
          dir("webapp") {
             exec(["deploy/rollback.py",
                   "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
