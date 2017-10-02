@@ -47,8 +47,8 @@ pngcrush() {
         echo
         echo "| size % | old size | new size | filename"
         git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:"$filename" | wc -c`
-            new_size=`cat "$filename" | wc -c`
+            old_size=`git show HEAD:$filename | wc -c`
+            new_size=`cat $filename | wc -c`   # git shell-escapes `filename`!
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
@@ -65,8 +65,8 @@ svgcrush() {
         echo
         echo "| size % | old size | new size | filename"
         git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:"$filename" | wc -c`
-            new_size=`cat "$filename" | wc -c`
+            old_size=`git show HEAD:$filename | wc -c`
+            new_size=`cat $filename | wc -c`      # git shell-escapes filename!
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
