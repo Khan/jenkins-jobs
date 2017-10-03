@@ -3,6 +3,26 @@
 //import vars.withTimeout
 //import vars.withVirtualenv
 
+// How many test-workers we run in parallel, by default.
+// In theory, every job can decide the right number of worker machines
+// it needs.  But in practice, there's not much point because of the
+// way the lockable-resources jenkins plugin works: it only lets
+// you allocate fixed-sized "banks" of worker machines.  (There's
+// an open issue to give it more flexibility, at which point having
+// this default may make less sense.)  This constant says how big
+// each "bank" is.
+//
+// If you update this, you'll want to update jenkins to match: go to
+//    https://jenkins.khanacademy.org/configure
+// First, search for "Lockable Resources" and see how many banks
+// of test-workers we have (the highest `test-workers-#` you see).
+// Then search for "Amazon EC2" and then click on "Advanced".
+// Then search for "Instance Cap".  Set it to
+//    DEFAULT_NUM_WORKER_MACHINES * |number of test-worker banks|
+// You should do that *before* deploying any changes here.
+DEFAULT_NUM_WORKER_MACHINES = 10;
+
+
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.
 def call(def timeoutString, Closure body) {

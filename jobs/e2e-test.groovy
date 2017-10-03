@@ -34,7 +34,7 @@ when it's equal to the <code>Instance Cap</code> value for
 the <code>ka-test worker</code> ec2 setup at
 <a href=\"/configure\">the Jenkins configure page</a>.  You'll need
 to click on 'advanced' to see the instance cap.""",
-   "6"
+   onTestWorker.DEFAULT_NUM_WORKER_MACHINES.toString()
 
 ).addStringParam(
    "JOBS_PER_WORKER",
