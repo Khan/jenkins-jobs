@@ -18,9 +18,11 @@
 // of test-workers we have (the highest `test-workers-#` you see).
 // Then search for "Amazon EC2" and then click on "Advanced".
 // Then search for "Instance Cap".  Set it to
-//    DEFAULT_NUM_WORKER_MACHINES * |number of test-worker banks|
+//    defaultNumWorkerMachines * |number of test-worker banks|
 // You should do that *before* deploying any changes here.
-DEFAULT_NUM_WORKER_MACHINES = 10;
+def defaultNumWorkerMachines() {
+   return 10;
+}
 
 
 // timeout is an outer bound on how long we expect body to take.
