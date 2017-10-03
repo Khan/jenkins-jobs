@@ -58,11 +58,12 @@ def runAndCommit() {
 }
 
 
-notify([slack: [channel: '#i18n',
+notify([slack: [channel: '#cp-eng',
                 sender: 'I18N Imp',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                extraText: "@cp-support",
                 when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        email: [to: 'jenkins-admin+builds, james',
+        email: [to: 'jenkins-admin+builds',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',

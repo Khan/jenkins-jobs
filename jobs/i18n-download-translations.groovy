@@ -76,11 +76,13 @@ def runScript() {
 }
 
 
+// TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
 notify([slack: [channel: '#i18n',
                 sender: 'I18N Imp',
                 emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                extraText: "@joshua",
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        email: [to: 'jenkins-admin+builds, james',
+        email: [to: 'jenkins-admin+builds',
                 when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
