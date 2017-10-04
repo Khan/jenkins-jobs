@@ -177,6 +177,7 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 // emojiOnFailure: the emoji to use for the bot when sending a message that
 //    the job failed.  If not specified, falls back to emoji.
+// extraText: if specified, text to add to the message send to slack.
 // [extraText: if specified, text to add to the message send to slack.]
 // TODO(csilvers): make success green, not gray.
 def sendToSlack(slackOptions, status, extraText='') {
@@ -184,6 +185,9 @@ def sendToSlack(slackOptions, status, extraText='') {
    def subject = arr[0];
    def severity = arr[1];
    def body = arr[2];
+   if (slackOptions.extraText) {
+      body += "\n${slackOptions.extraText}";
+   }
    subject += "${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
    def sender = slackOptions.sender ?: 'Janet Jenkins';
    def emoji = slackOptions.emoji ?: ':crocodile:';
