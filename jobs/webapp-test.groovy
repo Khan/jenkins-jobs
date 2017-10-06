@@ -173,8 +173,11 @@ def _determineTests() {
 
       def allSplits = readFile("test_splits.txt").split("\n\n");
       if (allSplits.size() != NUM_WORKER_MACHINES) {
-         error("Got ${allSplits.size()} splits, " +
-               "expected ${NUM_WORKER_MACHINES}.");
+         echo("Got ${allSplits.size()} splits instead of " +
+              "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
+         // Make it so we only try to run tests on this many workers,
+         // since we don't have work for the other workers to do!
+         NUM_WORKER_MACHINES = allSplits.size();
       }
       for (def i = 0; i < allSplits.size(); i++) {
          writeFile(file: "test_splits.${i}.txt",
