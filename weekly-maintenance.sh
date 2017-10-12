@@ -264,6 +264,10 @@ backup_network_config() {
         )
     done
 
+    # Back up Fastly
+    cd "network-config/fastly"
+    make FASTLY_API_TOKEN=`sudo cat $HOME/fastly-api-token.secret`
+
     jenkins-jobs/safe_git.sh commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
 }
 
