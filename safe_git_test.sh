@@ -1,8 +1,11 @@
-#!/bin/sh -e
+#!/bin/sh
 
 # If you only want to run a subset of tests, run this with the
 # tests you want to run as arguments.  You can get a list by
 # running this script with `-l` or `--list`.
+
+# All failures are fatal!
+set -e
 
 ROOT=/tmp/safe_git_test_repos
 SAFE_GIT="$PWD/safe_git.sh"
