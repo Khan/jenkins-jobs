@@ -172,7 +172,7 @@ def publishResults() {
       }
 
       if (numWorkerErrors) {
-         def msg = ("${numPickleFileErrors} test workers did not " +
+         def msg = ("${numWorkerErrors} test workers did not " +
                     "even finish (could be due to timeouts or framework " +
                     "errors; search for `Failed in branch` at " +
                     "${env.BUILD_URL}consoleFull to see exactly why)");
