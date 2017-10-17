@@ -26,15 +26,17 @@ set -ex
 
 
 : ${WORKSPACE_ROOT:=.}
-# Make this path absolute, so clients can chdir with impunity.  We use
-# the nice side-effect of readlink -f that it absolutizes.
-WORKSPACE_ROOT=`readlink -f "$WORKSPACE_ROOT"`
+# Make this path absolute, so clients can chdir with impunity.
+WORKSPACE_ROOT=`cd "$WORKSPACE_ROOT" && pwd`
 
 # Where the shared git objects (used by git new-workdir) live.
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}
 
 # Default Slack channel to use for alerting.
 : ${SLACK_CHANNEL:=#bot-testing}
+
+# Alias needed for OS X.
+type timeout >/dev/null 2>&1 || timeout() { gtimeout "$@"; }
 
 
 # Sanity check that we're in the right place, the working directory
