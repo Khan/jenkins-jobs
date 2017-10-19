@@ -203,6 +203,18 @@ test_safe_sync_to_origin__upstream_changes() {
             git submodule update --init --recursive )
         "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
         _verify_at_master repo ../origin/repo
+
+        echo "--- Rollback some substate when rolling back the repo"
+        ( cd ../origin/subrepo1 &&
+            create_git_history "Subrepo history (to be rolled back)" )
+        ( cd ../origin/repo/subrepo1 && git fetch origin &&
+            git reset --hard origin/master &&
+            cd .. && git commit -am "Substate repo1 (to be rolled back)")
+        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+        _verify_at_master repo ../origin/repo
+        ( cd ../origin/repo && git reset --hard HEAD^ )
+        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+        _verify_at_master repo ../origin/repo
     )
 }
 
