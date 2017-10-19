@@ -195,9 +195,10 @@ test_safe_sync_to_origin__upstream_changes() {
 
         echo "--- Change what a submodule points to"
         ( cd ../origin/repo &&
-            sed -i -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules &&
+            perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules &&
             git submodule sync && git submodule update &&
-            cd subrepo2 && git checkout master && git pull && cd - &&
+            cd subrepo2 && git checkout master &&
+            git reset --hard origin/master && cd - &&
             git commit -am "Repointed submodule" &&
             git submodule update --init --recursive )
         "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
