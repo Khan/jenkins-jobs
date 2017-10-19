@@ -233,8 +233,14 @@ export SLACK_CHANNEL=.
 mkdir -p "$WORKSPACE_ROOT" "$REPOS_ROOT"
 
 create_test_repos
-for test in $tests_to_run; do
-    $test
-done
 
-echo "All done!  PASS"
+failed_tests=""
+for test in $tests_to_run; do
+    $test || failed_tests="$failed_tests $test"
+done
+if [ -n "$failed_tests" ]; then
+    echo "FAILED"
+    echo "To re-run failed tests, run $0 $failed_tests"
+else
+   echo "All done!  PASS"
+fi
