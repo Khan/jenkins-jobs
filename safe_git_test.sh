@@ -4,6 +4,17 @@
 # tests you want to run as arguments.  You can get a list by
 # running this script with `-l` or `--list`.
 
+# If you're trying to run the tests on OSX, and they're failing, you may be
+# missing flock, git-new-workdir, and/or timeout.
+# To install flock:
+# `brew tap discoteq/discoteq`
+# `brew install flock`
+# To install git-new-workdir (assuming you have git via homebrew):
+# `ln -s /usr/local/share/git-core/contrib/workdir/git-new-workdir /usr/local/bin/git-new-workdir`
+# You may also have `timeout` installed as `gtimeout`; link it to the other name with:
+# `ln -s /usr/local/bin/gtimeout /usr/local/bin/timeout`
+
+
 # All failures are fatal!
 set -e
 
