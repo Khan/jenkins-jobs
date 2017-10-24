@@ -90,7 +90,7 @@ _fetch() {
     # We use flock to protect against two clients trying to fetch in
     # the same dir at the same time.  This is because different
     # clients will both, in the end, be fetching into $REPOS_ROOT.
-    flock -w 7230 "`_flock_file`" timeout 120m git fetch --prune --tags --progress origin
+    timeout 120m flock -w 7230 "`_flock_file`" git fetch --prune --tags --progress origin
 }
 
 # Call this from within the repo that you want to do the fetching.
