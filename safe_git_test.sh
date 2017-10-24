@@ -44,7 +44,7 @@ _assert_file() {
 # $1: the dir of the repo you want to verify is at master.
 # $2: the dir of the same repo in "origin"
 _verify_at_master() {
-    diff -r -x .git "$1" "$2"
+    diff -r -u -x .git "$1" "$2"
 }
 
 
@@ -90,138 +90,157 @@ create_test_repos() {
 }
 
 
-# Test that we overwrite local changes (that are not reflected in the remote).
-test_safe_sync_to_origin__local_changes() {
-    (
-        mkdir -p safe_sync_to_test__local_changes
-        cd safe_sync_to_test__local_changes
-        export WORKSPACE_ROOT=.
+# --- Tests that we overwrite local changes (that are not reflected
+# --- in the remote)
 
-        echo "--- Make sure sync_to_origin actually takes us to master"
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
+test_make_sure_sync_to_origin_actually_takes_us_to_master() {
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Sync to a previous commit and make sure we go back"
-        ( cd repo && git reset --hard HEAD^ )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
+test_sync_to_a_previous_commit_and_make_sure_we_go_back() {
+    ( cd repo && git reset --hard HEAD^ )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Check in a change local-only and make sure sync_to_origin ignores it"
-        sha1=`cd repo && git rev-parse HEAD`
-        ( cd repo && create_git_history "foo" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
-        _verify_at_master repo ../origin/repo
+test_check_in_a_change_local_only_and_make_sure_sync_to_origin_ignores_it() {
+    sha1=`cd repo && git rev-parse HEAD`
+    ( cd repo && create_git_history "foo" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Check in some submodule changes too"
-        ( cd repo/subrepo1 && create_git_history "foo" )
-        ( cd repo/subrepo2 && create_git_history "foo" )
-        ( cd repo && git commit -am "Submodules" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
-        _verify_at_master repo ../origin/repo
+test_check_in_some_submodule_changes() {
+    sha1=`cd repo && git rev-parse HEAD`
+    ( cd repo/subrepo1 && create_git_history "foo" )
+    ( cd repo/subrepo2 && create_git_history "foo" )
+    ( cd repo && git commit -am "Submodules" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Change some files without checking them in"
-        # Likewise, check in a submodule change but don't update substate.
-        echo "foo" >> repo/foo
-        echo "foo" >> repo/subrepo1/foo
-        ( cd repo/subrepo2 && create_git_history "foo" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
-        _verify_at_master repo ../origin/repo
+test_change_some_files_without_checking_them_in() {
+    # Likewise, check in a submodule change but don't update substate.
+    sha1=`cd repo && git rev-parse HEAD`
+    echo "foo" >> repo/foo
+    echo "foo" >> repo/subrepo1/foo
+    ( cd repo/subrepo2 && create_git_history "foo" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Delete a submodule directory and make sure we get it back"
-        rm -rf repo/subrepo2
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
-        _verify_at_master repo ../origin/repo
+test_delete_a_submodule_directory_and_make_sure_we_get_it_back() {
+    rm -rf repo/subrepo2
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
 
-        echo "--- Add a directory and make sure it goes away"
-        mkdir -p repo/empty_dir
-        echo "new" repo/empty_dir/new
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
-        # TODO(csilvers): delete empty dirs
-        #_verify_at_master repo ../origin/repo
-    )
-    echo "PASS: test_safe_sync_to__local_changes"
+test_add_a_directory_and_make_sure_it_goes_away() {
+    mkdir -p repo/empty_dir
+    echo "new" repo/empty_dir/new
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    # TODO(csilvers): delete empty dirs
+    #_verify_at_master repo ../origin/repo
+}
+
+# --- Tests that changes to the remote are reflected faithfully locally
+
+test_update_a_file() {
+    ( cd ../origin/repo && create_git_history "foo" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_add_a_file() {
+    ( cd ../origin/repo && create_git_history "baz" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_delete_a_file() {
+    ( cd ../origin/repo && git rm bar && git commit -am "deleted bar" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_update_substate() {
+    ( cd ../origin/subrepo1 && create_git_history "foo" 2 )
+    ( cd ../origin/repo/subrepo1 && git pull &&
+        cd .. && git commit -am "Submodules" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_rollback_some_substate() {
+    ( cd ../origin/subrepo1 && git reset --hard HEAD^ )
+    ( cd ../origin/repo/subrepo1 && git pull &&
+        cd .. && git commit -am "Submodules" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_add_a_new_submodule() {
+    ( cd ../origin/repo && git submodule add ../subrepo3 subrepo3_again &&
+        git commit -am "New submodule" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_delete_a_submodule() {
+    ( cd ../origin/repo && git rm subrepo3 && git commit -am "Nix subrepo" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_change_what_a_submodule_points_to() {
+    ( cd ../origin/repo &&
+        perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules &&
+        git submodule sync && git submodule update &&
+        cd subrepo2 && git checkout master &&
+        git reset --hard origin/master && cd - &&
+        git commit -am "Repointed submodule" &&
+        git submodule update --init --recursive )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_rollback_some_substate_when_rolling_back_the_repo() {
+    ( cd ../origin/subrepo1 &&
+        create_git_history "Subrepo history (to be rolled back)" )
+    ( cd ../origin/repo/subrepo1 && git fetch origin &&
+        git reset --hard origin/master &&
+        cd .. && git commit -am "Substate repo1 (to be rolled back)")
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+    ( cd ../origin/repo && git reset --hard HEAD^ )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
 }
 
 
-# Test that changes to the remote are reflected faithfully locally.
-test_safe_sync_to_origin__upstream_changes() {
-    (
-        mkdir -p safe_sync_to_test__upstream_changes
-        cd safe_sync_to_test__upstream_changes
-        export WORKSPACE_ROOT=.
-
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Update a file"
-        ( cd ../origin/repo && create_git_history "foo" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Add a file"
-        ( cd ../origin/repo && create_git_history "baz" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Delete a file"
-        ( cd ../origin/repo && git rm bar && git commit -am "deleted bar" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Update substate"
-        ( cd ../origin/subrepo1 && create_git_history "foo" 2 )
-        ( cd ../origin/repo/subrepo1 && git pull &&
-            cd .. && git commit -am "Submodules" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Rollback some substate"
-        ( cd ../origin/subrepo1 && git reset --hard HEAD^ )
-        ( cd ../origin/repo/subrepo1 && git pull &&
-            cd .. && git commit -am "Submodules" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Add a new submodule"
-        ( cd ../origin/repo && git submodule add ../subrepo3 subrepo3_again &&
-            git commit -am "New submodule" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Delete a submodule"
-        ( cd ../origin/repo && git rm subrepo3 && git commit -am "Nix subrepo" )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Change what a submodule points to"
-        ( cd ../origin/repo &&
-            perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules &&
-            git submodule sync && git submodule update &&
-            cd subrepo2 && git checkout master &&
-            git reset --hard origin/master && cd - &&
-            git commit -am "Repointed submodule" &&
-            git submodule update --init --recursive )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-
-        echo "--- Rollback some substate when rolling back the repo"
-        ( cd ../origin/subrepo1 &&
-            create_git_history "Subrepo history (to be rolled back)" )
-        ( cd ../origin/repo/subrepo1 && git fetch origin &&
-            git reset --hard origin/master &&
-            cd .. && git commit -am "Substate repo1 (to be rolled back)")
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-        ( cd ../origin/repo && git reset --hard HEAD^ )
-        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
-        _verify_at_master repo ../origin/repo
-    )
-}
-
-
+# To automatically update this, run
+#    grep -o '^test_[^(]*()' safe_git_test.sh | tr -d '()'
+# But first run
+#    grep -o '^test_[^(]*()' safe_git_test.sh | sort | uniq -d
+# to make sure you don't accidentally use the same test-name twice!
+# (It should give no output.)
 ALL_TESTS="
-test_safe_sync_to_origin__local_changes
-test_safe_sync_to_origin__upstream_changes
+test_make_sure_sync_to_origin_actually_takes_us_to_master
+test_sync_to_a_previous_commit_and_make_sure_we_go_back
+test_check_in_a_change_local_only_and_make_sure_sync_to_origin_ignores_it
+test_check_in_some_submodule_changes
+test_change_some_files_without_checking_them_in
+test_delete_a_submodule_directory_and_make_sure_we_get_it_back
+test_add_a_directory_and_make_sure_it_goes_away
+test_update_a_file
+test_add_a_file
+test_delete_a_file
+test_update_substate
+test_rollback_some_substate
+test_add_a_new_submodule
+test_delete_a_submodule
+test_change_what_a_submodule_points_to
+test_rollback_some_substate_when_rolling_back_the_repo
 "
 
 if [ "$1" = "-l" -o "$1" = "--list" ]; then
@@ -246,14 +265,31 @@ export SLACK_CHANNEL=.
 mkdir -p "$WORKSPACE_ROOT" "$REPOS_ROOT"
 
 create_test_repos
+cp -a origin origin.clean
 
 failed_tests=""
 for test in $tests_to_run; do
-    $test || failed_tests="$failed_tests $test"
+    (
+        echo "--- $test"
+
+        # Reset origin/ back to the start state.
+        rm -rf origin
+        cp -a origin.clean origin
+
+        # Set up the workspace to match master.
+        mkdir -p "$test"
+        cd "$test"
+        export WORKSPACE_ROOT=.
+        "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+
+        # Run the test!
+        $test
+    ) && echo "PASS: $test" || failed_tests="$failed_tests $test"
 done
+
 if [ -n "$failed_tests" ]; then
     echo "FAILED"
-    echo "To re-run failed tests, run $0 $failed_tests"
+    echo "To re-run failed tests, run $0$failed_tests"
 else
    echo "All done!  PASS"
 fi
