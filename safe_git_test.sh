@@ -5,14 +5,12 @@
 # running this script with `-l` or `--list`.
 
 # If you're trying to run the tests on OSX, and they're failing, you may be
-# missing flock, git-new-workdir, and/or timeout.
+# missing flock and/or git-new-workdir.
 # To install flock:
 # `brew tap discoteq/discoteq`
 # `brew install flock`
 # To install git-new-workdir (assuming you have git via homebrew):
 # `ln -s /usr/local/share/git-core/contrib/workdir/git-new-workdir /usr/local/bin/git-new-workdir`
-# You may also have `timeout` installed as `gtimeout`; link it to the other name with:
-# `ln -s /usr/local/bin/gtimeout /usr/local/bin/timeout`
 
 
 # All failures are fatal!
@@ -212,7 +210,7 @@ test_rollback_some_substate_when_rolling_back_the_repo() {
         cd .. && git commit -am "Substate repo1 (to be rolled back)")
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
-    ( cd ../origin/repo && git reset --hard HEAD^ )
+    ( cd ../origin/repo && git reset --hard HEAD^ && git submodule update )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
