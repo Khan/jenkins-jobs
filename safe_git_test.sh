@@ -96,23 +96,23 @@ test_make_sure_sync_to_origin_actually_takes_us_to_master() {
 }
 
 test_sync_to_a_previous_commit_and_make_sure_we_go_back() {
-    ( cd repo && git reset --hard HEAD^ )
+    ( cd repo; git reset --hard HEAD^ )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_check_in_a_change_local_only_and_make_sure_sync_to_origin_ignores_it() {
     sha1=`cd repo && git rev-parse HEAD`
-    ( cd repo && create_git_history "foo" )
+    ( cd repo; create_git_history "foo" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
 
 test_check_in_some_submodule_changes() {
     sha1=`cd repo && git rev-parse HEAD`
-    ( cd repo/subrepo1 && create_git_history "foo" )
-    ( cd repo/subrepo2 && create_git_history "foo" )
-    ( cd repo && git commit -am "Submodules" )
+    ( cd repo/subrepo1; create_git_history "foo" )
+    ( cd repo/subrepo2; create_git_history "foo" )
+    ( cd repo; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
@@ -122,7 +122,7 @@ test_change_some_files_without_checking_them_in() {
     sha1=`cd repo && git rev-parse HEAD`
     echo "foo" >> repo/foo
     echo "foo" >> repo/subrepo1/foo
-    ( cd repo/subrepo2 && create_git_history "foo" )
+    ( cd repo/subrepo2; create_git_history "foo" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
@@ -144,73 +144,73 @@ test_add_a_directory_and_make_sure_it_goes_away() {
 # --- Tests that changes to the remote are reflected faithfully locally
 
 test_update_a_file() {
-    ( cd ../origin/repo && create_git_history "foo" )
+    ( cd ../origin/repo; create_git_history "foo" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_add_a_file() {
-    ( cd ../origin/repo && create_git_history "baz" )
+    ( cd ../origin/repo; create_git_history "baz" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_delete_a_file() {
-    ( cd ../origin/repo && git rm bar && git commit -am "deleted bar" )
+    ( cd ../origin/repo; git rm bar; git commit -am "deleted bar" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_update_substate() {
-    ( cd ../origin/subrepo1 && create_git_history "foo" 2 )
-    ( cd ../origin/repo/subrepo1 && git pull &&
-        cd .. && git commit -am "Submodules" )
+    ( cd ../origin/subrepo1; create_git_history "foo" 2 )
+    ( cd ../origin/repo/subrepo1; git pull;
+        cd ..; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_rollback_some_substate() {
-    ( cd ../origin/subrepo1 && git reset --hard HEAD^ )
-    ( cd ../origin/repo/subrepo1 && git pull &&
-        cd .. && git commit -am "Submodules" )
+    ( cd ../origin/subrepo1; git reset --hard HEAD^ )
+    ( cd ../origin/repo/subrepo1; git pull;
+        cd ..; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_add_a_new_submodule() {
-    ( cd ../origin/repo && git submodule add ../subrepo3 subrepo3_again &&
+    ( cd ../origin/repo; git submodule add ../subrepo3 subrepo3_again;
         git commit -am "New submodule" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_delete_a_submodule() {
-    ( cd ../origin/repo && git rm subrepo3 && git commit -am "Nix subrepo" )
+    ( cd ../origin/repo; git rm subrepo3; git commit -am "Nix subrepo" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_change_what_a_submodule_points_to() {
-    ( cd ../origin/repo &&
-        perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules &&
-        git submodule sync && git submodule update &&
-        cd subrepo2 && git checkout master &&
-        git reset --hard origin/master && cd - &&
-        git commit -am "Repointed submodule" &&
+    ( cd ../origin/repo;
+        perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules;
+        git submodule sync; git submodule update;
+        cd subrepo2; git checkout master;
+        git reset --hard origin/master; cd -;
+        git commit -am "Repointed submodule";
         git submodule update --init --recursive )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
 
 test_rollback_some_substate_when_rolling_back_the_repo() {
-    ( cd ../origin/subrepo1 &&
+    ( cd ../origin/subrepo1;
         create_git_history "Subrepo history (to be rolled back)" )
-    ( cd ../origin/repo/subrepo1 && git fetch origin &&
-        git reset --hard origin/master &&
-        cd .. && git commit -am "Substate repo1 (to be rolled back)")
+    ( cd ../origin/repo/subrepo1; git fetch origin;
+        git reset --hard origin/master;
+        cd ..; git commit -am "Substate repo1 (to be rolled back)")
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
-    ( cd ../origin/repo && git reset --hard HEAD^ && git submodule update )
+    ( cd ../origin/repo; git reset --hard HEAD^; git submodule update )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
