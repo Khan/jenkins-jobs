@@ -125,28 +125,24 @@ _rebase() {
 }
 
 # $1: the commit-ish to check out to.
-# NOTE: this does a bunch of 'git reset --hard's.  Do not call this
-# if you have stuff you want to commit.
+# NOTE: this does a bunch of 'git reset --hard's and equivalent.
+# Do not call this if you have stuff you want to commit.
 _destructive_checkout() {
-    # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
-   if [ -n "`git status --porcelain | head -n 1`" ]; then
-        timeout 10m git reset --hard
-        timeout 10m git submodule foreach --recursive git reset --hard
-        timeout 10m git clean -ffd
-        timeout 10m git submodule foreach --recursive git clean -ffd
+    if ! timeout 10m git checkout -f --recurse-submodules "$1" -- ; then
+        _alert error "'$1' is not a valid git revision"
+        exit 1
     fi
+    timeout 1m git clean -ffd
 
-   if ! timeout 10m git checkout "$1" -- ; then
-       _alert error "'$1' is not a valid git revision"
-       exit 1
-   fi
-
-   if [ -n "`git status --porcelain | head -n 1`" ]; then
-        timeout 10m git reset --hard
-        timeout 10m git submodule foreach --recursive git reset --hard
-        timeout 10m git clean -ffd
-        timeout 10m git submodule foreach --recursive git clean -ffd
-    fi
+    # --recurse-submodules doesn't seem to always reset the
+    # submodules, and it definitely doesn't clean them, so we need to
+    # recurse.  Most subrepos are usually ok, so I use `git status` to
+    # only reset the ones that need it.  I use `status -z` so git
+    # doesn't try to shell-escape for us.
+    timeout 10m git status --porcelain -z | tr '\0' '\012' | cut -b4- \
+    | while read f; do
+        [ -d "$f" ] && ( cd "$f" && _destructive_checkout HEAD )
+    done
 
     # We could also do _pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
