@@ -196,9 +196,9 @@ test_update_substate() {
 
 test_update_subsubstate() {
     ( cd ../origin/subrepo3\ sub; create_git_history "foo" 2 )
-    ( cd ../origin/subrepo3/subrepo3\ sub; git checkout master; git pull )
-    ( cd ../origin/subrepo3; git commit -am "Sub-submodule" )
-    ( cd ../origin/repo/subrepo3; git pull;
+    ( cd ../origin/subrepo3/subrepo3\ sub; git checkout master; git pull;
+        cd ..; git commit -am "Sub-submodule" )
+    ( cd ../origin/repo/subrepo3; git checkout master; git pull;
         cd ..; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
