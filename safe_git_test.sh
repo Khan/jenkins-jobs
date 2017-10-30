@@ -66,17 +66,17 @@ create_test_repos() {
         git init subrepo1
         git init subrepo2
         git init subrepo3
-        git init subrepo3_sub
+        git init "subrepo3 sub"
         cd subrepo1
         create_git_history "foo" "foo subrepo1" 3
         create_git_history "bar" "bar subrepo1" 3
         cd ../subrepo2
         create_git_history "foo" "foo subrepo2" 3
-        cd ../subrepo3_sub
-        create_git_history "foo" "foo subrepo3_sub" 3
+        cd "../subrepo3 sub"
+        create_git_history "foo" "foo subrepo3 sub" 3
         cd ../subrepo3
         create_git_history "foo" "foo subrepo3" 3
-        git submodule add ../subrepo3_sub
+        git submodule add "../subrepo3 sub"
         git commit -a -m "Added sub-subrepo"
         cd ..
 
@@ -117,7 +117,7 @@ test_check_in_some_submodule_changes() {
     sha1=`cd repo && git rev-parse HEAD`
     ( cd repo/subrepo1; create_git_history "foo" )
     ( cd repo/subrepo2; create_git_history "foo" )
-    ( cd repo/subrepo3/subrepo3_sub; create_git_history "foo" )
+    ( cd repo/subrepo3/subrepo3\ sub; create_git_history "foo" )
     ( cd repo/subrepo3; git commit -am "Sub-submodule" )
     ( cd repo; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
@@ -129,7 +129,7 @@ test_change_some_files_without_checking_them_in() {
     sha1=`cd repo && git rev-parse HEAD`
     echo "foo" >> repo/foo
     echo "foo" >> repo/subrepo1/foo
-    echo "foo" >> repo/subrepo3/subrepo3_sub/foo
+    echo "foo" >> repo/subrepo3/subrepo3\ sub/foo
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
@@ -138,7 +138,7 @@ test_add_some_files_without_checking_them_in() {
     sha1=`cd repo && git rev-parse HEAD`
     echo "foo" >> repo/newfoo
     echo "foo" >> repo/subrepo1/newfoo
-    echo "foo" >> repo/subrepo3/subrepo3_sub/newfoo
+    echo "foo" >> repo/subrepo3/subrepo3\ sub/newfoo
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
@@ -147,7 +147,7 @@ test_delete_some_files_without_checking_them_in() {
     sha1=`cd repo && git rev-parse HEAD`
     rm repo/foo
     rm repo/subrepo1/foo
-    rm repo/subrepo3/subrepo3_sub/foo
+    rm repo/subrepo3/subrepo3\ sub/foo
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "$sha1"
     _verify_at_master repo ../origin/repo
 }
@@ -195,8 +195,8 @@ test_update_substate() {
 }
 
 test_update_subsubstate() {
-    ( cd ../origin/subrepo3_sub; create_git_history "foo" 2 )
-    ( cd ../origin/repo/subrepo3/subrepo3_sub; git pull;
+    ( cd ../origin/subrepo3\ sub; create_git_history "foo" 2 )
+    ( cd ../origin/repo/subrepo3/subrepo3\ sub; git pull;
         cd ..; git commit -am "Sub-submodule";
         cd ..; git commit -am "Submodule" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
@@ -212,8 +212,8 @@ test_rollback_some_substate() {
 }
 
 test_rollback_subsubstate() {
-    ( cd ../origin/subrepo3_sub; git reset --hard HEAD^ )
-    ( cd ../origin/repo/subrepo3/subrepo3_sub; git pull;
+    ( cd ../origin/subrepo3\ sub; git reset --hard HEAD^ )
+    ( cd ../origin/repo/subrepo3/subrepo3\ sub; git pull;
         cd ..; git commit -am "Sub-submodule";
         cd ..; git commit -am "Submodules" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
@@ -251,9 +251,9 @@ test_rollback_some_substate_when_rolling_back_the_repo() {
     ( cd ../origin/repo/subrepo1; git fetch origin;
         git reset --hard origin/master;
         cd ..; git commit -am "Substate repo1 (to be rolled back)")
-    ( cd ../origin/subrepo3_sub;
+    ( cd ../origin/subrepo3\ sub;
         create_git_history "Sub-subrepo history (to be rolled back)" )
-    ( cd ../origin/repo/subrepo3/subrepo3_sub; git fetch origin;
+    ( cd ../origin/repo/subrepo3/subrepo3\ sub; git fetch origin;
         git reset --hard origin/master;
         cd ..; git commit -am "Sub-substate repo3_sub (to be rolled back)";
         cd ..; git commit -am "Substate repo3 (to be rolled back)")
