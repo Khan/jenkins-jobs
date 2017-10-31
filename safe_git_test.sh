@@ -234,6 +234,15 @@ test_delete_a_submodule() {
     _verify_at_master repo ../origin/repo
 }
 
+test_delete_a_subsubmodule() {
+    ( cd ../origin/subrepo3; git rm subrepo3\ sub; git commit -am "Nix subsubrepo" )
+    ( cd ../origin/repo/subrepo3; git checkout master; git pull; git clean -ffd;
+        cd ..; git commit -am "Update subrepo";
+        git submodule update --recursive )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
 test_change_what_a_submodule_points_to() {
     ( cd ../origin/repo;
         perl -pli -e 's,url = ../subrepo2,url = ../subrepo1,' .gitmodules;
@@ -279,15 +288,20 @@ test_sync_to_a_previous_commit_and_make_sure_we_go_back
 test_check_in_a_change_local_only_and_make_sure_sync_to_origin_ignores_it
 test_check_in_some_submodule_changes
 test_change_some_files_without_checking_them_in
+test_add_some_files_without_checking_them_in
+test_delete_some_files_without_checking_them_in
 test_delete_a_submodule_directory_and_make_sure_we_get_it_back
 test_add_a_directory_and_make_sure_it_goes_away
 test_update_a_file
 test_add_a_file
 test_delete_a_file
 test_update_substate
+test_update_subsubstate
 test_rollback_some_substate
+test_rollback_subsubstate
 test_add_a_new_submodule
 test_delete_a_submodule
+test_delete_a_subsubmodule
 test_change_what_a_submodule_points_to
 test_rollback_some_substate_when_rolling_back_the_repo
 "
@@ -338,7 +352,8 @@ done
 
 if [ -n "$failed_tests" ]; then
     echo "FAILED"
-    echo "To re-run failed tests, run $0$failed_tests"
+    echo "To re-run failed tests, run:"
+    echo "   $0$failed_tests"
 else
    echo "All done!  PASS"
 fi
