@@ -156,7 +156,6 @@ _destructive_checkout() {
 # $* (optional): submodules to update.  If left out, update all submodules.
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
-# NOTE: This calls 'git clean' so be careful if you expect edits in the repo.
 _update_submodules() {
     if [ "$*" = "no_submodules" ]; then
         return
@@ -336,6 +335,8 @@ push() {
         timeout 10m git reset --hard HEAD^
         exit 1
     }
+    _update_submodules
+
     # If this repo uses bigfiles, we have to push them to S3 now, as well.
     timeout 60m env PATH="$HOME/git-bigfile/bin:$PATH" \
                     PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH" \
