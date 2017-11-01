@@ -205,8 +205,6 @@ DEPLOYER_USERNAME = null;
 // the branch the user asked to deploy, and (probably) translations.
 DEPLOY_BRANCH = null;
 
-// The sha1 of the deploy (after merging in master and translations).
-GIT_SHA1 = null;
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
 
@@ -219,7 +217,7 @@ DEPLOY_DYNAMIC = null;
 // script is first invoked.
 ROLLBACK_TO = null;
 
-// The "permalink" url used to access code deployed at GIT_SHA1.
+// The "permalink" url used to access code deployed at DEPLOY_BRANCH.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
@@ -374,10 +372,10 @@ def mergeFromMasterAndInitializeGlobals() {
          clean(params.CLEAN);
          sh("make deps");
 
-         GIT_SHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_BRANCH]);
          // Let's do a sanity check.
+         def deploySHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_BRANCH]);
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
-         if (GIT_SHA1 != headSHA1) {
+         if (deploySHA1 != headSHA1) {
             notify.fail("Internal error: " +
                         "HEAD does not point to the deploy-branch");
          }
@@ -454,7 +452,7 @@ def runTests() {
    def TEST_TYPE = (params.RUN_TESTS == "default" ? "relevant" : "all");
    build(job: 'webapp-test',
          parameters: [
-            string(name: 'GIT_REVISION', value: GIT_SHA1),
+            string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
             string(name: 'TEST_TYPE', value: TEST_TYPE),
             string(name: 'MAX_SIZE', value: "medium"),
             booleanParam(name: 'FAILFAST', value: false),
@@ -544,7 +542,7 @@ def deployAndReport() {
               parameters: [
                   string(name: 'URL', value: DEPLOY_URL),
                   string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                  string(name: 'GIT_REVISION', value: GIT_SHA1),
+                  string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
               ]);
@@ -557,7 +555,7 @@ def spawnDeleteVersions() {
         build(job: 'audit-gae-versions',
               wait: false,       // the whole point of using a separate job!
               propagate: false,  // errors are nonfatal
-              parameters: [string(name: 'GIT_REVISION', value: GIT_SHA1)]);
+              parameters: [string(name: 'GIT_REVISION', value: DEPLOY_BRANCH)]);
     }
 }
 
@@ -623,7 +621,7 @@ def _promote() {
                      string(name: 'URL',
                             value: "https://www.khanacademy.org"),
                      string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                     string(name: 'GIT_REVISION', value: GIT_SHA1),
+                     string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
                      booleanParam(name: 'FAILFAST', value: false),
                      string(name: 'DEPLOYER_USERNAME',
                             value: DEPLOYER_USERNAME),
@@ -739,11 +737,11 @@ def finishWithSuccess() {
                exec(["git", "tag", "-m",
                      "Deployed to appengine from branch " +
                      "${params.GIT_REVISION} (via branch ${DEPLOY_BRANCH})",
-                     GIT_TAG, GIT_SHA1]);
+                     GIT_TAG, DEPLOY_BRANCH]);
             }
          }
          try {
-            def branchName = "${GIT_SHA1} (${params.GIT_REVISION})";
+            def branchName = "${DEPLOY_BRANCH} (${params.GIT_REVISION})";
 
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
@@ -760,9 +758,9 @@ def finishWithSuccess() {
             // The merge exits with rc > 0 if there were conflicts.
             echo("Merging ${branchName} into master");
             try {
-               exec(["git", "merge", GIT_SHA1]);
+               exec(["git", "merge", DEPLOY_BRANCH]);
             } catch (e) {
-               echo("FATAL ERROR running 'git merge ${GIT_SHA1}': ${e}");
+               echo("FATAL ERROR running 'git merge ${DEPLOY_BRANCH}': ${e}");
                // Best-effort attempt to abort.  We ignore the status code.
                exec.statusOf(["git", "merge", "--abort"]);
                throw e;
