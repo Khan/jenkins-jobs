@@ -215,7 +215,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
 
 def deploy() {
    withTimeout('90m') {
-      alertMsgs = load("${pwd()}@script/jobs/deploy-webapp_slackmsgs.groovy");
+      alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
 
       kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
 
