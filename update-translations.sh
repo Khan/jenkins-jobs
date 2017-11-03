@@ -177,9 +177,8 @@ PYCOMMAND
     cp "$ALL_POT" "$DATA_DIR"/all.pot
 
     echo "Uploading the new all.pot to crowdin."
-    # TODO(joshuan): Add back --use-temps-to-skip once we ensure that the Dropbox
-    # is only updated after the upload to Crowdin succeeds.
     deploy/upload_i18n.py -v --save-temps="$DATA_DIR"/upload_to_crowdin/ \
+       --use-temps-to-skip \
        --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
        --popular-urls="$DATA_DIR"/popular_urls \
        --pot-filename="$ALL_POT" \
