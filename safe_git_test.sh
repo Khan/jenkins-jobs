@@ -276,35 +276,17 @@ test_rollback_some_substate_when_rolling_back_the_repo() {
 }
 
 
-# To automatically update this, run
-#    grep -o '^test_[^(]*()' safe_git_test.sh | tr -d '()'
-# But first run
-#    grep -o '^test_[^(]*()' safe_git_test.sh | sort | uniq -d
-# to make sure you don't accidentally use the same test-name twice!
-# (It should give no output.)
-ALL_TESTS="
-test_make_sure_sync_to_origin_actually_takes_us_to_master
-test_sync_to_a_previous_commit_and_make_sure_we_go_back
-test_check_in_a_change_local_only_and_make_sure_sync_to_origin_ignores_it
-test_check_in_some_submodule_changes
-test_change_some_files_without_checking_them_in
-test_add_some_files_without_checking_them_in
-test_delete_some_files_without_checking_them_in
-test_delete_a_submodule_directory_and_make_sure_we_get_it_back
-test_add_a_directory_and_make_sure_it_goes_away
-test_update_a_file
-test_add_a_file
-test_delete_a_file
-test_update_substate
-test_update_subsubstate
-test_rollback_some_substate
-test_rollback_subsubstate
-test_add_a_new_submodule
-test_delete_a_submodule
-test_delete_a_subsubmodule
-test_change_what_a_submodule_points_to
-test_rollback_some_substate_when_rolling_back_the_repo
-"
+# Introspection, shell-script style!
+ALL_TESTS=`grep -o '^test_[^(]*()' "$0" | tr -d '()'`
+
+# Let's make sure we didn't define two tests with the same name.
+duplicate_tests=`echo "$ALL_TESTS" | sort | uniq -d`
+if [ -n "$duplicate_tests" ]; then
+    echo "Defined multiple tests with the same name:"
+    echo "$duplicate_tests"
+    exit 1
+fi
+
 
 if [ "$1" = "-l" -o "$1" = "--list" ]; then
     echo "Tests you can run:"
