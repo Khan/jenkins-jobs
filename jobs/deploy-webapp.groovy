@@ -843,7 +843,7 @@ def finishWithFailure(why) {
             }
          }
       } catch (e) {
-         echo("Auto-rollback failed");
+         echo("Auto-rollback failed: ${e}");
          _alert(alertMsgs.ROLLBACK_FAILED,
                 [rollbackToAsVersion: rollbackToAsVersion,
                  gitTag: GIT_TAG,
