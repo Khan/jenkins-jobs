@@ -117,7 +117,7 @@ def safePullInBranch(dir, branch, submodules=[]) {
 }
 
 // dir is the directory to commit in (*cannot* be a submodule).
-// args are the arguments to git commit (we add '-a' automatically).
+// args are the arguments to git commit.
 def safeCommitAndPush(dir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {
@@ -127,7 +127,7 @@ def safeCommitAndPush(dir, args) {
 
 // repoDir is the root of the repo that holds the submodule.
 // submoduleDir is the dir of the submodule, relative to repodDir.
-// args are the arguments to git commit (we add '-a' automatically).
+// args are the arguments to git commit.
 def safeCommitAndPushSubmodule(repoDir, submoduleDir, args) {
    // Automatic commits from jenkins don't need a test plan.
    withEnv(["FORCE_COMMIT=1"]) {

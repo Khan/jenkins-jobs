@@ -52,7 +52,7 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -a -F -
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg'
 }
 
 svgcrush() {
@@ -70,7 +70,7 @@ svgcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -a -F -
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.svg'
 }
 
 
@@ -264,7 +264,7 @@ backup_network_config() {
         )
     done
 
-    jenkins-jobs/safe_git.sh commit_and_push network-config -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
+    jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
 }
 
 

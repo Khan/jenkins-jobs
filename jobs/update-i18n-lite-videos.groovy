@@ -52,8 +52,9 @@ def runAndCommit() {
       }
       kaGit.safeCommitAndPushSubmodule(
          "webapp", "intl/translations",
-         ["-m", "Automatic update of video_*.json",
-          "-m", "(at webapp commit ${GIT_SHA1})"]);
+         ["-m", "Automatic update of videos_*.json",
+          "-m", "(at webapp commit ${GIT_SHA1})",
+          "videos_*.json"]);
    }
 }
 

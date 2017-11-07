@@ -381,7 +381,7 @@ update_submodule_pointer_to_master() {
 
 
 # $1: the directory to commit in (can be in a sub-repo)
-# $2+: arguments to 'git commit' (we add '-a' automatically)
+# $2+: arguments to 'git commit'
 # If "$1" is a sub-repo, this function *must* be called from within
 # the main repo that includes the sub-repo.
 # NOTE: This 'git add's all new files in the commit-directory.
@@ -402,7 +402,7 @@ commit_and_push() {
 
 # $1: the directory of the main repository
 # $2: the directory of the submodule relative to "$1"
-# $3+: arguments to 'git commit' (we add '-a' automatically)
+# $3+: arguments to 'git commit'
 # NOTE: This 'git add's all new files in the commit-directory ($2).
 commit_and_push_submodule() {
     repo_dir=$1

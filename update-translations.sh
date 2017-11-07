@@ -236,6 +236,7 @@ cd ..         # get back to workspace-root.
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 jenkins-jobs/safe_git.sh commit_and_push_submodule \
     webapp intl/translations \
+    -a \
     -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
     -m "(locales: $updated_locales)" \
     -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
