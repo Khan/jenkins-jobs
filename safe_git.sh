@@ -384,7 +384,7 @@ update_submodule_pointer_to_master() {
 # $2+: arguments to 'git commit'
 # If "$1" is a sub-repo, this function *must* be called from within
 # the main repo that includes the sub-repo.
-# NOTE: This 'git add's all new files in the commit-directory.
+# NOTE: you must be sure to `git add` any new files first!
 commit_and_push() {
     dir="$1"
     shift
@@ -393,8 +393,7 @@ commit_and_push() {
     if [ -z "`git status --porcelain | head -n 1`" ]; then
         echo "No changes, skipping commit"
     else
-        timeout 10m git add .
-        timeout 10m git commit -a "$@"
+        timeout 10m git commit "$@"
     fi
     )
     push "$dir"
@@ -403,7 +402,6 @@ commit_and_push() {
 # $1: the directory of the main repository
 # $2: the directory of the submodule relative to "$1"
 # $3+: arguments to 'git commit'
-# NOTE: This 'git add's all new files in the commit-directory ($2).
 commit_and_push_submodule() {
     repo_dir=$1
     shift

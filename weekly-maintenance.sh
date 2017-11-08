@@ -40,7 +40,7 @@ jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "ma
 pngcrush() {
     # Note: this can't be combined with the subshell below; we need to
     # make sure it terminates *before* the pipe starts.
-    ( cd webapp && deploy/pngcrush.py )
+    ( cd webapp; deploy/pngcrush.py; git add '*.png' '*.jpeg' )
     (
         cd webapp
         echo "Automatic compression of webapp images via $0"
@@ -58,7 +58,7 @@ pngcrush() {
 svgcrush() {
     # Note: this can't be combined with the subshell below; we need to
     # make sure it terminates *before* the pipe starts.
-    ( cd webapp && deploy/svgcrush.py )
+    ( cd webapp; deploy/svgcrush.py; git add '*.svg' )
     (
         cd webapp
         echo "Automatic compression of webapp svg files via $0"
@@ -264,6 +264,7 @@ backup_network_config() {
         )
     done
 
+    ( cd network-config; git add . )
     jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
 }
 

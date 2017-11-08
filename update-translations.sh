@@ -234,6 +234,7 @@ export FORCE_COMMIT=1
 cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
+( cd intl/translations && git add . )
 jenkins-jobs/safe_git.sh commit_and_push_submodule \
     webapp intl/translations \
     -a \
