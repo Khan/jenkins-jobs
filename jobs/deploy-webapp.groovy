@@ -923,3 +923,35 @@ notify([slack: [channel: '#1s-and-0s-deploys',
       finishWithSuccess();
    }
 }
+
+
+def preDeployBranch(branches, currentlyDeployingBranch) {
+   def dateStr = new Date().format('yyyyMMdd-HHmmss');
+
+   // Maps branch we're pre-processing to which branch it should be based off
+   def branchesMapping = [
+      ["deploy-${dateStr}-prev-deploy-success", currentlyDeployingBranch],
+      ["deploy-${dateStr}-prev-deploy-fail", "master"],
+   ];
+   for (mapping in branchesMapping){
+      def (preProcessingBranch, baseBranch) = mapping;
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", baseBranch);
+      dir("webapp") {
+         exec(["git", "checkout", "-b", preProcessingBranch]);
+         exec(["git", "push", "-f", "--set-upstream", "origin",
+               preProcessingBranch]);
+      }
+      def allBranches = branches.split(/\+/);
+      if (params.MERGE_TRANSLATIONS) {
+         // Jenkins jobs only update intl/translations in the
+         // "translations" branch.
+         allBranches += ["translations"];
+      }
+      for (def i = 0; i < allBranches.size(); i++) {
+         kaGit.safeMergeFromBranch("webapp", preProcessingBranch,
+               allBranches[i].trim());
+      }
+      // TODO: Kick off pre-processing for success-branch
+   }
+
+}
