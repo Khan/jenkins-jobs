@@ -45,7 +45,7 @@ def _generateRandomTag() {
     // Random object
     Random rand = new Random();
     // Tag with 'test-run-<number between 1 - 10^6>'
-    return "test-run-${rand.nextInt(10 ** num)}";
+    return "test-run-${rand.nextInt(10 ** digits)}";
 }
 
 
