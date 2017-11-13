@@ -101,7 +101,7 @@ def mergeWithMaster() {
 
 
 def runTests() {
-   build(job: 'webapp-test',
+   build(job: '../deploy/webapp-test',
          parameters: [
             string(name: 'GIT_REVISION', value: GIT_TAG),
             string(name: 'TEST_TYPE', value: "all"),
