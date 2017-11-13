@@ -212,8 +212,18 @@ clean_ka_static() {
             # if needed. (`-f` handles uncompressed data correctly too.)
             gsutil cat "$manifest" | zcat -f | grep -o '"[^"]*":' | tr -d '":' \
                 >> "$files_to_keep"
-            # We also keep the manifest-file itself around!
+            # We also keep the manifest file itself around.  This
+            # shouldn't be necessary -- it includes itself as an
+            # entry -- but in the case where we "copy" a static version
+            # (webapp's deploy.deploy_to_gcs.symlink_static_content)
+            # we don't update that self-reference.  (And it's safer
+            # anyway.)  We also explicitly keep the version's toc-file,
+            # because it is also copied, and the manifest's reference
+            # to it is similarly not updated.
+            # TODO(benkraft): Update the manifest on copy, and remove
+            # these special cases.
             echo "$manifest" >> "$files_to_keep"
+            echo "/genfiles/manifests/toc-$manifest_version.json" >> "$files_to_keep"
             manifests_seen=`expr $manifests_seen + 1`
         fi
     done
