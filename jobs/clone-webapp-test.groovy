@@ -89,10 +89,9 @@ def mergeWithMaster() {
             }
             
             // Create a tag for the head of the branch and push it to remote.
-            exec(["git", "tag", GIT_TAG]);
-            exec(["git", "push", "origin", GIT_TAG]);
-
             dir("webapp") {
+                exec(["git", "tag", GIT_TAG]);
+                exec(["git", "push", "origin", GIT_TAG]);
                 sh("make clean_pyc");
                 sh("make python_deps");
             }
