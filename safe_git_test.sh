@@ -275,31 +275,20 @@ test_rollback_some_substate_when_rolling_back_the_repo() {
     _verify_at_master repo ../origin/repo
 }
 
+# --- Tests of pull_in_branch
+
 test_pulling_does_not_reset_submodule_branch_refs() {
-    # Set up two repos, repo_a and repo_b, where repo_b is a submodule of repo_a
-    git init --bare ./repo_a.bare
-    git init --bare ./repo_b.bare
-    git clone ./repo_a.bare ./repo_a
-    git clone ./repo_b.bare ./repo_b
-    (cd ./repo_a; git commit --allow-empty -m "Repo a, commit 1"; git push)
-    (cd ./repo_b; git commit --allow-empty -m "Repo b, commit 1"; git push)
-    (cd ./repo_a; git submodule add ../repo_b.bare ./b; git commit -a -m "Repo a, commit 2"; git push)
+    # Commit something to master from within repo's copy of subrepo1
+    ( cd repo/subrepo1; git checkout master; git pull; create_git_history "new" )
 
-    # Commit something to master from within repo_a's copy of repo_b
-    (cd ./repo_a/b; git commit --allow-empty -m "Repo b, commit 2")
+    # Pulling in repo will change the pointer to HEAD in repo's copy
+    # of subrepo1, but it should *not* change the pointer to master.
+    "$SAFE_GIT" pull_in_branch repo master
 
-    # Pulling in repo_a should not change the pointer to master in repo_a's copy of repo_b
-    "$SAFE_GIT" pull_in_branch repo_a master
-
-    last_commit_in_a_b_master=$(cd ./repo_a/b; git log master --pretty=format:'%s' -n 1)
-    echo "repo_a/b's master is at $last_commit_in_a_b_master"
-    if [ "$last_commit_in_a_b_master" = "Repo b, commit 2" ]; then
-        echo Ok
-    else
-        echo Fail
-        exit 1
-    fi
+    subrepo_master_commitmsg=`cd repo/subrepo1; git log master --pretty=format:'%s' -n 1`
+    [ "$subrepo_master_commitmsg" = "new: commit #1" ]
 }
+
 
 # Introspection, shell-script style!
 ALL_TESTS=`grep -o '^test_[^(]*()' "$0" | tr -d '()'`
