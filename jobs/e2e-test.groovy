@@ -180,15 +180,19 @@ def _runOneTest(splitId) {
    }
 }
 
-
-def runAndroidTests() {
+def runMobileNativeTests() {
    def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
                                   "--chat-sender=Testing Turtle",
                                   "--icon-emoji=:turtle:"];
    def slackArgs = (slackArgsWithoutChannel +
-                    ["--slack=${params.SLACK_CHANNEL}"]);
-   def successMsg = "Mobile integration tests succeeded";
-   def failureMsg = ("Mobile integration tests failed " +
+      ["--slack=${params.SLACK_CHANNEL}"]);
+   runAndroidTests(slackArgs, slackArgsWithoutChannel);
+   runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel);
+}
+
+def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
+   def successMsg = "Android integration tests succeeded";
+   def failureMsg = ("Android integration tests failed " +
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
    withTimeout('1h') {
@@ -212,11 +216,33 @@ def runAndroidTests() {
 }
 
 
+// Verify that candidate schema supports all active queries.
+def runGraphlSchemaTest(slackArgsWithoutChannel) {
+   def successMsg = "GraphQL schema integration test succeeded";
+   def failureMsg = "GraphQL schema integration test failed";
+   withEnv(["URL=${params.URL}"]) {
+      def cmd = "curl '${URL}/api/internal/" +
+         "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
+         "grep -q '.passed.: *true'";
+      try {
+         sh(cmd)
+      } catch (e) {
+         sh("echo ${exec.shellEscape(failureMs)} | " +
+            "${exec.shellEscapeList(slackArgs)} --severity=error");
+         sh("echo ${exec.shellEscape(failureMsg)} | " +
+            "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
+            "--slack='#mobile-1s-and-0s' --severity=error");
+         throw e;
+      }
+   }
+}
+
+
 def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
-      "mobile-integration-test": { runAndroidTests(); },
+      "mobile-integration-test": { runMobileNativeTests(); },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
