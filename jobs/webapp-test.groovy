@@ -153,7 +153,7 @@ def _determineTests() {
 
    if (params.TEST_TYPE == "all") {
       // We have to specify these explicitly because they are @manual_only.
-      sh("${runtestsCmd} . testutil.js_test testutil.lint_test " +
+      sh("${runtestsCmd} . testing.js_test testing.lint_test " +
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "relevant") {
       // TODO(csilvers): Instead of `origin/master`, what we really want

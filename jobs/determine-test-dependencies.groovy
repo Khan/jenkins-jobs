@@ -84,9 +84,9 @@ def determineSplits() {
             dir("webapp") {
                sh("tools/runtests.py -n --just-split -j${NUM_SPLITS} " +
                   // We have to specify js_test because it is @manual_only.
-                  // Note we don't run testutil.lint_test, since we calculate
+                  // Note we don't run testing.lint_test, since we calculate
                   // what files to run linters on in a totally different way.
-                  ". testutil.js_test " +
+                  ". testing.js_test " +
                   "> genfiles/test-splits.txt");
                dir("genfiles") {
                   def allSplits = readFile("test-splits.txt").split("\n\n");
