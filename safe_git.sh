@@ -125,32 +125,38 @@ _rebase() {
 }
 
 # $1: the commit-ish to check out to.
-# NOTE: this does a bunch of 'git reset --hard's.  Do not call this
-# if you have stuff you want to commit.
+# NOTE: this does a bunch of 'git reset --hard's and equivalent.
+# Do not call this if you have stuff you want to commit.
 _destructive_checkout() {
-    # Perhaps 'git checkout -f "$1"' would work just as well, but I'm paranoid.
-   if [ -n "`git status --porcelain | head -n 1`" ]; then
-        timeout 10m git reset --hard
-        timeout 10m git submodule foreach --recursive git reset --hard
-        timeout 10m git clean -ffd
-        timeout 10m git submodule foreach --recursive git clean -ffd
+    if ! timeout 10m git checkout -f "$1" -- ; then
+        _alert error "'$1' is not a valid git revision"
+        exit 1
     fi
+    timeout 1m git clean -ffd
+    # No need to init, or resync, or recurse here: we just want to
+    # make sure that when we visit changed subrepos, they're at the
+    # right version.  (We handle the recursion ourselves below.)
+    timeout 1m git submodule update
 
-   if ! timeout 10m git checkout "$1" -- ; then
-       _alert error "'$1' is not a valid git revision"
-       exit 1
-   fi
-
-   if [ -n "`git status --porcelain | head -n 1`" ]; then
-        timeout 10m git reset --hard
-        timeout 10m git submodule foreach --recursive git reset --hard
-        timeout 10m git clean -ffd
-        timeout 10m git submodule foreach --recursive git clean -ffd
-    fi
+    # Now we need to clean up subrepos.  Most subrepos are usually ok,
+    # so I use `git status` to only clean up the ones that need it.  I
+    # use `status -z` so git doesn't try to shell-escape for us.
+    timeout 10m git status --porcelain -z | tr '\0' '\012' | cut -b4- \
+    | while read f; do
+        [ -d "$f" ] && ( cd "$f" && _destructive_checkout HEAD )
+    done
 
     # We could also do _pull_bigfiles here to fetch any new
     # bigfiles from the server, but since it's slow we just punt and
     # make clients call it directly if interested.
+
+    # TOOD(csilvers): if any submodules disappeared as part of this
+    # `git checkout -f`, and thus submodules had .gitignored files
+    # in them (such as .pyc files), then the submodule's `.git` file
+    # won't be deleted by `git clean` even though it should be.  It is
+    # also invisible to `git status`.  Ideally we should find such
+    # `.git` files and nuke them manually.  Or we should consider
+    # using `git clean -ffdx` above.
 }
 
 # $* (optional): submodules to update.  If left out, update all submodules.
