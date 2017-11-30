@@ -215,17 +215,19 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
       "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
       "grep -q '.passed.: *true'";
-   try {
-      sh(cmd)
-      sh("echo ${exec.shellEscape(successMsg)} | " +
-          "${exec.shellEscapeList(slackArgs)} --severity=info");
-   } catch (e) {
-      sh("echo ${exec.shellEscape(failureMsg)} | " +
-         "${exec.shellEscapeList(slackArgs)} --severity=error");
-      sh("echo ${exec.shellEscape(failureMsg)} | " +
-         "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
-         "--slack='#mobile-1s-and-0s' --severity=error");
-      throw e;
+   withSecrets() {  // we need secrets to talk to slack!
+      try {
+         sh(cmd)
+         sh("echo ${exec.shellEscape(successMsg)} | " +
+            "${exec.shellEscapeList(slackArgs)} --severity=info");
+      } catch (e) {
+         sh("echo ${exec.shellEscape(failureMsg)} | " +
+            "${exec.shellEscapeList(slackArgs)} --severity=error");
+         sh("echo ${exec.shellEscape(failureMsg)} | " +
+            "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
+            "--slack='#mobile-1s-and-0s' --severity=error");
+         throw e;
+      }
    }
 }
 
