@@ -218,7 +218,7 @@ fi
     cd intl/translations
     timeout 10m git add pofiles approved_pofiles
     git status --porcelain \
-        | grep -e '^M' -e '^A' \
+        | grep -e '^\s*M' -e '^\s*A' \
         | grep --only-matching -e 'approved_pofiles/[^.]*' -e 'pofiles/[^.]*' \
         | xargs -n1 basename \
         | sort -u \
