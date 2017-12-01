@@ -67,6 +67,7 @@ create_test_repos() {
         git init subrepo2
         git init subrepo3
         git init "subrepo3 sub"
+        git init subrepo_extra
         cd subrepo1
         create_git_history "foo" "foo subrepo1" 3
         create_git_history "bar" "bar subrepo1" 3
@@ -78,6 +79,10 @@ create_test_repos() {
         create_git_history "foo" "foo subrepo3" 3
         git submodule add "../subrepo3 sub"
         git commit -a -m "Added sub-subrepo"
+        # This one isn't in the repo by default, but is used for tests
+        # that add a new submodule.
+        cd ../subrepo_extra
+        create_git_history "foo" "foo subrepo_extra" 3
         cd ..
 
         git init repo
@@ -166,6 +171,47 @@ test_add_a_directory_and_make_sure_it_goes_away() {
     #_verify_at_master repo ../origin/repo
 }
 
+test_add_a_submodule_locally_and_make_sure_it_goes_away() {
+    ( cd repo
+      git submodule add ../../origin/subrepo_extra
+      git commit -a -m "Added new subrepo"
+    )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_delete_a_submodule_locally_and_make_sure_it_comes_back() {
+    ( cd repo
+      git rm subrepo3
+      git commit -a -m "Deleted subrepo"
+    )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_replace_a_submodule_with_a_file_locally() {
+    ( cd repo
+      git rm subrepo3
+      git commit -a -m "Deleted subrepo"
+      echo "now a file" > subrepo3
+      git add subrepo3
+      git commit -a -m "Repo is now a file"
+    )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_replace_a_file_with_a_submodule_locally() {
+    ( cd repo
+      git rm foo
+      git commit -a -m "Deleted file"
+      git submodule add ../../origin/subrepo_extra
+      git commit -a -m "File is now a submodule"
+    )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
 # --- Tests that changes to the remote are reflected faithfully locally
 
 test_update_a_file() {
@@ -251,6 +297,29 @@ test_change_what_a_submodule_points_to() {
         git reset --hard origin/master; cd -;
         git commit -am "Repointed submodule";
         git submodule update --init --recursive )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_replace_a_submodule_with_a_file() {
+    ( cd ../origin/repo
+      git rm subrepo3
+      git commit -a -m "Deleted subrepo"
+      echo "now a file" > subrepo3
+      git add subrepo3
+      git commit -a -m "Repo is now a file"
+    )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_replace_a_file_with_a_submodule() {
+    ( cd ../origin/repo
+      git rm foo
+      git commit -a -m "Deleted file"
+      git submodule add ../../origin/subrepo_extra
+      git commit -a -m "File is now a submodule"
+    )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }
