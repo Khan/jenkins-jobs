@@ -83,6 +83,13 @@ clean_docker() {
     ( cd webapp && make docker-prod-staging-dir )
 }
 
+
+# Delete unused queries from our GraphQL whitelist.
+clean_unused_queries() {
+    curl --retry 3 https://www.khanacademy.org/api/internal/graphql_whitelist/clean
+}
+
+
 # Every week, we do a 'partial' clean of genfiles directories that
 # gets rid of certain files that are "probably" obsolete.
 clean_genfiles() {
@@ -288,3 +295,4 @@ clean_ka_static
 backup_network_config
 svgcrush
 pngcrush
+clean_unused_queries
