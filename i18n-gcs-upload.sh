@@ -48,7 +48,7 @@ make python_deps
 # These kake jobs can use a lot of memory; to avoid trouble we build
 # just one at a time.
 for locale in $I18N_GCS_UPLOAD_LOCALES; do
-    kake/build_prod_main.py -v1 $JOBS -l $locale compiled_po
+    build/kake/build_prod_main.py -v1 $JOBS -l $locale compiled_po
 done
 
 # Convert the list of locales to '-l <locale> -l <locale> ...'

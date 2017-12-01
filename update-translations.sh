@@ -157,7 +157,7 @@ if [ -n "$UPDATE_STRINGS" ]; then
     # By removing genfiles/extracted_strings/en/intl/datastore.pot.pickle,
     # we force compile_all_pot to re-fetch nltext datastore info from prod.
     rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
-    kake/build_prod_main.py -v3 pot
+    build/kake/build_prod_main.py -v3 pot
     # This is where build_prod_main.py puts the output all.pot
     ALL_POT="$PWD"/genfiles/translations/all.pot.pickle
 
