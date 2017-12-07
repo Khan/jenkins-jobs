@@ -10,6 +10,7 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.buildmaster
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
@@ -104,6 +105,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
+// GIT_SHA1 corresponding to master
+MASTER = null;
+TESTS_FAILED = false;
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
@@ -116,6 +120,7 @@ def initializeGlobals() {
                                         allBranches[i].trim());
       GIT_SHA1S += [sha1];
    }
+   MASTER = kaGit.resolveCommitish("git@github.com:Khan/webapp", "master");
 }
 
 
@@ -302,7 +307,9 @@ def analyzeResults() {
          // experience it's too confusing: people think that the
          // results we emit are the full results, even though this
          // error indicates some results could not be processed.
+         TESTS_FAILED = true;
          notify.fail(msg);
+         buildmaster.testsFailed(MASTER, GIT_SHA1S);
       }
 
       withSecrets() {     // we need secrets to talk to slack!
@@ -352,19 +359,30 @@ notify([slack: [channel: params.SLACK_CHANNEL,
       // this lock for the entire job.  It depends on everyone else who
       // uses the test-workers using this lock too.
       lock(label: 'using-test-workers', quantity: 1) {
-         stage("Determining splits") {
-            determineSplits();
-         }
-
          try {
-            stage("Running tests") {
-               runTests();
+            stage("Determining splits") {
+               determineSplits();
             }
+
+            try {
+               stage("Running tests") {
+                  runTests();
+               }
+            } finally {
+               // We want to analyze results even if -- especially if --
+               // there were failures; hence we're in the `finally`.
+               stage("Analyzing results") {
+                  analyzeResults();
+               }
+            }
+         } catch (Exception ex) {
+            if (!TESTS_FAILED) {
+               buildmaster.testsFailed(MASTER, GIT_SHA1S);
+            }
+            TESTS_FAILED = true;
          } finally {
-            // We want to analyze results even if -- especially if --
-            // there were failures; hence we're in the `finally`.
-            stage("Analyzing results") {
-               analyzeResults();
+            if (!TESTS_FAILED) {
+               buildmaster.testsSucceeded(MASTER, GIT_SHA1S);
             }
          }
       }
