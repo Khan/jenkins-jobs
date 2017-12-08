@@ -105,14 +105,12 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
-// GIT_SHA1 corresponding to master
-MASTER = null;
-TESTS_FAILED = false;
 
-def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
+
+def cachedGetGitSha1s() {
+   if (GIT_SHA1S) {
+      return GIT_SHA1S;
+   }
    GIT_SHA1S = [];
    def allBranches = params.GIT_REVISION.split(/\+/);
    for (def i = 0; i < allBranches.size(); i++) {
@@ -120,7 +118,15 @@ def initializeGlobals() {
                                         allBranches[i].trim());
       GIT_SHA1S += [sha1];
    }
-   MASTER = kaGit.resolveCommitish("git@github.com:Khan/webapp", "master");
+   return GIT_SHA1S
+}
+
+
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1S = cachedGetGitSha1s()
 }
 
 
@@ -307,9 +313,7 @@ def analyzeResults() {
          // experience it's too confusing: people think that the
          // results we emit are the full results, even though this
          // error indicates some results could not be processed.
-         TESTS_FAILED = true;
          notify.fail(msg);
-         buildmaster.testsFailed(MASTER, GIT_SHA1S);
       }
 
       withSecrets() {     // we need secrets to talk to slack!
@@ -348,6 +352,9 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
+        buildmaster: [sha1s: cachedGetGitSha1s(),
+                      what: 'webapp-test',
+                      when: ['SUCCESS', 'FAILURE', 'ABORTED']],
         timeout: "5h"]) {
    initializeGlobals();
 
@@ -359,30 +366,19 @@ notify([slack: [channel: params.SLACK_CHANNEL,
       // this lock for the entire job.  It depends on everyone else who
       // uses the test-workers using this lock too.
       lock(label: 'using-test-workers', quantity: 1) {
-         try {
-            stage("Determining splits") {
-               determineSplits();
-            }
+         stage("Determining splits") {
+            determineSplits();
+         }
 
-            try {
-               stage("Running tests") {
-                  runTests();
-               }
-            } finally {
-               // We want to analyze results even if -- especially if --
-               // there were failures; hence we're in the `finally`.
-               stage("Analyzing results") {
-                  analyzeResults();
-               }
+         try {
+            stage("Running tests") {
+               runTests();
             }
-         } catch (Exception ex) {
-            if (!TESTS_FAILED) {
-               buildmaster.testsFailed(MASTER, GIT_SHA1S);
-            }
-            TESTS_FAILED = true;
          } finally {
-            if (!TESTS_FAILED) {
-               buildmaster.testsSucceeded(MASTER, GIT_SHA1S);
+            // We want to analyze results even if -- especially if --
+            // there were failures; hence we're in the `finally`.
+            stage("Analyzing results") {
+               analyzeResults();
             }
          }
       }

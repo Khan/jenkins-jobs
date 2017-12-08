@@ -19,25 +19,25 @@ def _makeHttpRequest(resource, httpMode, params) {
     println("${resource} response: ${response.status}: ${response.content}");
 }
 
-def _notifyTests(result, master, branches) {
+def _notifyTests(result, branches) {
     // TODO: when we've decided exactly how we want to do branch merging,
     // we will want to use the merge's resulting SHA1 instead of
     // master+branches
     def params = [
-        git_sha: ([master] + branches).join("+"),
+        git_sha: branches.join("+"),
         result: result,
     ];
     return _makeHttpRequest("commits", "PATCH", params);
 }
 
-def testsFailed(master, branches) {
-    return _notifyTests("failed", master, branches);
+def testsFailed(branches) {
+    return _notifyTests("failed", branches);
 }
 
-def testsSucceeded(master, branches) {
-    return _notifyTests("success", master, branches);
+def testsSucceeded(branches) {
+    return _notifyTests("success", branches);
 }
 
-def testsAborted(master, branches) {
-    return _notifyTests("aborted", master, branches);
+def testsAborted(branches) {
+    return _notifyTests("aborted", branches);
 }

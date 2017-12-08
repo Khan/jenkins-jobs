@@ -4,6 +4,7 @@
 // and/or email notifications.
 
 // We use these user-defined steps from vars/:
+//import vars.buildmaster
 //import vars.exec
 //import vars.onMaster
 //import vars.withSecrets
@@ -284,6 +285,27 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 }
 
 
+// Supported options:
+// sha1s (required): list of git-shas being processed.
+// what (required): Which job the status refers to.
+// when (required): under what circumstances to send to buildmaster; a list.
+//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
+//    (Used in call(), below.)
+def sendToBuildmaster(buildmasterOptions, status) {
+   if (!(status in ['SUCCESS', 'FAILURE', 'ABORTED'])) {
+      return;
+   }
+   if (buildmasterOptions.what == 'webapp-test') {
+      notificationFunc = [
+         SUCCESS: buildmaster.testsSucceeded,
+         FAILURE: buildmaster.testsFailed,
+         ABORTED: buildmaster.testsAborted,
+      ].get(status);
+      return notificationFunc(buildmasterOptions.sha1s);
+   }
+}
+
+
 def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
 }
@@ -372,6 +394,10 @@ def runWithNotification(options, Closure body) {
       }
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
+      }
+      if (options.buildmaster &&
+            _shouldReport(status, options.buildmaster.when)) {
+         sendToBuildmaster(options.buildmaster, status);
       }
    }
 }
