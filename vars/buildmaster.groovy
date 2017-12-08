@@ -20,9 +20,6 @@ def _makeHttpRequest(resource, httpMode, params) {
 }
 
 def _notifyTests(result, branches) {
-    // TODO: when we've decided exactly how we want to do branch merging,
-    // we will want to use the merge's resulting SHA1 instead of
-    // master+branches
     def params = [
         git_sha: branches.join("+"),
         result: result,
