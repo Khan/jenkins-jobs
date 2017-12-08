@@ -39,3 +39,12 @@ def notifyStatus(job, result, sha1) {
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }
+
+def notifyMergeResult(commitId, result, sha1) {
+   def params = [
+      commit_id: commitId,
+      result: result,
+      git_sha: sha1,
+   ];
+   return _makeHttpRequest("commits/merge", "PATCH", params);
+}
