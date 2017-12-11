@@ -326,8 +326,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
         buildmaster: [sha1: params.GIT_SHA1,
-                      what: 'webapp-test',
-                      when: ['SUCCESS', 'FAILURE', 'ABORTED']],
+                      what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();
 

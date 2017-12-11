@@ -292,17 +292,16 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 //    (Used in call(), below.)
 def sendToBuildmaster(buildmasterOptions, status) {
-   if (!(status in ['SUCCESS', 'FAILURE', 'ABORTED'])) {
-      return;
+   def buildmasterStatus;
+   if (status == 'SUCCESS') {
+      buildmasterStatus = "success";
+   } else if (status == 'ABORTED') {
+      buildmasterStatus = "aborted";
+   } else {
+      buildmasterStatus = "failed";
    }
-   if (buildmasterOptions.what == 'webapp-test') {
-      notificationFunc = [
-         SUCCESS: buildmaster.testsSucceeded,
-         FAILURE: buildmaster.testsFailed,
-         ABORTED: buildmaster.testsAborted,
-      ].get(status);
-      return notificationFunc(buildmasterOptions.sha1);
-   }
+   buildmaster.notifyStatus(
+      what, buildmasterStatus, buildmasterOptions.sha1);
 }
 
 
@@ -395,8 +394,7 @@ def runWithNotification(options, Closure body) {
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
       }
-      if (options.buildmaster &&
-            _shouldReport(status, options.buildmaster.when)) {
+      if (options.buildmaster) {
          sendToBuildmaster(options.buildmaster, status);
       }
    }

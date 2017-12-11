@@ -19,22 +19,11 @@ def _makeHttpRequest(resource, httpMode, params) {
     echo("${resource} response: ${response.status}: ${response.content}");
 }
 
-def _notifyTests(result, branches) {
+def notifyStatus(job, result, sha1) {
     def params = [
-        git_sha: branches.join("+"),
+        git_sha: sha1,
+        job: job,
         result: result,
     ];
     return _makeHttpRequest("commits", "PATCH", params);
-}
-
-def testsFailed(branches) {
-    return _notifyTests("failed", branches);
-}
-
-def testsSucceeded(branches) {
-    return _notifyTests("success", branches);
-}
-
-def testsAborted(branches) {
-    return _notifyTests("aborted", branches);
 }
