@@ -27,12 +27,8 @@ new Setup(steps
    // We serialize via the using-test-workers lock
 
 ).addStringParam(
-   "GIT_REVISION",
-   """The git commit-hash to run tests at, or a symbolic name referring
-to such a commit-hash.  Can also be a list of branches to deploy separated
-by `+` ('br1+br2+br3').  In that case we will merge the branches together --
-dying if there's a merge conflict -- and run tests on the resulting code.""",
-   "master"
+   "GIT_SHA1",
+   "The git commit-hash to run tests at to such a commit-hash.",
 
 ).addChoiceParam(
    "TEST_TYPE",
@@ -40,7 +36,7 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
 <ul>
   <li> <b>all</b>: run all tests</li>
   <li> <b>relevant</b>: run only those tests that are affected by
-         files that have changed between master and GIT_REVISION.</li>
+         files that have changed between master and GIT_SHA1.</li>
 </ul>
 """,
    ["all", "relevant"]
@@ -63,7 +59,7 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
 ).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
-have already passed at this GIT_REVISION.""",
+have already passed at this GIT_SHA1.""",
    false
 
 ).addChoiceParam(
@@ -97,44 +93,21 @@ Typically not set manually, but rather by other jobs that call this one.""",
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.GIT_REVISION})");
+                            "(${params.GIT_SHA1})");
 
 
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-// GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
-GIT_SHA1S = null;
-
-
-def cachedGetGitSha1s() {
-   if (GIT_SHA1S) {
-      return GIT_SHA1S;
-   }
-   GIT_SHA1S = [];
-   def allBranches = params.GIT_REVISION.split(/\+/);
-   for (def i = 0; i < allBranches.size(); i++) {
-      def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        allBranches[i].trim());
-      GIT_SHA1S += [sha1];
-   }
-   return GIT_SHA1S
-}
 
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1S = cachedGetGitSha1s()
 }
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1S[0]);
-   for (def i = 1; i < GIT_SHA1S.size(); i++) {
-      kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
-   }
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_SHA1);
 
    dir("webapp") {
       clean(params.CLEAN);
@@ -329,7 +302,7 @@ def analyzeResults() {
                   "--deployer", params.DEPLOYER_USERNAME,
                   // The commit here is just used for a human-readable
                   // slack message, so we use the input commit, not the sha1.
-                  "--commit", params.GIT_REVISION]);
+                  "--commit", params.GIT_SHA1]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
@@ -352,13 +325,13 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        buildmaster: [sha1s: cachedGetGitSha1s(),
+        buildmaster: [sha1: params.GIT_SHA1,
                       what: 'webapp-test',
                       when: ['SUCCESS', 'FAILURE', 'ABORTED']],
         timeout: "5h"]) {
    initializeGlobals();
 
-   def key = ["rGW${GIT_SHA1S.join('+')}", params.TEST_TYPE, params.MAX_SIZE];
+   def key = ["rGW${params.GIT_SHA1}", params.TEST_TYPE, params.MAX_SIZE];
    singleton(params.FORCE ? null : key.join(":")) {
       // We run on the test-workers a few different times during this
       // job, and we want to make sure no other job sneaks in between

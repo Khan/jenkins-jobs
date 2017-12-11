@@ -16,7 +16,7 @@ def _makeHttpRequest(resource, httpMode, params) {
         httpMode: httpMode,
         requestBody: JsonBuilder(params).toString(),
         url: _buildmasterURL(resource));
-    println("${resource} response: ${response.status}: ${response.content}");
+    echo("${resource} response: ${response.status}: ${response.content}");
 }
 
 def _notifyTests(result, branches) {
