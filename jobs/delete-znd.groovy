@@ -1,13 +1,12 @@
 // Delete a non-default (znd) version of our application on App Engine.
+// This wraps delete-version up with a safety check and is exposed via "sun:
+// delete znd".
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
-//import vars.exec
-//import vars.kaGit
 //import vars.notify
-//import vars.withTimeout
 
 
 new Setup(steps
@@ -36,17 +35,6 @@ def verifyZnd() {
 }
 
 
-def deleteZnd() {
-   withTimeout('15m') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-      dir("webapp") {
-         sh("make python_deps");
-         exec(["deploy/delete_gae_versions.py", params.ZND_NAME]);
-      }
-   }
-}
-
-
 notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
@@ -56,7 +44,6 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
         timeout: "30m"]) {
    verifyZnd();
-   stage("Deleting") {
-      deleteZnd();
-   }
+   build(job: 'delete-version',
+         parameters: [string(name: 'VERSION', value: params.ZND_NAME)]);
 }
