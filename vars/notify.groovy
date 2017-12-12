@@ -288,9 +288,6 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 // Supported options:
 // sha1s (required): list of git-shas being processed.
 // what (required): Which job the status refers to.
-// when (required): under what circumstances to send to buildmaster; a list.
-//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-//    (Used in call(), below.)
 def sendToBuildmaster(buildmasterOptions, status) {
    def buildmasterStatus;
    if (status == 'SUCCESS') {
