@@ -107,11 +107,7 @@ NUM_WORKER_MACHINES = null;
 GIT_SHA1S = null;
 
 
-def cachedGetGitSha1s() {
-   if (GIT_SHA1S) {
-      return GIT_SHA1S;
-   }
-
+def getGitSha1s() {
    // `git rev-parse --verify` returns the sha of the revision passed in.
    // If the output of `git rev-parse --verify X` == X, then X is a single
    // git-revision, and we can skip the rest of the function.
@@ -133,7 +129,7 @@ def cachedGetGitSha1s() {
                                         allBranches[i].trim());
       GIT_SHA1S += [sha1];
    }
-   return GIT_SHA1S
+   return GIT_SHA1S;
 }
 
 
@@ -141,7 +137,7 @@ def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1S = cachedGetGitSha1s()
+   GIT_SHA1S = getGitSha1s();
 }
 
 
@@ -367,7 +363,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        buildmaster: [sha1s: cachedGetGitSha1s(),
+        buildmaster: [sha1sCallback: { GIT_SHA1S },
                       what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();

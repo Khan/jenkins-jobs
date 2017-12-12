@@ -301,9 +301,9 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
-   if (buildmasterOptions.sha1s.size() == 1) {
-      buildmaster.notifyStatus(
-         what, buildmasterStatus, buildmasterOptions.sha1s[0]);
+   sha1s = buildmasterOptions.sha1sCallback();
+   if (sha1s.size() == 1) {
+      buildmaster.notifyStatus(what, buildmasterStatus, sha1s[0]);
    }
 }
 
