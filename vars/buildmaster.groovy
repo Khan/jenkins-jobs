@@ -3,10 +3,6 @@
 import groovy.json.JsonBuilder;
 
 
-def _buildmasterURL(resource) {
-    return "https://buildmaster.khanacademy.org/${resource}";
-}
-
 // Make an API request to the buildmaster
 // `params` is expected to be a map
 def _makeHttpRequest(resource, httpMode, params) {
@@ -15,7 +11,7 @@ def _makeHttpRequest(resource, httpMode, params) {
         contentType: "APPLICATION_JSON",
         httpMode: httpMode,
         requestBody: JsonBuilder(params).toString(),
-        url: _buildmasterURL(resource));
+        url: "https://buildmaster.khanacademy.org/${resource}");
     echo("${resource} response: ${response.status}: ${response.content}");
 }
 

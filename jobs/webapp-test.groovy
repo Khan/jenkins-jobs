@@ -110,9 +110,9 @@ GIT_SHA1S = null;
 def getGitSha1s() {
    // `git rev-parse --verify` returns the sha of the revision passed in.
    // If the output of `git rev-parse --verify X` == X, then X is a single
-   // git-revision, and we can skip the rest of the function.
-   // TODO: Get rid of this logic once we can safely expect webapp-test to
-   // receive a single sha as input.
+   // git-sha, and we can skip the rest of the function.
+   // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
+   // to receive a single sha as input.
    try {
       def maybeSha = exec.outputOf(
          ["git", "rev-parse", "--verify", "${params.GIT_REVISION}"]);

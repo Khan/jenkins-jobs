@@ -298,6 +298,9 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
+   // If sha1s has multiple things in it, this notify is being triggered by a
+   // job that is NOT running with a single git-sha as input.  Buildmaster will
+   // not know how to handle it, so we skip notifying.
    sha1s = buildmasterOptions.sha1sCallback();
    if (sha1s.size() == 1) {
       buildmaster.notifyStatus(what, buildmasterStatus, sha1s[0]);
