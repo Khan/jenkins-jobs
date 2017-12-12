@@ -286,7 +286,7 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 
 
 // Supported options:
-// sha1 (required): git-sha being processed.
+// sha1s (required): list of git-shas being processed.
 // what (required): Which job the status refers to.
 // when (required): under what circumstances to send to buildmaster; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
@@ -300,8 +300,11 @@ def sendToBuildmaster(buildmasterOptions, status) {
    } else {
       buildmasterStatus = "failed";
    }
-   buildmaster.notifyStatus(
-      what, buildmasterStatus, buildmasterOptions.sha1);
+
+   if (buildmasterOptions.sha1s.size() == 1) {
+      buildmaster.notifyStatus(
+         what, buildmasterStatus, buildmasterOptions.sha1s[0]);
+   }
 }
 
 

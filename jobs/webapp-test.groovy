@@ -27,8 +27,12 @@ new Setup(steps
    // We serialize via the using-test-workers lock
 
 ).addStringParam(
-   "GIT_SHA1",
-   "The git commit-hash to run tests at to such a commit-hash.",
+   "GIT_REVISION",
+   """The git commit-hash to run tests at, or a symbolic name referring
+to such a commit-hash.  Can also be a list of branches to deploy separated
+by `+` ('br1+br2+br3').  In that case we will merge the branches together --
+dying if there's a merge conflict -- and run tests on the resulting code.""",
+   "master"
 
 ).addChoiceParam(
    "TEST_TYPE",
@@ -36,7 +40,7 @@ new Setup(steps
 <ul>
   <li> <b>all</b>: run all tests</li>
   <li> <b>relevant</b>: run only those tests that are affected by
-         files that have changed between master and GIT_SHA1.</li>
+         files that have changed between master and GIT_REVISION.</li>
 </ul>
 """,
    ["all", "relevant"]
@@ -59,7 +63,7 @@ new Setup(steps
 ).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
-have already passed at this GIT_SHA1.""",
+have already passed at this GIT_REVISION.""",
    false
 
 ).addChoiceParam(
@@ -93,21 +97,59 @@ Typically not set manually, but rather by other jobs that call this one.""",
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.GIT_SHA1})");
+                            "(${params.GIT_REVISION})");
 
 
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
+// GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
+GIT_SHA1S = null;
+
+
+def cachedGetGitSha1s() {
+   if (GIT_SHA1S) {
+      return GIT_SHA1S;
+   }
+
+   // `git rev-parse --verify` returns the sha of the revision passed in.
+   // If the output of `git rev-parse --verify X` == X, then X is a single
+   // git-revision, and we can skip the rest of the function.
+   try {
+      def maybeSha = exec.outputOf(
+         ["git", "rev-parse", "--verify", "${params.GIT_REVISION}"]);
+      if (maybeSha == parameters.GIT_REVISION) {
+         GIT_SHA1S = [parameters.GIT_REVISION];
+         return GIT_SHA1S;
+      }
+   } catch (e) {
+      // This means params.GIT_REVISION was not a single revision, so we
+      // keep going with the rest of the function.
+   }
+   GIT_SHA1S = [];
+   def allBranches = params.GIT_REVISION.split(/\+/);
+   for (def i = 0; i < allBranches.size(); i++) {
+      def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                        allBranches[i].trim());
+      GIT_SHA1S += [sha1];
+   }
+   return GIT_SHA1S
+}
 
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1S = cachedGetGitSha1s()
 }
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_SHA1);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1S[0]);
+   for (def i = 1; i < GIT_SHA1S.size(); i++) {
+      kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
+   }
 
    dir("webapp") {
       clean(params.CLEAN);
@@ -302,7 +344,7 @@ def analyzeResults() {
                   "--deployer", params.DEPLOYER_USERNAME,
                   // The commit here is just used for a human-readable
                   // slack message, so we use the input commit, not the sha1.
-                  "--commit", params.GIT_SHA1]);
+                  "--commit", params.GIT_REVISION]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
@@ -325,12 +367,12 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        buildmaster: [sha1: params.GIT_SHA1,
+        buildmaster: [sha1s: cachedGetGitSha1s(),
                       what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();
 
-   def key = ["rGW${params.GIT_SHA1}", params.TEST_TYPE, params.MAX_SIZE];
+   def key = ["rGW${GIT_SHA1S.join('+')}", params.TEST_TYPE, params.MAX_SIZE];
    singleton(params.FORCE ? null : key.join(":")) {
       // We run on the test-workers a few different times during this
       // job, and we want to make sure no other job sneaks in between
