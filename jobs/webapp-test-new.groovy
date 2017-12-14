@@ -106,6 +106,10 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
+// Simetimes GIT_SHA1S contains one or more branch names.  Other times
+// it's a single git-revision.  We only want to talk to buildmaster if it
+// is the latter.
+IS_ONE_GIT_SHA = false;
 
 
 def getGitSha1s() {
@@ -119,6 +123,7 @@ def getGitSha1s() {
          ["git", "rev-parse", "--verify", "${params.GIT_REVISION}"]);
       if (maybeSha == parameters.GIT_REVISION) {
          GIT_SHA1S = [parameters.GIT_REVISION];
+         IS_ONE_GIT_SHA = true;
          return GIT_SHA1S;
       }
    } catch (e) {
@@ -367,6 +372,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
         buildmaster: [sha1sCallback: { GIT_SHA1S },
+                      isOneGitShaCallback: { IS_ONE_GIT_SHA },
                       what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();

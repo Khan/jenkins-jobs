@@ -287,6 +287,8 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 
 // Supported options:
 // sha1sCallback (required): Closure yielding list of git-shas being processed.
+// isOneGitShaCallback (required): Closure yielding whether sha1sCallback
+//   will yield one single git-sha.  If so, notify.
 // what (required): Which job the status refers to.
 def sendToBuildmaster(buildmasterOptions, status) {
    def buildmasterStatus;
@@ -298,20 +300,18 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
-   // If sha1s has multiple things in it, this notify is being triggered by a
-   // job that is NOT running with a single git-sha as input.  Buildmaster will
-   // not know how to handle it, so we skip notifying.
+   // Buildmaster only knows how to handle testing a single git-sha, not
+   // one or multiple branch-names.
    echo('inside sendToBuildmaster');
    echo(buildmasterOptions.toString());
    echo(buildmasterOptions.sha1sCallback.toString());
    echo(buildmasterStatus);
-   def callback = buildmasterOptions.sha1sCallback;
-   echo(callback.toString());
-   echo(callback().toString());
-   //sha1s = buildmasterOptions.sha1sCallback();
-   //echo(sha1s);
-   sha1s = callback();
-   if (sha1s.size() == 1) {
+
+   def sha1sCallback = buildmasterOptions.sha1sCallback;
+   def isOneGitShaCallback = buildmasterOptions.isOneGitShaCallback();
+   sha1s = sha1sCallback();
+   if (isOneGitShaCallback()) {
+      echo('calling notifyStatus');
       buildmaster.notifyStatus(
          buildmasterOptions.what, buildmasterStatus, sha1s[0]);
    }
