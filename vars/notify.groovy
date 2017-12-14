@@ -4,7 +4,6 @@
 // and/or email notifications.
 
 // We use these user-defined steps from vars/:
-//import vars.buildmaster
 //import vars.exec
 //import vars.onMaster
 //import vars.withSecrets
@@ -285,29 +284,6 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 }
 
 
-// Supported options:
-// sha1s (required): list of git-shas being processed.
-// what (required): Which job the status refers to.
-def sendToBuildmaster(buildmasterOptions, status) {
-   def buildmasterStatus;
-   if (status == 'SUCCESS') {
-      buildmasterStatus = "success";
-   } else if (status == 'ABORTED') {
-      buildmasterStatus = "aborted";
-   } else {
-      buildmasterStatus = "failed";
-   }
-
-   // If sha1s has multiple things in it, this notify is being triggered by a
-   // job that is NOT running with a single git-sha as input.  Buildmaster will
-   // not know how to handle it, so we skip notifying.
-   sha1s = buildmasterOptions.sha1sCallback();
-   if (sha1s.size() == 1) {
-      buildmaster.notifyStatus(what, buildmasterStatus, sha1s[0]);
-   }
-}
-
-
 def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
 }
@@ -396,9 +372,6 @@ def runWithNotification(options, Closure body) {
       }
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
-      }
-      if (options.buildmaster) {
-         sendToBuildmaster(options.buildmaster, status);
       }
    }
 }
