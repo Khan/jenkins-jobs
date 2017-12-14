@@ -308,7 +308,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
    echo(buildmasterStatus);
 
    def sha1sCallback = buildmasterOptions.sha1sCallback;
-   def isOneGitShaCallback = buildmasterOptions.isOneGitShaCallback();
+   def isOneGitShaCallback = buildmasterOptions.isOneGitShaCallback;
    sha1s = sha1sCallback();
    if (isOneGitShaCallback()) {
       echo('calling notifyStatus');
