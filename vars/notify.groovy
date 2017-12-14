@@ -302,11 +302,15 @@ def sendToBuildmaster(buildmasterOptions, status) {
    // job that is NOT running with a single git-sha as input.  Buildmaster will
    // not know how to handle it, so we skip notifying.
    echo('inside sendToBuildmaster');
-   echo(buildmasterOptions);
-   echo(buildmasterOptions.sha1sCallback);
+   echo(buildmasterOptions.toString());
+   echo(buildmasterOptions.sha1sCallback.toString());
    echo(buildmasterStatus);
-   sha1s = buildmasterOptions.sha1sCallback();
-   echo(sha1s);
+   callback = buildmasterOptions.sha1sCallback;
+   echo(callback.toString());
+   echo(callback().toString());
+   //sha1s = buildmasterOptions.sha1sCallback();
+   //echo(sha1s);
+   sha1s = callback();
    if (sha1s.size() == 1) {
       buildmaster.notifyStatus(
          buildmasterOptions.what, buildmasterStatus, sha1s[0]);

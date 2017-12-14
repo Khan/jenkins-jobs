@@ -1,4 +1,5 @@
-// The pipeline job for webapp tests.
+// The very temporary pipeline job to debug webapp-test without blocking
+// deploys.
 //
 // webapp tests are the tests run in the webapp repo, including python
 // tests, javascript tests, and linters (which aren't technically tests).
