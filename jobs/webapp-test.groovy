@@ -10,6 +10,7 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.buildmaster
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
@@ -105,10 +106,24 @@ NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
 
-def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
+
+def getGitSha1s() {
+   // `git rev-parse --verify` returns the sha of the revision passed in.
+   // If the output of `git rev-parse --verify X` == X, then X is a single
+   // git-sha, and we can skip the rest of the function.
+   // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
+   // to receive a single sha as input.
+   try {
+      def maybeSha = exec.outputOf(
+         ["git", "rev-parse", "--verify", "${params.GIT_REVISION}"]);
+      if (maybeSha == parameters.GIT_REVISION) {
+         GIT_SHA1S = [parameters.GIT_REVISION];
+         return GIT_SHA1S;
+      }
+   } catch (e) {
+      // This means params.GIT_REVISION was not a single revision, so we
+      // keep going with the rest of the function.
+   }
    GIT_SHA1S = [];
    def allBranches = params.GIT_REVISION.split(/\+/);
    for (def i = 0; i < allBranches.size(); i++) {
@@ -116,6 +131,15 @@ def initializeGlobals() {
                                         allBranches[i].trim());
       GIT_SHA1S += [sha1];
    }
+   return GIT_SHA1S;
+}
+
+
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1S = getGitSha1s();
 }
 
 
@@ -341,6 +365,8 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
+        buildmaster: [sha1sCallback: { GIT_SHA1S },
+                      what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();
 
