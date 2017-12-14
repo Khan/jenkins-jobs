@@ -305,7 +305,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
    echo(buildmasterOptions.toString());
    echo(buildmasterOptions.sha1sCallback.toString());
    echo(buildmasterStatus);
-   callback = buildmasterOptions.sha1sCallback;
+   def callback = buildmasterOptions.sha1sCallback;
    echo(callback.toString());
    echo(callback().toString());
    //sha1s = buildmasterOptions.sha1sCallback();
