@@ -113,22 +113,17 @@ IS_ONE_GIT_SHA = false;
 
 
 def getGitSha1s() {
-   // `git rev-parse --verify` returns the sha of the revision passed in.
-   // If the output of `git rev-parse --verify X` == X, then X is a single
-   // git-sha, and we can skip the rest of the function.
+   // resolveCommitish returns the sha of a commit.  If
+   // resolveCommitish(webapp, X) == X, then X must be a sha, and we can
+   // skip the rest of the function.
    // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
    // to receive a single sha as input.
-   try {
-      def maybeSha = exec.outputOf(
-         ["git", "rev-parse", "--verify", "${params.GIT_REVISION}"]);
-      if (maybeSha == parameters.GIT_REVISION) {
-         GIT_SHA1S = [parameters.GIT_REVISION];
-         IS_ONE_GIT_SHA = true;
-         return GIT_SHA1S;
-      }
-   } catch (e) {
-      // This means params.GIT_REVISION was not a single revision, so we
-      // keep going with the rest of the function.
+   def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                     params.GIT_REVISION);
+   if (sha1 == parameters.GIT_REVISION) {
+      GIT_SHA1S = [parameters.GIT_REVISION];
+      IS_ONE_GIT_SHA = true;
+      return GIT_SHA1S;
    }
    GIT_SHA1S = [];
    def allBranches = params.GIT_REVISION.split(/\+/);

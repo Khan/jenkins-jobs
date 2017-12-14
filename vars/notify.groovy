@@ -294,6 +294,10 @@ def sendToBuildmaster(buildmasterOptions, status) {
    def buildmasterStatus;
    if (status == 'SUCCESS') {
       buildmasterStatus = "success";
+   } else if (status == 'UNSTABLE') {
+      buildmasterStatus = "success";
+   } else if (status == 'BACK TO NORMAL') {
+      buildmasterStatus = "success";
    } else if (status == 'ABORTED') {
       buildmasterStatus = "aborted";
    } else {
