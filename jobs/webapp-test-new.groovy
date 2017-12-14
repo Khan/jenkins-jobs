@@ -59,7 +59,7 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s"
+   "#bot-testing"
 
 ).addBooleanParam(
    "FORCE",
