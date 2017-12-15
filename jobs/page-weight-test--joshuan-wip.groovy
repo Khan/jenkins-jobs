@@ -70,7 +70,7 @@ def _setupWebapp() {
 def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
    sh("make serve &");
-   sleep(10000);  // STOPSHIP(joshuan): instead detect when 8081 is up. I'm just seeing if this works.
+   sleep(10);  // STOPSHIP(joshuan): instead detect when 8081 is up. I'm just seeing if this works.
    exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 }
 
