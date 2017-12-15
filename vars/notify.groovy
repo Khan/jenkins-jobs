@@ -327,6 +327,18 @@ def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
 }
 
+def failBuild(e) {
+   currentBuild.result = e.getStatusToSet();
+   failureText = e.getMessage();
+   echo("Failure message: ${failureText}");
+   // Log a message to help us ignore this post-build action when
+   // analyzing the logs for errors.
+   ansiColor('xterm') {
+      echo("\033[1;33m===== JOB FAILED =====\033[0m");
+   }
+   return failureText;
+}
+
 
 def runWithNotification(options, Closure body) {
    def abortState = [complete: false, aborted: false];
@@ -366,14 +378,7 @@ def runWithNotification(options, Closure body) {
          "failFast": true,
       );
    } catch (FailedBuild e) {
-      currentBuild.result = e.getStatusToSet();
-      failureText = e.getMessage();
-      echo("Failure message: ${failureText}");
-      // Log a message to help us ignore this post-build action when
-      // analyzing the logs for errors.
-      ansiColor('xterm') {
-         echo("\033[1;33m===== JOB FAILED =====\033[0m");
-      }
+      failureText = failBuild(e);
    } catch (e) {
       if (abortState.aborted) {
          currentBuild.result = "ABORTED";
@@ -388,6 +393,17 @@ def runWithNotification(options, Closure body) {
       }
       throw e;
    } finally {
+      // This should happen before other sendTo*s since a failure to
+      // communicate with buildmaster can fail() the build
+      if (options.buildmaster) {
+         try {
+            echo('Sending to buildmaster');
+            sendToBuildmaster(options.buildmaster, currentBuild.result);
+         } catch (FailedBuild e) {
+            failureText = failBuild(e);
+         }
+      }
+
       def status = currentBuild.result;
 
       // If we are success and the previous build was a failure, then
@@ -411,10 +427,6 @@ def runWithNotification(options, Closure body) {
       }
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
-      }
-      if (options.buildmaster) {
-         echo('Sending to buildmaster');
-         sendToBuildmaster(options.buildmaster, status);
       }
    }
 }
