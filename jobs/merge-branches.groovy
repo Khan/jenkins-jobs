@@ -59,12 +59,14 @@ def mergeBranches() {
             // Note that this is a no-op when we just did a fresh clone above.
             exec(["git", "checkout", "-f", branchSha1]);
          } else {
+            // TODO(benkraft): This puts the sha in the commit message instead
+            // of the branch; we should just write our own commit message.
             exec(["git", "merge", branchSha1]);
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
       // TODO(benkraft): Prune these tags eventually.
-      tag_name = ("buildmaster-${params.DEPLOY_ID}-" +
+      tag_name = ("buildmaster-${params.COMMIT_ID}-" +
                   "${new Date().format('yyyyMMdd-HHmmss')}");
       exec(["git", "tag", tag_name, "HEAD"]);
       exec(["git", "push", "--tags", "origin"]);
