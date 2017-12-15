@@ -1,7 +1,9 @@
 // Utility module for interfacing with the buildmaster
+import groovy.json.JsonBuilder;
 import groovy.transform.Field;
 
-import groovy.json.JsonBuilder;
+// Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.notify
 
 
 @Field BUILDMASTER_TOKEN = null;
@@ -14,21 +16,29 @@ def initializeBuildmasterToken() {
    }
 }
 
-
 // Make an API request to the buildmaster
 // `params` is expected to be a map
 def _makeHttpRequest(resource, httpMode, params) {
-   echo('_makeHttpRequest');
    initializeBuildmasterToken();
-   def response = httpRequest(
-      acceptType: "APPLICATION_JSON",
-      contentType: "APPLICATION_JSON",
-      customHeaders: [[name: 'X-Buildmaster-Token',
-                       value: BUILDMASTER_TOKEN]],
-      httpMode: httpMode,
-      requestBody: new JsonBuilder(params).toString(),
-      url: "https://buildmaster.khanacademy.org/${resource}");
-   echo("${resource} response: ${response.status}: ${response.content}");
+   try {
+      def response = httpRequest(
+         acceptType: "APPLICATION_JSON",
+         contentType: "APPLICATION_JSON",
+         customHeaders: [[name: 'X-Buildmaster-Token',
+                          value: BUILDMASTER_TOKEN,
+                          // Replace value with ***** when logging request.
+                          maskValue: true]],
+         httpMode: httpMode,
+         requestBody: new JsonBuilder(params).toString(),
+         url: "https://buildmaster.khanacademy.org/${resource}");
+      return response;
+   } catch (e) {
+      // Ideally, we'd just catch hudson.AbortException, but for some reason
+      // it's not being caught properly.
+      // httpRequest throws exceptions when buildmaster responds with status
+      // code >=400
+      notify.fail("Error notifying buildmaster:\n" + e.getMessage());
+   }
 }
 
 def notifyStatus(job, result, sha1) {
