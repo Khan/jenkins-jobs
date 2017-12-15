@@ -46,7 +46,8 @@ def mergeBranches() {
    // submodules at each step, and we don't need a fully clean checkout.  All
    // we need is enough to merge.  This saves us a *lot* of time traversing all
    // the submodules on each branch, and being careful to clean at each step.
-   kaGit.quickClone("git@github.com:Khan/webapp", params.GIT_REVISION);
+   kaGit.quickClone("git@github.com:Khan/webapp", "webapp",
+                    params.GIT_REVISION);
    dir('webapp') {
       def allBranches = params.GIT_REVISIONS.split(/\+/);
       exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
