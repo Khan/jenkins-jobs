@@ -77,6 +77,13 @@ def wasSyncedTo(repo, commit, syncFn) {
    }
 }
 
+// Clone a repo, using our existing workdirs if possible.
+// This is very low-level, and does not update submodules!  You probably want
+// safeSyncTo, below, instead.
+def quickClone(repoToClone, directory, commit) {
+   exec(["jenkins-jobs/safe_git.sh", "clone", repoToClone, directory, commit]);
+}
+
 // Submodules is as in _submodulesArg`.
 // Unless `force` is True, we are a noop if that dir is already synced
 // to the given commit *by this same jenkins job*.
