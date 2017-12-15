@@ -52,14 +52,14 @@ def mergeBranches() {
       def allBranches = params.GIT_REVISIONS.split(/\+/);
       exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
       for (def i = 0; i < allBranches.size(); i++) {
-         def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                           allBranches[i].trim());
+         def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                                 allBranches[i].trim());
          if (i == 0) {
             // TODO(benkraft): If there's only one branch, skip the checkout and
             // tag/return sha1 immediately.
-            exec(["git", "checkout", "-f", sha1]);
+            exec(["git", "checkout", "-f", branchSha1]);
          } else {
-            exec(["git", "merge", sha1]);
+            exec(["git", "merge", branchSha1]);
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
@@ -68,6 +68,7 @@ def mergeBranches() {
                   "${new Date().format('yyyyMMdd-HHmmss')}");
       exec(["git", "tag", tag_name, "HEAD"]);
       exec(["git", "push", "--tags", "origin"]);
+      def sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
       echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
       return sha1;
    }
@@ -88,7 +89,6 @@ notify([slack: [channel: '#bot-testing',
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success', sha1);
       }
    } catch (e) {
-      echo(e.getMessage())
       // We don't really care about the difference between aborted and failed;
       // we can't use notify because we want somewhat special semantics; and
       // without all the things notify does it's hard to tell the difference
