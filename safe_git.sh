@@ -212,6 +212,38 @@ _update_submodules() {
     timeout 10m git submodule update -- "$@"
 }
 
+# Clone the given repo if it doesn't already exist.
+# This is just like git clone, except we make a new workdir of the shared
+# central repo.
+# $1: repo to clone (a la sync_to)
+# $2: directory into which to clone it
+# $2: commit-ish to check out at.  Note that we don't do submodules
+#     or the like; that's up to you.
+clone() {
+    repo="$1"
+    shift
+    repo_workspace="$1"
+    shift
+    commit="$1"
+    shift
+    (
+    if ! [ -d "$repo_workspace" ]; then
+        # The git objects/etc live under REPOS_ROOT (all workspaces
+        # share the same objects).
+        repo_dir="$REPOS_ROOT/`basename "$repo"`"
+        # Clone or update into repo-dir, the canonical home.
+        if [ -d "$repo_dir" ]; then
+            ( cd "$repo_dir" && _fetch )
+        else
+            timeout 60m git clone "$repo" "$repo_dir"
+        fi
+        # Now create our workspace!
+        timeout 10m git new-workdir "$repo_dir" "$repo_workspace" "$commit"
+    fi
+    )
+}
+
+
 # checks out the given commit-ish, fetching (or cloning) first.
 # The repo is always checked out under $WORKSPACE_ROOT and there
 # is no way to specially set the directory name.
@@ -233,17 +265,7 @@ sync_to() {
         _fetch
         _destructive_checkout "$commit"
     else
-        # The git objects/etc live under REPOS_ROOT (all workspaces
-        # share the same objects).
-        repo_dir="$REPOS_ROOT/`basename "$repo"`"
-        # Clone or update into repo-dir, the canonical home.
-        if [ -d "$repo_dir" ]; then
-            ( cd "$repo_dir" && _fetch )
-        else
-            timeout 60m git clone "$repo" "$repo_dir"
-        fi
-        # Now create our workspace!
-        timeout 10m git new-workdir "$repo_dir" "$repo_workspace" "$commit"
+        clone "$repo" "$repo_workspace" "$commit"
         cd "$repo_workspace"
     fi
 

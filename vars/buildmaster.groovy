@@ -41,6 +41,7 @@ def notifyStatus(job, result, sha1) {
 }
 
 def notifyMergeResult(commitId, result, sha1) {
+   echo("Marking commit #${commitId} as ${result}: ${sha1}");
    def params = [
       commit_id: commitId,
       result: result,

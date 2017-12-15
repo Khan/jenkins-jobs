@@ -41,31 +41,35 @@ def checkArgs() {
 
 
 def mergeBranches() {
-   def allBranches = params.GIT_REVISIONS.split(/\+/);
-   exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
-   for (def i = 0; i < allBranches.size(); i++) {
-      def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        allBranches[i].trim());
-      // We don't use kaGit here, because we don't need to update submodules at
-      // each step, and we don't need a fully clean checkout.  All we need is
-      // enough to merge.  This saves us a *lot* of time traversing all the
-      // submodules on each branch, and being careful to clean at each step.
-      if (i == 0) {
-         // TODO(benkraft): If there's only one branch, skip the checkout and
-         // tag/return sha1 immediately.
-         exec(["git", "checkout", "-f", sha1]);
-      } else {
-         exec(["git", "merge", sha1]);
+   // We don't use kaGit for many of the ops here, and use lower-level ops
+   // where we do. We can afford this because we don't need to update
+   // submodules at each step, and we don't need a fully clean checkout.  All
+   // we need is enough to merge.  This saves us a *lot* of time traversing all
+   // the submodules on each branch, and being careful to clean at each step.
+   kaGit.quickClone("git@github.com:Khan/webapp", params.GIT_REVISION);
+   dir('webapp') {
+      def allBranches = params.GIT_REVISIONS.split(/\+/);
+      exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
+      for (def i = 0; i < allBranches.size(); i++) {
+         def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                           allBranches[i].trim());
+         if (i == 0) {
+            // TODO(benkraft): If there's only one branch, skip the checkout and
+            // tag/return sha1 immediately.
+            exec(["git", "checkout", "-f", sha1]);
+         } else {
+            exec(["git", "merge", sha1]);
+         }
       }
+      // We need to at least tag the commit, otherwise github may prune it.
+      // TODO(benkraft): Prune these tags eventually.
+      tag_name = ("buildmaster-${params.DEPLOY_ID}-" +
+                  "${new Date().format('yyyyMMdd-HHmmss')}");
+      exec(["git", "tag", tag_name, "HEAD"]);
+      exec(["git", "push", "--tags", "origin"]);
+      echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
+      return sha1;
    }
-   // We need to at least tag the commit, otherwise github may prune it.
-   // TODO(benkraft): Prune these tags eventually.
-   tag_name = ("buildmaster-${params.DEPLOY_ID}-" +
-               "${new Date().format('yyyyMMdd-HHmmss')}");
-   exec(["git", "tag", tag_name, "HEAD"]);
-   exec(["git", "push", "--tags", "origin"]);
-   echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
-   return sha1;
 }
 
 // TODO(benkraft): Update channel when we are done testing.
