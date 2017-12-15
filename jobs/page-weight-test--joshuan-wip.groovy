@@ -62,13 +62,16 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make deps");
+      sh("make current.sqlite");  // TODO(joshuan): Cache this and update every n days?
    }
 }
 
 
 def _computePageWeightDelta() {
-   def args = ["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF];
-   exec(args);
+   // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
+   sh("make serve &");
+   sleep(10000);  // STOPSHIP(joshuan): instead detect when 8081 is up. I'm just seeing if this works.
+   exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 }
 
 
