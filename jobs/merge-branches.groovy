@@ -64,6 +64,7 @@ def mergeBranches() {
                "${new Date().format('yyyyMMdd-HHmmss')}");
    exec(["git", "tag", tag_name, "HEAD"]);
    exec(["git", "push", "--tags", "origin"]);
+   echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
    return sha1;
 }
 
