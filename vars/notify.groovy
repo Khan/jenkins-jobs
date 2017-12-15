@@ -327,7 +327,7 @@ def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
 }
 
-def failBuild(e) {
+def emitFailureText(e) {
    currentBuild.result = e.getStatusToSet();
    failureText = e.getMessage();
    echo("Failure message: ${failureText}");
@@ -378,7 +378,7 @@ def runWithNotification(options, Closure body) {
          "failFast": true,
       );
    } catch (FailedBuild e) {
-      failureText = failBuild(e);
+      failureText = emitFailureText(e);
    } catch (e) {
       if (abortState.aborted) {
          currentBuild.result = "ABORTED";
@@ -400,7 +400,7 @@ def runWithNotification(options, Closure body) {
             echo('Sending to buildmaster');
             sendToBuildmaster(options.buildmaster, currentBuild.result);
          } catch (FailedBuild e) {
-            failureText = failBuild(e);
+            failureText = emitFailureText(e);
          }
       }
 
