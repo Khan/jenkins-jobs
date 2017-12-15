@@ -68,12 +68,7 @@ def _setupWebapp() {
 
 def _computePageWeightDelta() {
    def args = ["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF];
-
-   try {
-      sh(exec.shellEscapeList(args));
-   } catch (e) {
-      currentBuild.result = "FAILURE";
-   }
+   exec(args);
 }
 
 
@@ -96,15 +91,20 @@ def calculatePageWeightDeltas() {
    }
 }
 
-
-initializeGlobals();
-
-// We want to make sure no other job sneaks in and steals our test-workers from us.
-// So we acquire this lock for the entire job. We also want to make sure we don't
-// steal test workers from anyone else. It depends on everyone else who uses the
-// test-workers using this lock too.
-lock(label: 'using-test-workers', quantity: 1) {
-   stage("Calculating page weight deltas") {
-      calculatePageWeightDeltas();
+// Notify does more than notify on Slack. It also acts as a node and sets a timeout.
+// We don't need notifications for this job, currently, but using this instead of a
+// node and `onMaster` keeps this consistent with other jobs.
+// TODO(joshuan): Consider renaming `notify`.
+notify([timeout: "2h"]) {
+   initializeGlobals();
+   
+   // We want to make sure no other job sneaks in and steals our test-workers from us.
+   // So we acquire this lock for the entire job. We also want to make sure we don't
+   // steal test workers from anyone else. It depends on everyone else who uses the
+   // test-workers using this lock too.
+   lock(label: 'using-test-workers', quantity: 1) {
+      stage("Calculating page weight deltas") {
+         calculatePageWeightDeltas();
+      }
    }
 }
