@@ -118,9 +118,14 @@ def getGitSha1s() {
    // skip the rest of the function.
    // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
    // to receive a single sha as input.
-   def revisionSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                             params.GIT_REVISION);
-   if (revisionSha1 == params.GIT_REVISION) {
+   def revisionSha1 = null;
+   try {
+      revisionSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                            params.GIT_REVISION);
+   } catch (e) {
+      // Error resolving GIT_REVISION.  It's probably in `br1+br2` format
+   }
+   if (revisionSha1 && revisionSha1 == params.GIT_REVISION) {
       GIT_SHA1S = [params.GIT_REVISION];
       IS_ONE_GIT_SHA = true;
       return GIT_SHA1S;
