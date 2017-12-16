@@ -306,17 +306,9 @@ def sendToBuildmaster(buildmasterOptions, status) {
 
    // Buildmaster only knows how to handle testing a single git-sha, not
    // one or multiple branch-names.
-   echo('inside sendToBuildmaster');
-   echo(buildmasterOptions.toString());
-   echo(buildmasterOptions.sha1sCallback.toString());
-   echo(buildmasterStatus);
-
-   def sha1sCallback = buildmasterOptions.sha1sCallback;
-   def isOneGitShaCallback = buildmasterOptions.isOneGitShaCallback;
-   def sha1s = sha1sCallback();
-   def isOneGitSha = isOneGitShaCallback();
+   def sha1s = (buildmasterOptions.sha1sCallback)();
+   def isOneGitSha = (buildmasterOptions.isOneGitShaCallback)()
    if (isOneGitSha) {
-      echo('calling notifyStatus');
       buildmaster.notifyStatus(
          buildmasterOptions.what, buildmasterStatus, sha1s[0]);
    }
@@ -397,7 +389,6 @@ def runWithNotification(options, Closure body) {
       // communicate with buildmaster can fail() the build
       if (options.buildmaster) {
          try {
-            echo('Sending to buildmaster');
             sendToBuildmaster(options.buildmaster, currentBuild.result);
          } catch (FailedBuild e) {
             failureText = emitFailureText(e);
