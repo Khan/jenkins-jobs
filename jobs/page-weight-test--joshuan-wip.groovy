@@ -58,7 +58,7 @@ def initializeGlobals() {
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA_DIFF);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
    dir("webapp") {
       sh("make clean_pyc");
       sh("make deps");
