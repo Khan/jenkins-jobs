@@ -49,7 +49,7 @@ machine and run:
 <pre>
 cd webapp-workspace/webapp
 . ../env/bin/activate
-for num in `seq 1 16`; do echo -- \$num; time tools/rune2etests.py -j\$num >/dev/null 2>&1; done
+for num in `seq 1 16`; do echo -- \$num; time tools/runsmoketests.py -j\$num >/dev/null 2>&1; done
 </pre>
 </blockquote>
 and pick the number with the shortest time.  For m3.large,
@@ -121,7 +121,7 @@ def determineSplits() {
 
             _setupWebapp();
             dir("webapp") {
-               sh("tools/rune2etests.py -n --just-split -j${NUM_SPLITS}" +
+               sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS}" +
                   "> genfiles/test-splits.txt");
                dir("genfiles") {
                   def allSplits = readFile("test-splits.txt").split("\n\n");
@@ -159,7 +159,7 @@ def determineSplits() {
 
 
 def _runOneTest(splitId) {
-   def args = ["xvfb-run", "-a", "tools/rune2etests.py",
+   def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
                "--url=${params.URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
                "--timing-db=genfiles/test-info.db",
@@ -285,7 +285,7 @@ def runTests() {
                }
             } finally {
                // Now let the next stage see all the results.
-               // rune2etests.py should normally produce these files
+               // runsmoketests.py should normally produce these files
                // even when it returns a failure rc (due to some test
                // or other failing).
                stash(includes: "test-results.*.pickle",

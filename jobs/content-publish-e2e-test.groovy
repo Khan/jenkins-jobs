@@ -152,7 +152,7 @@ def runEndToEndTests() {
          withSecrets() {   // we need secrets to talk to saucelabs
             dir("webapp") {
                lock("using-saucelabs") {
-                  exec(["tools/rune2etests.py",
+                  exec(["tools/runsmoketests.py",
                         "--pickle",
                         "--pickle-file=genfiles/test-results.pickle",
                         // JOBS=9 leaves one sauce machine available
