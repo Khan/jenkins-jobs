@@ -257,7 +257,7 @@ def runTests() {
                   "- < ../test_splits.${workerNum}.txt");
             } finally {
                // Now let the next stage see all the results.
-               // rune2etests.py should normally produce these files
+               // runsmoketests.py should normally produce these files
                // even when it returns a failure rc (due to some test
                // or other failing).
                stash(includes: "test-results.*.pickle",
