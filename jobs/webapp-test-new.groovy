@@ -106,7 +106,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
-// Simetimes GIT_SHA1S contains one or more branch names.  Other times
+// Sometimes GIT_SHA1S contains one or more branch names.  Other times
 // it's a single git-revision.  We only want to talk to buildmaster if it
 // is the latter.
 IS_ONE_GIT_SHA = false;
