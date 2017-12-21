@@ -74,6 +74,11 @@ but it doesn't need to.""",
 Typically not set manually, but rather by other jobs that call this one.""",
    ""
 
+).addBooleanParam(
+   "NOTIFY_BUILDMASTER",
+   "If set, notify buildmaster on any notification.",
+   false
+
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
@@ -85,6 +90,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
+IS_ONE_GIT_SHA = null;
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
@@ -93,6 +99,8 @@ def initializeGlobals() {
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                      params.GIT_REVISION);
+   // Required for buildmaster to accept a notification
+   IS_ONE_GIT_SHA = true;
 }
 
 
@@ -362,14 +370,25 @@ def analyzeResults() {
 }
 
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                sender: 'Testing Turtle',
-                emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "2h"]) {
+def notify_args = [
+   slack: [channel: params.SLACK_CHANNEL,
+           sender: 'Testing Turtle',
+           emoji: ':turtle:',
+           when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+   aggregator: [initiative: 'infrastructure',
+                when: ['SUCCESS', 'BACK TO NORMAL',
+                       'FAILURE', 'ABORTED', 'UNSTABLE']],
+   timeout: "2h"]
+
+
+if (params.NOTIFY_BUILDMASTER) {
+   notify_args.buildmaster = [sha1sCallback: { GIT_SHA1 },
+                              isOneGitShaCallback: { IS_ONE_GIT_SHA },
+                              what: 'e2e-test'];
+}
+
+
+notify(notify_args) {
    initializeGlobals();
 
    // We run on the test-workers a few different times during this
