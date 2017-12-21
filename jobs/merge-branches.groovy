@@ -87,6 +87,7 @@ notify([slack: [channel: '#bot-testing',
         timeout: "5m"]) {
    try {
       withTimeout('5m') {
+         checkArgs();
          def sha1 = mergeBranches();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success', sha1);
       }

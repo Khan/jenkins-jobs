@@ -59,3 +59,13 @@ def notifyMergeResult(commitId, result, sha1) {
    ];
    return _makeHttpRequest("commits/merge", "PATCH", params);
 }
+
+def notifyShouldDeploy(sha1, result, deploysNeeded) {
+   echo("Setting deploys needed for ${sha1} ${result}: ${deploysNeeded}");
+   def params = [
+      git_sha: sha1,
+      result: result,
+      deploys_needed: deploysNeeded,
+   ];
+   return _makeHttpRequest("commits/deploys_needed", "PATCH", params);
+}
