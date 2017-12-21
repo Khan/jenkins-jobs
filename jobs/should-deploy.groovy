@@ -61,7 +61,7 @@ notify([slack: [channel: '#bot-testing',
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "5m"]) {
+        timeout: "15m"]) {
    try {
       checkArgs();
       def deploysNeeded = shouldDeploy();
