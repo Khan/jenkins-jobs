@@ -192,14 +192,14 @@ def publishResults() {
          sh("make deps");
          // Combine all the dicts into one dict.
          sh("tools/determine_tests_for.py --merge " +
-            "-o tools/tests_for.json " +
+            "-o testing/tests_for.json " +
             "../tests_for.*.json");
-         sh("git add tools/tests_for.json");
+         sh("git add testing/tests_for.json");
       }
       // Check it in!
       kaGit.safeCommitAndPush(
          "webapp", ["-m", "Automated update of tests_for.json",
-                    "tools/tests_for.json"]);
+                    "testing/tests_for.json"]);
    }
 }
 
