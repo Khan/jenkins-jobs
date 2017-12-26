@@ -24,7 +24,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('6h') {
+   withTimeout('7h') {
       kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
       sh("jenkins-jobs/weekly-maintenance.sh");
    }
@@ -40,7 +40,7 @@ notify([slack: [channel: '#infrastructure',
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "7h"]) {
+        timeout: "8h"]) {
    stage("Running maintenance") {
       runScript();
    }

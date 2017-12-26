@@ -293,6 +293,6 @@ clean_old_deploy_branches
 clean_ka_translations
 clean_ka_static
 backup_network_config
+clean_unused_queries
 svgcrush
 pngcrush
-clean_unused_queries
