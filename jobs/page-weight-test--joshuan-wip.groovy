@@ -66,8 +66,8 @@ def initializeGlobals() {
    GIT_SHA_DIFF = kaGit.resolveCommitish("git@github.com:Khan/webapp",
          params.GIT_REVISION_DIFF);
 
-
-   CONDUIT_TOKEN = new File("~/page-weight-phabricator-conduit-token.secret").text
+   CONDUIT_TOKEN = readFile(
+         "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
 }
 
 
