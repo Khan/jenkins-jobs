@@ -70,13 +70,13 @@ def _setupWebapp() {
 def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
    sh("make serve &");
-   sleep(10);  // STOPSHIP(joshuan): instead detect when 8081 is up. I'm just seeing if this works.
+   sh("while ! curl localhost:8080 > /dev/null 2>&1; do echo Waiting for webapp; sleep 1; done; echo Webapp is available.");
    exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 }
 
 
 def calculatePageWeightDeltas() {
-   onTestWorker('1h') {     // timeout
+   onTestWorker('2h') {     // timeout
       _setupWebapp();
 
       // This is apparently needed to avoid hanging with
