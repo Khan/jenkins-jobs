@@ -39,8 +39,8 @@ diff, this should be of the form phabricator/diff/xxxxxx.""",
    ""
 
 ).addStringParam(
-   "DIFF_ID",
-   "If invoked by Phabricator, the ID of the diff being tested (e.g., D41409).",
+   "REVISION_ID",
+   "If invoked by Phabricator, the ID of the revision being tested (e.g., D41409).",
    ""
 
 ).apply();
@@ -75,6 +75,7 @@ def _setupWebapp() {
 
       // Update current.sqlite if not present, or once per week
       sh("""\
+         #!/bin/bash
          if [ -e ./genfiles/current_sqlite_updated ]; then
             update_time=\$(cat ./genfiles/current_sqlite_updated);
          else
