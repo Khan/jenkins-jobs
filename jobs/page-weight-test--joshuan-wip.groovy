@@ -70,7 +70,7 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncTo("git@github.com:Khan/webapp", "151f3707f633caa9b8dcb9d1b94c40edc26ef861");
    dir("webapp") {
-      sh("git checkout -b wip"); // TODO(joshuan) ^^ once you change the above to "master", remove this.
+      sh("git checkout -b page-weight-wip"); // TODO(joshuan) ^^ once you change the above to "master", remove this.
       sh("make clean_pyc");
       sh("make deps");
 
