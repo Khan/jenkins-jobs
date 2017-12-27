@@ -71,8 +71,8 @@ def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
    sh("make serve &");
    sleep(10);  // STOPSHIP(joshuan): instead detect when 8081 is up. I'm just seeing if this works.
-   sh("while sleep 2; do free -hm; done &");  // For debugging...
-   sh("tail -f ./genfiles/compute_page_weight_deltas.log &");  // TODO(joshuan): add debug option below.
+   sh("nohup while sleep 2; do free -hm; done &");  // For debugging...
+   sh("nohup tail -f ./genfiles/compute_page_weight_deltas.log &");  // TODO(joshuan): add debug option below.
    exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 }
 
