@@ -33,6 +33,16 @@ diff, this should be of the form phabricator/base/xxxxxx.""",
 diff, this should be of the form phabricator/diff/xxxxxx.""",
    ""
 
+).addStringParam(
+   "BUILD_PHID",
+   "If invoked by Phabricator, the PHID of this build.",
+   ""
+
+).addStringParam(
+   "DIFF_ID",
+   "If invoked by Phabricator, the ID of the diff being tested (e.g., D41409).",
+   ""
+
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
@@ -42,7 +52,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 GIT_SHA_BASE = null;
-GIT_SHA_DIFF = null
+GIT_SHA_DIFF = null;
 
 def initializeGlobals() {
    // We want to make sure all nodes below work at the same sha1,
@@ -62,33 +72,73 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make deps");
-      sh("make current.sqlite");  // TODO(joshuan): Cache this and update every n days?
+
+      // Update current.sqlite if not present, or once per week
+      sh("""\
+         if [ -e ./genfiles/current_sqlite_updated ]; then
+            update_time=\$(cat ./genfiles/current_sqlite_updated);
+         else
+            update_time=0;
+         fi
+         current_time=\$(date +%s)
+         if (( update_time < ( current_time - ( 60 * 60 * 24 * 7 ) ) )); then
+            make current.sqlite
+            date +%s > ./genfiles/current_sqlite_updated
+         else
+            echo "current.sqlite is new enough. Not updating."
+         fi""".stripIndent());
    }
 }
-
 
 def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
    sh("make serve &");
    sh("while ! curl localhost:8080 > /dev/null 2>&1; do echo Waiting for webapp; sleep 1; done; echo OK: webapp is available.");
    sh("while ! curl localhost:3000 > /dev/null 2>&1; do echo Waiting for kake; sleep 1; done; echo OK: kake is available.");
-   exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
+
+   def pageWeightDeltaInfo = exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]).outputOf();
+   echo $pageWeightDeltaInfo
 }
 
 
 def calculatePageWeightDeltas() {
-   onTestWorker('2h') {     // timeout
-      _setupWebapp();
+   // NOTE(joshuan): This is mostly stolen from onTestWorker.groovy.
+   // Consider adding a label param to onTestWorker.groovy?
+   node("ka-page-weight-monitoring-ec2") {
+      timestamps {
+         dir("/home/ubuntu/webapp-workspace") {
+            kaGit.checkoutJenkinsTools();
+            withVirtualenv() {
+               withTimeout('2h') {
+                  // We document what machine we're running on, to help
+                  // with debugging.
+                  def instanceId = exec.outputOf(
+                     ["curl", "-s",
+                      "http://169.254.169.254/latest/meta-data/instance-id"]);
+                  def ip = exec.outputOf(
+                     ["curl", "-s",
+                      "http://169.254.169.254/latest/meta-data/public-ipv4"]);
+                  echo("Running on ec2 instance ${instanceId} at ip ${ip}");
+                  withEnv(["PATH=/usr/local/google_appengine:" +
+                           "/home/ubuntu/google-cloud-sdk/bin:" +
+                           "${env.HOME}/git-bigfile/bin:" +
+                           "${env.PATH}"]) {
+                     _setupWebapp();
 
-      // This is apparently needed to avoid hanging with
-      // the chrome driver.  See
-      // https://github.com/SeleniumHQ/docker-selenium/issues/87
-      // We also work around https://bugs.launchpad.net/bugs/1033179
-      withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
-               "TMPDIR=/tmp"]) {
-         withSecrets() {   // we need secrets to talk to bq/GCS
-            dir("webapp") {
-               _computePageWeightDelta();
+                     // This is apparently needed to avoid hanging with
+                     // the chrome driver.  See
+                     // https://github.com/SeleniumHQ/docker-selenium/issues/87
+                     // We also work around https://bugs.launchpad.net/bugs/1033179
+                     withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
+                              "TMPDIR=/tmp"]) {
+                        withSecrets() {   // we need secrets to talk to bq/GCS
+                           dir("webapp") {
+                              _computePageWeightDelta();
+                           }
+                        }
+                     }
+                  }
+               }
             }
          }
       }
@@ -102,13 +152,7 @@ def calculatePageWeightDeltas() {
 notify([timeout: "2h"]) {
    initializeGlobals();
    
-   // We want to make sure no other job sneaks in and steals our test-workers from us.
-   // So we acquire this lock for the entire job. We also want to make sure we don't
-   // steal test workers from anyone else. It depends on everyone else who uses the
-   // test-workers using this lock too.
-   lock(label: 'using-test-workers', quantity: 1) {
-      stage("Calculating page weight deltas") {
-         calculatePageWeightDeltas();
-      }
+   stage("Calculating page weight deltas") {
+      calculatePageWeightDeltas();
    }
 }
