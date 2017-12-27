@@ -53,7 +53,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // the notify() so if there's an error setting them we notify on slack.
 GIT_SHA_BASE = null;
 GIT_SHA_DIFF = null;
-CONSUIT_TOKEN = null;
 
 def initializeGlobals() {
    // We want to make sure all nodes below work at the same sha1,
@@ -65,9 +64,6 @@ def initializeGlobals() {
 
    GIT_SHA_DIFF = kaGit.resolveCommitish("git@github.com:Khan/webapp",
          params.GIT_REVISION_DIFF);
-
-   CONDUIT_TOKEN = readFile(
-         "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
 }
 
 
@@ -97,10 +93,12 @@ def _setupWebapp() {
 }
 
 def _phabricatorComment(comment) {
+   def conduitToken = readFile(
+         "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
    def post = new URL("https://phabricator.khanacademy.org/api/differential.revision.edit").openConnection();
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
-         "token": CONDUIT_TOKEN,
+         "token": conduitToken,
       ],
       "objectIdentifier": params.DIFF_ID,
       "transactions": [
