@@ -53,6 +53,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // the notify() so if there's an error setting them we notify on slack.
 GIT_SHA_BASE = null;
 GIT_SHA_DIFF = null;
+CONSUIT_TOKEN = null;
 
 def initializeGlobals() {
    // We want to make sure all nodes below work at the same sha1,
@@ -64,11 +65,14 @@ def initializeGlobals() {
 
    GIT_SHA_DIFF = kaGit.resolveCommitish("git@github.com:Khan/webapp",
          params.GIT_REVISION_DIFF);
+
+
+   CONDUIT_TOKEN = new File("~/page-weight-phabricator-conduit-token.secret").text
 }
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", "151f3707f633caa9b8dcb9d1b94c40edc26ef861");
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", "466cc1481cd14cb592fddf2fd0da12aa15c28c1e");
    dir("webapp") {
       sh("git checkout -b page-weight-wip"); // TODO(joshuan) ^^ once you change the above to "master", remove this.
       sh("make clean_pyc");
@@ -92,14 +96,39 @@ def _setupWebapp() {
    }
 }
 
+def _phabricatorComment(comment) {
+   def post = new URL("https://phabricator.khanacademy.org/api/differential.revision.edit").openConnection();
+   def message = groovy.json.JsonOutput.toJson([
+      "__conduit__": [
+         "token": CONDUIT_TOKEN,
+      ],
+      "objectIdentifier": params.DIFF_ID,
+      "transactions": [
+         [
+            "type": "comment",
+            "value": pageWeightDeltaInfo,
+         ],
+      ],
+   ]);
+   post.setRequestMethod("POST");
+   post.setDoOutput(true);
+   post.setRequestProperty("Content-Type", "application/json");
+   post.getOutputStream().write(message.getBytes("UTF-8"));
+   def postRC = post.getResponseCode();
+   assert postRC == 200;
+}
+
 def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
    sh("make serve &");
    sh("while ! curl localhost:8080 > /dev/null 2>&1; do echo Waiting for webapp; sleep 1; done; echo OK: webapp is available.");
    sh("while ! curl localhost:3000 > /dev/null 2>&1; do echo Waiting for kake; sleep 1; done; echo OK: kake is available.");
 
-   def pageWeightDeltaInfo = exec(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]).outputOf();
-   echo $pageWeightDeltaInfo
+   def pageWeightDeltaInfo = exec.outputOf(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
+   echo pageWeightDeltaInfo
+   if (params.PHID != "") {
+       _phabricatorComment(pageWeightDeltaInfo)
+   }
 }
 
 
