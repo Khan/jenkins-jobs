@@ -104,7 +104,7 @@ def _phabricatorComment(comment) {
       "transactions": [
          [
             "type": "comment",
-            "value": pageWeightDeltaInfo,
+            "value": comment,
          ],
       ],
    ]);
