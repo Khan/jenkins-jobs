@@ -95,7 +95,7 @@ def _setupWebapp() {
 def _phabricatorComment(comment) {
    def conduitToken = readFile(
          "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
-   def post = new URL("https://phabricator.khanacademy.org/api/differential.revision.edit").openConnection();
+
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
          "token": conduitToken,
@@ -108,12 +108,10 @@ def _phabricatorComment(comment) {
          ],
       ],
    ]);
-   post.setRequestMethod("POST");
-   post.setDoOutput(true);
-   post.setRequestProperty("Content-Type", "application/json");
-   post.getOutputStream().write(message.getBytes("UTF-8"));
-   def postRC = post.getResponseCode();
-   assert postRC == 200;
+
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: patchOrg, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
+
+   assert response.status == 200;
 }
 
 def _computePageWeightDelta() {
@@ -180,7 +178,7 @@ def calculatePageWeightDeltas() {
 // TODO(joshuan): Consider renaming `notify`.
 notify([timeout: "2h"]) {
    initializeGlobals();
-   
+
    stage("Calculating page weight deltas") {
       calculatePageWeightDeltas();
    }
