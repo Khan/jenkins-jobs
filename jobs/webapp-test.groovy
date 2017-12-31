@@ -236,7 +236,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["test-${workerNum}"] = {
-         onTestWorker('1h') {     // timeout
+         onTestWorker('2h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f test-results.*.pickle");
             unstash("splits");
