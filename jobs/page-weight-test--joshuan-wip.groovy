@@ -108,7 +108,7 @@ def _phabricatorComment(comment) {
       ],
    ]);
 
-   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: patchOrg, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
 
    assert response.status == 200;
 }
