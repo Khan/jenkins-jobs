@@ -7,6 +7,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
+import java.net.URLEncoder;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
@@ -111,9 +112,9 @@ def _submitPhabricatorComment(comment) {
       ],
    ]);
 
-   echo message
+   def body = "params=${java.net.URLEncoder.encode(message)}"
 
-   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: body, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
 
    assert response.status == 200;
 }
@@ -129,9 +130,9 @@ def _submitPhabricatorHarbormasterMsg(type) {
       "type": type,
    ])
 
-   echo message
+   def body = "params=${java.net.URLEncoder.encode(message)}"
 
-   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', requestBody: message, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
 
    assert response.status == 200;
 }
