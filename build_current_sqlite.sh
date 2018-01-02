@@ -53,7 +53,8 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     # do sync
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
     tools/devshell.py --host localhost:9085 \
-        --script content/run_sync.py "../$snapshot_bucket" "$locale_name"
+        --script dev/dev_appserver/run_sync.py \
+        "../$snapshot_bucket" "$locale_name"
     # TODO(amos): re-enable when the worker can handle this
     # tools/devshell.py --host localhost:9085 \
     #     --script tools/update_translation_analytics_data.py "$locale_name"
