@@ -97,7 +97,7 @@ def _getConduitToken() {
 }
 
 def _submitPhabricatorComment(comment) {
-
+   // See https://phabricator.khanacademy.org/conduit/method/differential.revision.edit
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
          "token": _getConduitToken(),
@@ -111,6 +111,8 @@ def _submitPhabricatorComment(comment) {
       ],
    ]);
 
+   echo message
+
    def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
 
    assert response.status == 200;
@@ -118,7 +120,7 @@ def _submitPhabricatorComment(comment) {
 
 def _submitPhabricatorHarbormasterMsg(type) {
    // type can be "pass", "fail", or "work"
-   // See https://secure.phabricator.com/conduit/method/harbormaster.sendmessage/
+   // See https://phabricator.khanacademy.org/conduit/method/harbormaster.sendmessage/
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
          "token": _getConduitToken(),
@@ -127,7 +129,9 @@ def _submitPhabricatorHarbormasterMsg(type) {
       "type": type,
    ])
 
-   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
+   echo message
+
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', requestBody: message, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
 
    assert response.status == 200;
 }
