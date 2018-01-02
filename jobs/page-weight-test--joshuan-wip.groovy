@@ -91,15 +91,18 @@ def _setupWebapp() {
    }
 }
 
-def _phabricatorComment(comment) {
-   def conduitToken = readFile(
-         "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
+def _getConduitToken() {
+   return readFile(
+      "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
+}
+
+def _submitPhabricatorComment(comment) {
 
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
-         "token": conduitToken,
+         "token": _getConduitToken(),
       ],
-      "objectIdentifier": params.DIFF_ID,
+      "objectIdentifier": params.REVISION_ID,
       "transactions": [
          [
             "type": "comment",
@@ -107,6 +110,22 @@ def _phabricatorComment(comment) {
          ],
       ],
    ]);
+
+   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
+
+   assert response.status == 200;
+}
+
+def _submitPhabricatorHarbormasterMsg(type) {
+   // type can be "pass", "fail", or "work"
+   // See https://secure.phabricator.com/conduit/method/harbormaster.sendmessage/
+   def message = groovy.json.JsonOutput.toJson([
+      "__conduit__": [
+         "token": _getConduitToken(),
+      ],
+      "buildTargetPHID": params.BUILD_PHID,
+      "type": type,
+   ])
 
    def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH', requestBody: message, url: "https://phabricator.khanacademy.org/api/differential.revision.edit"
 
@@ -121,8 +140,9 @@ def _computePageWeightDelta() {
 
    def pageWeightDeltaInfo = exec.outputOf(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
    echo pageWeightDeltaInfo
-   if (params.PHID != "") {
-       _phabricatorComment(pageWeightDeltaInfo)
+   if (params.BUILD_PHID != "") {
+       _submitPhabricatorComment(pageWeightDeltaInfo);
+       _submitPhabricatorHarbormasterMsg("pass");
    }
 }
 
@@ -179,6 +199,14 @@ notify([timeout: "2h"]) {
    initializeGlobals();
 
    stage("Calculating page weight deltas") {
-      calculatePageWeightDeltas();
+      try {
+         calculatePageWeightDeltas();
+      } catch (e) {
+         if (params.BUILD_PHID != "") {
+            _submitPhabricatorComment("Failed to compute page weight deltas.");
+            _submitPhabricatorHarbormasterMsg("fail");
+         }
+         throw e;
+      }
    }
 }
