@@ -147,7 +147,8 @@ def _computePageWeightDelta() {
    sh("while ! curl localhost:3000 > /dev/null 2>&1; do echo Waiting for kake; sleep 1; done; echo OK: kake is available.");
 
    // https://issues.jenkins-ci.org/browse/JENKINS-45837 :party_parrot_sad:
-   def script = exec.shellEscapeList(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
+   // xvfb-run also munges stderr
+   def script = exec.shellEscapeList(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh 2> /dev/null", GIT_SHA_BASE, GIT_SHA_DIFF]);
 
    sh(script: "${script} | tee page_weight_delta.txt");
 
