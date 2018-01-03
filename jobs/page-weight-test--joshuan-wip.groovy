@@ -149,6 +149,7 @@ def _computePageWeightDelta() {
    // https://issues.jenkins-ci.org/browse/JENKINS-45837 :party_parrot_sad:
    def script = exec.shellEscapeList(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
    echo script
+   echo "${env.WORKSPACE} ${env.HOME} ${env.PATH}"
 
    sh(script: "${script} | tee ${env.WORKSPACE}/page_weight_delta.txt");
 
