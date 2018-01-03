@@ -127,7 +127,7 @@ def _submitPhabricatorHarbormasterMsg(type) {
 
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
-         "token": _getConduitToken(),
+         "token": conduitToken,
       ],
       "buildTargetPHID": params.BUILD_PHID,
       "type": type,
@@ -149,10 +149,11 @@ def _computePageWeightDelta() {
    // https://issues.jenkins-ci.org/browse/JENKINS-45837 :party_parrot_sad:
    def script = exec.shellEscapeList(["xvfb-run", "-a", "tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 
-   def pageWeightDeltaInfo = sh(script: "${script} 2>/dev/null",
-     returnStdout: true).trim();
+   def pageWeightDeltaInfo = sh(
+         script: "${script} | tee ./${env.WORKSPACE}/page_weight_delta.txt");
 
-   echo pageWeightDeltaInfo
+   def pageWeightDeltaInfo = readFile("${env.WORKSPACE}/page_weight_delta.txt");
+
    if (params.BUILD_PHID != "") {
        _submitPhabricatorComment(pageWeightDeltaInfo);
        _submitPhabricatorHarbormasterMsg("pass");
