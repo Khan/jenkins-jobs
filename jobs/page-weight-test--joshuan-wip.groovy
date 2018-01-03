@@ -92,16 +92,15 @@ def _setupWebapp() {
    }
 }
 
-def _getConduitToken() {
-   return readFile(
-      "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
-}
-
 def _submitPhabricatorComment(comment) {
    // See https://phabricator.khanacademy.org/conduit/method/differential.revision.edit
+
+   def conduitToken = readFile(
+      "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
+
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
-         "token": _getConduitToken(),
+         "token": conduitToken,
       ],
       "objectIdentifier": params.REVISION_ID,
       "transactions": [
@@ -122,6 +121,10 @@ def _submitPhabricatorComment(comment) {
 def _submitPhabricatorHarbormasterMsg(type) {
    // type can be "pass", "fail", or "work"
    // See https://phabricator.khanacademy.org/conduit/method/harbormaster.sendmessage/
+
+   def conduitToken = readFile(
+      "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
+
    def message = groovy.json.JsonOutput.toJson([
       "__conduit__": [
          "token": _getConduitToken(),
@@ -160,35 +163,43 @@ def calculatePageWeightDeltas() {
          dir("/home/ubuntu/webapp-workspace") {
             kaGit.checkoutJenkinsTools();
             withVirtualenv() {
-               withTimeout('2h') {
-                  // We document what machine we're running on, to help
-                  // with debugging.
-                  def instanceId = exec.outputOf(
-                     ["curl", "-s",
-                      "http://169.254.169.254/latest/meta-data/instance-id"]);
-                  def ip = exec.outputOf(
-                     ["curl", "-s",
-                      "http://169.254.169.254/latest/meta-data/public-ipv4"]);
-                  echo("Running on ec2 instance ${instanceId} at ip ${ip}");
-                  withEnv(["PATH=/usr/local/google_appengine:" +
-                           "/home/ubuntu/google-cloud-sdk/bin:" +
-                           "${env.HOME}/git-bigfile/bin:" +
-                           "${env.PATH}"]) {
-                     _setupWebapp();
+               try {
+                  withTimeout('2h') {
+                     // We document what machine we're running on, to help
+                     // with debugging.
+                     def instanceId = exec.outputOf(
+                        ["curl", "-s",
+                         "http://169.254.169.254/latest/meta-data/instance-id"]);
+                     def ip = exec.outputOf(
+                        ["curl", "-s",
+                         "http://169.254.169.254/latest/meta-data/public-ipv4"]);
+                     echo("Running on ec2 instance ${instanceId} at ip ${ip}");
+                     withEnv(["PATH=/usr/local/google_appengine:" +
+                              "/home/ubuntu/google-cloud-sdk/bin:" +
+                              "${env.HOME}/git-bigfile/bin:" +
+                              "${env.PATH}"]) {
+                        _setupWebapp();
 
-                     // This is apparently needed to avoid hanging with
-                     // the chrome driver.  See
-                     // https://github.com/SeleniumHQ/docker-selenium/issues/87
-                     // We also work around https://bugs.launchpad.net/bugs/1033179
-                     withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
-                              "TMPDIR=/tmp"]) {
-                        withSecrets() {   // we need secrets to talk to bq/GCS
-                           dir("webapp") {
-                              _computePageWeightDelta();
+                        // This is apparently needed to avoid hanging with
+                        // the chrome driver.  See
+                        // https://github.com/SeleniumHQ/docker-selenium/issues/87
+                        // We also work around https://bugs.launchpad.net/bugs/1033179
+                        withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
+                                 "TMPDIR=/tmp"]) {
+                           withSecrets() {   // we need secrets to talk to bq/GCS
+                              dir("webapp") {
+                                 _computePageWeightDelta();
+                              }
                            }
                         }
                      }
                   }
+               } catch (e) {
+                  if (params.BUILD_PHID != "") {
+                     _submitPhabricatorComment("Failed to compute page weight deltas.");
+                     _submitPhabricatorHarbormasterMsg("fail");
+                  }
+                  throw e;
                }
             }
          }
@@ -204,14 +215,6 @@ notify([timeout: "2h"]) {
    initializeGlobals();
 
    stage("Calculating page weight deltas") {
-      try {
-         calculatePageWeightDeltas();
-      } catch (e) {
-         if (params.BUILD_PHID != "") {
-            _submitPhabricatorComment("Failed to compute page weight deltas.");
-            _submitPhabricatorHarbormasterMsg("fail");
-         }
-         throw e;
-      }
+      calculatePageWeightDeltas();
    }
 }
