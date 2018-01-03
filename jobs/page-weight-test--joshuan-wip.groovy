@@ -150,7 +150,7 @@ def _computePageWeightDelta() {
    def script = exec.shellEscapeList(["tools/compute_page_weight_delta.sh", GIT_SHA_BASE, GIT_SHA_DIFF]);
 
    // xvfb-run also munges stderr
-   sh(script: "xvfb-run -a '${script} 2>/dev/null' | tee page_weight_delta.txt");
+   sh(script: "xvfb-run -a bash -c '${script} 2>/dev/null' | tee page_weight_delta.txt");
 
    def pageWeightDeltaInfo = readFile("page_weight_delta.txt");
 
