@@ -81,6 +81,14 @@ The special value 'all' uploads all modules.""",
 people will be accessing this deploy.""",
     false
 
+).addStringParam(
+    "PHAB_REVISION",
+    """The Phabricator revision ID for this build. This field should only be
+defined if the znd-deploy originates from the Phabricator Herald Build Plan 6.
+It helps us access data from the a revision, namely the summary, which we need
+in order to know the appropriate fixtures to post links for in Phabricator.""",
+    ""
+
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
@@ -213,6 +221,22 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
     }
 }
 
+// Run a script that crafts a comment with the necessary fixture links and
+// posts that comment to Phab. See script at webapp/deploy/post_znd_fixture_links.py
+// for full description of the workflow from including `Components for Review:` in
+// diff summary to running a znd deploy to posting fixture links to Phab.
+def _sendCommentToPhabricator() {
+   def args = ["deploy/post_znd_fixture_links.py",
+               "--revision=${PHAB_REVISION}",
+               "--version=@${VERSION}"];
+
+   withSecrets() {      // we need secrets to talk to phabricator
+      dir("webapp") {
+         sh("${exec.shellEscapeList(args)}");
+      }
+   }
+}
+
 def deploy() {
    withTimeout('90m') {
       alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
@@ -250,6 +274,13 @@ def deploy() {
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
          [deployUrl: deployUrl,
           version: canonicalVersion()]);
+
+      // If the phab_revision param exists than this znd-deploy must have
+      // originated from the Herald Build Plan 6 and we can expect that the
+      // revision summary includes some fixtures that we want to post to Phab.
+      if (params.PHAB_REVISION) {
+         _sendCommentToPhabricator()
+      }
    }
 }
 
