@@ -138,23 +138,30 @@ clean_invalid_branches() {
     done
 }
 
-# Clean old deploy branches each week.  We need to do this because
-# phabricator daemons do `git branch --contains` which gets very slow
-# when there are a lot of branches.
-clean_old_deploy_branches() {
+# Turn branches that haven't been worked on a for a while -- like, 6
+# months -- into tags.  No content is deleted, but if you ever wanted to
+# continue working on that branch again you'd need to recreate it in
+# git. The reason we bother is that phabricator daemons do `git branch
+# --contains` which gets very slow when there are a lot of branches.
+turn_old_branches_into_tags() {
     (
         cd $HOME/jobs/deploy/jobs/deploy-webapp/workspace/webapp
-        echo "Cleaning old deploy branches in `pwd`"
+        echo "Turning old branches into tags in `pwd`"
 
         git fetch origin
-        one_week_ago=`date +%s -d "-1 week"`
+        six_months_ago=`date +%s -d "-6 months"`
         # This pattern-match should be good for another 83 years or so!
-        git for-each-ref \
-            --format='%(refname:strip=3) %(authordate:unix)' \
-            'refs/remotes/origin/deploy-20*' \
+        git for-each-ref --format='%(refname:strip=3) %(authordate:unix)' \
+                         'refs/remotes/origin/*' \
         | while read branch date; do
-               [ "$date" -lt "$one_week_ago" ] && echo "$branch"
-        done | xargs --verbose git push origin --delete
+            if [ "$date" -lt "$six_months_ago" ]; then
+                echo "Turning '$branch' from a branch into a tag"
+                # This copies the branch to a tag and then deletes the
+                # branch, but *only* if the copy succeeded.
+                git push origin "origin/$branch:refs/tags/$branch" \
+                    && git push origin ":refs/heads/$branch"
+            fi
+        done
     )
 }
 
@@ -289,7 +296,7 @@ backup_network_config() {
 clean_docker
 clean_genfiles
 clean_invalid_branches
-clean_old_deploy_branches
+turn_old_branches_into_tags
 clean_ka_translations
 clean_ka_static
 backup_network_config
