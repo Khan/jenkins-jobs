@@ -201,9 +201,9 @@ SLACK_CHANNEL = "#1s-and-0s-deploys";
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
-// The branch we will create and deploy.  It is a merge of master,
-// the branch the user asked to deploy, and (probably) translations.
-DEPLOY_BRANCH = null;
+// The tag we will create and deploy.  It is a merge of master,
+// the branch(es) the user asked to deploy, and (probably) translations.
+DEPLOY_TAG = null;
 
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
@@ -217,7 +217,7 @@ DEPLOY_DYNAMIC = null;
 // script is first invoked.
 ROLLBACK_TO = null;
 
-// The "permalink" url used to access code deployed at DEPLOY_BRANCH.
+// The "permalink" url used to access code deployed at DEPLOY_TAG.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
@@ -342,7 +342,7 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      DEPLOY_BRANCH = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
+      DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
 
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
@@ -350,11 +350,9 @@ def mergeFromMasterAndInitializeGlobals() {
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-         dir("webapp") {
-            exec(["git", "checkout", "-b", DEPLOY_BRANCH]);
-            exec(["git", "push", "-f", "--set-upstream", "origin",
-                  DEPLOY_BRANCH]);
-         }
+         // detatch HEAD so there's no chance of accidentally updating
+         // master by doing a `git push`.
+         sh("git checkout --detach");
 
          def allBranches = params.GIT_REVISION.split(/\+/);
          if (params.MERGE_TRANSLATIONS) {
@@ -362,10 +360,13 @@ def mergeFromMasterAndInitializeGlobals() {
             // "translations" branch.
             allBranches += ["translations"];
          }
+
          for (def i = 0; i < allBranches.size(); i++) {
-            kaGit.safeMergeFromBranch("webapp", DEPLOY_BRANCH,
-                                      allBranches[i].trim());
+            kaGit.safeMergeFromBranch("webapp", "HEAD", allBranches[i].trim());
          }
+         // We need to at least tag the commit, otherwise github may prune it.
+         exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
+         exec(["git", "push", "--tags", "origin"]);
       }
 
       dir("webapp") {
@@ -373,7 +374,7 @@ def mergeFromMasterAndInitializeGlobals() {
          sh("make deps");
 
          // Let's do a sanity check.
-         def deploySHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_BRANCH]);
+         def deploySHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_TAG]);
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
          if (deploySHA1 != headSHA1) {
             notify.fail("Internal error: " +
@@ -440,7 +441,7 @@ def sendStartMessage() {
    withTimeout("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
-              branch: "${DEPLOY_BRANCH} (containing ${params.GIT_REVISION})"]);
+              branch: "${DEPLOY_TAG} (containing ${params.GIT_REVISION})"]);
    }
 }
 
@@ -452,7 +453,7 @@ def runTests() {
    def TEST_TYPE = (params.RUN_TESTS == "default" ? "relevant" : "all");
    build(job: 'webapp-test',
          parameters: [
-            string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
+            string(name: 'GIT_REVISION', value: DEPLOY_TAG),
             string(name: 'TEST_TYPE', value: TEST_TYPE),
             string(name: 'MAX_SIZE', value: "medium"),
             booleanParam(name: 'FAILFAST', value: false),
@@ -542,7 +543,7 @@ def deployAndReport() {
               parameters: [
                   string(name: 'URL', value: DEPLOY_URL),
                   string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                  string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
+                  string(name: 'GIT_REVISION', value: DEPLOY_TAG),
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
               ]);
@@ -555,7 +556,7 @@ def spawnDeleteVersions() {
         build(job: 'audit-gae-versions',
               wait: false,       // the whole point of using a separate job!
               propagate: false,  // errors are nonfatal
-              parameters: [string(name: 'GIT_REVISION', value: DEPLOY_BRANCH)]);
+              parameters: [string(name: 'GIT_REVISION', value: DEPLOY_TAG)]);
     }
 }
 
@@ -582,7 +583,7 @@ def promptForSetDefault() {
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,
-              branch: DEPLOY_BRANCH]);
+              branch: DEPLOY_TAG]);
    }
 
    // Remind people after 30m, 45m, and 55m, then timeout at 60m.
@@ -621,7 +622,7 @@ def _promote() {
                      string(name: 'URL',
                             value: "https://www.khanacademy.org"),
                      string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                     string(name: 'GIT_REVISION', value: DEPLOY_BRANCH),
+                     string(name: 'GIT_REVISION', value: DEPLOY_TAG),
                      booleanParam(name: 'FAILFAST', value: false),
                      string(name: 'DEPLOYER_USERNAME',
                             value: DEPLOYER_USERNAME),
@@ -736,12 +737,12 @@ def finishWithSuccess() {
             if (!existingTag) {
                exec(["git", "tag", "-m",
                      "Deployed to appengine from branch " +
-                     "${params.GIT_REVISION} (via branch ${DEPLOY_BRANCH})",
-                     GIT_TAG, DEPLOY_BRANCH]);
+                     "${params.GIT_REVISION} (via branch ${DEPLOY_TAG})",
+                     GIT_TAG, DEPLOY_TAG]);
             }
          }
          try {
-            def branchName = "${DEPLOY_BRANCH} (${params.GIT_REVISION})";
+            def branchName = "${DEPLOY_TAG} (${params.GIT_REVISION})";
 
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
@@ -758,9 +759,9 @@ def finishWithSuccess() {
             // The merge exits with rc > 0 if there were conflicts.
             echo("Merging ${branchName} into master");
             try {
-               exec(["git", "merge", DEPLOY_BRANCH]);
+               exec(["git", "merge", DEPLOY_TAG]);
             } catch (e) {
-               echo("FATAL ERROR running 'git merge ${DEPLOY_BRANCH}': ${e}");
+               echo("FATAL ERROR running 'git merge ${DEPLOY_TAG}': ${e}");
                // Best-effort attempt to abort.  We ignore the status code.
                exec.statusOf(["git", "merge", "--abort"]);
                throw e;
