@@ -226,7 +226,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
 // for full description of the workflow from including `Components for Review:` in
 // diff summary to running a znd deploy to posting fixture links to Phab.
 def _sendCommentToPhabricator() {
-   def args = ["deploy/post_znd_fixture_links.py", PHAB_REVISION, VERSION];
+   def args = ["deploy/post_znd_fixture_links.py", PHAB_REVISION, "${canonicalVersion()}"];
 
    withSecrets() {      // we need secrets to talk to phabricator
       dir("webapp") {
