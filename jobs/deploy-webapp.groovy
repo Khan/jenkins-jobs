@@ -352,7 +352,9 @@ def mergeFromMasterAndInitializeGlobals() {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          // detatch HEAD so there's no chance of accidentally updating
          // master by doing a `git push`.
-         sh("git checkout --detach");
+         dir("webapp") {
+            sh("git checkout --detach");
+         }
 
          def allBranches = params.GIT_REVISION.split(/\+/);
          if (params.MERGE_TRANSLATIONS) {
@@ -365,8 +367,10 @@ def mergeFromMasterAndInitializeGlobals() {
             kaGit.safeMergeFromBranch("webapp", "HEAD", allBranches[i].trim());
          }
          // We need to at least tag the commit, otherwise github may prune it.
-         exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
-         exec(["git", "push", "--tags", "origin"]);
+         dir("webapp") {
+            exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
+            exec(["git", "push", "--tags", "origin"]);
+         }
       }
 
       dir("webapp") {
