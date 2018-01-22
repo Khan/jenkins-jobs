@@ -52,7 +52,7 @@ pngcrush() {
             ratio=`expr $new_size \* 100 / $old_size`
             echo "| $ratio% | $old_size | $new_size | $filename"
         done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg'
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg' '*.jpg'
 }
 
 svgcrush() {
