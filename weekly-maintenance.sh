@@ -125,6 +125,8 @@ clean_invalid_branches() {
             fi
         done
 
+        [ -s .git/packed-refs ] || continue
+
         cat .git/packed-refs | awk '/refs\// {print $2}' | while read ref; do
             id=`git rev-parse -q --verify "$ref"`   # "" if we fail to verify
             if [ -n "$id" ] && \
