@@ -10,6 +10,7 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.buildmaster
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
@@ -32,6 +33,13 @@ to such a commit-hash.  Can also be a list of branches to deploy separated
 by `+` ('br1+br2+br3').  In that case we will merge the branches together --
 dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
+
+).addStringParam(
+   "BASE_REVISION",
+   """A past git commit on which tests passed.  We only run tests that could
+possibly have broken since then, per tests_for.py.  By default, we just use
+origin/master, but the buildmaster will specify a better value when it can.""",
+   "origin/master"
 
 ).addChoiceParam(
    "TEST_TYPE",
@@ -57,7 +65,7 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s"
+   "#1s-and-0s-deploys"
 
 ).addBooleanParam(
    "FORCE",
@@ -104,11 +112,30 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
+// Sometimes GIT_SHA1S contains one or more branch names.  Other times
+// it's a single git-revision.  We only want to talk to buildmaster if it
+// is the latter.
+IS_ONE_GIT_SHA = false;
 
-def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
+
+def getGitSha1s() {
+   // resolveCommitish returns the sha of a commit.  If
+   // resolveCommitish(webapp, X) == X, then X must be a sha, and we can
+   // skip the rest of the function.
+   // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
+   // to receive a single sha as input.
+   def revisionSha1 = null;
+   try {
+      revisionSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                            params.GIT_REVISION);
+   } catch (e) {
+      // Error resolving GIT_REVISION.  It's probably in `br1+br2` format
+   }
+   if (revisionSha1 && revisionSha1 == params.GIT_REVISION) {
+      GIT_SHA1S = [params.GIT_REVISION];
+      IS_ONE_GIT_SHA = true;
+      return GIT_SHA1S;
+   }
    GIT_SHA1S = [];
    def allBranches = params.GIT_REVISION.split(/\+/);
    for (def i = 0; i < allBranches.size(); i++) {
@@ -116,6 +143,15 @@ def initializeGlobals() {
                                         allBranches[i].trim());
       GIT_SHA1S += [sha1];
    }
+   return GIT_SHA1S;
+}
+
+
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   // We want to make sure all nodes below work at the same sha1,
+   // so we resolve our input commit to a sha1 right away.
+   GIT_SHA1S = getGitSha1s();
 }
 
 
@@ -156,10 +192,7 @@ def _determineTests() {
       sh("${runtestsCmd} . testing.js_test testing.lint_test " +
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "relevant") {
-      // TODO(csilvers): Instead of `origin/master`, what we really want
-      // is "the last time tests passed on a commit that is in master."
-      // We could use redis for this.
-      sh("tools/tests_for.py -i origin/master " +
+      sh("tools/tests_for.py -i ${params.BASE_REVISION} " +
          " | ${runtestsCmd} -" +
          " > genfiles/test_splits.txt");
    } else {
@@ -341,6 +374,9 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
+        buildmaster: [sha1sCallback: { GIT_SHA1S },
+                      shouldNotifyCallback: { IS_ONE_GIT_SHA },
+                      what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();
 
