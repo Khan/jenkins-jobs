@@ -1,11 +1,21 @@
 // The pipeline script to deploy to www.khanacademy.org from Khan/webapp.
-//
+
+// NOTE(benkraft): This is currently a script in transition!  Apologies for the
+// mess.
+// The comments that follow describe the old method, which runs this entire
+// script; the new buildmaster-driven deploys will set flags to only use parts
+// of it.  (See STAGES, below.)  See the design:
+//    https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
+// for more details.
+// TODO(benkraft): Clean things up -- likely by splitting this job up rather
+// than using STAGES -- after we've moved over to the new process entirely.
+
 // "Deploying to production" is a complex process, and this is a complex
 // script.  We use github-style deploys:
 //    https://docs.google.com/a/khanacademy.org/document/d/1s7qvACA4Uq4ON6F4PWJ_eyBz9EJeTk-DJ6SysRrJcTI/edit
 // For more high-level information on deploys, see
 //    https://sites.google.com/a/khanacademy.org/forge/for-developers/deployment-guidelines
-//
+
 // Here are the steps in a deploy.  Some can happen in parallel:
 //
 // 1. Create a new branch off master, named after this deploy.  Merge
@@ -87,6 +97,24 @@ into a new branch based off master, and deploy it.""",
         -- do not use lightly). </li>
 </ul>""",
     ["default", "yes", "no"]
+
+).addBooleanParam(
+    "STAGES",
+    """\
+<ul>
+  <li> <b>all</b>: Do a full deploy.  If you're doing things manually, you want
+       this option. </li>
+  <li> <b>build</b>: Only build the version; don't promote it to default, run
+       tests, or do any of the other attendant bits.  This should generally
+       only be set by deploys done through the buildmaster, never manually.
+       </li>
+</ul>
+
+<p>If set to a value other than "all", GIT_REVISION must be a sha1, rather than
+a list of branches.  (The buildmaster will have already done the merge.)
+Finally, we never delete versions in this case; we leave that to the
+buildmaster.  This overrides the value of RUN_TESTS.</p>""",
+    ["all", "build"]
 
 ).addChoiceParam(
     "DEPLOY",
@@ -349,24 +377,46 @@ def mergeFromMasterAndInitializeGlobals() {
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
-         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-         // detatch HEAD so there's no chance of accidentally updating
-         // master by doing a `git push`.
-         dir("webapp") {
-            sh("git checkout --detach");
+         if (params.STAGES != "all") {
+            // If we are only doing some stages, we have already done our
+            // merging -- which is good because the buildmaster expects us to
+            // pass back a sha.
+            // TODO(benkraft): Verify it's actually a valid sha in this repo.
+            // (We could write kaGit.isSha.)  This is a little tricky because
+            // we may not yet have cloned the repo.
+            if (!commit ==~ /[0-9a-fA-F]{40}/) {
+               notify.fail("STAGES != 'all' " +
+                           "but GIT_REVISION was not a sha!");
+            }
+
+            kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION)
+
+         } else {
+            kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+            // detatch HEAD so there's no chance of accidentally updating
+            // master by doing a `git push`.
+            dir("webapp") {
+               sh("git checkout --detach");
+            }
+
+            def allBranches = params.GIT_REVISION.split(/\+/);
+            if (params.MERGE_TRANSLATIONS) {
+               // Jenkins jobs only update intl/translations in the
+               // "translations" branch.
+               allBranches += ["translations"];
+            }
+
+            for (def i = 0; i < allBranches.size(); i++) {
+               kaGit.safeMergeFromBranch("webapp", "HEAD",
+                                         allBranches[i].trim());
+            }
          }
 
-         def allBranches = params.GIT_REVISION.split(/\+/);
-         if (params.MERGE_TRANSLATIONS) {
-            // Jenkins jobs only update intl/translations in the
-            // "translations" branch.
-            allBranches += ["translations"];
-         }
-
-         for (def i = 0; i < allBranches.size(); i++) {
-            kaGit.safeMergeFromBranch("webapp", "HEAD", allBranches[i].trim());
-         }
          // We need to at least tag the commit, otherwise github may prune it.
+         // For now, we do this even if we are only doing some stages, for
+         // consistency and because it doesn't hurt.
+         // TODO(benkraft): Once everything is using the buildmaster,
+         // consolidate with the tag created by merge-branches.
          dir("webapp") {
             exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
             exec(["git", "push", "--tags", "origin"]);
@@ -451,7 +501,7 @@ def sendStartMessage() {
 
 
 def runTests() {
-   if (params.RUN_TESTS == "no") {
+   if (params.RUN_TESTS == "no" || params.STAGES != "all") {
       return;
    }
    def TEST_TYPE = (params.RUN_TESTS == "default" ? "relevant" : "all");
@@ -556,6 +606,10 @@ def deployAndReport() {
 
 
 def spawnDeleteVersions() {
+    if (params.STAGES != "all") {
+        return;
+    }
+
     stage("Spawn version deletion job") {
         build(job: 'audit-gae-versions',
               wait: false,       // the whole point of using a separate job!
@@ -871,6 +925,11 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 // We don't need to notify on success because
                 // deploy_pipeline.py does it for us.
                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
+        buildmaster: [sha1sCallback: { params.GIT_REVISION },
+                      shouldNotifyCallback: { params.STAGES != "all" },
+                      // For now, the buildmaster sees this as a build --
+                      // deploy will come later.
+                      what: 'build-webapp'],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
@@ -888,12 +947,14 @@ notify([slack: [channel: '#1s-and-0s-deploys',
          withTimeout('120m') {
             parallel(
                "deploy-and-report": { deployAndReport(); },
+               // This may be a no-op, if RUN_TESTS is "no" or STAGES != "all".
                "test": { runTests(); },
                "failFast": true,
             );
          }
       }
    } catch (e) {
+      // TODO(benkraft): This can be simplified if STAGES == "build".
       echo("FATAL ERROR deploying and testing: ${e}");
       finishWithFailure(e.toString());
       throw e;
@@ -904,6 +965,10 @@ notify([slack: [channel: '#1s-and-0s-deploys',
       // more likely to run in parallel to the next deploy, potentially causing
       // us to delete a version sooner than necessary).
       spawnDeleteVersions();
+   }
+
+   if (params.STAGES == "build") {
+      return;
    }
 
    if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
