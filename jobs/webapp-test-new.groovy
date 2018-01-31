@@ -35,6 +35,13 @@ by `+` ('br1+br2+br3').  In that case we will merge the branches together --
 dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
+).addStringParam(
+   "BASE_REVISION",
+   """A past git commit on which tests passed.  We only run tests that could
+possibly have broken since then, per tests_for.py.  By default, we just use
+origin/master, but the buildmaster will specify a better value when it can.""",
+   "origin/master"
+
 ).addChoiceParam(
    "TEST_TYPE",
    """\
@@ -186,10 +193,7 @@ def _determineTests() {
       sh("${runtestsCmd} . testing.js_test testing.lint_test " +
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "relevant") {
-      // TODO(csilvers): Instead of `origin/master`, what we really want
-      // is "the last time tests passed on a commit that is in master."
-      // We could use redis for this.
-      sh("tools/tests_for.py -i origin/master " +
+      sh("tools/tests_for.py -i ${params.BASE_REVISION} " +
          " | ${runtestsCmd} -" +
          " > genfiles/test_splits.txt");
    } else {
