@@ -138,7 +138,7 @@ _destructive_checkout() {
     # right version.  (We handle the recursion ourselves below.)
     # However, the first time this is called it might need to check
     # out all the submodules, so we give it a bit of time.
-    timeout 10m git submodule update
+    timeout 10m git submodule update -f
 
     # Now we need to clean up subrepos.  Most subrepos are usually ok,
     # so I use `git status` to only clean up the ones that need it.  I

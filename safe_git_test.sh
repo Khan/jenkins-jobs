@@ -240,6 +240,15 @@ test_update_substate() {
     _verify_at_master repo ../origin/repo
 }
 
+test_update_substate_and_modify_locally() {
+    ( cd ../origin/subrepo1; create_git_history "foo" )
+    ( cd ../origin/repo/subrepo1; git pull;
+        cd ..; git commit -am "Submodules" )
+    echo "moar foo" >> repo/subrepo1/foo
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
 test_update_subsubstate() {
     ( cd ../origin/subrepo3\ sub; create_git_history "foo" )
     ( cd ../origin/subrepo3/subrepo3\ sub; git checkout master; git pull;
