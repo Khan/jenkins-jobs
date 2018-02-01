@@ -116,6 +116,17 @@ Finally, we never delete versions in this case; we leave that to the
 buildmaster.  This overrides the value of RUN_TESTS.</p>""",
     ["all", "build"]
 
+).addStringParam(
+    "BASE_REVISION",
+    """<p>Deploy everything that has happened since this revision.</p>
+
+    <p>This only matters if DEPLOY is "default".  In that case, we deploy to
+    static if there have been changes to static files since this revision.
+    (So it must be a successfully built revision.)  At present, it is ignored
+    when STAGES is "all"; the only valid value would be that of the currently
+    deployed version.</p>""",
+    ""
+
 ).addChoiceParam(
     "DEPLOY",
     """\
@@ -249,6 +260,13 @@ ROLLBACK_TO = null;
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
+// Same as params.BASE_REVISION, but only if we want to trust it.
+// We ignore it when STAGES != "build"; see its docstring for why.
+BASE_REVISION = null;
+// The version-name corresponding to BASE_REVISION
+// (only set if BASE_REVISION is set).
+BASE_REVISION_VERSION = null;
+
 // The dynamic-deploy and static-deploy version-names.
 GAE_VERSION = null;
 GCS_VERSION = null;
@@ -370,6 +388,12 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
+      if (params.STAGES == "build" && params.BASE_REVISION) {
+         BASE_REVISION = params.BASE_REVISION;
+         BASE_REVISION_VERSION = exec.outputOf(
+            ["make", "gae_version_name", exec.shellEscape(BASE_REVISION)]);
+      }
+
       DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
 
       // Create the deploy branch and merge in the requested branch.
@@ -435,17 +459,27 @@ def mergeFromMasterAndInitializeGlobals() {
                         "HEAD does not point to the deploy-branch");
          }
 
+         def shouldDeployArgs = ["deploy/should_deploy.py"];
+         // Diff against BASE_REVISION if set.  We only allow this when
+         // building: for promotion the only correct thing to do is to diff
+         // against the currently live version, and the consequences of doing
+         // something else are greater, so we prohibit the dangerous thing.
+         if (BASE_REVISION) {
+            shouldDeployArgs += ["--from-commit",
+                                 exec.shellEscape(BASE_REVISION)]
+         }
+
          if (params.DEPLOY == "default") {
             // TODO(csilvers): look for output == yes/no instead, and
             // if it's neither raise an exception.
-            def rc = exec.statusOf(["deploy/should_deploy.py", "static"]);
+            def rc = exec.statusOf(shouldDeployArgs + ["static"]);
             DEPLOY_STATIC = (rc != 0);
          } else {
             DEPLOY_STATIC = (params.DEPLOY in ["static", "both"]);
          }
 
          if (params.DEPLOY == "default") {
-            def rc = exec.statusOf(["deploy/should_deploy.py", "dynamic"]);
+            def rc = exec.statusOf(shouldDeployArgs + ["dynamic"]);
             DEPLOY_DYNAMIC = (rc != 0);
          } else {
             DEPLOY_DYNAMIC = (params.DEPLOY in ["dynamic", "both"]);
@@ -459,10 +493,15 @@ def mergeFromMasterAndInitializeGlobals() {
          def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
 
          if (DEPLOY_STATIC && !DEPLOY_DYNAMIC) {
-            // In this case, the GAE version stays the same as before
-            // (so we can use ROLLBACK_TO) but the static version is new.
-            GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
-                                         ROLLBACK_TO]);
+            // In this case, we want to use the GAE version of the
+            // BASE_REVISION, or that of the currently active version (namely
+            // ROLLBACK_TO), if BASE_REVISION is unset.
+            if (BASE_REVISION) {
+               GAE_VERSION = BASE_REVISION_VERSION;
+            } else {
+               GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
+                                            ROLLBACK_TO]);
+            }
             GCS_VERSION = gaeVersionName;
             DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
          } else {
@@ -550,7 +589,14 @@ def deployToGCS() {
    // for python-only deploys the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", GCS_VERSION];
    if (!DEPLOY_STATIC) {
-      args += ["--copy-from=default"];
+      if (BASE_REVISION) {
+         // Copy from the specified version.  Note that this may not be a
+         // "real" static version (if BASE_REVISION was also a python-only
+         // deploy) but we can copy it just fine either way.
+         args += ["--copy-from=${BASE_REVISION_VERSION}"];
+      } else {
+         args += ["--copy-from=default"];
+      }
    }
    // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
    if (DEPLOY_DYNAMIC) {
