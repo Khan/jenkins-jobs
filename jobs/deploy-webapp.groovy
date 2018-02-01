@@ -971,7 +971,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 // We don't need to notify on success because
                 // deploy_pipeline.py does it for us.
                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
-        buildmaster: [sha1sCallback: { params.GIT_REVISION },
+        buildmaster: [shaCallback: { params.GIT_REVISION },
                       shouldNotifyCallback: { params.STAGES != "all" },
                       // For now, the buildmaster sees this as a build --
                       // deploy will come later.

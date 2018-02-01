@@ -286,7 +286,7 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 
 
 // Supported options:
-// sha1sCallback (required): Closure yielding list of git-shas being processed.
+// shaCallback (required): Closure yielding git-sha being processed.
 // notifyBuildmasterCallback (required): Closure yielding whether we should
 //   notify the buildmaster.
 //   TODO(benkraft): Once all builds are using the buildmaster, this will
@@ -308,11 +308,11 @@ def sendToBuildmaster(buildmasterOptions, status) {
 
    // Buildmaster only knows how to handle testing a single git-sha, not
    // one or multiple branch-names.
-   def sha1s = (buildmasterOptions.sha1sCallback)();
+   def sha1s = (buildmasterOptions.shaCallback)();
    def shouldNotify = (buildmasterOptions.shouldNotifyCallback)()
    if (shouldNotify) {
       buildmaster.notifyStatus(
-         buildmasterOptions.what, buildmasterStatus, sha1s[0]);
+         buildmasterOptions.what, buildmasterStatus, sha);
    }
 }
 

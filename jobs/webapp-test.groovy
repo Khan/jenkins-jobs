@@ -376,7 +376,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        buildmaster: [sha1sCallback: { GIT_SHA1S },
+        buildmaster: [sha1sCallback: { GIT_SHA1S[0] },
                       shouldNotifyCallback: { IS_ONE_GIT_SHA },
                       what: 'webapp-test'],
         timeout: "5h"]) {
