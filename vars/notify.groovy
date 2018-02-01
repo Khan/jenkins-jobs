@@ -308,7 +308,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
 
    // Buildmaster only knows how to handle testing a single git-sha, not
    // one or multiple branch-names.
-   def sha1s = (buildmasterOptions.shaCallback)();
+   def sha = (buildmasterOptions.shaCallback)();
    def shouldNotify = (buildmasterOptions.shouldNotifyCallback)()
    if (shouldNotify) {
       buildmaster.notifyStatus(
