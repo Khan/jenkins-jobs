@@ -136,7 +136,9 @@ _destructive_checkout() {
     # No need to init, or resync, or recurse here: we just want to
     # make sure that when we visit changed subrepos, they're at the
     # right version.  (We handle the recursion ourselves below.)
-    timeout 1m git submodule update
+    # However, the first time this is called it might need to check
+    # out all the submodules, so we give it a bit of time.
+    timeout 10m git submodule update
 
     # Now we need to clean up subrepos.  Most subrepos are usually ok,
     # so I use `git status` to only clean up the ones that need it.  I

@@ -53,8 +53,7 @@ notify(
    // We need this only to get the secrets to send to slack/asana/etc
    // when there are failures.
    // TODO(csilvers): move those secrets somewhere else instead.
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", "master",
-                    ["no_submodules"]);
+   kaGit.safeSyncTo("git@github.com:Khan/webapp", "master", null);
 
    build(job: '../deploy/webapp-test',
          parameters: [
