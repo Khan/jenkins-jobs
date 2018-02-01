@@ -98,7 +98,7 @@ into a new branch based off master, and deploy it.""",
 </ul>""",
     ["default", "yes", "no"]
 
-).addBooleanParam(
+).addChoiceParam(
     "STAGES",
     """\
 <ul>
