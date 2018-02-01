@@ -391,7 +391,8 @@ def mergeFromMasterAndInitializeGlobals() {
       if (params.STAGES == "build" && params.BASE_REVISION) {
          BASE_REVISION = params.BASE_REVISION;
          BASE_REVISION_VERSION = exec.outputOf(
-            ["make", "gae_version_name", exec.shellEscape(BASE_REVISION)]);
+            ["make", "gae_version_name",
+             "VERSION_NAME_GIT_REVISION=${BASE_REVISION}"]);
       }
 
       DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
@@ -465,8 +466,7 @@ def mergeFromMasterAndInitializeGlobals() {
          // against the currently live version, and the consequences of doing
          // something else are greater, so we prohibit the dangerous thing.
          if (BASE_REVISION) {
-            shouldDeployArgs += ["--from-commit",
-                                 exec.shellEscape(BASE_REVISION)]
+            shouldDeployArgs += ["--from-commit", BASE_REVISION]
          }
 
          if (params.DEPLOY == "default") {
