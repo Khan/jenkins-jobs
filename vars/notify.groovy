@@ -311,8 +311,12 @@ def sendToBuildmaster(buildmasterOptions, status) {
    def sha = (buildmasterOptions.shaCallback)();
    def shouldNotify = (buildmasterOptions.shouldNotifyCallback)()
    if (shouldNotify) {
-      buildmaster.notifyStatus(
-         buildmasterOptions.what, buildmasterStatus, sha);
+      try {
+         buildmaster.notifyStatus(
+            buildmasterOptions.what, buildmasterStatus, sha);
+      } catch (e) {
+         echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
+      }
    }
 }
 
