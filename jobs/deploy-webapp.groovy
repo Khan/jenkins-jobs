@@ -15,7 +15,7 @@ import org.khanacademy.Setup;
 
 // NOTE(benkraft): While we have this wrapper-script situation, please make
 // sure to update deploy-webapp-core's params to match any changes you make
-// here.
+// here, as well as where we pass the args through in build() below.
 new Setup(steps
 
 ).addStringParam(
@@ -143,4 +143,18 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-build(job: 'deploy-webapp-core', parameters: params);
+build(job: 'deploy-webapp-core', parameters: [
+   string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+   string(name: 'RUN_TESTS', value: params.RUN_TESTS),
+   string(name: 'DEPLOY', value: params.DEPLOY),
+   booleanParam(name: 'MERGE_TRANSLATIONS', value: params.MERGE_TRANSLATIONS),
+   booleanParam(name: 'ALLOW_SUBMODULE_REVERTS',
+                value: params.ALLOW_SUBMODULE_REVERTS),
+   booleanParam(name: 'FORCE', value: params.FORCE),
+   string(name: 'MONITORING_TIME', value: params.MONITORING_TIME),
+   booleanParam(name: 'SKIP_PRIMING', value: params.SKIP_PRIMING),
+   string(name: 'CLEAN', value: params.CLEAN),
+   string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
+   string(name: 'BUILD_USER_ID_FROM_SCRIPT',
+          value: params.BUILD_USER_ID_FROM_SCRIPT),
+]);
