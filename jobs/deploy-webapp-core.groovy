@@ -116,13 +116,17 @@ into a new branch based off master, and deploy it.""",
        tests, or do any of the other attendant bits.  This should generally
        only be set by deploys done through the buildmaster, never manually.
        </li>
+  <li> <b>promote</b>: Only promote the version to default.  Caller must ensure
+       it has already been built, passed tests, etc.  This should generally
+       only be set by deploys done through the buildmaster, never manually.
+       </li>
 </ul>
 
 <p>If set to a value other than "all", GIT_REVISION must be a sha1, rather than
 a list of branches.  (The buildmaster will have already done the merge.)
 Finally, we never delete versions in this case; we leave that to the
 buildmaster.  This overrides the value of RUN_TESTS.</p>""",
-    ["all", "build"]
+    ["all", "build", "promote"]
 
 ).addStringParam(
     "BASE_REVISION",
@@ -445,14 +449,17 @@ def mergeFromMasterAndInitializeGlobals() {
             }
          }
 
-         // We need to at least tag the commit, otherwise github may prune it.
-         // For now, we do this even if we are only doing some stages, for
-         // consistency and because it doesn't hurt.
-         // TODO(benkraft): Once everything is using the buildmaster,
-         // consolidate with the tag created by merge-branches.
-         dir("webapp") {
-            exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
-            exec(["git", "push", "--tags", "origin"]);
+         if (params.STAGES in ["build", "all"]) {
+            // We need to at least tag the commit, otherwise github may prune
+            // it.  For now, we do this even for STAGES="build", for
+            // consistency and because it doesn't hurt.  For STAGES="promote",
+            // we don't bother since build has already done it.
+            // TODO(benkraft): Once everything is using the buildmaster,
+            // consolidate with the tag created by merge-branches.
+            dir("webapp") {
+               exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
+               exec(["git", "push", "--tags", "origin"]);
+            }
          }
       }
 
@@ -528,6 +535,11 @@ def mergeFromMasterAndInitializeGlobals() {
 
 
 def sendStartMessage() {
+   if (!params.STAGES in ["build", "all"]) {
+      // This only applies if we are building.
+      return;
+   }
+
    def deployType;
    if (DEPLOY_STATIC && DEPLOY_DYNAMIC) {
       deployType = "";
@@ -630,6 +642,10 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
+   if (!params.stages in ["build", "all"]) {
+      return;
+   }
+
     parallel(
         "deploy-to-gae": { deployToGAE(); },
         "deploy-to-gcs": { deployToGCS(); },
@@ -673,6 +689,8 @@ def spawnDeleteVersions() {
 }
 
 def promptForSetDefault() {
+   // TOOD(benkraft): Figure out if we should bother sending this message for
+   // STAGES="promote".  For now, we do, to be extra explicit.
    withTimeout('1m') {
       // The CMS endpoints must be handled on the vm module. However,
       // the rules in dispatch.yaml only match *.khanacademy.org,
