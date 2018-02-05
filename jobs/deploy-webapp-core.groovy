@@ -535,7 +535,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
 
 def sendStartMessage() {
-   if (!params.STAGES in ["build", "all"]) {
+   if (!(params.STAGES in ["build", "all"])) {
       // This only applies if we are building.
       return;
    }
@@ -1039,7 +1039,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
       spawnDeleteVersions();
    }
 
-   if (!params.STAGES in ["all", "promote"]) {
+   if (!(params.STAGES in ["all", "promote"])) {
       return;
    }
 
