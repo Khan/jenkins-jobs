@@ -172,6 +172,8 @@ turn_old_branches_into_tags() {
 # rules to use the gcs lifecycle rules.
 clean_ka_translations() {
     for dir in `gsutil ls gs://ka_translations`; do
+        # Ignore the "raw" dir, which isn't a language.
+        [ "$dir" = "gs://ka_translations/raw/" ] && continue
         versions=`gsutil ls $dir | sort`
         # We keep all version-dirs that fit either of these criteria:
         # 1) One of the last 3 versions
