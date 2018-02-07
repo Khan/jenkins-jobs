@@ -642,7 +642,7 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
-   if (!params.stages in ["build", "all"]) {
+   if (!(params.STAGES in ["build", "all"])) {
       return;
    }
 
