@@ -1001,7 +1001,8 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                       shouldNotifyCallback: { params.STAGES != "all" },
                       // For now, the buildmaster sees this as a build --
                       // deploy will come later.
-                      what: 'build-webapp'],
+                      what: (params.STAGES == 'promote' ?
+                             'deploy-webapp' : 'build-webapp')],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
