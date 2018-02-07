@@ -112,13 +112,13 @@ def _logSuffix() {
 
 
 // Returns shared alertlib requirements, including severity, subject,
-// and body text. Individual sendTo functions (slack, asana, email,
+// and body text. Individual sendTo functions (slack, bugtracker, email,
 // and alerta) can build upon these, as needed.
 def _dataForAlertlib(status, extraText) {
    // Potential additions to the subject may include currentBuild.displayName
    // and env.BUILD_URL. These may be added in the individual service's sendTo.
-   // Do not add if want subject to stay consistent (e.g. for sending to Asana,
-   // we don't want to open a new task for each failure)
+   // Do not add if want subject to stay consistent (e.g. for sending to
+   // bugtracker, we don't want to open a new task for each failure)
    def subject = "${env.JOB_NAME} ${_statusText(status, false)}";
    def severity = _failed(status) ? 'error' : 'info';
    def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
@@ -233,23 +233,23 @@ def sendToEmail(emailOptions, status, extraText='') {
 
 
 // Supported options:
-// when (required): under what circumstances to send to asana; a list.
+// when (required): under what circumstances to send to bugtracker; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 //    (Used in call(), below.)
-// project (required): a string saying what asana project to send to,
-//    e.g. "Engineering support".
-// tags: a list of tags to add to the project
-// followers: a commas-delimited string of asana email addresses of
-//    who to add to this asana task.
-// [extraText: if specified, text to add to the task body.]
-def sendToAsana(asanaOptions, status, extraText='') {
+// project (required): a string saying what project to send the issue to,
+//    e.g. "Infrastructure".
+// bugTags: a list of tags to add to the issue
+// watchers: a commas-delimited string of email addresses of
+//    who to add to this issue as a watcher.
+// [extraText: if specified, text to add to the issue body.]
+def sendToBugtracker(bugtrackerOptions, status, extraText='') {
    def arr = _dataForAlertlib(status, extraText);
    def subject = arr[0];
    def severity = arr[1];
    def body = arr[2];
-   def extraFlags = ["--asana=${asanaOptions.project}",
-                     "--cc=${asanaOptions.followers ?: ''}",
-                     "--asana-tags=${(asanaOptions.tags ?: []).join(',')}"];
+   def extraFlags = ["--bugtracker=${bugtrackerOptions.project}",
+                     "--cc=${bugtrackerOptions.watchers ?: ''}",
+                     "--bug-tags=${(bugtrackerOptions.bugTags ?: []).join(',')}"];
 
    _sendToAlertlib(subject, severity, body, extraFlags);
 }
@@ -419,8 +419,8 @@ def runWithNotification(options, Closure body) {
       if (options.email && _shouldReport(status, options.email.when)) {
          sendToEmail(options.email, status, failureText);
       }
-      if (options.asana && _shouldReport(status, options.asana.when)) {
-         sendToAsana(options.asana, status, failureText);
+      if (options.bugtracker && _shouldReport(status, options.bugtracker.when)) {
+         sendToBugtracker(options.bugtracker, status, failureText);
       }
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);

@@ -44,8 +44,8 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 notify(
    [slack: [channel: '#1s-and-0s',
             when: ['STARTED', 'ABORTED']],
-    asana: [project: 'Infrastructure',
-            when: ['FAILURE']],
+    bugtracker: [project: 'Infrastructure',
+                 when: ['FAILURE']],
     aggregator: [initiative: 'infrastructure',
                  when: ['SUCCESS', 'BACK TO NORMAL',
                         'FAILURE', 'ABORTED', 'UNSTABLE']],
