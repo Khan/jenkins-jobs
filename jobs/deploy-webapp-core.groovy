@@ -449,17 +449,17 @@ def mergeFromMasterAndInitializeGlobals() {
             }
          }
 
-         if (params.STAGES in ["build", "all"]) {
-            // We need to at least tag the commit, otherwise github may prune
-            // it.  For now, we do this even for STAGES="build", for
-            // consistency and because it doesn't hurt.  For STAGES="promote",
-            // we don't bother since build has already done it.
-            // TODO(benkraft): Once everything is using the buildmaster,
-            // consolidate with the tag created by merge-branches.
-            dir("webapp") {
-               exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
-               exec(["git", "push", "--tags", "origin"]);
-            }
+         // We need to at least tag the commit, otherwise github may prune
+         // it.  For now, we do this even for STAGES != "all", for
+         // consistency and because it doesn't hurt.  In this case we'll end up
+         // with several different tags on the commit (one from merge-branches,
+         // one from when we run build, and one from when we run promote), but
+         // it's not a big deal.
+         // TODO(benkraft): Consolidate these tags, when everything is using
+         // the buildmaster if not before.
+         dir("webapp") {
+            exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
+            exec(["git", "push", "--tags", "origin"]);
          }
       }
 
