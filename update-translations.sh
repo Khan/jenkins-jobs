@@ -112,15 +112,27 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
 
     # xargs -n1 takes a string and puts each word on its own line.
     for lang in `echo "$list_of_langs" | xargs -n1`; do
-        echo "Downloading translations and stats for $lang from crowdin & making combined pofile."
+        # We've just introduced a service that will cache the translation files
+        # from Crowdin in order to increase performance and stability.
+        # Initially, we'll try it out on just one language.
+        if [ $lang == "nb" ]; then
+            EXTRA_FLAGS="--use-sync-service"
+            SOURCE="the Crowdin/GCS Sync service"
+        else
+            EXTRA_FLAGS="--english-version-dir=$DATA_DIR/upload_to_crowdin \
+                         --export"
+            SOURCE="Crowdin"
+        fi
+
+        echo "Downloading translations and stats for $lang from $SOURCE & making combined pofile."
+        # EXTRA_FLAGS is unquoted below since it might contain multiple flags.
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-           --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-           --use_temps_for_linting \
-           --english-version-dir="$DATA_DIR"/upload_to_crowdin \
-           --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-           --send-lint-reports \
-           --export \
-           $lang
+            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+            --use_temps_for_linting \
+            --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+            --send-lint-reports \
+            $EXTRA_FLAGS \
+            $lang
     done
 
     echo "Splitting .po files"
