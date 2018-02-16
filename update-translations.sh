@@ -119,24 +119,25 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
         # download_i18n.py doesn't accept that without --export, which
         # can't be used with --use-sync-service. Fix that.
         if [ $lang == "nb" ]; then
-            EXTRA_FLAGS="--use-sync-service \
-                         --send-lint-reports-test"
-            SOURCE="the Crowdin/GCS Sync service"
+            echo "Downloading translations and stats for $lang from the Crowdin/GCS Sync service & making combined pofile."
+            deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+                --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+                --use_temps_for_linting \
+                --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+                --send-lint-reports-test \
+                --use-sync-service \
+                $lang
         else
-            EXTRA_FLAGS="--english-version-dir=$DATA_DIR/upload_to_crowdin \
-                         --send-lint-reports \
-                         --export"
-            SOURCE="Crowdin"
+            echo "Downloading translations and stats for $lang from Crowdin & making combined pofile."
+            deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
+                --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
+                --use_temps_for_linting \
+                --english-version-dir="$DATA_DIR"/upload_to_crowdin \
+                --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
+                --send-lint-reports \
+                --export \
+                $lang
         fi
-
-        echo "Downloading translations and stats for $lang from $SOURCE & making combined pofile."
-        # EXTRA_FLAGS is unquoted below since it might contain multiple flags.
-        deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
-            --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
-            --use_temps_for_linting \
-            --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-            $EXTRA_FLAGS \
-            $lang
     done
 
     echo "Splitting .po files"
