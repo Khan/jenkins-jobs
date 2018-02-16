@@ -426,16 +426,17 @@ def mergeFromMasterAndInitializeGlobals() {
                            "but GIT_REVISION was not a sha!");
             }
 
-            if (params.STAGES == "promote" && exec.outputOf(
-                  ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
-               // For promote, we do an extra safety check, that
-               // GIT_REVISION is a valid sha ahead of master.
-               notify.fail("STAGES == 'promote', but GIT_REVISION " +
-                           "${params.GIT_REVISION} is is behind master!")
-            }
-
             kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION)
 
+            dir("webapp") {
+               if (params.STAGES == "promote" && exec.outputOf(
+                     ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
+                  // For promote, we do an extra safety check, that
+                  // GIT_REVISION is a valid sha ahead of master.
+                  notify.fail("STAGES == 'promote', but GIT_REVISION " +
+                              "${params.GIT_REVISION} is is behind master!")
+               }
+            }
          } else {
             kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
             // detatch HEAD so there's no chance of accidentally updating
