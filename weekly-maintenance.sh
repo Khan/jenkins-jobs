@@ -147,7 +147,7 @@ clean_invalid_branches() {
 # --contains` which gets very slow when there are a lot of branches.
 turn_old_branches_into_tags() {
     (
-        cd $HOME/jobs/deploy/jobs/deploy-webapp/workspace/webapp
+        cd webapp
         echo "Turning old branches into tags in `pwd`"
 
         git fetch --prune origin
