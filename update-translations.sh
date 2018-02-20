@@ -115,16 +115,13 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
         # We've just introduced a service that will cache the translation files
         # from Crowdin in order to increase performance and stability.
         # Initially, we'll try it out on just one language.
-        # TODO(aasmund): We should always use --send-lint-reports, but
-        # download_i18n.py doesn't accept that without --export, which
-        # can't be used with --use-sync-service. Fix that.
         if [ $lang == "nb" ]; then
             echo "Downloading translations and stats for $lang from the Crowdin/GCS Sync service & making combined pofile."
             deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
                 --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
                 --use_temps_for_linting \
                 --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
-                --send-lint-reports-test \
+                --send-lint-reports \
                 --use-sync-service \
                 $lang
         else
