@@ -397,7 +397,7 @@ def mergeFromMasterAndInitializeGlobals() {
          }
       }
       if (!DEPLOYER_USERNAME.startsWith("@") &&
-          !DEPLOYER_USERNAME.startsWith("<@") {
+          !DEPLOYER_USERNAME.startsWith("<@")) {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
