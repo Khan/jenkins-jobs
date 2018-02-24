@@ -115,7 +115,7 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
         # We've just introduced a service that will cache the translation files
         # from Crowdin in order to increase performance and stability.
         # Initially, we'll try it out on just one language.
-        if [ $lang == "nb" ]; then
+        if [[ $lang == "nb" || $lang == "es" ]]; then
             echo "Downloading translations and stats for $lang from the Crowdin/GCS Sync service & making combined pofile."
             deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
                 --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
