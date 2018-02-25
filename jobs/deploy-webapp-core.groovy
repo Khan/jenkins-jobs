@@ -408,7 +408,7 @@ def mergeFromMasterAndInitializeGlobals() {
              "VERSION_NAME_GIT_REVISION=${BASE_REVISION}"]);
       }
 
-      DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmss')}";
+      DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmssSSS')}";
 
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
