@@ -30,7 +30,26 @@ def runScript() {
       // don't need our own copy of webapp.  This matters because
       // these jobs update intl/translations, which is huge.
       // TODO(csilvers): does this matter anymore with git-workdir?
-      dir("../../i18n-update-strings/workspace") {
+
+      // One complication is that Jenkins sometimes creates multiple workspaces
+      // for the same job, so we will use the mtime of updated_timestamp.txt
+      // to figure out which workspace was used by the most recent successful
+      // update job, since we depend on all.pot.pickle.
+      def workspace = exec.outputOf([
+         "bash",
+         "-c",
+         ("find ../../i18n-update-strings " +
+          "     -regextype egrep " +
+          "     -regex '.*/workspace(@[0-9]+)?/updated_timestamp.txt' " +
+          "     -printf '%T@ %p\n' " +
+          "| sort -nrk 1 " +
+          "| head -n 1 " +
+          "| egrep --only-matching 'workspace(@[0-9]+)?'")]).trim();
+      if (!workspace) {
+         workspace = "workspace";
+      }
+
+      dir("../../i18n-update-strings/${workspace}") {
          dir("webapp") {
             sh("make clean_pyc");
             sh("make python_deps");
