@@ -76,14 +76,6 @@ def tryUpdateStrings() {
                  string(name: 'LOCALES', value: updatedLocales),
               ])
      }
-
-     // Jenkins sometimes creates multiple workspaces for the same job.
-     // i18n-download-translations will use the mtime of this file to figure out
-     // which workspace was used by the most recent successful update job,
-     // since it depends on all.pot.pickle. We don't want to use
-     // updated_locales.txt for this because several things happen after it has
-     // been written, so it could be that the job failed after it was written.
-     sh("touch updated_timestamp.txt");
   }
 }
 
