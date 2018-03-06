@@ -81,6 +81,14 @@ The special value 'all' uploads all modules.""",
 people will be accessing this deploy.""",
     false
 
+).addBooleanParam(
+    "HIGHMEM_INSTANCE",
+    """If set, this version will be deployed on a highmem instance class rather
+than the instance class used for regular default deployes to aid in filling
+caches and reducing timeouts. If you will be sending significant traffic to your
+znd, consider setting this to false since they are more expensive instances.""",
+    true
+
 ).addStringParam(
     "PHAB_REVISION",
     """The Phabricator revision ID for this build. This field should only be
@@ -148,6 +156,7 @@ def deployToGAE() {
                "--deployer-username=@${_currentUser()}"];
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
    args += params.PRIME ? [] : ["--no-priming"];
+   args += params.HIGHMEM_INSTANCE ? ["--highmem-instance"] : [];
 
    withSecrets() {     // we need to deploy secrets.py.
       dir("webapp") {
