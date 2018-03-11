@@ -731,7 +731,7 @@ def promptForSetDefault() {
                exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
                      // We omit the deployer username; the next message has an
                      // at-mention in it already.
-                     "--slack_channel=${params.SLACK_CHANNEL}"]);
+                     "-o", SLACK_CHANNEL]);
             }
          }
       }
