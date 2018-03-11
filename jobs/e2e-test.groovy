@@ -228,7 +228,7 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
 
 // Verify that candidate schema supports all active queries.
 def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
-   def successMsg = "GraphQL schema integration test succeeded for "
+   def successMsg = "GraphQL schema integration test succeeded for " +
       REVISION_DESCRIPTION;
    def failureMsg = "GraphQL schema integration test failed for " +
       "${REVISION_DESCRIPTION}. This means " +
