@@ -726,10 +726,14 @@ def promptForSetDefault() {
       // If we are doing a promote-only job, send the changelog -- we won't
       // have done so before.
       if (params.STAGES == "promote") {
-         exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
-               // We omit the deployer username; the next message has an
-               // at-mention in it already.
-               "--slack_channel=${params.SLACK_CHANNEL}"]);
+         withSecrets() {
+            dir("webapp") {
+               exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
+                     // We omit the deployer username; the next message has an
+                     // at-mention in it already.
+                     "--slack_channel=${params.SLACK_CHANNEL}"]);
+            }
+         }
       }
       // The CMS endpoints must be handled on the vm module. However,
       // the rules in dispatch.yaml only match *.khanacademy.org,

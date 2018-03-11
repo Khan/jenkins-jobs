@@ -42,10 +42,10 @@ def deleteVersion() {
 }
 
 
-notify([slack: [channel: '#deploy-spam',
+notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
