@@ -101,10 +101,20 @@ to click on 'advanced' to see the instance cap.""",
 Typically not set manually, but rather by other jobs that call this one.""",
    ""
 
+).addStringParam(
+   "REVISION_DESCRIPTION",
+   """Set by the buildmaster to give a more human-readable description
+of the GIT_REVISION, especially if it is a commit rather than a branch.
+Defaults to GIT_REVISION.""",
+   ""
+
 ).apply();
 
+REVISION_DESCRIPTION = (params.REVISION_DESCRIPTION ?
+                        params.REVISION_DESCRIPTION : params.GIT_REVISION);
+
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.GIT_REVISION})");
+                            "(${REVISION_DESCRIPTION})");
 
 
 // We set these to real values first thing below; but we do it within
@@ -352,8 +362,8 @@ def analyzeResults() {
                   "--jenkins-build-url", env.BUILD_URL,
                   "--deployer", params.DEPLOYER_USERNAME,
                   // The commit here is just used for a human-readable
-                  // slack message, so we use the input commit, not the sha1.
-                  "--commit", params.GIT_REVISION]);
+                  // slack message, so we use REVISION_DESCRIPTION.
+                  "--commit", REVISION_DESCRIPTION]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';

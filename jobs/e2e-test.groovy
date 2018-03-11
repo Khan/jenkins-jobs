@@ -79,10 +79,20 @@ Typically not set manually, but rather by other jobs that call this one.""",
    "If set, notify buildmaster on any notification.",
    false
 
+).addStringParam(
+   "REVISION_DESCRIPTION",
+   """Set by the buildmaster to give a more human-readable description
+of the GIT_REVISION, especially if it is a commit rather than a branch.
+Defaults to GIT_REVISION.""",
+   ""
+
 ).apply();
 
+REVISION_DESCRIPTION = (params.REVISION_DESCRIPTION ?
+                        params.REVISION_DESCRIPTION : params.GIT_REVISION);
+
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.GIT_REVISION})");
+                            "(${REVISION_DESCRIPTION})");
 
 
 // We set these to real values first thing below; but we do it within
@@ -189,8 +199,10 @@ def _runOneTest(splitId) {
 }
 
 def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
-   def successMsg = "Android integration tests succeeded";
-   def failureMsg = ("Android integration tests failed " +
+   def successMsg = ("Android integration tests succeeded for " +
+                     REVISION_DESCRIPTION);
+   def failureMsg = ("Android integration tests failed for " +
+                     REVISION_DESCRIPTION +
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
    withTimeout('1h') {
@@ -216,8 +228,10 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
 
 // Verify that candidate schema supports all active queries.
 def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
-   def successMsg = "GraphQL schema integration test succeeded";
-   def failureMsg = "GraphQL schema integration test failed. This means " +
+   def successMsg = "GraphQL schema integration test succeeded for "
+      REVISION_DESCRIPTION;
+   def failureMsg = "GraphQL schema integration test failed for " +
+      "${REVISION_DESCRIPTION}. This means " +
       "the GraphQL schema is not valid or does not support all active " +
       "queries (most likely the schema breaks a mobile native query).";
    def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
@@ -353,8 +367,8 @@ def analyzeResults() {
                   "--jenkins-build-url", env.BUILD_URL,
                   "--deployer", params.DEPLOYER_USERNAME,
                   // The commit here is just used for a human-readable
-                  // slack message, so we use the input commit, not the sha1.
-                  "--commit", params.GIT_REVISION]);
+                  // slack message, so we use REVISION_DESCRIPTION.
+                  "--commit", REVISION_DESCRIPTION]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';

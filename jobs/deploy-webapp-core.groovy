@@ -237,10 +237,20 @@ such as sun.  You can, but need not, include the leading `@`.""",
     """(Deprecated form of DEPLOYER_USERNAME)""",
     ""
 
+).addStringParam(
+    "REVISION_DESCRIPTION",
+    """Set by the buildmaster to give a more human-readable description
+of the GIT_REVISION, especially if it is a commit rather than a branch.
+Defaults to GIT_REVISION.""",
+    ""
+
 ).apply();
 
+REVISION_DESCRIPTION = (params.REVISION_DESCRIPTION ?
+                        params.REVISION_DESCRIPTION : params.GIT_REVISION);
+
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.GIT_REVISION})");
+                            "(${REVISION_DESCRIPTION})");
 
 
 // We set these to real values first thing below; but we do it within
@@ -545,8 +555,11 @@ def mergeFromMasterAndInitializeGlobals() {
 
 
 def sendStartMessage() {
-   if (!(params.STAGES in ["build", "all"])) {
-      // This only applies if we are building.
+   if (!(params.STAGES == "all")) {
+      // If we're doing a build/promote only, we don't message, since there may
+      // be many such builds going on and it gets hard to tell which is which
+      // real fast.  The buildmaster will notify when it's time to set-default,
+      // which is the interesting part.
       return;
    }
 
@@ -564,7 +577,7 @@ def sendStartMessage() {
    withTimeout("1m") {
       _alert(alertMsgs.STARTING_DEPLOY,
              [deployType: deployType,
-              branch: "${DEPLOY_TAG} (containing ${params.GIT_REVISION})"]);
+              branch: "${DEPLOY_TAG} (containing ${REVISION_DESCRIPTION})"]);
    }
 }
 
@@ -582,6 +595,8 @@ def runTests() {
             booleanParam(name: 'FAILFAST', value: false),
             string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
             booleanParam(name: 'FORCE', value: params.FORCE),
+            string(name: 'REVISION_DESCRIPTION',
+                   value: params.REVISION_DESCRIPTION),
          ]);
 }
 
@@ -598,6 +613,9 @@ def deployToGAE() {
    args += params.FORCE ? ["--force-deploy"] : [];
    args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
    args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
+   // We don't send the changelog in a build-only context -- there may be many
+   // builds afoot and it is too confusing.  We'll send it in promote instead.
+   args += params.STAGES == "all" ? [] : ["--suppress-changelog"];
 
    withSecrets() {     // we need to deploy secrets.py.
       dir("webapp") {
@@ -617,7 +635,9 @@ def deployToGAE() {
 def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", GCS_VERSION];
+   def args = ["deploy/deploy_to_gcs.py", GCS_VERSION,
+               "--slack-channel=${SLACK_CHANNEL}",
+               "--deployer-username=${DEPLOYER_USERNAME}"];
    if (!DEPLOY_STATIC) {
       if (BASE_REVISION) {
          // Copy from the specified version.  Note that this may not be a
@@ -628,13 +648,12 @@ def deployToGCS() {
          args += ["--copy-from=default"];
       }
    }
-   // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
-   if (DEPLOY_DYNAMIC) {
-      args += ["--slack-channel=", "--deployer-username="];
-   } else {
-      args += ["--slack-channel=${SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}"];
+   // If DEPLOY_DYNAMIC, then deploy_to_gae sends the changelog, so we don't.
+   // When only doing a build, we also suppress it -- see deployToGAE for why.
+   if (DEPLOY_DYNAMIC || params.STAGES != "all") {
+      args += ["--suppress-changelog"];
    }
+
    args += params.FORCE ? ["--force"] : [];
 
    withSecrets() {     // TODO(csilvers): do we actually need secrets?
@@ -680,6 +699,8 @@ def deployAndReport() {
                   string(name: 'GIT_REVISION', value: DEPLOY_TAG),
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
+                  string(name: 'REVISION_DESCRIPTION',
+                         value: params.REVISION_DESCRIPTION),
               ]);
     }
 }
@@ -702,6 +723,14 @@ def promptForSetDefault() {
    // TOOD(benkraft): Figure out if we should bother sending this message for
    // STAGES="promote".  For now, we do, to be extra explicit.
    withTimeout('1m') {
+      // If we are doing a promote-only job, send the changelog -- we won't
+      // have done so before.
+      if (params.STAGES == "promote") {
+         exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
+               // We omit the deployer username; the next message has an
+               // at-mention in it already.
+               "--slack_channel=${params.SLACK_CHANNEL}"]);
+      }
       // The CMS endpoints must be handled on the vm module. However,
       // the rules in dispatch.yaml only match *.khanacademy.org,
       // so the routing doesn't work in dynamic deploys (which are
@@ -766,6 +795,8 @@ def _promote() {
                      booleanParam(name: 'FAILFAST', value: false),
                      string(name: 'DEPLOYER_USERNAME',
                             value: DEPLOYER_USERNAME),
+                     string(name: 'REVISION_DESCRIPTION',
+                            value: params.REVISION_DESCRIPTION),
                   ]);
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
@@ -877,12 +908,12 @@ def finishWithSuccess() {
             if (!existingTag) {
                exec(["git", "tag", "-m",
                      "Deployed to appengine from branch " +
-                     "${params.GIT_REVISION} (via branch ${DEPLOY_TAG})",
+                     "${REVISION_DESCRIPTION} (via branch ${DEPLOY_TAG})",
                      GIT_TAG, DEPLOY_TAG]);
             }
          }
          try {
-            def branchName = "${DEPLOY_TAG} (${params.GIT_REVISION})";
+            def branchName = "${DEPLOY_TAG} (${REVISION_DESCRIPTION})";
 
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
@@ -899,6 +930,8 @@ def finishWithSuccess() {
             // The merge exits with rc > 0 if there were conflicts.
             echo("Merging ${branchName} into master");
             try {
+               // TODO(benkraft): Mention REVISION_DESCRIPTION in the merge
+               // message too.
                exec(["git", "merge", DEPLOY_TAG]);
             } catch (e) {
                echo("FATAL ERROR running 'git merge ${DEPLOY_TAG}': ${e}");
@@ -923,13 +956,13 @@ def finishWithSuccess() {
             echo("FATAL ERROR merging to master: ${e}");
             _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
                    [combinedVersion: COMBINED_VERSION,
-                    branch: params.GIT_REVISION]);
+                    branch: REVISION_DESCRIPTION]);
             throw e;
          }
       }
 
       _alert(alertMsgs.SUCCESS,
-             [combinedVersion: COMBINED_VERSION, branch: params.GIT_REVISION]);
+             [combinedVersion: COMBINED_VERSION, branch: REVISION_DESCRIPTION]);
       env.SENT_TO_SLACK = '1';
    }
 }
@@ -957,7 +990,7 @@ def finishWithFailure(why) {
                  "rollback-to: ${ROLLBACK_TO}");
             _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
                    [combinedVersion: COMBINED_VERSION,
-                    branch: params.GIT_REVISION,
+                    branch: REVISION_DESCRIPTION,
                     why: why]);
             env.SENT_TO_SLACK = '1';
             return
@@ -993,7 +1026,7 @@ def finishWithFailure(why) {
 
       _alert(alertMsgs.FAILED_WITH_ROLLBACK,
              [combinedVersion: COMBINED_VERSION,
-              branch: params.GIT_REVISION,
+              branch: REVISION_DESCRIPTION,
               rollbackToAsVersion: rollbackToAsVersion,
               why: why]);
       env.SENT_TO_SLACK = '1';
@@ -1006,7 +1039,7 @@ notify([slack: [channel: '#1s-and-0s-deploys',
                 emoji: ':monkey_face:',
                 // We don't need to notify on success because
                 // deploy_pipeline.py does it for us.
-                when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         buildmaster: [shaCallback: { params.GIT_REVISION },
                       shouldNotifyCallback: { params.STAGES != "all" },
                       // For now, the buildmaster sees this as a build --
