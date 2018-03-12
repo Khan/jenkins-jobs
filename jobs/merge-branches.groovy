@@ -76,11 +76,10 @@ def mergeBranches() {
    }
 }
 
-// TODO(benkraft): Update channel when we are done testing.
-notify([slack: [channel: '#bot-testing',
+notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
