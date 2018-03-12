@@ -719,9 +719,7 @@ def spawnDeleteVersions() {
 }
 
 def promptForSetDefault() {
-   // TOOD(benkraft): Figure out if we should bother sending this message for
-   // STAGES="promote".  For now, we do, to be extra explicit.
-   withTimeout('1m') {
+   withTimeout('5m') {
       // If we are doing a promote-only job, send the changelog -- we won't
       // have done so before.
       if (params.STAGES == "promote") {
