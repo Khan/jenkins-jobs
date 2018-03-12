@@ -110,8 +110,7 @@ Defaults to GIT_REVISION.""",
 
 ).apply();
 
-REVISION_DESCRIPTION = (params.REVISION_DESCRIPTION ?
-                        params.REVISION_DESCRIPTION : params.GIT_REVISION);
+REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");

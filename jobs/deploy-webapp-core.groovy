@@ -246,8 +246,7 @@ Defaults to GIT_REVISION.""",
 
 ).apply();
 
-REVISION_DESCRIPTION = (params.REVISION_DESCRIPTION ?
-                        params.REVISION_DESCRIPTION : params.GIT_REVISION);
+REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
@@ -1041,8 +1040,9 @@ def finishWithFailure(why) {
 notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                // We don't need to notify on success because
-                // deploy_pipeline.py does it for us.
+                // We don't need to notify on start because the buildmaster
+                // does it for us; on success the we explicitly send
+                // alertMsgs.SUCCESS.
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         buildmaster: [shaCallback: { params.GIT_REVISION },
                       shouldNotifyCallback: { params.STAGES != "all" },
