@@ -301,6 +301,8 @@ notify([slack: [channel: SLACK_CHANNEL,
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
         timeout: "2h"]) {
+   // TODO(benkraft): Run deploy-znd on the build workers, so we can run
+   // several at a time.
    verifyVersion();
    stage("Deploying") {
       deploy();
