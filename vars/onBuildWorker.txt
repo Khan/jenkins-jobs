@@ -1,0 +1,5 @@
+Like onTestWorker, but for the build workers.
+
+We use these workers to do the (slow, CPU-intensive) build process for
+deploying webapp -- this allows us to run several builds at once without
+overloading the jenkins master.

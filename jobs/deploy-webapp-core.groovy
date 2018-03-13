@@ -1035,23 +1035,7 @@ def finishWithFailure(why) {
 }
 
 
-notify([slack: [channel: '#1s-and-0s-deploys',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                // We don't need to notify on start because the buildmaster
-                // does it for us; on success the we explicitly send
-                // alertMsgs.SUCCESS.
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        buildmaster: [shaCallback: { params.GIT_REVISION },
-                      shouldNotifyCallback: { params.STAGES != "all" },
-                      // For now, the buildmaster sees this as a build --
-                      // deploy will come later.
-                      what: (params.STAGES == 'promote' ?
-                             'deploy-webapp' : 'build-webapp')],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "4h"]) {
+def doDeploy() {
    stage("Merging in master") {
       mergeFromMasterAndInitializeGlobals();
    }
@@ -1109,5 +1093,40 @@ notify([slack: [channel: '#1s-and-0s-deploys',
 
    stage("Merging to master") {
       finishWithSuccess();
+   }
+}
+
+
+// We use runWithNotification so we can decide conditionally what node-type to
+// run the rest of the job on.
+notify.runWithNotification([
+      slack: [channel: '#1s-and-0s-deploys',
+              sender: 'Mr Monkey',
+              emoji: ':monkey_face:',
+              // We don't need to notify on start because the buildmaster
+              // does it for us; on success the we explicitly send
+              // alertMsgs.SUCCESS.
+              when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+      buildmaster: [shaCallback: { params.GIT_REVISION },
+                    shouldNotifyCallback: { params.STAGES != "all" },
+                    // For now, the buildmaster sees this as a build --
+                    // deploy will come later.
+                    what: (params.STAGES == 'promote' ?
+                       'deploy-webapp' : 'build-webapp')],
+      aggregator: [initiative: 'infrastructure',
+                   when: ['SUCCESS', 'BACK TO NORMAL',
+                   'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   if (params.STAGES == 'build') {
+      // If we're building only, use the build workers.
+      onBuildWorker('4h') {
+         doDeploy();
+      }
+   } else {
+      // Otherwise, use master, to ease debugging and such.  Promote isn't
+      // CPU-bound, and we can have only one old-style deploy job at a time, so
+      // it doesn't really matter.
+      onMaster('4h') {
+         doDeploy();
+      }
    }
 }
