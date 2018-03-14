@@ -393,12 +393,10 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
 
 def mergeFromMasterAndInitializeGlobals() {
    withTimeout('1h') {    // should_deploy builds files, which can take forever
-      if (params.STAGES == 'build') {
-         // On the build-worker, jenkins-jobs is in a different place.
-         alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
-      } else {
-         alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
-      }
+      // In principle we should fetch from workspace@script which is where this
+      // script itself is loaded from, but that doesn't exist on build-workers
+      // and our checkout of jenkins-jobs will work fine.
+      alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
 
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
