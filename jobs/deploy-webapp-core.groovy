@@ -393,7 +393,12 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
 
 def mergeFromMasterAndInitializeGlobals() {
    withTimeout('1h') {    // should_deploy builds files, which can take forever
-      alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
+      if (params.STAGES == 'build') {
+         // On the build-worker, jenkins-jobs is in a different place.
+         alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
+      } else {
+         alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
+      }
 
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
