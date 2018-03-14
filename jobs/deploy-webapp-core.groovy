@@ -1036,97 +1036,97 @@ def finishWithFailure(why) {
 
 
 def doDeploy() {
-   stage("Merging in master") {
-      mergeFromMasterAndInitializeGlobals();
-   }
-
-   stage("Starting") {
-      sendStartMessage();
-   }
-
-   try {
-      stage("Deploying and testing") {
-         withTimeout('120m') {
-            parallel(
-               "deploy-and-report": { deployAndReport(); },
-               // This may be a no-op, if RUN_TESTS is "no" or STAGES != "all".
-               "test": { runTests(); },
-               "failFast": true,
-            );
-         }
+   // We use runWithNotification so we can decide conditionally what node-type
+   // to run the rest of the job on.
+   notify.runWithNotification([
+         slack: [channel: '#1s-and-0s-deploys',
+                 sender: 'Mr Monkey',
+                 emoji: ':monkey_face:',
+                 // We don't need to notify on start because the buildmaster
+                 // does it for us; on success the we explicitly send
+                 // alertMsgs.SUCCESS.
+                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+         buildmaster: [shaCallback: { params.GIT_REVISION },
+                       shouldNotifyCallback: { params.STAGES != "all" },
+                       // For now, the buildmaster sees this as a build --
+                       // deploy will come later.
+                       what: (params.STAGES == 'promote' ?
+                          'deploy-webapp' : 'build-webapp')],
+         aggregator: [initiative: 'infrastructure',
+                      when: ['SUCCESS', 'BACK TO NORMAL',
+                      'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      stage("Merging in master") {
+         mergeFromMasterAndInitializeGlobals();
       }
-   } catch (e) {
-      // TODO(benkraft): This can be simplified if STAGES == "build".
-      echo("FATAL ERROR deploying and testing: ${e}");
-      finishWithFailure(e.toString());
-      throw e;
-   } finally {
-      // We do this here so as to give us as much time as possible before
-      // deleting the old versions, but making sure it still happens even in
-      // failure cases, and happens before the very end of the job (when it is
-      // more likely to run in parallel to the next deploy, potentially causing
-      // us to delete a version sooner than necessary).
-      spawnDeleteVersions();
-   }
 
-   if (!(params.STAGES in ["all", "promote"])) {
-      return;
-   }
+      stage("Starting") {
+         sendStartMessage();
+      }
 
-   if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
       try {
-         stage("Prompt 1") {
-            promptForSetDefault();
-         }
-         stage("Promoting and monitoring") {
-            setDefaultAndMonitor();
-         }
-         stage("Prompt 2") {
-            promptToFinish();
+         stage("Deploying and testing") {
+            withTimeout('120m') {
+               parallel(
+                  "deploy-and-report": { deployAndReport(); },
+                  // This may be a no-op, if RUN_TESTS is "no" or STAGES != "all".
+                  "test": { runTests(); },
+                  "failFast": true,
+               );
+            }
          }
       } catch (e) {
-         echo("FATAL ERROR promoting and monitoring and prompting: ${e}");
+         // TODO(benkraft): This can be simplified if STAGES == "build".
+         echo("FATAL ERROR deploying and testing: ${e}");
          finishWithFailure(e.toString());
          throw e;
+      } finally {
+         // We do this here so as to give us as much time as possible before
+         // deleting the old versions, but making sure it still happens even in
+         // failure cases, and happens before the very end of the job (when it is
+         // more likely to run in parallel to the next deploy, potentially causing
+         // us to delete a version sooner than necessary).
+         spawnDeleteVersions();
       }
-   }
 
-   stage("Merging to master") {
-      finishWithSuccess();
+      if (!(params.STAGES in ["all", "promote"])) {
+         return;
+      }
+
+      if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+         try {
+            stage("Prompt 1") {
+               promptForSetDefault();
+            }
+            stage("Promoting and monitoring") {
+               setDefaultAndMonitor();
+            }
+            stage("Prompt 2") {
+               promptToFinish();
+            }
+         } catch (e) {
+            echo("FATAL ERROR promoting and monitoring and prompting: ${e}");
+            finishWithFailure(e.toString());
+            throw e;
+         }
+      }
+
+      stage("Merging to master") {
+         finishWithSuccess();
+      }
    }
 }
 
 
-// We use runWithNotification so we can decide conditionally what node-type to
-// run the rest of the job on.
-notify.runWithNotification([
-      slack: [channel: '#1s-and-0s-deploys',
-              sender: 'Mr Monkey',
-              emoji: ':monkey_face:',
-              // We don't need to notify on start because the buildmaster
-              // does it for us; on success the we explicitly send
-              // alertMsgs.SUCCESS.
-              when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-      buildmaster: [shaCallback: { params.GIT_REVISION },
-                    shouldNotifyCallback: { params.STAGES != "all" },
-                    // For now, the buildmaster sees this as a build --
-                    // deploy will come later.
-                    what: (params.STAGES == 'promote' ?
-                       'deploy-webapp' : 'build-webapp')],
-      aggregator: [initiative: 'infrastructure',
-                   when: ['SUCCESS', 'BACK TO NORMAL',
-                   'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-   if (params.STAGES == 'build') {
-      // If we're building only, use the build workers.
-      onBuildWorker('4h') {
-         doDeploy();
-      }
-   } else {
-      // Otherwise, use master, to ease debugging and such.  Promote isn't
-      // CPU-bound, and we can have only one old-style deploy job at a time, so
-      // it doesn't really matter.
-      onMaster('4h') {
-         doDeploy();
-      }
+if (params.STAGES == 'build') {
+   // If we're building only, use the build workers.
+   onBuildWorker('4h') {
+      doDeploy();
+   }
+} else {
+   // Otherwise, use master, to ease debugging and such.  Promote isn't
+   // CPU-bound, and we can have only one old-style deploy job at a time, so
+   // it doesn't really matter.
+   onMaster('4h') {
+      doDeploy();
    }
 }
