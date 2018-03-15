@@ -21,7 +21,7 @@ new Setup(steps).apply();
 
 def installDeps() {
    withTimeout('15m') {
-      kaGit.safeSyncTo("git@github.com:Khan/alert-context", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/alert-context", "master");
 
       // These secrets are installed above the workspace when we run the
       // jenkins setup script (in Khan/aws-config).

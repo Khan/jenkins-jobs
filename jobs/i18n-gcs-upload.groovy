@@ -57,7 +57,7 @@ def syncRepos() {
       if (!gitTag) {
          // We sync to master so we can get the git-tag of the current
          // live version of webapp.  Then we sync to that.
-         kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          dir("webapp") {
             // We want the last release that's successfully been tagged.
             // This can differ from the current release when a deploy
@@ -65,7 +65,7 @@ def syncRepos() {
             gitTag = exec.outputOf(["deploy/git_tags.py"]).split("\n")[-1];
          }
       }
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", gitTag);
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", gitTag);
 
       // TODO(csilvers): don't use safe_git.sh internals.
       dir("webapp/intl/translations") {

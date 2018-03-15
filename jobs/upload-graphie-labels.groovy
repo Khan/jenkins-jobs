@@ -21,7 +21,7 @@ new Setup(steps
 
 def updateRepo() {
    withTimeout('1h') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // We do our work in the 'translations' branch.
       kaGit.safePullInBranch("webapp", "translations");

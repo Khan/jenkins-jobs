@@ -32,10 +32,10 @@ def cloneKhanalyticsPrivate() {
     // secrets for reporting to slack.
     // TODO(colin): just clone the secrets instead of webapp when we have that
     // ability.
-    kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
     // TODO(colin): allow customizing the khanalytics-private commit we're
     // deploying?
-    kaGit.safeSyncTo(REPOSITORY, 'master');
+    kaGit.safeSyncToOrigin(REPOSITORY, 'master');
 }
 
 def substateKhanalytics() {

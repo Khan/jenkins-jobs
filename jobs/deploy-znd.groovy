@@ -248,7 +248,8 @@ def deploy() {
    withTimeout('90m') {
       alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
 
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                             params.GIT_REVISION);
 
       dir("webapp") {
          clean(params.CLEAN);

@@ -67,7 +67,7 @@ def _buildTagFile(repo) {
 }
 
 // true iff the current job had previously synced the given repo to
-// the given commit using safeSyncTo or safeSyncToOrigin.
+// the given commit using safeSyncToOrigin.
 def wasSyncedTo(repo, commit, syncFn) {
    try {
       actual = readFile(_buildTagFile(repo));
@@ -79,23 +79,9 @@ def wasSyncedTo(repo, commit, syncFn) {
 
 // Clone a repo, using our existing workdirs if possible.
 // This is very low-level, and does not update submodules!  You probably want
-// safeSyncTo, below, instead.
+// safeSyncToOrigin, below, instead.
 def quickClone(repoToClone, directory, commit) {
    exec(["jenkins-jobs/safe_git.sh", "clone", repoToClone, directory, commit]);
-}
-
-// Submodules is as in _submodulesArg`.
-// Unless `force` is True, we are a noop if that dir is already synced
-// to the given commit *by this same jenkins job*.
-def safeSyncTo(repoToClone, commit, submodules=[], force=false) {
-   if (!force && wasSyncedTo(repoToClone, commit, "safeSyncTo")) {
-      return;
-   }
-   exec(["jenkins-jobs/safe_git.sh", "sync_to", repoToClone, commit] +
-        _submodulesArg(submodules));
-   // Document who synced this repo and to where, for future reference.
-   writeFile(file: _buildTagFile(repoToClone),
-             text: "safeSyncTo ${commit} ${env.BUILD_TAG}");
 }
 
 // Submodules is as in _submodulesArg.

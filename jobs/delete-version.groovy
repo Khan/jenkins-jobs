@@ -33,7 +33,7 @@ def verifyArgs() {
 
 def deleteVersion() {
    withTimeout('15m') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
          exec(["deploy/delete_gae_versions.py", params.VERSION]);

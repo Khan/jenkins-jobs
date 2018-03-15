@@ -29,7 +29,7 @@ new Setup(steps
 
 def runScript() {
    withTimeout('23h') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          // now install the other deps
          sh("make clean_pyc");    // in case some .py files went away

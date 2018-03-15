@@ -68,9 +68,9 @@ def _setupKhanalytics() {
     // TODO(colin): something in this script is trying to use secrets.py from
     // the webapp dir, so we have to clone this.  Figure out what and why so we
     // don't need to do this.
-    kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
-    kaGit.safeSyncTo("git@github.com:Khan/khan-linter", "master");
-    kaGit.safeSyncTo(REPOSITORY, GIT_SHA1);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+    kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
+    kaGit.safeSyncToOrigin(REPOSITORY, GIT_SHA1);
     _withPy3Venv() {
         dir("khanalytics-private/khanalytics") {
             sh("pip install -r ./requirements_dev.txt");

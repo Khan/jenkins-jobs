@@ -167,7 +167,7 @@ def initializeGlobals() {
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1S[0]);
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1S[0]);
    for (def i = 1; i < GIT_SHA1S.size(); i++) {
       kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
    }

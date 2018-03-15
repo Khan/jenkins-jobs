@@ -441,7 +441,8 @@ def mergeFromMasterAndInitializeGlobals() {
                            "but GIT_REVISION was not a sha!");
             }
 
-            kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION)
+            kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                   params.GIT_REVISION)
 
             dir("webapp") {
                if (params.STAGES == "promote" && exec.outputOf(

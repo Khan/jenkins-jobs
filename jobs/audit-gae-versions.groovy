@@ -29,7 +29,8 @@ would be deleted.  Useful for testing.""",
 
 def deleteVersions() {
    withTimeout('30m') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", params.GIT_REVISION);
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                             params.GIT_REVISION);
       dir("webapp") {
          sh("make python_deps");
          def args = ["deploy/audit_gae_versions.py"]

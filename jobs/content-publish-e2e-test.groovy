@@ -91,7 +91,7 @@ def getRedisKey() {
 
 def syncWebapp() {
    withTimeout('15m') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make deps");
       }

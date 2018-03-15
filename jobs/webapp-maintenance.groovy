@@ -25,7 +25,7 @@ new Setup(steps
 
 def runScript() {
    withTimeout('9h') {
-      kaGit.safeSyncTo("git@github.com:Khan/webapp", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       sh("jenkins-jobs/weekly-maintenance.sh");
    }
 }

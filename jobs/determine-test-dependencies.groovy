@@ -62,7 +62,7 @@ def initializeGlobals() {
 
 
 def _setupWebapp() {
-   kaGit.safeSyncTo("git@github.com:Khan/webapp", GIT_SHA1);
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
       sh("make clean_pyc");    // in case some .py files went away
       sh("make deps");

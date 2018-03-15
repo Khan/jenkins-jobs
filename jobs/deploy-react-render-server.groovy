@@ -35,7 +35,8 @@ https://github.com/Khan/react-render-server/blob/master/deploy.sh""",
 
 def installDeps() {
    withTimeout('15m') {
-      kaGit.safeSyncTo("git@github.com:Khan/react-render-server", "master");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/react-render-server",
+                             "master");
 
       dir("react-render-server") {
          clean(params.CLEAN);

@@ -47,8 +47,8 @@ def runScript() {
 
          withVirtualenv() {
             withTimeout("7h") {
-               kaGit.safeSyncTo("git@github.com:Khan/webapp",
-                                params.GIT_REVISION);
+               kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                      params.GIT_REVISION);
 
                dir("webapp") {
                    sh("make clean_pyc");    // in case some .py files went away
