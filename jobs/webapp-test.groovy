@@ -200,7 +200,7 @@ def _determineTests() {
 
    if (params.TEST_TYPE == "all") {
       // We have to specify these explicitly because they are @manual_only.
-      sh("${runtestsCmd} . testing.js_test testing.lint_test " +
+      sh("${runtestsCmd} . testing.js_test testing.lint_test dev.flow_test " +
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "relevant") {
       sh("tools/tests_for.py -i ${exec.shellEscape(params.BASE_REVISION)} " +
