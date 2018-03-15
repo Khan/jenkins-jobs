@@ -381,7 +381,7 @@ def analyzeResults() {
 notify([slack: [channel: params.SLACK_CHANNEL,
                 sender: 'Testing Turtle',
                 emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],

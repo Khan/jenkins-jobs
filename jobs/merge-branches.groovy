@@ -79,7 +79,7 @@ def mergeBranches() {
 notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],

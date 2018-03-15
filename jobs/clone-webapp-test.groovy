@@ -116,7 +116,7 @@ def runTests() {
 notify([slack: [channel: "#make-tests-faster",
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+                when: ['FAILURE', 'UNSTABLE']],
         timeout: "4h"]) {
 
     initializeGlobals();
