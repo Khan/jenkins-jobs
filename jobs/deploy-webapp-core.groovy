@@ -674,19 +674,20 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
-   if (!(params.STAGES in ["build", "all"])
-         && (DEPLOY_STATIC || DEPLOY_DYNAMIC)) {
-      return;
-   }
+    if (!(params.STAGES in ["build", "all"])) {
+        return;
+    }
 
-    parallel(
-        "deploy-to-gae": { deployToGAE(); },
-        "deploy-to-gcs": { deployToGCS(); },
-        "failFast": true,
-    );
-    _alert(alertMsgs.JUST_DEPLOYED,
-           [deployUrl: DEPLOY_URL,
-            version: COMBINED_VERSION]);
+    if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+        parallel(
+            "deploy-to-gae": { deployToGAE(); },
+            "deploy-to-gcs": { deployToGCS(); },
+            "failFast": true,
+        );
+        _alert(alertMsgs.JUST_DEPLOYED,
+                 [deployUrl: DEPLOY_URL,
+                  version: COMBINED_VERSION]);
+    }
 
     // (Note: we run the e2e tests even for tools-only deploys, to make
     // sure the deploy doesn't break the e2e test system.)
