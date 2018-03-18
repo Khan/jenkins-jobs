@@ -674,7 +674,8 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
-   if (!(params.STAGES in ["build", "all"])) {
+   if (!(params.STAGES in ["build", "all"])
+         && (DEPLOY_STATIC || DEPLOY_DYNAMIC)) {
       return;
    }
 
