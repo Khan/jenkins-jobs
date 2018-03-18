@@ -413,13 +413,6 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      if (params.STAGES == "build" && params.BASE_REVISION) {
-         BASE_REVISION = params.BASE_REVISION;
-         BASE_REVISION_VERSION = exec.outputOf(
-            ["make", "gae_version_name",
-             "VERSION_NAME_GIT_REVISION=${BASE_REVISION}"]);
-      }
-
       DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmssSSS')}";
 
       // Create the deploy branch and merge in the requested branch.
@@ -503,7 +496,12 @@ def mergeFromMasterAndInitializeGlobals() {
          // building: for promotion the only correct thing to do is to diff
          // against the currently live version, and the consequences of doing
          // something else are greater, so we prohibit the dangerous thing.
-         if (BASE_REVISION) {
+         // We also set BASE_REVISION and BASE_REVISION_VERSION, for later.
+         if (params.STAGES == "build" && params.BASE_REVISION) {
+            BASE_REVISION = params.BASE_REVISION;
+            BASE_REVISION_VERSION = exec.outputOf(
+               ["make", "gae_version_name",
+                "VERSION_NAME_GIT_REVISION=${BASE_REVISION}"]);
             shouldDeployArgs += ["--from-commit", BASE_REVISION]
          }
 
