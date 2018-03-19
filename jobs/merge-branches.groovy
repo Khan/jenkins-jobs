@@ -16,6 +16,9 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 
 new Setup(steps
+
+).allowConcurrentBuilds(
+
 ).addStringParam(
    "GIT_REVISIONS",
    """<b>REQUIRED</b>. A plus-separated list of commit-ishes to merge, like
