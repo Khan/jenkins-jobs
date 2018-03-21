@@ -61,6 +61,10 @@ def mergeBranches() {
             // and tag/return sha1 immediately.
             // Note that this is a no-op when we just did a fresh clone above.
             exec(["git", "checkout", "-f", branchSha1]);
+            // If there was just a merge conflict, but the conflicted files
+            // don't exist in this branch, git checkout -f doesn't clobber
+            // them.  (This prevents the merge later.)  So we do.
+            exec(["git", "reset", "--hard"]);
          } else {
             // TODO(benkraft): This puts the sha in the commit message instead
             // of the branch; we should just write our own commit message.
