@@ -93,7 +93,7 @@ Roll back to %(rollbackToAsVersion)s manually by running
 JUST_DEPLOYED = [
     "severity": "info",
     "simpleMessage": true,
-    "text": _textWrap("""just deployed <%(deployUrl)s|%(version)s>.""")
+    "text": _textWrap("""just uploaded <%(deployUrl)s|%(version)s>.""")
 ];
 
 
