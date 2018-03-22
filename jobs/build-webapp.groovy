@@ -203,18 +203,19 @@ def _interpolateString(def s, def interpolationArgs) {
 //
 // Should be run under a node in the workspace-root directory.
 def _alert(def slackArgs, def interpolationArgs) {
-   def msg = "${DEPLOYER_USERNAME}: ${slackArgs.text}";
-   def intro = slackArgs.simpleMessage ? "" : "Hey ${DEPLOYER_USERNAME},";
+   // NOTE(benkraft): We don't include any at-mention here, because in neither
+   // case is it useful.  When we succeed, there may not yet be any action
+   // required, so there's no need to ping.  When we fail, the buildmaster will
+   // already do the at-mention, so there's no need to duplicate it.
 
-   // Do string interpolation on msg.
-   msg = _interpolateString(msg, interpolationArgs);
+   // Do string interpolation on the text.
+   def msg = _interpolateString(slackArgs.text, interpolationArgs);
 
    args = ["jenkins-jobs/alertlib/alert.py",
            "--slack=${SLACK_CHANNEL}",
            "--chat-sender=Mr Monkey",
            "--icon-emoji=:monkey_face:",
            "--severity=${slackArgs.severity}",
-           "--slack-intro=${intro}",
           ];
    if (slackArgs.simpleMessage) {
       args += ["--slack-simple-message"];
@@ -413,8 +414,8 @@ def deployAndReport() {
             "failFast": true,
         );
         _alert(alertMsgs.JUST_DEPLOYED,
-                 [deployUrl: DEPLOY_URL,
-                  version: COMBINED_VERSION]);
+               [deployUrl: DEPLOY_URL,
+                version: COMBINED_VERSION]);
     }
 
     // (Note: we run the e2e tests even for tools-only deploys, to make
@@ -440,12 +441,6 @@ def deployAndReport() {
 
 
 def finishWithFailure(why) {
-   if (currentBuild.result == "ABORTED") {
-      why = "the deploy was manually aborted";   // a prettier error message
-   } else {
-      currentBuild.result = "FAILURE";
-   }
-
    withTimeout('20m') {
       _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
              [combinedVersion: COMBINED_VERSION,
@@ -465,8 +460,10 @@ onBuildWorker('4h') {
                  emoji: ':monkey_face:',
                  // We don't need to notify on start because the buildmaster
                  // does it for us; on success the we explicitly send
-                 // alertMsgs.SUCCESS.
-                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+                 // alertMsgs.SUCCESS; and aborts usually just mean the
+                 // buildmaster killed things and the user already knows or
+                 // does not care.  (See also the catch(e) below.)
+                 when: ['FAILURE', 'UNSTABLE']],
          buildmaster: [shaCallback: { params.GIT_REVISION },
                        what: 'build-webapp'],
          aggregator: [initiative: 'infrastructure',
@@ -484,7 +481,11 @@ onBuildWorker('4h') {
          }
       } catch (e) {
          echo("FATAL ERROR deploying: ${e}");
-         finishWithFailure(e.toString());
+         // Don't send to Slack on abort; see the notify call above for why.
+         if (currentBuild.result != "ABORTED") {
+            currentBuild.result = "FAILURE";
+            finishWithFailure(e.toString());
+         }
          throw e;
       }
    }
