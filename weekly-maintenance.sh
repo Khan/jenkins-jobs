@@ -206,9 +206,9 @@ clean_ka_static() {
     # always keep the last 3.)  We'll keep any file listed in there.
 
     # We also keep the manifest files for any version still on appengine.
-    # (audit_gae_versions.py has a bunch of other text it emits besides
-    # the active versions, but it's ok to have extra stuff.)
-    active_versions=`webapp/tools/audit_gae_versions.py -n`
+    # (This output emits a bunch more information (the service, the
+    # percentage of traffic, etc.), but it's ok to have extra stuff.)
+    active_versions=`gcloud app versions list --project khan-academy`
 
     week_ago_time_t=`date -d "-7 days" +%s`
     manifests_seen=0
