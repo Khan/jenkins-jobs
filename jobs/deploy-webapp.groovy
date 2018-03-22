@@ -145,10 +145,6 @@ SLACK_CHANNEL = "#1s-and-0s-deploys";
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
-// The tag we will create and deploy.  It is a merge of master,
-// the branch(es) the user asked to deploy, and (probably) translations.
-DEPLOY_TAG = null;
-
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
 
@@ -161,7 +157,7 @@ DEPLOY_DYNAMIC = null;
 // script is first invoked.
 ROLLBACK_TO = null;
 
-// The "permalink" url used to access code deployed at DEPLOY_TAG.
+// The "permalink" url used to access code deployed.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
@@ -288,8 +284,6 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmssSSS')}";
-
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
@@ -317,17 +311,6 @@ def mergeFromMasterAndInitializeGlobals() {
                               "behind master!")
             }
          }
-
-         // We need to at least tag the commit, otherwise github may prune
-         // it.  We'll end up with several different tags on the commit (one
-         // from merge-branches, one from when we run build, and one from when
-         // we run promote), but it's not a big deal.
-         // TODO(benkraft): Consolidate these tags, when everything is using
-         // the buildmaster if not before.
-         dir("webapp") {
-            exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
-            exec(["git", "push", "--tags", "origin"]);
-         }
       }
 
       dir("webapp") {
@@ -335,9 +318,8 @@ def mergeFromMasterAndInitializeGlobals() {
          sh("make deps");
 
          // Let's do a sanity check.
-         def deploySHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_TAG]);
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
-         if (deploySHA1 != headSHA1) {
+         if (params.GIT_REVISION != headSHA1) {
             notify.fail("Internal error: " +
                         "HEAD does not point to the deploy-branch");
          }
@@ -419,7 +401,7 @@ def promptForSetDefault() {
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
               combinedVersion: COMBINED_VERSION,
-              branch: DEPLOY_TAG]);
+              branch: params.REVISION_DESCRIPTION]);
    }
 
    // Remind people after 30m, 45m, and 55m, then timeout at 60m.
@@ -458,7 +440,7 @@ def _promote() {
                      string(name: 'URL',
                             value: "https://www.khanacademy.org"),
                      string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                     string(name: 'GIT_REVISION', value: DEPLOY_TAG),
+                     string(name: 'GIT_REVISION', value: params.GIT_REVISION),
                      booleanParam(name: 'FAILFAST', value: false),
                      string(name: 'DEPLOYER_USERNAME',
                             value: DEPLOYER_USERNAME),
@@ -575,13 +557,11 @@ def finishWithSuccess() {
             if (!existingTag) {
                exec(["git", "tag", "-m",
                      "Deployed to appengine from branch " +
-                     "${REVISION_DESCRIPTION} (via branch ${DEPLOY_TAG})",
-                     GIT_TAG, DEPLOY_TAG]);
+                     "${REVISION_DESCRIPTION}",
+                     GIT_TAG, params.GIT_REVISION]);
             }
          }
          try {
-            def branchName = "${DEPLOY_TAG} (${REVISION_DESCRIPTION})";
-
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -595,13 +575,13 @@ def finishWithSuccess() {
             def headCommit = exec.outputOf(["git", "rev-parse", "HEAD"]);
 
             // The merge exits with rc > 0 if there were conflicts.
-            echo("Merging ${branchName} into master");
+            echo("Merging ${REVISION_DESCRIPTION} into master");
             try {
                // TODO(benkraft): Mention REVISION_DESCRIPTION in the merge
-               // message too.
-               exec(["git", "merge", DEPLOY_TAG]);
+               // message too, although this is usually a fast-forward.
+               exec(["git", "merge", params.GIT_REVISION]);
             } catch (e) {
-               echo("FATAL ERROR running 'git merge ${DEPLOY_TAG}': ${e}");
+               echo("FATAL ERROR merging ${REVISION_DESCRIPTION}: ${e}");
                // Best-effort attempt to abort.  We ignore the status code.
                exec.statusOf(["git", "merge", "--abort"]);
                throw e;
@@ -618,7 +598,7 @@ def finishWithSuccess() {
                throw e;
             }
 
-            echo("Done merging ${branchName} into master");
+            echo("Done merging ${REVISION_DESCRIPTION} into master");
          } catch (e) {
             echo("FATAL ERROR merging to master: ${e}");
             _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
