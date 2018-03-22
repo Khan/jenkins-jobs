@@ -1,67 +1,38 @@
-// The pipeline script to deploy to www.khanacademy.org from Khan/webapp.
+// Send live traffic to a new (static or dynamic) version of webapp.
 
-// NOTE(benkraft): This script will disappear shortly!  See build-webapp and
-// deploy-webapp, instead.
-//
-// The comments that follow describe the old method, which runs this entire
-// script, and which calls it via deploy-webapp; the new buildmaster-driven
-// deploys will set flags to only use parts of it (see STAGES, below), and call
-// this job directly so they can run concurrently when appropriate.  See
-// the design:
-//    https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
-// for more details.
-// TODO(benkraft): Clean things up -- likely by splitting this job up rather
-// than using STAGES -- after we've moved over to the new process entirely.
+// Sending traffic to a version is a complex process, and this is a complex
+// script.  For more high-level information on deploys, see
+//    https://docs.google.com/document/d/1Zr0wwzbvPkmN_BFAsrMPZhccIb0HHJUgmLZfBUWYFvA/edit
+// For more details on how this is used as a part of our build process, see the
+// buildmaster (github.com/Khan/buildmaster) and its design docs:
+//     https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
 
-// "Deploying to production" is a complex process, and this is a complex
-// script.  We use github-style deploys:
-//    https://docs.google.com/a/khanacademy.org/document/d/1s7qvACA4Uq4ON6F4PWJ_eyBz9EJeTk-DJ6SysRrJcTI/edit
-// For more high-level information on deploys, see
-//    https://sites.google.com/a/khanacademy.org/forge/for-developers/deployment-guidelines
-
-// Here are the steps in a deploy.  Some can happen in parallel:
+// By the time we run, a new version has already been uploaded to App Engine
+// and/or Google Cloud Storage with the relevant set of changes, end-to-end
+// tests have been run on it, and unit tests have been run on the corresponding
+// code.  Here's what we do, some of it in parallel:
 //
-// 1. Create a new branch off master, named after this deploy.  Merge
-//    in your branch (i.e. the branch to be deployed.)  If specified,
-//    also merge the latest translations into your branch.
+// 1. Prompt the user to do manual testing and either continue or abort.
 //
-// 2. Determine what kind of deploy we are running: full, static, dynamic,
-//    or tools-only.  This is determined by whether we have changed any
-//    files that affect the server running on GAE, and whether we have
-//    changed any files (or their dependencies) that are deployed to GCS.
-//
-// 3. Build all the artifacts to be deployed (differs depending on deploy
-//    kind).
-//
-// 4. Run (python and javascript and other source code) tests.
-//
-// 5. Deploy new server-related code to GAE, if appropriate.
-//
-// 6. Deploy new statically-served files to GCS, if appropriate.
-//
-// 7. Run end-to-end tests on the newly deployed version.
-//
-// 8. Prompt the user to do manual testing and either continue or abort.
-//
-// 9. (Assuming 'continue')  "Prime" GAE to force it to start up
+// 2. (Assuming 'continue')  "Prime" GAE to force it to start up
 //    a few thousand instances of the new version we deployed.
 //
-// 10. Tell google to make our new version the default-serving version.
+// 3. Tell google to make our new version the default-serving version.
 //
-// 9-10b. Alternately to 9 and 10, for a static-only deploy, tell
+// 2-3b. Alternately to 9 and 10, for a static-only deploy, tell
 //    our existing prod server about the new static content we've
 //    deployed.
 //
-// 11. Run end-to-end tests again on now that our new version is default.
-//     This can catch errors that only occur on a khanacdemy.org domain.
+// 4. Run end-to-end tests again on now that our new version is default.
+//    This can catch errors that only occur on a khanacdemy.org domain.
 //
-// 12. Do automated monitoring of our appengine logs to check for an
-//     uptick in errors after the deploy.
+// 5. Do automated monitoring of our appengine logs to check for an
+//    uptick in errors after the deploy.
 //
-// 13. Prompt the user to either finish up or abort.
+// 6. Prompt the user to either finish up or abort.
 //
-// 14. (Assuming 'finish up')  Merge the deployed branch back into master,
-//     and git-tag Khan/webapp with the new release label.
+// 7. (Assuming 'finish up')  Merge the deployed branch back into master,
+//    and git-tag Khan/webapp with the new release label.
 
 
 @Library("kautils")
@@ -78,13 +49,9 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 
 
-// NOTE(benkraft): While we have this wrapper-script situation, please make
-// sure to update deploy-webapp's params to match any changes you make here,
-// unless they are only for the buildmaster's use.
+// We do not allow concurrent builds; this should in theory also be enforced by
+// the buildmaster, but we do it too as an extra safety check.
 new Setup(steps
-
-// We only need to lock out for promoting.  deploy-webapp takes care of that.
-).allowConcurrentBuilds(
 
 ).addStringParam(
     "GIT_REVISION",
@@ -92,79 +59,33 @@ new Setup(steps
     ""
 
 ).addChoiceParam(
-    "STAGES",
-    """\
-<ul>
-  <li> <b>build</b>: Only build the version; don't promote it to default, run
-       tests, or do any of the other attendant bits.  This should generally
-       only be set by deploys done through the buildmaster, never manually.
-       </li>
-  <li> <b>promote</b>: Only promote the version to default.  Caller must ensure
-       it has already been built, passed tests, etc.  This should generally
-       only be set by deploys done through the buildmaster, never manually.
-       </li>
-</ul>""",
-    ["build", "promote"]
-
-).addStringParam(
-    "BASE_REVISION",
-    """<p>Deploy everything that has happened since this revision.</p>
-
-    <p>This only matters if DEPLOY is "default".  In that case, we deploy to
-    static if there have been changes to static files since this revision.
-    (So it must be a successfully built revision.)  At present, it is ignored
-    when STAGES is "all"; the only valid value would be that of the currently
-    deployed version.</p>""",
-    ""
-
-).addChoiceParam(
     "DEPLOY",
     """\
 <ul>
-  <li> <b>default</b>: Deploy to static if there have been changes to
-       the static files since the last deploy, and/or to dynamic if
-       there have been changes to the dynamic files since
-       the last deploy.  For tools-only changes (e.g. to Makefile), do
-       not deploy at all. </li>
-  <li> <b>static</b>: Deploy static (e.g. js) files to GCS, but do not
-       deploy to GAE.  Only select this if you know your changes do not
+  <li> <b>default</b>: Switch the static version if there have been
+       changes to the static files since the last deploy, and/or
+       the dynamic version if there have been changes to the dynamic
+       files since the last deploy.  For tools-only changes
+       (e.g. to Makefile), do not deploy at all. </li>
+  <li> <b>static</b>: Switch the static (e.g. js) version, but not the
+       GAE version.  Only select this if you know your changes do not
        affect the server code in any way! </li>
-  <li> <b>dynamic</b>: Deploy dynamic (e.g. py) files to GAE, but do
-       not update GCS.  Only select this if your changes do not affect
+  <li> <b>dynamic</b>: Switch the python (e.g. py), but not the static
+       version.  Only select this if your changes do not affect
        user-facing code (js, images) in any way!, and you're
-       confident, the existing-live user-facing code will work with your
+       confident the existing-live user-facing code will work with your
        changes. </li>
-  <li> <b>both</b>: Deploy to both GCS and GAE. </li>
-  <li> <b>none</b>: Do not deploy to GCS or GAE (<b>dangerous!</b> --
+  <li> <b>both</b>: Switch both static and dynamic versions. </li>
+  <li> <b>none</b>: Do not switch any versions (<b>dangerous!</b> --
        do not use lightly).  Select this for tools-only changes. </li>
 </ul>
 
 <p>You may wonder: why do you need to run this job at all if you're
 just changing the Makefile?  Well, it's the only way of getting files
-into the master branch, so you do a 'quasi' deploy that still runs
-tests/etc but doesn't actually deploy.</p>
+into the master branch, so you do a 'quasi' deploy that still merges
+to master but doesn't actually deploy.</p>
 """,
     ["default", "both", "static", "dynamic", "none"]
-
-).addBooleanParam(
-    "ALLOW_SUBMODULE_REVERTS",
-    """When set, do not give an error if the new version you're deploying has
-reverted one of the git submodules to an earlier state than what
-exists on the current default.  Usually such reverts are an accident
-(when someone ran \"git pull\" instead of \"git p\" for instance) so
-we don't allow it.  If you are purposefully reverting substate, to
-revert a bug for instance, you must set this flag.""",
-    false
-
-).addBooleanParam(
-    "FORCE",
-    """When set, force a deploy to GAE (AppEngine) even if the version has
-already been deployed. Likewise, force a copy of <i>all</i> files to
-GCS (Cloud Storage), even those the md5 checksum indicate are already
-present on GCS.  Also force tests to be run even if they've already passed
-before at this sha1.  Note that this does not override <code>DEPLOY</code>;
-we only force GAE (or GCS) if we're actually deploying to it.""",
-    false
 
 ).addStringParam(
     "MONITORING_TIME",
@@ -243,13 +164,6 @@ ROLLBACK_TO = null;
 // The "permalink" url used to access code deployed at DEPLOY_TAG.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
-
-// Same as params.BASE_REVISION, but only if we want to trust it.
-// We ignore it when STAGES != "build"; see its docstring for why.
-BASE_REVISION = null;
-// The version-name corresponding to BASE_REVISION
-// (only set if BASE_REVISION is set).
-BASE_REVISION_VERSION = null;
 
 // The dynamic-deploy and static-deploy version-names.
 GAE_VERSION = null;
@@ -395,21 +309,19 @@ def mergeFromMasterAndInitializeGlobals() {
                                 params.GIT_REVISION)
 
          dir("webapp") {
-            if (params.STAGES == "promote" && exec.outputOf(
+            if (exec.outputOf(
                   ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
-               // For promote, we do an extra safety check, that
-               // GIT_REVISION is a valid sha ahead of master.
-               notify.fail("STAGES == 'promote', but GIT_REVISION " +
-                           "${params.GIT_REVISION} is is behind master!")
+               // We do an extra safety check, that GIT_REVISION
+               // is a valid sha ahead of master.
+               notify.fail("GIT_REVISION ${params.GIT_REVISION} is " +
+                              "behind master!")
             }
          }
 
          // We need to at least tag the commit, otherwise github may prune
-         // it.  For now, we do this even for STAGES != "all", for
-         // consistency and because it doesn't hurt.  In this case we'll end up
-         // with several different tags on the commit (one from merge-branches,
-         // one from when we run build, and one from when we run promote), but
-         // it's not a big deal.
+         // it.  We'll end up with several different tags on the commit (one
+         // from merge-branches, one from when we run build, and one from when
+         // we run promote), but it's not a big deal.
          // TODO(benkraft): Consolidate these tags, when everything is using
          // the buildmaster if not before.
          dir("webapp") {
@@ -431,18 +343,6 @@ def mergeFromMasterAndInitializeGlobals() {
          }
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
-         // Diff against BASE_REVISION if set.  We only allow this when
-         // building: for promotion the only correct thing to do is to diff
-         // against the currently live version, and the consequences of doing
-         // something else are greater, so we prohibit the dangerous thing.
-         // We also set BASE_REVISION and BASE_REVISION_VERSION, for later.
-         if (params.STAGES == "build" && params.BASE_REVISION) {
-            BASE_REVISION = params.BASE_REVISION;
-            BASE_REVISION_VERSION = exec.outputOf(
-               ["make", "gae_version_name",
-                "VERSION_NAME_GIT_REVISION=${BASE_REVISION}"]);
-            shouldDeployArgs += ["--from-commit", BASE_REVISION]
-         }
 
          if (params.DEPLOY == "default") {
             // TODO(csilvers): look for output == yes/no instead, and
@@ -468,15 +368,8 @@ def mergeFromMasterAndInitializeGlobals() {
          def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
 
          if (DEPLOY_STATIC && !DEPLOY_DYNAMIC) {
-            // In this case, we want to use the GAE version of the
-            // BASE_REVISION, or that of the currently active version (namely
-            // ROLLBACK_TO), if BASE_REVISION is unset.
-            if (BASE_REVISION) {
-               GAE_VERSION = BASE_REVISION_VERSION;
-            } else {
-               GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
-                                            ROLLBACK_TO]);
-            }
+            GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
+                                         ROLLBACK_TO]);
             GCS_VERSION = gaeVersionName;
             DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
          } else {
@@ -494,123 +387,15 @@ def mergeFromMasterAndInitializeGlobals() {
 }
 
 
-// This should be called from within a node().
-def deployToGAE() {
-   if (!DEPLOY_DYNAMIC) {
-      return;
-   }
-   def args = ["deploy/deploy_to_gae.py",
-               "--no-browser", "--no-up",
-               "--slack-channel=${SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}",
-               // We don't send the changelog in a build-only context -- there
-               // may be many builds afoot and it is too confusing.  We'll send
-               // it in promote instead.
-               "--suppress-changelog"];
-   args += params.FORCE ? ["--force-deploy"] : [];
-   args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
-   args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
-
-   withSecrets() {     // we need to deploy secrets.py.
-      dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         // TODO(csilvers): do we need secrets for this part?
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
-      }
-   }
-}
-
-
-// This should be called from within a node().
-def deployToGCS() {
-   // We always "deploy" to gcs, even for python-only deploys, though
-   // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", GCS_VERSION,
-               "--slack-channel=${SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}",
-               // Same as for deploy_to_gae, we suppress the changelog for now.
-               "--suppress-changelog"];
-   if (!DEPLOY_STATIC) {
-      if (BASE_REVISION) {
-         // Copy from the specified version.  Note that this may not be a
-         // "real" static version (if BASE_REVISION was also a python-only
-         // deploy) but we can copy it just fine either way.
-         args += ["--copy-from=${BASE_REVISION_VERSION}"];
-      } else {
-         args += ["--copy-from=default"];
-      }
-   }
-
-   args += params.FORCE ? ["--force"] : [];
-
-   withSecrets() {     // TODO(csilvers): do we actually need secrets?
-      dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
-      }
-   }
-}
-
-
-// This should be called from within a node().
-def deployAndReport() {
-    if (params.STAGES != "build") {
-        return;
-    }
-
-    if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
-        parallel(
-            "deploy-to-gae": { deployToGAE(); },
-            "deploy-to-gcs": { deployToGCS(); },
-            "failFast": true,
-        );
-        _alert(alertMsgs.JUST_DEPLOYED,
-                 [deployUrl: DEPLOY_URL,
-                  version: COMBINED_VERSION]);
-    }
-
-    // (Note: we run the e2e tests even for tools-only deploys, to make
-    // sure the deploy doesn't break the e2e test system.)
-    // TODO(csilvers): remove "wait: false"?  It means people would have to
-    // wait for e2e tests to finish before being able to set default, and
-    // we'd have to refactor `deploy_pipeline manual-test`.
-    stage("First e2e test") {
-        build(job: 'e2e-test',
-              wait: false,
-              propagate: false,  // e2e errors are not fatal for a deploy
-              parameters: [
-                  string(name: 'URL', value: DEPLOY_URL),
-                  string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                  string(name: 'GIT_REVISION', value: DEPLOY_TAG),
-                  booleanParam(name: 'FAILFAST', value: false),
-                  string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
-                  string(name: 'REVISION_DESCRIPTION',
-                         value: params.REVISION_DESCRIPTION),
-              ]);
-    }
-}
-
-
 def promptForSetDefault() {
    withTimeout('5m') {
-      // If we are doing a promote-only job, send the changelog -- we won't
-      // have done so before.
-      if (params.STAGES == "promote") {
-         withSecrets() {
-            dir("webapp") {
-               exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
-                     // We omit the deployer username; the next message has an
-                     // at-mention in it already.
-                     "-o", SLACK_CHANNEL]);
-            }
+      // Send the changelog!
+      withSecrets() {
+         dir("webapp") {
+            exec(["deploy/chat_messaging.py", "master", GIT_REVISION,
+                  // We omit the deployer username; the next message has an
+                  // at-mention in it already.
+                  "-o", SLACK_CHANNEL]);
          }
       }
       // The CMS endpoints must be handled on the vm module. However,
@@ -916,7 +701,9 @@ def finishWithFailure(why) {
 }
 
 
-def doDeploy() {
+// We do promotes on master, to ease debugging and such.  Promote isn't
+// CPU-bound, and we can have only one at a time, so it's not a problem.
+onMaster('4h') {
    // We use runWithNotification so we can decide conditionally what node-type
    // to run the rest of the job on.
    notify.runWithNotification([
@@ -928,32 +715,12 @@ def doDeploy() {
                  // alertMsgs.SUCCESS.
                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
          buildmaster: [shaCallback: { params.GIT_REVISION },
-                       // For now, the buildmaster sees this as a build --
-                       // deploy will come later.
-                       what: (params.STAGES == 'promote' ?
-                          'deploy-webapp' : 'build-webapp')],
+                       what: 'deploy-webapp'],
          aggregator: [initiative: 'infrastructure',
                       when: ['SUCCESS', 'BACK TO NORMAL',
                       'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
-      }
-
-      try {
-         stage("Deploying and testing") {
-            withTimeout('120m') {
-               deployAndReport();
-            }
-         }
-      } catch (e) {
-         // TODO(benkraft): This can be simplified if STAGES == "build".
-         echo("FATAL ERROR deploying and testing: ${e}");
-         finishWithFailure(e.toString());
-         throw e;
-      }
-
-      if (params.STAGES != "promote") {
-         return;
       }
 
       if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
@@ -977,20 +744,5 @@ def doDeploy() {
       stage("Merging to master") {
          finishWithSuccess();
       }
-   }
-}
-
-
-if (params.STAGES == 'build') {
-   // If we're building only, use the build workers.
-   onBuildWorker('4h') {
-      doDeploy();
-   }
-} else {
-   // Otherwise, use master, to ease debugging and such.  Promote isn't
-   // CPU-bound, and we can have only one old-style deploy job at a time, so
-   // it doesn't really matter.
-   onMaster('4h') {
-      doDeploy();
    }
 }
