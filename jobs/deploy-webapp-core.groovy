@@ -87,31 +87,13 @@ new Setup(steps
 
 ).addStringParam(
     "GIT_REVISION",
-    """<b>REQUIRED</b>. The name of a branch to deploy (can't be master).
-Can also be a list of branches to deploy separated by `+` ('br1+br2+br3').
-We will automatically merge these branches (plus translations if specified)
-into a new branch based off master, and deploy it.""",
+    """<b>REQUIRED</b>. The sha1 to deploy.""",
     ""
-
-).addChoiceParam(
-    "RUN_TESTS",
-    """\
-<ul>
-  <li> <b>default</b>: Run relevant tests if they haven't previously
-       passed at this commit. </li>
-  <li> <b>yes</b>: Run all tests, even those that have already passed
-       at this commit. </li>
-  <li> <b>no</b>: Do not run tests before deploying (<b>dangerous!</b>
-        -- do not use lightly). </li>
-</ul>""",
-    ["default", "yes", "no"]
 
 ).addChoiceParam(
     "STAGES",
     """\
 <ul>
-  <li> <b>all</b>: Do a full deploy.  If you're doing things manually, you want
-       this option. </li>
   <li> <b>build</b>: Only build the version; don't promote it to default, run
        tests, or do any of the other attendant bits.  This should generally
        only be set by deploys done through the buildmaster, never manually.
@@ -120,13 +102,8 @@ into a new branch based off master, and deploy it.""",
        it has already been built, passed tests, etc.  This should generally
        only be set by deploys done through the buildmaster, never manually.
        </li>
-</ul>
-
-<p>If set to a value other than "all", GIT_REVISION must be a sha1, rather than
-a list of branches.  (The buildmaster will have already done the merge.)
-Finally, we never delete versions in this case; we leave that to the
-buildmaster.  This overrides the value of RUN_TESTS.</p>""",
-    ["all", "build", "promote"]
+</ul>""",
+    ["build", "promote"]
 
 ).addStringParam(
     "BASE_REVISION",
@@ -167,16 +144,6 @@ into the master branch, so you do a 'quasi' deploy that still runs
 tests/etc but doesn't actually deploy.</p>
 """,
     ["default", "both", "static", "dynamic", "none"]
-
-).addBooleanParam(
-    "MERGE_TRANSLATIONS",
-    """<p>If set, merge the latest translations from origin/translations into
-your branch before deploying.</p>
-
-<p>This should normally be set.  However, if you need your deploy to
-go a few minutes faster, or you want to exactly reproduce a previous
- deploy, you can unset this.</p>""",
-    true
 
 ).addBooleanParam(
     "ALLOW_SUBMODULE_REVERTS",
@@ -231,11 +198,6 @@ If not specified, guess from the username of the person who started
 this job in Jenkins.  Typically not set manually, but by hubot scripts
 such as sun.  You can, but need not, include the leading `@`.""",
    ""
-
-).addStringParam(
-    "BUILD_USER_ID_FROM_SCRIPT",
-    """(Deprecated form of DEPLOYER_USERNAME)""",
-    ""
 
 ).addStringParam(
     "REVISION_DESCRIPTION",
@@ -400,8 +362,6 @@ def mergeFromMasterAndInitializeGlobals() {
 
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
-      } else if (params.BUILD_USER_ID_FROM_SCRIPT) {
-         DEPLOYER_USERNAME = params.BUILD_USER_ID_FROM_SCRIPT.split('@')[0];
       } else {
          wrap([$class: 'BuildUser']) {
             // It seems like BUILD_USER_ID is typically an email address.
@@ -420,48 +380,26 @@ def mergeFromMasterAndInitializeGlobals() {
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
-         if (params.STAGES != "all") {
-            // If we are only doing some stages, we have already done our
-            // merging -- which is good because the buildmaster expects us to
-            // pass back a sha.
-            // TODO(benkraft): Verify it's actually a valid sha in this repo.
-            // (We could write kaGit.isSha.)  This is a little tricky because
-            // we may not yet have cloned the repo.
-            if (!params.GIT_REVISION ==~ /[0-9a-fA-F]{40}/) {
-               notify.fail("STAGES != 'all' " +
-                           "but GIT_REVISION was not a sha!");
-            }
+         // If we are only doing some stages, we have already done our
+         // merging -- which is good because the buildmaster expects us to
+         // pass back a sha.
+         // TODO(benkraft): Verify it's actually a valid sha in this repo.
+         // (We could write kaGit.isSha.)  This is a little tricky because
+         // we may not yet have cloned the repo.
+         if (!params.GIT_REVISION ==~ /[0-9a-fA-F]{40}/) {
+            notify.fail("GIT_REVISION was not a sha!");
+         }
 
-            kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                   params.GIT_REVISION)
+         kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                                params.GIT_REVISION)
 
-            dir("webapp") {
-               if (params.STAGES == "promote" && exec.outputOf(
-                     ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
-                  // For promote, we do an extra safety check, that
-                  // GIT_REVISION is a valid sha ahead of master.
-                  notify.fail("STAGES == 'promote', but GIT_REVISION " +
-                              "${params.GIT_REVISION} is is behind master!")
-               }
-            }
-         } else {
-            kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-            // detatch HEAD so there's no chance of accidentally updating
-            // master by doing a `git push`.
-            dir("webapp") {
-               sh("git checkout --detach");
-            }
-
-            def allBranches = params.GIT_REVISION.split(/\+/);
-            if (params.MERGE_TRANSLATIONS) {
-               // Jenkins jobs only update intl/translations in the
-               // "translations" branch.
-               allBranches += ["translations"];
-            }
-
-            for (def i = 0; i < allBranches.size(); i++) {
-               kaGit.safeMergeFromBranch("webapp", "HEAD",
-                                         allBranches[i].trim());
+         dir("webapp") {
+            if (params.STAGES == "promote" && exec.outputOf(
+                  ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
+               // For promote, we do an extra safety check, that
+               // GIT_REVISION is a valid sha ahead of master.
+               notify.fail("STAGES == 'promote', but GIT_REVISION " +
+                           "${params.GIT_REVISION} is is behind master!")
             }
          }
 
@@ -555,53 +493,6 @@ def mergeFromMasterAndInitializeGlobals() {
 }
 
 
-def sendStartMessage() {
-   if (!(params.STAGES == "all")) {
-      // If we're doing a build/promote only, we don't message, since there may
-      // be many such builds going on and it gets hard to tell which is which
-      // real fast.  The buildmaster will notify when it's time to set-default,
-      // which is the interesting part.
-      return;
-   }
-
-   def deployType;
-   if (DEPLOY_STATIC && DEPLOY_DYNAMIC) {
-      deployType = "";
-   } else if (DEPLOY_STATIC) {
-      deployType = "static (js)-only ";
-   } else if (DEPLOY_DYNAMIC) {
-      deployType = "dynamic (python)-only ";
-   } else {
-      deployType = "tools-only ";
-   }
-
-   withTimeout("1m") {
-      _alert(alertMsgs.STARTING_DEPLOY,
-             [deployType: deployType,
-              branch: "${DEPLOY_TAG} (containing ${REVISION_DESCRIPTION})"]);
-   }
-}
-
-
-def runTests() {
-   if (params.RUN_TESTS == "no" || params.STAGES != "all") {
-      return;
-   }
-   def TEST_TYPE = (params.RUN_TESTS == "default" ? "relevant" : "all");
-   build(job: 'webapp-test',
-         parameters: [
-            string(name: 'GIT_REVISION', value: DEPLOY_TAG),
-            string(name: 'TEST_TYPE', value: TEST_TYPE),
-            string(name: 'MAX_SIZE', value: "medium"),
-            booleanParam(name: 'FAILFAST', value: false),
-            string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-            booleanParam(name: 'FORCE', value: params.FORCE),
-            string(name: 'REVISION_DESCRIPTION',
-                   value: params.REVISION_DESCRIPTION),
-         ]);
-}
-
-
 // This should be called from within a node().
 def deployToGAE() {
    if (!DEPLOY_DYNAMIC) {
@@ -610,13 +501,14 @@ def deployToGAE() {
    def args = ["deploy/deploy_to_gae.py",
                "--no-browser", "--no-up",
                "--slack-channel=${SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}"];
+               "--deployer-username=${DEPLOYER_USERNAME}",
+               // We don't send the changelog in a build-only context -- there
+               // may be many builds afoot and it is too confusing.  We'll send
+               // it in promote instead.
+               "--suppress-changelog"];
    args += params.FORCE ? ["--force-deploy"] : [];
    args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
    args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
-   // We don't send the changelog in a build-only context -- there may be many
-   // builds afoot and it is too confusing.  We'll send it in promote instead.
-   args += params.STAGES == "all" ? [] : ["--suppress-changelog"];
 
    withSecrets() {     // we need to deploy secrets.py.
       dir("webapp") {
@@ -638,7 +530,9 @@ def deployToGCS() {
    // for python-only deploys the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", GCS_VERSION,
                "--slack-channel=${SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}"];
+               "--deployer-username=${DEPLOYER_USERNAME}",
+               // Same as for deploy_to_gae, we suppress the changelog for now.
+               "--suppress-changelog"];
    if (!DEPLOY_STATIC) {
       if (BASE_REVISION) {
          // Copy from the specified version.  Note that this may not be a
@@ -648,11 +542,6 @@ def deployToGCS() {
       } else {
          args += ["--copy-from=default"];
       }
-   }
-   // If DEPLOY_DYNAMIC, then deploy_to_gae sends the changelog, so we don't.
-   // When only doing a build, we also suppress it -- see deployToGAE for why.
-   if (DEPLOY_DYNAMIC || params.STAGES != "all") {
-      args += ["--suppress-changelog"];
    }
 
    args += params.FORCE ? ["--force"] : [];
@@ -672,7 +561,7 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
-    if (!(params.STAGES in ["build", "all"])) {
+    if (params.STAGES != "build") {
         return;
     }
 
@@ -708,19 +597,6 @@ def deployAndReport() {
     }
 }
 
-
-def spawnDeleteVersions() {
-    if (params.STAGES != "all") {
-        return;
-    }
-
-    stage("Spawn version deletion job") {
-        build(job: 'audit-gae-versions',
-              wait: false,       // the whole point of using a separate job!
-              propagate: false,  // errors are nonfatal
-              parameters: [string(name: 'GIT_REVISION', value: DEPLOY_TAG)]);
-    }
-}
 
 def promptForSetDefault() {
    withTimeout('5m') {
@@ -1051,7 +927,6 @@ def doDeploy() {
                  // alertMsgs.SUCCESS.
                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
          buildmaster: [shaCallback: { params.GIT_REVISION },
-                       shouldNotifyCallback: { params.STAGES != "all" },
                        // For now, the buildmaster sees this as a build --
                        // deploy will come later.
                        what: (params.STAGES == 'promote' ?
@@ -1063,19 +938,10 @@ def doDeploy() {
          mergeFromMasterAndInitializeGlobals();
       }
 
-      stage("Starting") {
-         sendStartMessage();
-      }
-
       try {
          stage("Deploying and testing") {
             withTimeout('120m') {
-               parallel(
-                  "deploy-and-report": { deployAndReport(); },
-                  // This may be a no-op, if RUN_TESTS is "no" or STAGES != "all".
-                  "test": { runTests(); },
-                  "failFast": true,
-               );
+               deployAndReport();
             }
          }
       } catch (e) {
@@ -1083,16 +949,9 @@ def doDeploy() {
          echo("FATAL ERROR deploying and testing: ${e}");
          finishWithFailure(e.toString());
          throw e;
-      } finally {
-         // We do this here so as to give us as much time as possible before
-         // deleting the old versions, but making sure it still happens even in
-         // failure cases, and happens before the very end of the job (when it is
-         // more likely to run in parallel to the next deploy, potentially causing
-         // us to delete a version sooner than necessary).
-         spawnDeleteVersions();
       }
 
-      if (!(params.STAGES in ["all", "promote"])) {
+      if (params.STAGES != "promote") {
          return;
       }
 
