@@ -161,15 +161,11 @@ SLACK_CHANNEL = "#1s-and-0s-deploys";
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
-// The tag we will create and deploy.  It is a merge of master,
-// the branch(es) the user asked to deploy, and (probably) translations.
-DEPLOY_TAG = null;
-
 // True if we should deploy to GCS/GAE (respectively).
 DEPLOY_STATIC = null;
 DEPLOY_DYNAMIC = null;
 
-// The "permalink" url used to access code deployed at DEPLOY_TAG.
+// The "permalink" url used to access code deployed.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
@@ -263,36 +259,12 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      DEPLOY_TAG = "deploy-${new Date().format('yyyyMMdd-HHmmssSSS')}";
-
-      // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
-         // If we are only doing some stages, we have already done our
-         // merging -- which is good because the buildmaster expects us to
-         // pass back a sha.
-         // TODO(benkraft): Verify it's actually a valid sha in this repo.
-         // (We could write kaGit.isSha.)  This is a little tricky because
-         // we may not yet have cloned the repo.
-         if (!params.GIT_REVISION ==~ /[0-9a-fA-F]{40}/) {
-            notify.fail("GIT_REVISION was not a sha!");
-         }
-
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                                 params.GIT_REVISION)
-
-         // We need to at least tag the commit, otherwise github may prune
-         // it.  We'll end up with several different tags on the commit (one
-         // from merge-branches, one from when we run build, and one from when
-         // we run promote), but it's not a big deal.
-         // TODO(benkraft): Consolidate these tags, when everything is using
-         // the buildmaster if not before.
-         dir("webapp") {
-            exec(["git", "tag", DEPLOY_TAG, "HEAD"]);
-            exec(["git", "push", "--tags", "origin"]);
-         }
       }
 
       dir("webapp") {
@@ -300,9 +272,8 @@ def mergeFromMasterAndInitializeGlobals() {
          sh("make deps");
 
          // Let's do a sanity check.
-         def deploySHA1 = exec.outputOf(["git", "rev-parse", DEPLOY_TAG]);
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
-         if (deploySHA1 != headSHA1) {
+         if (params.GIT_REVISION != headSHA1) {
             notify.fail("Internal error: " +
                         "HEAD does not point to the deploy-branch");
          }
@@ -458,7 +429,7 @@ def deployAndReport() {
               parameters: [
                   string(name: 'URL', value: DEPLOY_URL),
                   string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                  string(name: 'GIT_REVISION', value: DEPLOY_TAG),
+                  string(name: 'GIT_REVISION', value: params.GIT_REVISION),
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
                   string(name: 'REVISION_DESCRIPTION',
