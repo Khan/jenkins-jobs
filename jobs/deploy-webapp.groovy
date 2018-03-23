@@ -377,7 +377,7 @@ def promptForSetDefault() {
       // Send the changelog!
       withSecrets() {
          dir("webapp") {
-            // Prints the diff ROLLBACK_DO..GIT_REVISION (i.e. changes since
+            // Prints the diff ROLLBACK_TO..GIT_REVISION (i.e. changes since
             // the currently live version).
             exec(["deploy/chat_messaging.py", ROLLBACK_TO, GIT_REVISION,
                   // We omit the deployer username; the next message has an
