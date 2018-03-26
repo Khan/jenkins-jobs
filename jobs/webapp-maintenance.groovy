@@ -50,7 +50,9 @@ notify([slack: [channel: '#infrastructure',
    def failed_jobs = [];
    for (def i = 0; i < jobs.size(); i++) {
       stage(jobs[i]) {
-         if (exec.statusOf("jenkins-jobs/weekly-maintenance.sh", jobs[i]) != 0) {
+         def rc = exec.statusOf("jenkins-jobs/weekly-maintenance.sh", jobs[i]);
+         if (rc != 0) {
+            echo("${jobs[i]} failed with rc ${rc}");
             failed_jobs << jobs[i];
          }
       }
