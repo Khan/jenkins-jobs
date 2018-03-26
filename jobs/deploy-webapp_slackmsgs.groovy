@@ -95,7 +95,7 @@ JUST_DEPLOYED = [
     "simpleMessage": true,
     "text": _textWrap("""\
 I've just uploaded <%(deployUrl)s|%(version)s>
-(containing `%(branches)s`."""),
+(containing `%(branches)s`)."""),
 ];
 
 

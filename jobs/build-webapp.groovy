@@ -415,7 +415,8 @@ def deployAndReport() {
         );
         _alert(alertMsgs.JUST_DEPLOYED,
                [deployUrl: DEPLOY_URL,
-                version: COMBINED_VERSION]);
+                version: COMBINED_VERSION,
+                branches: REVISION_DESCRIPTION]);
     }
 
     // (Note: we run the e2e tests even for tools-only deploys, to make
@@ -434,7 +435,7 @@ def deployAndReport() {
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
                   string(name: 'REVISION_DESCRIPTION',
-                         value: params.REVISION_DESCRIPTION),
+                         value: REVISION_DESCRIPTION),
               ]);
     }
 }
