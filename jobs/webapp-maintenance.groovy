@@ -41,7 +41,24 @@ notify([slack: [channel: '#infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
         timeout: "10h"]) {
-   stage("Running maintenance") {
-      runScript();
+   def jobs = [];
+   stage("Listing jobs to run") {
+      def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
+      jobs = job_str.split("\n");
    }
+
+   def failed_jobs = [];
+   for (def i = 0; i < jobs.size(); i++) {
+      stage(jobs[i]) {
+         if (exec.statusOf("jenkins-jobs/weekly-maintenance.sh", jobs[i]) != 0) {
+            failed_jobs << jobs[i];
+         }
+      }
+   }
+
+  stage("Analyzing results") {
+     if (failed_jobs.size() > 0) {
+        notify.fail("These jobs failed: " + failed_jobs.join(" "))
+     }
+  }
 }

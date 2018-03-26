@@ -1,17 +1,16 @@
-#!/bin/bash -xe
+#!/bin/bash
 
 # A Jenkins job that periodically runs some cleanup tasks on
 # our webapp.
 #
-# Here are some of the cleanups we run:
-#   deploy/pngcrush.py
-#       compress images
-#   clean up obsolete containers in /var/lib/docker
-#   clean up genfiles directories in every repo
-#   delete obsolete files on GCS (ka-static and ka_translations)
-#   remove obsolete webapp deploy-branches on github
-#   TODO: vacuum unused indexes
-#   TODO: store test times to use with the @tiny/@small/@large decorators
+# NOTE: We run the functions in the order listed in this file,
+# so if the job times out, stuff at the end is least likely to have
+# gotten run.  So think carefully about where you place new functions!
+# Probably you want to put your new function before `svgcrush`.
+#
+# Here are some cleanups we'd like to add:
+#   vacuum unused indexes
+#   store test times to use with the @tiny/@small/@large decorators
 #
 # There are also some cleanups we'd like to run but probably can't
 # because they require manual intervention:
@@ -27,51 +26,10 @@
 #   clean up the bottom of lint_blacklist.txt
 #   move not-commonly-used s3 data to glacier
 
+set -e
+
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
-
-# Sync the repos we're going to be pushing changes to.
-jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "master"
-jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
-
-( cd webapp && make deps )
-
-
-pngcrush() {
-    # Note: this can't be combined with the subshell below; we need to
-    # make sure it terminates *before* the pipe starts.
-    ( cd webapp; deploy/pngcrush.py; git add '*.png' '*.jpeg' )
-    (
-        cd webapp
-        echo "Automatic compression of webapp images via $0"
-        echo
-        echo "| size % | old size | new size | filename"
-        git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:$filename | wc -c`
-            new_size=`cat $filename | wc -c`   # git shell-escapes `filename`!
-            ratio=`expr $new_size \* 100 / $old_size`
-            echo "| $ratio% | $old_size | $new_size | $filename"
-        done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg' '*.jpg'
-}
-
-svgcrush() {
-    # Note: this can't be combined with the subshell below; we need to
-    # make sure it terminates *before* the pipe starts.
-    ( cd webapp; deploy/svgcrush.py; git add '*.svg' )
-    (
-        cd webapp
-        echo "Automatic compression of webapp svg files via $0"
-        echo
-        echo "| size % | old size | new size | filename"
-        git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:$filename | wc -c`
-            new_size=`cat $filename | wc -c`      # git shell-escapes filename!
-            ratio=`expr $new_size \* 100 / $old_size`
-            echo "| $ratio% | $old_size | $new_size | $filename"
-        done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.svg'
-}
 
 
 # Every week, make sure that /var/lib/docker's size is under control.
@@ -81,12 +39,6 @@ clean_docker() {
     docker rm `docker ps -a | grep Exited | cut -f1 -d" "` || true
     docker rmi `docker images -aq` || true
     ( cd webapp && make docker-prod-staging-dir )
-}
-
-
-# Delete unused queries from our GraphQL whitelist.
-clean_unused_queries() {
-    curl --retry 3 https://www.khanacademy.org/api/internal/graphql_whitelist/clean
 }
 
 
@@ -106,6 +58,7 @@ clean_genfiles() {
         )
     done
 }
+
 
 # Every week, we prune invalid branches that creep into our repos somehow.
 # See http://stackoverflow.com/questions/6265502/getting-rid-of-does-not-point-to-a-valid-object-for-an-old-git-branch
@@ -139,6 +92,7 @@ clean_invalid_branches() {
         )
     done
 }
+
 
 # Turn branches that haven't been worked on a for a while -- like, 6
 # months -- into tags.  No content is deleted, but if you ever wanted to
@@ -200,6 +154,7 @@ clean_ka_translations() {
         done
     done
 }
+
 
 clean_ka_static() {
     # First we find the manifest files for the last week.  (Plus we
@@ -282,6 +237,7 @@ clean_ka_static() {
         | xargs -0r gsutil rm
 }
 
+
 backup_network_config() {
     # TODO(csilvers): figure out how to automate the runs of the other dirs too
     NETWORK_CONFIG_BACKUP_DIRS="bigquery dns fastly gce gcs network_configs s3"
@@ -297,13 +253,95 @@ backup_network_config() {
 }
 
 
-clean_docker
-clean_genfiles
-clean_invalid_branches
-turn_old_branches_into_tags
-clean_ka_translations
-clean_ka_static
-backup_network_config
-clean_unused_queries
-svgcrush
-pngcrush
+# Delete unused queries from our GraphQL whitelist.
+clean_unused_queries() {
+    curl --retry 3 https://www.khanacademy.org/api/internal/graphql_whitelist/clean
+}
+
+
+svgcrush() {
+    # Note: this can't be combined with the subshell below; we need to
+    # make sure it terminates *before* the pipe starts.
+    ( cd webapp; deploy/svgcrush.py; git add '*.svg' )
+    (
+        cd webapp
+        echo "Automatic compression of webapp svg files via $0"
+        echo
+        echo "| size % | old size | new size | filename"
+        git status --porcelain | sort | while read status filename; do
+            old_size=`git show HEAD:$filename | wc -c`
+            new_size=`cat $filename | wc -c`      # git shell-escapes filename!
+            ratio=`expr $new_size \* 100 / $old_size`
+            echo "| $ratio% | $old_size | $new_size | $filename"
+        done
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.svg'
+}
+
+
+pngcrush() {
+    # Note: this can't be combined with the subshell below; we need to
+    # make sure it terminates *before* the pipe starts.
+    ( cd webapp; deploy/pngcrush.py; git add '*.png' '*.jpeg' )
+    (
+        cd webapp
+        echo "Automatic compression of webapp images via $0"
+        echo
+        echo "| size % | old size | new size | filename"
+        git status --porcelain | sort | while read status filename; do
+            old_size=`git show HEAD:$filename | wc -c`
+            new_size=`cat $filename | wc -c`   # git shell-escapes `filename`!
+            ratio=`expr $new_size \* 100 / $old_size`
+            echo "| $ratio% | $old_size | $new_size | $filename"
+        done
+    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg' '*.jpg'
+}
+
+
+# Introspection, shell-script style!
+ALL_JOBS=`grep -o '^[a-zA-Z0-9_]*()' "$0" | tr -d '()'`
+
+# Let's make sure we didn't define two jobs with the same name.
+duplicate_jobs=`echo "$ALL_JOBS" | sort | uniq -d`
+if [ -n "$duplicate_jobs" ]; then
+    echo "Defined multiple jobs with the same name:"
+    echo "$duplicate_jobs"
+    exit 1
+fi
+
+
+if [ "$1" = "-l" -o "$1" = "--list" ]; then
+    echo "$ALL_JOBS"
+    exit 0
+elif [ -n "$1" ]; then          # they specified which jobs to run
+    jobs_to_run="$@"
+else
+    jobs_to_run="$ALL_JOBS"
+fi
+
+
+set -x
+
+# Sync the repos we're going to be pushing changes to.
+jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "master"
+jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
+
+( cd webapp && make deps )
+
+
+failed_jobs=""
+for job in $jobs_to_run; do
+    (
+        echo "--- Starting $job: `date`"
+        $job
+        echo "--- Finished $job: `date`"
+    ) || failed_jobs="$failed_jobs $job"
+done
+
+
+if [ -n "$failed_jobs" ]; then
+    echo "THE FOLLOWING JOBS FAILED: $failed_jobs"
+    exit 1
+else
+    echo "All done!"
+    exit 0
+fi
