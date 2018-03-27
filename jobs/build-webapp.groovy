@@ -465,7 +465,7 @@ onBuildWorker('4h') {
                  // buildmaster killed things and the user already knows or
                  // does not care.  (See also the catch(e) below.)
                  when: ['FAILURE', 'UNSTABLE']],
-         buildmaster: [shaCallback: { params.GIT_REVISION },
+         buildmaster: [sha: params.GIT_REVISION,
                        what: 'build-webapp'],
          aggregator: [initiative: 'infrastructure',
                       when: ['SUCCESS', 'BACK TO NORMAL',

@@ -699,7 +699,7 @@ onMaster('4h') {
                  // does it for us; on success the we explicitly send
                  // alertMsgs.SUCCESS.
                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-         buildmaster: [shaCallback: { params.GIT_REVISION },
+         buildmaster: [sha: params.GIT_REVISION,
                        what: 'deploy-webapp'],
          aggregator: [initiative: 'infrastructure',
                       when: ['SUCCESS', 'BACK TO NORMAL',

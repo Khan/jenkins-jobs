@@ -395,8 +395,7 @@ def notify_args = [
 
 
 if (params.NOTIFY_BUILDMASTER) {
-   notify_args.buildmaster = [shaCallback: { GIT_SHA1 },
-                              isOneGitShaCallback: { IS_ONE_GIT_SHA },
+   notify_args.buildmaster = [sha: GIT_SHA1,
                               what: 'e2e-test'];
 }
 

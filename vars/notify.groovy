@@ -286,15 +286,26 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 
 
 // Supported options:
-// shaCallback (required): Closure yielding git-sha being processed.
-// notifyBuildmasterCallback (required): Closure yielding whether we should
-//   notify the buildmaster.
-//   TODO(benkraft): Once all builds are using the buildmaster, this will
-//   likely always be true, in which case we can remove it.
+// sha (required): Closure yielding git-sha being processed.  If this doesn't
+//     look like a sha, we don't notify the buildmaster.
 // what (required): Which job the status refers to.
 def sendToBuildmaster(buildmasterOptions, status) {
+   // Buildmaster only knows how to handle testing a single (non-abbreviated)
+   // git-sha, not one or multiple branch-names.  If the job refers to
+   // branches, exit.
+   if (!buildmasterOptions.sha ==~ /[0-9a-fA-F]{40}/) {
+      return;
+   }
    def buildmasterStatus;
-   if (status == 'SUCCESS') {
+   if (status == 'BUILD START') {
+      // This one is a special case!  We are sending the ID instead.
+      try {
+         buildmaster.notifyId(buildmasterOptions.what, buildmasterOptions.sha);
+      } catch (e) {
+         echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
+      }
+      return;
+   } else if (status == 'SUCCESS') {
       buildmasterStatus = "success";
    } else if (status == 'UNSTABLE') {
       buildmasterStatus = "success";
@@ -306,12 +317,9 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
-   // Buildmaster only knows how to handle testing a single git-sha, not
-   // one or multiple branch-names.
-   def sha = (buildmasterOptions.shaCallback)();
    try {
       buildmaster.notifyStatus(
-         buildmasterOptions.what, buildmasterStatus, sha);
+         buildmasterOptions.what, buildmasterStatus, buildmasterOptions.sha);
    } catch (e) {
       echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
    }
@@ -343,6 +351,9 @@ def runWithNotification(options, Closure body) {
    try {
       if (options.slack && "BUILD START" in options.slack.when) {
          sendToSlack(options.slack, "BUILD START");
+      }
+      if (options.buildmaster) {
+         sendToBuildmaster(options.buildmaster, "BUILD START");
       }
 
       // We do this `parallel` to catch when the job has been aborted.

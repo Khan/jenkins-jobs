@@ -121,18 +121,14 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
-// Sometimes GIT_SHA1S contains one or more branch names.  Other times
-// it's a single git-revision.  We only want to talk to buildmaster if it
-// is the latter.
-IS_ONE_GIT_SHA = false;
 
 
 def getGitSha1s() {
    // resolveCommitish returns the sha of a commit.  If
    // resolveCommitish(webapp, X) == X, then X must be a sha, and we can
    // skip the rest of the function.
-   // TODO(sergei): Get rid of this logic once we can safely expect webapp-test
-   // to receive a single sha as input.
+   // TODO(benkraft): Stop accepting anything other than a single sha, since
+   // the buildmaster can do that part just fine.
    def revisionSha1 = null;
    try {
       revisionSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -142,9 +138,6 @@ def getGitSha1s() {
    }
    if (revisionSha1 && revisionSha1 == params.GIT_REVISION) {
       GIT_SHA1S = [params.GIT_REVISION];
-      // TODO(benkraft): It's a bit ugly to set the global here, rather than in
-      // initializeGlobals; do better (or get rid of it entirely).
-      IS_ONE_GIT_SHA = true;
       return GIT_SHA1S;
    }
    GIT_SHA1S = [];
@@ -385,8 +378,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-        buildmaster: [shaCallback: { GIT_SHA1S[0] },
-                      shouldNotifyCallback: { IS_ONE_GIT_SHA },
+        buildmaster: [sha: params.GIT_REVISION,
                       what: 'webapp-test'],
         timeout: "5h"]) {
    initializeGlobals();
