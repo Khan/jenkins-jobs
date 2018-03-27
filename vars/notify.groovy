@@ -293,20 +293,8 @@ def sendToAggregator(aggregatorOptions, status, extraText='') {
 //   likely always be true, in which case we can remove it.
 // what (required): Which job the status refers to.
 def sendToBuildmaster(buildmasterOptions, status) {
-   // Buildmaster only knows how to handle testing a single git-sha, not
-   // one or multiple branch-names.
-   def sha = (buildmasterOptions.shaCallback)();
-
    def buildmasterStatus;
-   if (status == 'BUILD START') {
-      // This one is a special case!  We are sending the ID instead.
-      try {
-         buildmaster.notifyId(buildmasterOptions.what, sha);
-      } catch (e) {
-         echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
-      }
-      return;
-   } else if (status == 'SUCCESS') {
+   if (status == 'SUCCESS') {
       buildmasterStatus = "success";
    } else if (status == 'UNSTABLE') {
       buildmasterStatus = "success";
@@ -318,6 +306,9 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
+   // Buildmaster only knows how to handle testing a single git-sha, not
+   // one or multiple branch-names.
+   def sha = (buildmasterOptions.shaCallback)();
    try {
       buildmaster.notifyStatus(
          buildmasterOptions.what, buildmasterStatus, sha);
@@ -352,9 +343,6 @@ def runWithNotification(options, Closure body) {
    try {
       if (options.slack && "BUILD START" in options.slack.when) {
          sendToSlack(options.slack, "BUILD START");
-      }
-      if (options.buildmaster) {
-         sendToBuildmaster(options.buildmaster, "BUILD START");
       }
 
       // We do this `parallel` to catch when the job has been aborted.
