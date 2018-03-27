@@ -71,7 +71,7 @@ def notifyShouldDeploy(sha1, result, deploysNeeded) {
 }
 
 def notifyId(job, sha1) {
-   echo("Phoning home to log job ID (#${env.BUILD_NUMBER})");
+   echo("Phoning home to log job ID #${env.BUILD_NUMBER} for ${sha1} ${job}");
    def params = [
       git_sha: sha1,
       job: job,
