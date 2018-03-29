@@ -20,7 +20,6 @@ import java.net.URLEncoder;
 new Setup(steps
 
 ).allowConcurrentBuilds(
-   // We serialize via the using-test-workers lock
 
 ).addStringParam(
    "GIT_REVISION_BASE",
