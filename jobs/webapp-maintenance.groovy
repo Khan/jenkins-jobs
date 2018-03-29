@@ -44,15 +44,15 @@ notify([slack: [channel: '#infrastructure',
    def jobs = [];
    stage("Listing jobs to run") {
       def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
-      echo("Running these jobs:\n${jobs_str}");
+      echo("Running these jobs:\n${job_str}");
       jobs = job_str.split("\n");
    }
 
    def failed_jobs = [];
    for (def i = 0; i < jobs.size(); i++) {
       stage(jobs[i]) {
-         def rc = exec.statusOf(["jenkins-jobs/weekly-maintenance.sh",
-                                 jobs[i]]);
+         def rc = exec.statusOf(
+            ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
          if (rc != 0) {
             echo("${jobs[i]} failed with rc ${rc}");
             failed_jobs << jobs[i];
