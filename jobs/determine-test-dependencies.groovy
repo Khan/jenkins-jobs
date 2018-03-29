@@ -214,26 +214,19 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         timeout: "5h"]) {
    initializeGlobals();
 
-   // We run on the test-workers a few different times during this
-   // job, and we want to make sure no other job sneaks in between
-   // those times and steals our test-workers from us.  So we acquire
-   // this lock for the entire job.  It depends on everyone else who
-   // uses the test-workers using this lock too.
-   lock(label: 'using-test-workers', quantity: 1) {
-      stage("Determining splits") {
-         determineSplits();
-      }
+   stage("Determining splits") {
+      determineSplits();
+   }
 
-      try {
-         stage("Running tests") {
-            runTests();
-         }
-      } finally {
-         // We want to analyze results even if -- especially if -- there
-         // were failures; hence we're in the `finally`.
-         stage("Publishing results") {
-            publishResults();
-         }
+   try {
+      stage("Running tests") {
+         runTests();
+      }
+   } finally {
+      // We want to analyze results even if -- especially if -- there
+      // were failures; hence we're in the `finally`.
+      stage("Publishing results") {
+         publishResults();
       }
    }
 }
