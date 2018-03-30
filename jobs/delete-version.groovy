@@ -36,7 +36,10 @@ def deleteVersion() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
-         exec(["deploy/delete_gae_versions.py"] + params.VERSION.split(" "));
+         exec(["deploy/delete_gae_versions.py"]
+              // We need to cast because split() returns an Array and groovy
+              // wants a List, apparently.
+              + (params.VERSION.split(" ") as List));
       }
    }
 }
