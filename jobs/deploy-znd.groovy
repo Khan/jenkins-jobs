@@ -143,6 +143,23 @@ def canonicalVersion() {
 }
 
 
+// The URL for this znd.  Optionally, for dynamic deploys, a module may be
+// passed (e.g. "vm"), which will be included in the URL; the argument is
+// ignored for static-only deploys as those respect dispatch.yaml rules as
+// normal.
+def deployedUrl(module) {
+   def version = canonicalVersion();
+   if (!params.DEPLOYING_DYNAMIC) {
+      return "https://static-${canonicalVersion()}.khanacademy.org";
+   } else if (module) {
+      return ("https://${canonicalVersion()}-dot-${module}-dot-khan-academy" +
+              ".appspot.com");
+   } else {
+      return "https://${canonicalVersion()}-dot-khan-academy.appspot.com";
+   }
+}
+
+
 // This should be called from within a node().
 def deployToGAE() {
    if (!params.DEPLOYING_DYNAMIC) {
@@ -262,25 +279,33 @@ def deploy() {
          "failFast": true,
       );
 
-      def deployUrl = "https://${canonicalVersion()}-dot-khan-academy.appspot.com";
       // The CMS endpoints must be handled on the vm module. However,
       // the rules in dispatch.yaml only match *.khanacademy.org,
-      // so the routing doesn't work in ZNDs; therefore, we show
+      // so the routing doesn't work in dynamic ZNDs; therefore, we show
       // a link directly to the vm module if it is deployed
-      // or a suggestion to deploy the vm module if it is not.
+      // or a suggestion to deploy the vm module if it is not.  For
+      // static-only ZNDs, the routing work correctly, so we omit this
+      // message.
       def vmIsDeployed = params.MODULES.split(",").contains("vm");
-      def vmMessage = (
-         " Note that if you want to test the CMS or the publish pages " +
-         "(`/devadmin/content` or `/devadmin/publish`), " +
-         (vmIsDeployed
-          ? "you need to do so on the " +
-            "<https://${canonicalVersion()}-dot-vm-dot-khan-academy.appspot.com|" +
-            "vm module> instead."
-          : "you need to <https://jenkins.khanacademy.org/job/deploy/job/deploy-znd/build|" +
-            "redeploy this ZND> and add `vm` to the `MODULES` parameter in Jenkins."));
+      def vmMessage;
+      if (!params.DEPLOYING_DYNAMIC) {
+         // static-only deploy; no VM message needed
+         vmMessage = "";
+      } else if (params.MODULES.split(",").contains("vm")) {
+         vmMessage = (
+            " Note that if you want to test the CMS or the publish pages " +
+            "(`/devadmin/content` or `/devadmin/publish`), you need to do " +
+            "so on the <${deployedUrl("vm")}|vm module> instead.");
+      } else {
+         vmMessage = (
+            " Note that if you want to test the CMS or the publish pages " +
+            "(`/devadmin/content` or `/devadmin/publish`), " +
+            "you need to <${env.BUILD_URL}/rebuild|redeploy this ZND> " +
+            "and add `vm` to the `MODULES` parameter in Jenkins.");
+      }
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
-         [deployUrl: deployUrl,
+         [deployUrl: deployedUrl(),
           version: canonicalVersion()]);
 
       // If the phab_revision param exists than this znd-deploy must have
