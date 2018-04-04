@@ -305,7 +305,7 @@ def deploy() {
       }
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
-         [deployUrl: deployedUrl(),
+         [deployUrl: deployedUrl(""),
           version: canonicalVersion()]);
 
       // If the phab_revision param exists than this znd-deploy must have
