@@ -147,7 +147,7 @@ def canonicalVersion() {
 // passed (e.g. "vm"), which will be included in the URL; the argument is
 // ignored for static-only deploys as those respect dispatch.yaml rules as
 // normal.
-def deployedUrl(module) {
+def deployedUrl(def module) {
    def version = canonicalVersion();
    if (!params.DEPLOYING_DYNAMIC) {
       return "https://static-${canonicalVersion()}.khanacademy.org";
