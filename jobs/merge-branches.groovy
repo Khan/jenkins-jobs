@@ -56,19 +56,27 @@ def mergeBranches() {
       for (def i = 0; i < allBranches.size(); i++) {
          def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                                  allBranches[i].trim());
-         if (i == 0) {
-            // TODO(benkraft): If there's only one branch, skip the checkout
-            // and tag/return sha1 immediately.
-            // Note that this is a no-op when we just did a fresh clone above.
-            exec(["git", "checkout", "-f", branchSha1]);
-            // If there was just a merge conflict, but the conflicted files
-            // don't exist in this branch, git checkout -f doesn't clobber
-            // them.  (This prevents the merge later.)  So we do.
-            exec(["git", "reset", "--hard"]);
-         } else {
-            // TODO(benkraft): This puts the sha in the commit message instead
-            // of the branch; we should just write our own commit message.
-            exec(["git", "merge", branchSha1]);
+         try {
+            if (i == 0) {
+               // TODO(benkraft): If there's only one branch, skip the checkout
+               // and tag/return sha1 immediately.
+               // Note that this is a no-op when we did a fresh clone above.
+               exec(["git", "checkout", "-f", branchSha1]);
+               // If there was just a merge conflict, but the conflicted files
+               // don't exist in this branch, git checkout -f doesn't clobber
+               // them.  (This prevents the merge later.)  So we do.
+               exec(["git", "reset", "--hard"]);
+            } else {
+               // TODO(benkraft): This puts the sha in the commit message
+               // instead of the branch; we should just write our own commit
+               // message.
+               exec(["git", "merge", branchSha1]);
+            }
+         } catch (e) {
+            // TODO(benkraft): Also send the output of the merge command that
+            // failed.
+            notify.fail("Failed to merge ${branchSha1} into " +
+                        "${' + '.join(allBranches[0..<i])}: ${e}");
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
