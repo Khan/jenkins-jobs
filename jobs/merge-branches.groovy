@@ -76,7 +76,7 @@ def mergeBranches() {
             // TODO(benkraft): Also send the output of the merge command that
             // failed.
             notify.fail("Failed to merge ${branchSha1} into " +
-                        "${' + '.join(allBranches[0..<i])}: ${e}");
+                        "${allBranches[0..<i].join(' + ')}: ${e}");
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
