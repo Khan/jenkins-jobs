@@ -52,6 +52,12 @@ def mergeBranches() {
    def allBranches = params.GIT_REVISIONS.split(/\+/);
    kaGit.quickClone("git@github.com:Khan/webapp", "webapp", allBranches[0]);
    dir('webapp') {
+      // We need to reset before fetching, because if a previous incomplete
+      // merge left .gitmodules in a weird state, git will fail to read its
+      // config, and even the fetch can fail.  This also avoids certain
+      // post-merge-conflict states where git checkout -f doesn't reset as much
+      // as you might think.
+      exec(["git", "reset", "--hard"]);
       exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
       for (def i = 0; i < allBranches.size(); i++) {
          def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -62,10 +68,6 @@ def mergeBranches() {
                // and tag/return sha1 immediately.
                // Note that this is a no-op when we did a fresh clone above.
                exec(["git", "checkout", "-f", branchSha1]);
-               // If there was just a merge conflict, but the conflicted files
-               // don't exist in this branch, git checkout -f doesn't clobber
-               // them.  (This prevents the merge later.)  So we do.
-               exec(["git", "reset", "--hard"]);
             } else {
                // TODO(benkraft): This puts the sha in the commit message
                // instead of the branch; we should just write our own commit
