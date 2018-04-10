@@ -69,7 +69,7 @@ clean_invalid_branches() {
         echo "Cleaning invalid branches in $dir"
         cd "$dir"
 
-        find .git/refs -type f | while read ref; do
+        find .git/refs/remotes -type f | while read ref; do
             id=`cat "$ref"`
             if git rev-parse -q --verify "$id" >/dev/null && \
                ! git rev-parse -q --verify "$id^{commit}" >/dev/null; then
@@ -80,7 +80,7 @@ clean_invalid_branches() {
 
         [ -s .git/packed-refs ] || continue
 
-        cat .git/packed-refs | awk '/refs\// {print $2}' | while read ref; do
+        cat .git/packed-refs | awk '/refs\/remotes/ {print $2}' | while read ref; do
             id=`git rev-parse -q --verify "$ref"`   # "" if we fail to verify
             if [ -n "$id" ] && \
                git rev-parse -q --verify "$id" >/dev/null && \
