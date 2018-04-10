@@ -52,23 +52,33 @@ def mergeBranches() {
    def allBranches = params.GIT_REVISIONS.split(/\+/);
    kaGit.quickClone("git@github.com:Khan/webapp", "webapp", allBranches[0]);
    dir('webapp') {
+      // We need to reset before fetching, because if a previous incomplete
+      // merge left .gitmodules in a weird state, git will fail to read its
+      // config, and even the fetch can fail.  This also avoids certain
+      // post-merge-conflict states where git checkout -f doesn't reset as much
+      // as you might think.
+      exec(["git", "reset", "--hard"]);
       exec(["git", "fetch", "--prune", "--tags", "--progress", "origin"]);
       for (def i = 0; i < allBranches.size(); i++) {
          def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                                  allBranches[i].trim());
-         if (i == 0) {
-            // TODO(benkraft): If there's only one branch, skip the checkout
-            // and tag/return sha1 immediately.
-            // Note that this is a no-op when we just did a fresh clone above.
-            exec(["git", "checkout", "-f", branchSha1]);
-            // If there was just a merge conflict, but the conflicted files
-            // don't exist in this branch, git checkout -f doesn't clobber
-            // them.  (This prevents the merge later.)  So we do.
-            exec(["git", "reset", "--hard"]);
-         } else {
-            // TODO(benkraft): This puts the sha in the commit message instead
-            // of the branch; we should just write our own commit message.
-            exec(["git", "merge", branchSha1]);
+         try {
+            if (i == 0) {
+               // TODO(benkraft): If there's only one branch, skip the checkout
+               // and tag/return sha1 immediately.
+               // Note that this is a no-op when we did a fresh clone above.
+               exec(["git", "checkout", "-f", branchSha1]);
+            } else {
+               // TODO(benkraft): This puts the sha in the commit message
+               // instead of the branch; we should just write our own commit
+               // message.
+               exec(["git", "merge", branchSha1]);
+            }
+         } catch (e) {
+            // TODO(benkraft): Also send the output of the merge command that
+            // failed.
+            notify.fail("Failed to merge ${branchSha1} into " +
+                        "${allBranches[0..<i].join(' + ')}: ${e}");
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
