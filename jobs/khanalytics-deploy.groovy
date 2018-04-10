@@ -61,7 +61,7 @@ notify([slack: [channel: params.SLACK_CHANNEL,
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL', 'FAILURE',
                             'UNSTABLE', 'ABORTED']],
-        timeout: "30m"]) {
+        timeout: "60m"]) {
 
     stage("Cloning repository"){
         cloneKhanalyticsPrivate();
