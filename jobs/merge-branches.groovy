@@ -58,7 +58,7 @@ def mergeBranches() {
       // post-merge-conflict states where git checkout -f doesn't reset as much
       // as you might think.
       exec(["git", "reset", "--hard"]);
-      kaGit.quickFetch();
+      kaGit.quickFetch("webapp");
       for (def i = 0; i < allBranches.size(); i++) {
          def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                                  allBranches[i].trim());

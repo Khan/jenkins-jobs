@@ -86,11 +86,17 @@ _flock_file() {
 }
 
 # Call this from within the repo that you want to do the fetching.
-simple_fetch() {
+_fetch() {
     # We use flock to protect against two clients trying to fetch in
     # the same dir at the same time.  This is because different
     # clients will both, in the end, be fetching into $REPOS_ROOT.
     timeout 120m flock -w 7230 "`_flock_file`" git fetch --prune --tags --progress origin
+}
+
+# Like fetch, but call from the workspace root.
+# $1: the repo directory
+simple_fetch() {
+    ( cd "$1" && _fetch )
 }
 
 # Call this from within the repo that you want to do the fetching.
@@ -241,7 +247,7 @@ clone() {
         repo_dir="$REPOS_ROOT/`basename "$repo"`"
         # Clone or update into repo-dir, the canonical home.
         if [ -d "$repo_dir" ]; then
-            ( cd "$repo_dir" && simple_fetch )
+            ( cd "$repo_dir" && _fetch )
         else
             timeout 60m git clone "$repo" "$repo_dir"
         fi
@@ -270,7 +276,7 @@ sync_to() {
     repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
     if [ -d "$repo_workspace" ]; then
         cd "$repo_workspace"
-        simple_fetch
+        _fetch
         _destructive_checkout "$commit"
     else
         clone "$repo" "$repo_workspace" "$commit"
@@ -336,7 +342,7 @@ pull_in_branch() {
     branch="$1"
     shift
     _destructive_checkout "$branch"
-    simple_fetch
+    _fetch
     _rebase "$branch"
     _update_submodules "$@"
     # We could also do _pull_bigfiles here to fetch any new
@@ -360,7 +366,7 @@ push() {
     branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
-    simple_fetch
+    _fetch
     _rebase "$branch" || {
         timeout 10m git reset --hard HEAD^
         exit 1
