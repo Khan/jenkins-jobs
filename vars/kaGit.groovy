@@ -84,6 +84,13 @@ def quickClone(repoToClone, directory, commit) {
    exec(["jenkins-jobs/safe_git.sh", "clone", repoToClone, directory, commit]);
 }
 
+// Fetch a repo, with locking.
+// This is very low-level, and does not update submodules!  You probably want
+// safeSyncToOrigin, below, instead.
+def quickFetch() {
+   exec(["jenkins-jobs/safe_git.sh", "simple_fetch"]);
+}
+
 // Submodules is as in _submodulesArg.
 // Unless `force` is True, we are a noop if that dir is already synced
 // to the given commit *by this same jenkins job*.
