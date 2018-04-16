@@ -147,8 +147,8 @@ _update_submodules() {
 }
 
 # Clone the given repo if it doesn't already exist.
-# This is just like git clone, except we make a new workdir of the shared
-# central repo.
+# This is just like git clone, except we set up "alternates" to point
+# to a central repo.
 # $1: repo to clone (a la sync_to)
 # $2: directory into which to clone it
 # $2: commit-ish to check out at.  Note that we don't do submodules

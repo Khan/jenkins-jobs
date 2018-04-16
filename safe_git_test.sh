@@ -4,14 +4,6 @@
 # tests you want to run as arguments.  You can get a list by
 # running this script with `-l` or `--list`.
 
-# If you're trying to run the tests on OSX, and they're failing, you may be
-# missing flock and/or git-new-workdir.
-# To install flock:
-# `brew tap discoteq/discoteq`
-# `brew install flock`
-# To install git-new-workdir (assuming you have git via homebrew):
-# `ln -s /usr/local/share/git-core/contrib/workdir/git-new-workdir /usr/local/bin/git-new-workdir`
-
 
 # All failures are fatal!
 set -e
