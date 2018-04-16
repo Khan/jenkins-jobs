@@ -115,9 +115,6 @@ _destructive_checkout() {
     | while read f; do
         if [ -d "$f" ]; then
             ( cd "$f" && _destructive_checkout HEAD )
-        else
-            # This "shouldn't" happen, but seems to in git-bigfile contexts.
-            git checkout -- "$f"
         fi
     done
 
