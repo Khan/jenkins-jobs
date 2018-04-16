@@ -7,14 +7,11 @@
 # other operations, which do pull, push, merge, and clone, all
 # in a way that's super-safe (though not super-speedy).
 #
-# This script also automatically supports a few wrinkles to the
-# way we use git:
-# 1) It uses git new-workdir to share objects across repos.
-#    This is a big win on jenkins, where we have a dozen
-#    directories that all have cloned Khan/webapp.  Using
-#    safe_git.sh, we make sure they each share a single copy
-#    of .git/objects.  safe_git.sh not only implements that,
-#    it does all the locking to make sure it's safe.
+# This script also automatically uses "alternates":
+#    http://dustin.sallings.org/2008/12/30/git-alternates.html
+#    https://mirrors.edge.kernel.org/pub/software/scm/git/docs/gitrepository-layout.html
+# to save space by using the same 'objects' dir for all our webapp
+# workspaces.
 #
 # USAGE: safe_git.sh <command> <args>, where <command> is one
 # of the function names defined below.  While we don't enforce
@@ -28,7 +25,7 @@ set -ex
 # Make this path absolute, so clients can chdir with impunity.
 WORKSPACE_ROOT=`cd "$WORKSPACE_ROOT" && pwd`
 
-# Where the shared git objects (used by git new-workdir) live.
+# Where the shared git objects (used by the "alternates" file) live.
 : ${REPOS_ROOT:=/var/lib/jenkins/repositories}
 
 # Default Slack channel to use for alerting.
@@ -76,20 +73,9 @@ _alert() {
 }
 
 
-# The filename to use as a lock in order to serialize fetches.
-# TODO(csilvers): have there be a lock per repo, rather than one
-# global lock.  This is tricky with submodules, where you can both
-# fetch in them directly and indirectly via a 'git submodule update'.
-_flock_file() {
-    echo "$REPOS_ROOT/flock.fetch"
-}
-
 # Call this from within the repo that you want to do the fetching.
 _fetch() {
-    # We use flock to protect against two clients trying to fetch in
-    # the same dir at the same time.  This is because different
-    # clients will both, in the end, be fetching into $REPOS_ROOT.
-    timeout 120m flock -w 7230 "`_flock_file`" git fetch --prune --tags --progress origin
+    timeout 120m git fetch --prune --tags --progress origin
 }
 
 # Like fetch, but call from the workspace root.
@@ -182,8 +168,17 @@ clone() {
         else
             timeout 60m git clone "$repo" "$repo_dir"
         fi
-        # Now create our workspace!
-        timeout 10m git new-workdir "$repo_dir" "$repo_workspace" "$commit"
+        # Now clone locally as well.
+        # TODO(csilvers): figure out how to use `git clone -s` but still
+        # have our version point to the correct remote.
+        timeout 60m git clone "$repo" "$repo_workspace"
+
+        cd "$repo_workspace"
+        # This is the magic that makes all our repos share an "objects" dir.
+        echo "$repo_dir/.git/objects" > .git/objects/info/alternates
+        # Force our new repo to share the objects too.
+        timeout 60m git gc
+        timeout 10m git checkout -f "$commit"
     fi
     )
 }

@@ -122,6 +122,33 @@ turn_old_branches_into_tags() {
 }
 
 
+# Explicitly run `gc` on every workspace.  This causes us to repack
+# all our objects using the "alternates" directory, which saves a
+# lot of space.
+gc_all_repos() {
+    # Make sure we have all the objects we need in the "canonical" repo
+    find /mnt/jenkins/repositories -maxdepth 4 -name ".git" -type d | while read dir; do
+        (
+        dir=`dirname "$dir"`
+        echo "Fetching in $dir"
+        cd "$dir"
+
+        git fetch --progress origin
+        )
+    done
+
+    find "$HOME"/jobs/*/jobs -maxdepth 4 -name ".git" -type d | while read dir; do
+        (
+        dir=`dirname "$dir"`
+        echo "GC-ing in $dir"
+        cd "$dir"
+
+        git gc
+        )
+    done
+}
+
+
 # Clean up some gcs directories that have too-complicated cleanup
 # rules to use the gcs lifecycle rules.
 clean_ka_translations() {
