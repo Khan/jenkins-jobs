@@ -242,7 +242,6 @@ jenkins-jobs/safe_git.sh commit_and_push_submodule \
     -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
 
 # If we updated some "bigfiles", we need to push them to S3 now, as well.
-if [ -n "$updated_locales" ]; then
 (
     echo "Pushing bigfiles"
     cd webapp/intl/translations
@@ -255,6 +254,5 @@ if [ -n "$updated_locales" ]; then
         | xargs -r0 rm -f
     done
 )
-fi
 
 echo "DONE"
