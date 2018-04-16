@@ -127,7 +127,9 @@ _destructive_checkout() {
     # use `status -z` so git doesn't try to shell-escape for us.
     timeout 10m git status --porcelain -z | tr '\0' '\012' | cut -b4- \
     | while read f; do
-        [ -d "$f" ] && ( cd "$f" && _destructive_checkout HEAD )
+        if [ -d "$f" ]; then
+            ( cd "$f" && _destructive_checkout HEAD )
+        fi
     done
 
     # TOOD(csilvers): if any submodules disappeared as part of this
