@@ -241,4 +241,20 @@ jenkins-jobs/safe_git.sh commit_and_push_submodule \
     -m "(locales: $updated_locales)" \
     -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
 
+# If we updated some "bigfiles", we need to push them to S3 now, as well.
+if [ -n "$updated_locales" ]; then
+(
+    echo "Pushing bigfiles"
+    cd webapp/intl/translations
+    # If this repo uses bigfiles, we have to push them to S3 now, as well.
+    timeout 60m env PATH="$HOME/git-bigfile/bin:$PATH" \
+                    PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH" \
+                    git bigfile push
+    # Clean up bigfile objects older than two days.
+    timeout 120m find "`git rev-parse --git-dir`/bigfile/objects" -mtime +2 -type f -print0 \
+        | xargs -r0 rm -f
+    done
+)
+fi
+
 echo "DONE"

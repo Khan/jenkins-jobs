@@ -9,8 +9,7 @@
 #
 # This script also automatically supports a few wrinkles to the
 # way we use git:
-# 1) It does git bigfile pull and push when appropriate
-# 2) It uses git new-workdir to share objects across repos.
+# 1) It uses git new-workdir to share objects across repos.
 #    This is a big win on jenkins, where we have a dozen
 #    directories that all have cloned Khan/webapp.  Using
 #    safe_git.sh, we make sure they each share a single copy
@@ -99,29 +98,6 @@ simple_fetch() {
     ( cd "$1" && _fetch )
 }
 
-# Call this from within the repo that you want to do the fetching.
-# You must do this *after* you've checked out the commit you want
-# to be at (which is why we can't have a separate fetch step here).
-# This pulls bigfiles in both the main repo and all subrepos.
-# $1+ (optional): specific files to pull
-_pull_bigfiles() {
-    # 'bigfile pull' stores the objects in a shared dir in
-    # $REPOS_ROOT, so we need the lock for this.
-    ( flock 9        # use fd 9 for locking (see the end of this paren)
-      # First, clear up some space if need be by getting rid of old bigfiles.
-      find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
-          timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
-              | xargs -r0 rm -f
-      done
-      export PATH="$HOME/git-bigfile/bin:$PATH"
-      # I don't know if this is still needed, but it seems to be
-      # necessary for boto, used by git-bigfiles.
-      export PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH"
-      timeout 120m git bigfile pull "$@"
-      timeout 120m git submodule foreach git bigfile pull "$@"
-    ) 9>"`_flock_file`"
-}
-
 # $1: the branch we're in.  We assume this branch also exists on the remote.
 _rebase() {
     timeout 10m git rebase "origin/$1" || {
@@ -153,10 +129,6 @@ _destructive_checkout() {
     | while read f; do
         [ -d "$f" ] && ( cd "$f" && _destructive_checkout HEAD )
     done
-
-    # We could also do _pull_bigfiles here to fetch any new
-    # bigfiles from the server, but since it's slow we just punt and
-    # make clients call it directly if interested.
 
     # TOOD(csilvers): if any submodules disappeared as part of this
     # `git checkout -f`, and thus submodules had .gitignored files
@@ -289,10 +261,6 @@ sync_to() {
     fi
 
     _update_submodules "$@"
-
-    # We could also do _pull_bigfiles here to fetch any new
-    # bigfiles from the server, but since it's slow we just punt and
-    # make clients call it directly if interested.
     )
 }
 
@@ -345,9 +313,6 @@ pull_in_branch() {
     _fetch
     _rebase "$branch"
     _update_submodules "$@"
-    # We could also do _pull_bigfiles here to fetch any new
-    # bigfiles from the server, but since it's slow we just punt and
-    # make clients call it directly if interested.
     )
 }
 
@@ -372,17 +337,6 @@ push() {
         exit 1
     }
     _update_submodules
-
-    # If this repo uses bigfiles, we have to push them to S3 now, as well.
-    timeout 60m env PATH="$HOME/git-bigfile/bin:$PATH" \
-                    PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH" \
-                    git bigfile push
-    # Cleanup bigfile objects older than two days, both in the main
-    # module and in submodules
-    find "$REPOS_ROOT" -path '*/.git*/bigfile' -type d | while read bfdir; do
-        timeout 120m find "$bfdir/objects" -mtime +2 -type f -print0 \
-            | xargs -r0 rm -f
-    done
 
     # Ensure we push using SSH to use Jenkins' configured SSH keys.
     ssh_origin=`git config --get remote.origin.url | sed 's,^https://github.com/,git@github.com:,'`
