@@ -143,7 +143,7 @@ _destructive_checkout() {
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
 _update_submodules() {
-    if [ "$*" = "no_submodules" ]; then
+    if [ "$@" = "no_submodules" ]; then
         return
     fi
     # If we ourselves are a submodule, we don't have any submodules to update.
@@ -151,51 +151,8 @@ _update_submodules() {
         return
     fi
 
-    # It's not really safe to call git new-workdir on each submodule,
-    # since it doesn't deal well with submodules appearing and
-    # disappearing between branches.  So we hard-code a few of the big
-    # submodules that have been around a long time and aren't going
-    # anywhere, and use git new-workdir on those, and use 'normal'
-    # submodules for everything else.
-    new_workdir_repos=""
-    normal_repos="$*"
-    if [ -z "$normal_repos" ]; then        # means 'all the repos'
-        normal_repos="`git submodule status | awk '{print $2}'`"
-    fi
-
-    if echo "$normal_repos" | grep -e intl -e intl/translations; then
-       new_workdir_repos="intl/translations $new_workdir_repos"
-       normal_repos="`echo $normal_repos | tr " " "\012" | grep -v intl`"
-    fi
-    if echo "$normal_repos" | grep -e khan-exercises; then
-       new_workdir_repos="khan-exercises $new_workdir_repos"
-       normal_repos="`echo $normal_repos | tr " " "\012" | grep -v khan-exercises`"
-    fi
-
-    # Handle the repos we (possibly) need to make workdirs for.
-    if [ -n "$new_workdir_repos" ]; then
-        repo_dir="`pwd`"
-        ( flock 9        # use fd 9 for locking (see the end of this paren)
-          # Get to the shared repo (inside $REPOS_ROOT).  We follow the
-          # existing symlinks inside main_repo/.git/ to get there.
-          cd `readlink -f .git/config | xargs -n1 dirname | xargs -n1 dirname`
-
-          timeout 10m git submodule sync --recursive
-          timeout 60m git submodule update --init --recursive -- $new_workdir_repos
-          for path in $new_workdir_repos; do
-              [ -f "$repo_dir/$path/.git" ] || git new-workdir "`pwd`/$path" "$repo_dir/$path"
-          done
-        ) 9>"`_flock_file`"
-    fi
-
-    # Now update the 'normal' repos.
-    if [ -n "$normal_repos" ]; then
-        timeout 10m git submodule sync --recursive
-        timeout 60m git submodule update --init --recursive -- $normal_repos
-    fi
-
-    # Finally, we need to fix the submodule HEADs in the workdir.
-    timeout 10m git submodule update -- "$@"
+    timeout 10m git submodule sync --recursive
+    timeout 60m git submodule update --init --recursive -- "$@"
 }
 
 # Clone the given repo if it doesn't already exist.
