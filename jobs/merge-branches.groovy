@@ -24,11 +24,24 @@ new Setup(steps
    """<b>REQUIRED</b>. A plus-separated list of commit-ishes to merge, like
 "master + yourbranch + mybranch + sometag + deadbeef1234".""",
    ""
+
 ).addStringParam(
    "COMMIT_ID",
    """<b>REQUIRED</b>. The buildmaster's commit ID for the commit we will
 create.""",
    ""
+
+).addStringParam(
+   "SLACK_CHANNEL",
+   "The slack channel to which to send failure alerts.",
+   "#1s-and-0s-deploys"
+
+).addStringParam(
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+alerts.  By default we do not send in a thread.""",
+   ""
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS})";
@@ -95,7 +108,8 @@ def mergeBranches() {
    }
 }
 
-notify([slack: [channel: '#1s-and-0s-deploys',
+notify([slack: [channel: params.SLACK_CHANNEL,
+                thread: params.SLACK_THREAD,
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
                 when: ['FAILURE', 'UNSTABLE']],
