@@ -30,6 +30,9 @@ WORKSPACE_ROOT=`cd "$WORKSPACE_ROOT" && pwd`
 
 # Default Slack channel to use for alerting.
 : ${SLACK_CHANNEL:=#bot-testing}
+# By default, do not send to a Slack thread; can be set to a slack thread
+# timestamp if we want to reply.
+: ${SLACK_THREAD:=}
 
 # Alias needed for OS X.
 type timeout >/dev/null 2>&1 || timeout() { gtimeout "$@"; }
@@ -66,10 +69,15 @@ _alert() {
     else
         msg="$@"
     fi
+    if [ -n "$SLACK_THREAD" ]; then
+        thread_flag="--slack-thread=$SLACK_THREAD"
+    else
+        thread_flag=
+    fi
     echo "$msg" \
         | "$WORKSPACE_ROOT"/jenkins-jobs/alertlib/alert.py \
               --severity="$severity" $html \
-              --slack "$SLACK_CHANNEL" --logs
+              --slack "$SLACK_CHANNEL" $thread_flag --logs
 }
 
 
