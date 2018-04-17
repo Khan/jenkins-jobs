@@ -70,10 +70,15 @@ _alert() {
     else
         msg="$@"
     fi
+    if [ -n "$SLACK_THREAD" ]; then
+        thread_flag="--slack-thread=$SLACK_THREAD"
+    else
+        thread_flag=
+    fi
     echo "$msg" \
         | "$WORKSPACE_ROOT"/jenkins-jobs/alertlib/alert.py \
               --severity="$severity" $html \
-              --slack "$SLACK_CHANNEL" --logs
+              --slack "$SLACK_CHANNEL" $thread_flag --logs
 }
 
 

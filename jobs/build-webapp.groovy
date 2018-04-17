@@ -138,6 +138,17 @@ such as sun.  You can, but need not, include the leading `@`.""",
    ""
 
 ).addStringParam(
+   "SLACK_CHANNEL",
+   "The slack channel to which to send failure alerts.",
+   "#1s-and-0s-deploys"
+
+).addStringParam(
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+alerts.  By default we do not send in a thread.""",
+   ""
+
+).addStringParam(
     "REVISION_DESCRIPTION",
     """Set by the buildmaster to give a more human-readable description
 of the GIT_REVISION, especially if it is a commit rather than a branch.
@@ -154,9 +165,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
-
-// We purposefully hard-code this so people can't do sekret deploys. :-)
-SLACK_CHANNEL = "#1s-and-0s-deploys";
 
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
@@ -212,11 +220,14 @@ def _alert(def slackArgs, def interpolationArgs) {
    def msg = _interpolateString(slackArgs.text, interpolationArgs);
 
    args = ["jenkins-jobs/alertlib/alert.py",
-           "--slack=${SLACK_CHANNEL}",
+           "--slack=${params.SLACK_CHANNEL}",
            "--chat-sender=Mr Monkey",
            "--icon-emoji=:monkey_face:",
            "--severity=${slackArgs.severity}",
           ];
+   if (params.SLACK_THREAD) {
+      args += ["--slack-thread=${params.SLACK_THREAD}"];
+   }
    if (slackArgs.simpleMessage) {
       args += ["--slack-simple-message"];
    }
@@ -262,7 +273,8 @@ def mergeFromMasterAndInitializeGlobals() {
 
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
-      withEnv(["SLACK_CHANNEL=${SLACK_CHANNEL}",
+      withEnv(["SLACK_CHANNEL=${params.SLACK_CHANNEL}",
+               "SLACK_THREAD=${params.SLACK_THREAD}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                                 params.GIT_REVISION)
@@ -346,12 +358,14 @@ def deployToGAE() {
    }
    def args = ["deploy/deploy_to_gae.py",
                "--no-browser", "--no-up",
-               "--slack-channel=${SLACK_CHANNEL}",
+               "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
                // We don't send the changelog in a build-only context -- there
                // may be many builds afoot and it is too confusing.  We'll send
                // it in promote instead.
                "--suppress-changelog"];
+   args += params.SLACK_THREAD ? [
+      "--slack-thread=${params.SLACK_THREAD}"] : [];
    args += params.FORCE ? ["--force-deploy"] : [];
    args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
    args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
@@ -375,7 +389,7 @@ def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", GCS_VERSION,
-               "--slack-channel=${SLACK_CHANNEL}",
+               "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
                // Same as for deploy_to_gae, we suppress the changelog for now.
                "--suppress-changelog"];
@@ -390,6 +404,8 @@ def deployToGCS() {
       }
    }
 
+   args += params.SLACK_THREAD ? [
+      "--slack-thread=${params.SLACK_THREAD}"] : [];
    args += params.FORCE ? ["--force"] : [];
 
    withSecrets() {     // TODO(csilvers): do we actually need secrets?
@@ -430,7 +446,8 @@ def deployAndReport() {
               propagate: false,  // e2e errors are not fatal for a deploy
               parameters: [
                   string(name: 'URL', value: DEPLOY_URL),
-                  string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
+                  string(name: 'SLACK_CHANNEL', value: params.SLACK_CHANNEL),
+                  string(name: 'SLACK_THREAD', value: params.SLACK_THREAD),
                   string(name: 'GIT_REVISION', value: params.GIT_REVISION),
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),

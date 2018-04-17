@@ -27,6 +27,12 @@ new Setup(steps
    "#1s-and-0s-deploys"
 
 ).addStringParam(
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+alerts.  By default we do not send in a thread.""",
+   ""
+
+).addStringParam(
    "NUM_WORKER_MACHINES",
    """How many worker machines to use.  This will function best
 when it's equal to the <code>Instance Cap</code> value for
@@ -258,6 +264,9 @@ def runTests() {
                                   "--icon-emoji=:turtle:"];
    def slackArgs = (slackArgsWithoutChannel +
       ["--slack=${params.SLACK_CHANNEL}"]);
+   if (params.SLACK_THREAD) {
+      slackArgs += ["--slack-thread=${params.SLACK_THREAD}"];
+   }
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
@@ -360,13 +369,18 @@ def analyzeResults() {
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
-            exec(["tools/test_pickle_util.py", "summarize-to-slack",
-                  "genfiles/test-results.pickle", params.SLACK_CHANNEL,
-                  "--jenkins-build-url", env.BUILD_URL,
-                  "--deployer", params.DEPLOYER_USERNAME,
-                  // The commit here is just used for a human-readable
-                  // slack message, so we use REVISION_DESCRIPTION.
-                  "--commit", REVISION_DESCRIPTION]);
+            summarize_args = [
+               "tools/test_pickle_util.py", "summarize-to-slack",
+               "genfiles/test-results.pickle", params.SLACK_CHANNEL,
+               "--jenkins-build-url", env.BUILD_URL,
+               "--deployer", params.DEPLOYER_USERNAME,
+               // The commit here is just used for a human-readable
+               // slack message, so we use REVISION_DESCRIPTION.
+               "--commit", REVISION_DESCRIPTION];
+            if (params.SLACK_THREAD) {
+               summarize_args += ["--slack-thread", params.SLACK_THREAD];
+            }
+            exec(summarize_args);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
@@ -384,6 +398,7 @@ def analyzeResults() {
 
 def notify_args = [
    slack: [channel: params.SLACK_CHANNEL,
+           thread: params.SLACK_THREAD,
            sender: 'Testing Turtle',
            emoji: ':turtle:',
            when: ['FAILURE', 'UNSTABLE']],

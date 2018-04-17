@@ -178,6 +178,8 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 // emojiOnFailure: the emoji to use for the bot when sending a message that
 //    the job failed.  If not specified, falls back to emoji.
+// thread: the thread to which to send the message (must be in the channel).
+//    If unspecified or blank, we don't thread the message.
 // extraText: if specified, text to add to the message send to slack.
 // [extraText: if specified, text to add to the message send to slack.]
 // TODO(csilvers): make success green, not gray.
@@ -202,6 +204,10 @@ def sendToSlack(slackOptions, status, extraText='') {
    def extraFlags = ["--slack=${slackOptions.channel}",
                      "--chat-sender=${sender}",
                      "--icon-emoji=${emoji}"];
+
+   if (slackOptions.thread) {
+      extraFlags += ["--slack-thread=${slackOptions.thread}"];
+   }
 
    _sendToAlertlib(subject, severity, body, extraFlags);
 }
