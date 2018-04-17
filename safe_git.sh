@@ -131,7 +131,7 @@ _destructive_checkout() {
 #    If the string 'no_submodules', update no submodules.  Can be a
 #    directory, in which case we update all submodules under that dir.
 _update_submodules() {
-    if [ "$@" = "no_submodules" ]; then
+    if [ "$*" = "no_submodules" ]; then
         return
     fi
     # If we ourselves are a submodule, we don't have any submodules to update.
