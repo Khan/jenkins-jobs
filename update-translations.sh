@@ -252,7 +252,6 @@ jenkins-jobs/safe_git.sh commit_and_push_submodule \
     # Clean up bigfile objects older than two days.
     timeout 120m find "`git rev-parse --git-dir`/bigfile/objects" -mtime +2 -type f -print0 \
         | xargs -r0 rm -f
-    done
 )
 
 echo "DONE"
