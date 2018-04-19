@@ -107,6 +107,11 @@ JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
 
+// Set to true once master has run setup, so graphql/android tests can begin.
+HAVE_RUN_SETUP = false;
+// Set to true once we have stashed the list of tests for the workers to run.
+HAVE_STASHED_TESTS = false;
+
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
@@ -128,82 +133,10 @@ def _setupWebapp() {
 }
 
 
-def determineSplits() {
-   // The main goal of this stage is to determine the splits, which
-   // happens on master.  But while we're waiting for that, we might
-   // as well get all the test-workers synced to the right commit!
-   // That will save time later.
-   def jobs = [
-      "determine-splits": {
-         withTimeout('10m') {
-            // Figure out how to split up the tests.  We run 4 jobs on
-            // each of 4 workers.  We put this in the location where the
-            // 'copy to slave' plugin expects it (e2e-test-<worker> will
-            // copy the file from here to each worker machine).
-            def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
-
-            _setupWebapp();
-            dir("webapp") {
-               sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS}" +
-                  "> genfiles/test-splits.txt");
-               dir("genfiles") {
-                  def allSplits = readFile("test-splits.txt").split("\n\n");
-                  for (def i = 0; i < allSplits.size(); i++) {
-                     writeFile(file: "test-splits.${i}.txt",
-                               text: allSplits[i]);
-                  }
-                  stash(includes: "test-splits.*.txt", name: "splits");
-               }
-            }
-
-            // Touch this file right before we start using the jenkins
-            // make-check workers.  We have a cron job running on jenkins
-            // that will keep track of the make-check workers and
-            // complain if a job that uses the make-check workers is
-            // running, but all the workers aren't up.  (We delete this
-            // file in a try/finally.)
-            sh("touch /tmp/make_check.run");
-         }
-      }
-   ];
-
-   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-     // A restriction in `parallel`: need to redefine the index var here.
-      def workerNum = i;
-      jobs["sync-webapp-${workerNum}"] = {
-         onTestWorker('10m') {      // timeout
-            _setupWebapp();
-         }
-      }
-   }
-
-   parallel(jobs);
-}
-
-
-def _runOneTest(splitId) {
-   def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
-               "--url=${params.URL}",
-               "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
-               "--timing-db=genfiles/test-info.db",
-               "--xml-dir=genfiles/test-reports",
-               "--quiet", "--jobs=1", "--retries=3",
-               "--driver=chrome", "--backup-driver=sauce",
-               "-"];
-   if (params.FAILFAST) {
-      args += ["--failfast"];
-   }
-
-   try {
-      sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
-   } catch (e) {
-      // end-to-end failures are not blocking currently, so if
-      // tests fail set the status to UNSTABLE, not FAILURE.
-      currentBuild.result = "UNSTABLE";
-   }
-}
-
 def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
+   // Wait until the other thread has finished setup, then go.
+   waitUntil({ HAVE_RUN_SETUP });
+
    def successMsg = ("Android integration tests succeeded for " +
                      REVISION_DESCRIPTION);
    def failureMsg = ("Android integration tests failed for " +
@@ -233,6 +166,9 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
 
 // Verify that candidate schema supports all active queries.
 def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
+   // Wait until the other thread has finished setup, then go.
+   waitUntil({ HAVE_RUN_SETUP });
+
    def successMsg = "GraphQL schema integration test succeeded for " +
       REVISION_DESCRIPTION;
    def failureMsg = "GraphQL schema integration test failed for " +
@@ -258,8 +194,97 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    }
 }
 
+def _determineTests() {
+   // Figure out how to split up the tests.  We run 4 jobs on
+   // each of 4 workers.  We put this in the location where the
+   // 'copy to slave' plugin expects it (e2e-test-<worker> will
+   // copy the file from here to each worker machine).
+   def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
-def runTests() {
+   sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS}" +
+      "> genfiles/test-splits.txt");
+   dir("genfiles") {
+      def allSplits = readFile("test-splits.txt").split("\n\n");
+      for (def i = 0; i < allSplits.size(); i++) {
+         writeFile(file: "test-splits.${i}.txt",
+                   text: allSplits[i]);
+      }
+      stash(includes: "test-splits.*.txt", name: "splits");
+      // Now tell the test workers to get to work!
+      HAVE_STASHED_TESTS = true;
+   }
+}
+
+def _runOneTest(splitId) {
+   def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
+               "--url=${params.URL}",
+               "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
+               "--timing-db=genfiles/test-info.db",
+               "--xml-dir=genfiles/test-reports",
+               "--quiet", "--jobs=1", "--retries=3",
+               "--driver=chrome", "--backup-driver=sauce",
+               "-"];
+   if (params.FAILFAST) {
+      args += ["--failfast"];
+   }
+
+   try {
+      sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
+   } catch (e) {
+      // end-to-end failures are not blocking currently, so if
+      // tests fail set the status to UNSTABLE, not FAILURE.
+      currentBuild.result = "UNSTABLE";
+   }
+}
+
+def doTestOnWorker(workerNum) {
+   onTestWorker('1h') {     // timeout
+      // We can sync webapp right away, before we know what tests we'll be
+      // running.
+      _setupWebapp();
+
+      // We continue to hold the worker while waiting, so we can make sure to
+      // get the same one, and start right away, once ready.
+      waitUntil({ HAVE_STASHED_TESTS });
+
+      // Out with the old, in with the new!
+      sh("rm -f test-results.*.pickle");
+      unstash("splits");
+      def firstSplit = workerNum * JOBS_PER_WORKER;
+      def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+
+      def parallelTests = ["failFast": params.FAILFAST];
+      for (def j = firstSplit; j <= lastSplit; j++) {
+         // That restriction in `parallel` again.
+         def split = j;
+         parallelTests["job-$split"] = { _runOneTest(split); };
+      }
+
+      try {
+         // This is apparently needed to avoid hanging with
+         // the chrome driver.  See
+         // https://github.com/SeleniumHQ/docker-selenium/issues/87
+         // We also work around https://bugs.launchpad.net/bugs/1033179
+         withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
+                  "TMPDIR=/tmp"]) {
+            withSecrets() {   // we need secrets to talk to saucelabs
+               dir("webapp") {
+                  parallel(parallelTests);
+               }
+            }
+         }
+      } finally {
+         // Now let the next stage see all the results.
+         // runsmoketests.py should normally produce these files
+         // even when it returns a failure rc (due to some test
+         // or other failing).
+         stash(includes: "test-results.*.pickle",
+               name: "results ${workerNum}");
+      }
+   }
+}
+
+def determineSplitsAndRunTests() {
    def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
                                   "--chat-sender=Testing Turtle",
                                   "--icon-emoji=:turtle:"];
@@ -271,6 +296,19 @@ def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
+      "determine-splits": {
+         withTimeout('10m') {
+            _setupWebapp();
+            // Tell the android/graphql tests they can go.
+            HAVE_RUN_SETUP = true;
+            dir("webapp") {
+               _determineTests();
+            }
+         }
+      },
+      // These two run on the master, and wait for setup before doing anything;
+      // we spawn them at the same time as everything else just to keep things
+      // simple and avoid more nesting.
       "android-integration-test": { runAndroidTests(
          slackArgs, slackArgsWithoutChannel); },
       "graphql-integration-test": { runGraphlSchemaTest(
@@ -281,47 +319,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["e2e-test-${workerNum}"] = {
-         onTestWorker('1h') {     // timeout
-            // Out with the old, in with the new!
-            sh("rm -f test-results.*.pickle");
-            unstash("splits");
-            def firstSplit = workerNum * JOBS_PER_WORKER;
-            def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
-
-            // Hopefully, the sync-webapp-i job above synced us to
-            // the right commit, but we can't depend on that, so we
-            // double-check.
-            _setupWebapp();
-
-            def parallelTests = ["failFast": params.FAILFAST];
-            for (def j = firstSplit; j <= lastSplit; j++) {
-               // That restriction in `parallel` again.
-               def split = j;
-               parallelTests["job-$split"] = { _runOneTest(split); };
-            }
-
-            try {
-               // This is apparently needed to avoid hanging with
-               // the chrome driver.  See
-               // https://github.com/SeleniumHQ/docker-selenium/issues/87
-               // We also work around https://bugs.launchpad.net/bugs/1033179
-               withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
-                        "TMPDIR=/tmp"]) {
-                  withSecrets() {   // we need secrets to talk to saucelabs
-                     dir("webapp") {
-                        parallel(parallelTests);
-                     }
-                  }
-               }
-            } finally {
-               // Now let the next stage see all the results.
-               // runsmoketests.py should normally produce these files
-               // even when it returns a failure rc (due to some test
-               // or other failing).
-               stash(includes: "test-results.*.pickle",
-                     name: "results ${workerNum}");
-            }
-         }
+         doTestOnWorker(workerNum);
       };
    }
 
@@ -331,10 +329,6 @@ def runTests() {
 
 def analyzeResults() {
    withTimeout('5m') {
-      // Once we get here, we're done using the worker machines,
-      // so let our cron overseer know.
-      sh("rm -f /tmp/make_check.run");
-
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
@@ -418,13 +412,9 @@ if (params.NOTIFY_BUILDMASTER) {
 notify(notify_args) {
    initializeGlobals();
 
-   stage("Determining splits") {
-      determineSplits();
-   }
-
    try {
       stage("Running tests") {
-         runTests();
+         determineSplitsAndRunTests();
       }
    } finally {
       // We want to analyze results even if -- especially if -- there

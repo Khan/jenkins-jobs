@@ -128,6 +128,9 @@ NUM_WORKER_MACHINES = null;
 // GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
 GIT_SHA1S = null;
 
+// Set to true once we have stashed the list of tests for the workers to run.
+HAVE_STASHED_TESTS = false;
+
 
 def getGitSha1s() {
    // resolveCommitish returns the sha of a commit.  If
@@ -227,30 +230,57 @@ def _determineTests() {
                    text: allSplits[i]);
       }
       stash(includes: "test_splits.*.txt", name: "splits");
+      // Now tell the test workers to get to work!
+      HAVE_STASHED_TESTS = true;
    }
 }
 
 
-def determineSplits() {
-   // The main goal of this stage is to determine the splits, which
-   // happens on master.  But while we're waiting for that, we might
-   // as well get all the test-workers synced to the right commit!
-   // That will save time later.
+def doTestOnWorker(workerNum) {
+   onTestWorker('2h') {     // timeout
+      // We can sync webapp right away, before we know what tests we'll be
+      // running.
+      _setupWebapp();
+
+      // We continue to hold the worker while waiting, so we can make sure to
+      // get the same one, and start right away, once ready.
+      waitUntil({ HAVE_STASHED_TESTS });
+
+      // Out with the old, in with the new!
+      sh("rm -f test-results.*.pickle");
+      unstash("splits");
+
+      try {
+         sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
+            "tools/runtests.py " +
+            "--pickle " +
+            "--pickle-file=../test-results.${workerNum}.pickle " +
+            "--quiet --jobs=1 " +
+            "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+            (params.FAILFAST ? "--failfast " : "") +
+            "- < ../test_splits.${workerNum}.txt");
+      } finally {
+         // Now let the next stage see all the results.
+         // runtests.py should normally produce these files
+         // even when it returns a failure rc (due to some test
+         // or other failing).
+         stash(includes: "test-results.*.pickle",
+               name: "results ${workerNum}");
+      }
+   }
+}
+
+
+def determineSplitsAndRunTests() {
    def jobs = [
+      // This is a kwarg that tells parallel() what to do when a job fails.
+      "failFast": params.FAILFAST,
       "determine-splits": {
          withTimeout('10m') {
             _setupWebapp();
             dir("webapp") {
                _determineTests();
             }
-
-            // Touch this file right before we start using the jenkins
-            // make-check workers.  We have a cron job running on jenkins
-            // that will keep track of the make-check workers and
-            // complain if a job that uses the make-check workers is
-            // running, but all the workers aren't up.  (We delete this
-            // file in a try/finally.)
-            sh("touch /tmp/make_check.run");
          }
       }
    ];
@@ -258,55 +288,8 @@ def determineSplits() {
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
-      jobs["sync-webapp-${workerNum}"] = {
-         onTestWorker('10m') {      // timeout
-            _setupWebapp();
-         }
-      }
-   }
-
-   parallel(jobs);
-}
-
-
-def runTests() {
-   def jobs = [
-      // This is a kwarg that tells parallel() what to do when a job fails.
-      "failFast": params.FAILFAST,
-   ];
-   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-      // A restriction in `parallel`: need to redefine the index var here.
-      def workerNum = i;
-
       jobs["test-${workerNum}"] = {
-         onTestWorker('2h') {     // timeout
-            // Out with the old, in with the new!
-            sh("rm -f test-results.*.pickle");
-            unstash("splits");
-
-            // Hopefully, the sync-webapp-i job above synced us to
-            // the right commit, but we can't depend on that, so we
-            // double-check.
-            _setupWebapp();
-
-            try {
-               sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
-                  "tools/runtests.py " +
-                  "--pickle " +
-                  "--pickle-file=../test-results.${workerNum}.pickle " +
-                  "--quiet --jobs=1 " +
-                  "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-                  (params.FAILFAST ? "--failfast " : "") +
-                  "- < ../test_splits.${workerNum}.txt");
-            } finally {
-               // Now let the next stage see all the results.
-               // runsmoketests.py should normally produce these files
-               // even when it returns a failure rc (due to some test
-               // or other failing).
-               stash(includes: "test-results.*.pickle",
-                     name: "results ${workerNum}");
-            }
-         }
+         doTestOnWorker(workerNum);
       };
    }
 
@@ -316,10 +299,6 @@ def runTests() {
 
 def analyzeResults() {
    withTimeout('5m') {
-      // Once we get here, we're done using the worker machines,
-      // so let our cron overseer know.
-      sh("rm -f /tmp/make_check.run");
-
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
@@ -403,13 +382,9 @@ notify([slack: [channel: params.SLACK_CHANNEL,
 
    def key = ["rGW${GIT_SHA1S.join('+')}", params.TEST_TYPE, params.MAX_SIZE];
    singleton(params.FORCE ? null : key.join(":")) {
-      stage("Determining splits") {
-         determineSplits();
-      }
-
       try {
-         stage("Running tests") {
-            runTests();
+         stage("Determining splits & running tests") {
+            determineSplitsAndRunTests();
          }
       } finally {
          // We want to analyze results even if -- especially if --
