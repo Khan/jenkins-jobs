@@ -27,7 +27,7 @@ def call(def label, def timeoutString, Closure body) {
       // Fail loudly -- the default behavior is to wait forever.
       // Notify may not notify here -- we're outside a node -- but it'll at
       // least raise an exception, which is the best we can do.
-      notify.fail("Worker label ${label} not valid. If you think it "
+      notify.fail("Worker label ${label} not valid. If you think it " +
                   "should be, add it to vars/onWorker.groovy.");
    }
 
