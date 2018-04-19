@@ -28,36 +28,35 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('23h') {
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-      dir("webapp") {
-         // now install the other deps
-         sh("make clean_pyc");    // in case some .py files went away
-         sh("make python_deps");
-      }
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+   dir("webapp") {
+      // now install the other deps
+      sh("make clean_pyc");    // in case some .py files went away
+      sh("make python_deps");
+   }
 
-      withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
-         withSecrets() {   // We need sleep-secret to post transcripts to prod
-            sh("jenkins-jobs/sync-captions.sh");
-         }
+   withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
+      withSecrets() {   // We need sleep-secret to post transcripts to prod
+         sh("jenkins-jobs/sync-captions.sh");
       }
    }
 }
 
 
-// TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-notify([slack: [channel: '#i18n',
-                sender: 'I18N Imp',
-                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                extraText: "@joshua",
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        email: [to: 'jenkins-admin+builds',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "23h"]) {
-   stage("Syncing captions") {
-      runScript();
+onMaster('23h') {
+   // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
+   notify([slack: [channel: '#i18n',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   extraText: "@joshua",
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           email: [to: 'jenkins-admin+builds',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      stage("Syncing captions") {
+         runScript();
+      }
    }
 }

@@ -64,19 +64,20 @@ def deploy() {
 
 
 
-notify([slack: [channel: '#1s-and-0s-deploys',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['BUILD START',
-                       'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "5h"]) {
-   stage("Installing deps") {
-      installDeps();
-   }
-   stage("Deploying") {
-      deploy();
+onMaster('5h') {
+   notify([slack: [channel: '#1s-and-0s-deploys',
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   when: ['BUILD START',
+                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      stage("Installing deps") {
+         installDeps();
+      }
+      stage("Deploying") {
+         deploy();
+      }
    }
 }

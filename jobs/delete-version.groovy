@@ -45,16 +45,17 @@ def deleteVersion() {
 }
 
 
-notify([slack: [channel: '#1s-and-0s-deploys',
+onMaster('30m') {
+   notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
         aggregator: [initiative: 'infrastructure',
                      when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "30m"]) {
-   verifyArgs();
-   stage("Deleting") {
-      deleteVersion();
+                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      verifyArgs();
+      stage("Deleting") {
+         deleteVersion();
+      }
    }
 }

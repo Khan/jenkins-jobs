@@ -6,3 +6,8 @@ Same as `node(<label>)` but does a bunch of executor-specific setup too.
 3. It enables access to secrets.py [optional]
 4. It turns on timestamping of all commands run on that node.
 5. It runs all of this in workspace shared across jobs.
+
+If the entire job runs on a worker, you should wrap this around a `notify()`
+call, and put the rest of your job inside.  If only some of the job runs on a
+worker, you can use this elsewhere instead.  See also `onMaster()`, if you
+don't want to use workers.

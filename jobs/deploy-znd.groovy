@@ -329,15 +329,14 @@ def deploy() {
 // We use a separate worker type, identical to build-worker, so znds don't make
 // a mess of our build caches for the main deploy.
 onWorker('znd-worker', '2h') {
-   notify.runWithNotification([
-         slack: [channel: SLACK_CHANNEL,
-                 sender: CHAT_SENDER,
-                 emoji: EMOJI,
-                 // We don't need to notify on success because deploy.sh does.
-                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
-         aggregator: [initiative: 'infrastructure',
-                      when: ['SUCCESS', 'BACK TO NORMAL',
-                             'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: SLACK_CHANNEL,
+                   sender: CHAT_SENDER,
+                   emoji: EMOJI,
+                   // We don't need to notify on success because deploy.sh does.
+                   when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       verifyVersion();
       stage("Deploying") {
          deploy();

@@ -100,14 +100,15 @@ def runTests() {
     }
 }
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                sender: 'Testing Turtle',
-                emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "5h"]) {
-    initializeGlobals();
-    runTests();
+onMaster('5h') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+       initializeGlobals();
+       runTests();
+   }
 }

@@ -409,8 +409,9 @@ if (params.NOTIFY_BUILDMASTER) {
 }
 
 
-notify(notify_args) {
-   initializeGlobals();
+onMaster('5h') {     // timeout
+   notify(notify_args) {
+      initializeGlobals();
 
    try {
       stage("Running tests") {

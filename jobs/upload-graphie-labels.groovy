@@ -67,24 +67,25 @@ def uploadLabels() {
 }
 
 
-notify([slack: [channel: '#cp-eng',
-                sender: 'I18N Imp',
-                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                extraText: "@cp-support",
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        email: [to: 'jenkins-admin+builds',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "23h"]) {
-   stage("Updating webapp repo") {
-      updateRepo();
-   }
-   stage("Building labels") {
-      buildLabels();
-   }
-   stage("Uploading labels") {
-      uploadLabels();
+onMaster('23h') {
+   notify([slack: [channel: '#cp-eng',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   extraText: "@cp-support",
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+           email: [to: 'jenkins-admin+builds',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      stage("Updating webapp repo") {
+         updateRepo();
+      }
+      stage("Building labels") {
+         buildLabels();
+      }
+      stage("Uploading labels") {
+         uploadLabels();
+      }
    }
 }

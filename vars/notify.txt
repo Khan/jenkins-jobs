@@ -2,8 +2,11 @@ Send notifications to slack, email, asana, and/or the aggregator
 when a job is done.
 
 The intent is you wrap your *entire* job inside a `notify()` call.
-Then when the body is done executing, looks at the build status (or
-exception-handling) and sends notifications as appropriate.
+Well, almost the entire job: this must run inside a `node()`, e.g.
+`onMaster()` or `onWorker()`.  But other than that it should wrap
+the entire job.  Then when the body is done executing, looks at
+the build status (or exception-handling) and sends notifications
+as appropriate.
 
 The argument is a map that has `slack`, `email`, 'asana', and
 'aggregator' as possible keys. Each value is itself a map with options

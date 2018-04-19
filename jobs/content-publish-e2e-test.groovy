@@ -207,44 +207,45 @@ def analyzeResults(label) {
 }
 
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                sender: 'Testing Turtle',
-                emoji: ':turtle:',
-                when: ['FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "4h"]) {
-   def key = getRedisKey();
+onMaster('4h') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      def key = getRedisKey();
 
-   currentBuild.displayName = "${currentBuild.displayName} (${key})";
+      currentBuild.displayName = "${currentBuild.displayName} (${key})";
 
-   singleton.storeEvenOnFailure(params.FORCE ? null : key) {
-      stage("Syncing webapp") {
-         syncWebapp();
-      }
-      stage("Running android tests") {
-         try {
-            runAndroidTests();
-         } catch (e) {
-            // end-to-end failures are not blocking currently, so if
-            // tests fail set the status to UNSTABLE, not FAILURE.
-            // We also keep going to do the other tests.
-            currentBuild.result = "UNSTABLE";
+      singleton.storeEvenOnFailure(params.FORCE ? null : key) {
+         stage("Syncing webapp") {
+            syncWebapp();
          }
-      }
-      stage("Running e2e tests") {
-         try {
-            runEndToEndTests();
-         } catch (e) {
-            // end-to-end failures are not blocking currently, so if
-            // tests fail set the status to UNSTABLE, not FAILURE.
-            // We also keep going to analyze the results.
-            currentBuild.result = "UNSTABLE";
+         stage("Running android tests") {
+            try {
+               runAndroidTests();
+            } catch (e) {
+               // end-to-end failures are not blocking currently, so if
+               // tests fail set the status to UNSTABLE, not FAILURE.
+               // We also keep going to do the other tests.
+               currentBuild.result = "UNSTABLE";
+            }
          }
-      }
-      stage("Analyzing results") {
-         analyzeResults(key);
+         stage("Running e2e tests") {
+            try {
+               runEndToEndTests();
+            } catch (e) {
+               // end-to-end failures are not blocking currently, so if
+               // tests fail set the status to UNSTABLE, not FAILURE.
+               // We also keep going to analyze the results.
+               currentBuild.result = "UNSTABLE";
+            }
+         }
+         stage("Analyzing results") {
+            analyzeResults(key);
+         }
       }
    }
 }

@@ -474,21 +474,20 @@ def finishWithFailure(why) {
 // We use a build worker, because this is a very CPU-heavy job and we may want
 // to run several at a time.
 onWorker('build-worker', '4h') {
-   notify.runWithNotification([
-         slack: [channel: params.SLACK_CHANNEL,
-                 sender: 'Mr Monkey',
-                 emoji: ':monkey_face:',
-                 // We don't need to notify on start because the buildmaster
-                 // does it for us; on success the we explicitly send
-                 // alertMsgs.SUCCESS; and aborts usually just mean the
-                 // buildmaster killed things and the user already knows or
-                 // does not care.  (See also the catch(e) below.)
-                 when: ['FAILURE', 'UNSTABLE']],
-         buildmaster: [sha: params.GIT_REVISION,
-                       what: 'build-webapp'],
-         aggregator: [initiative: 'infrastructure',
-                      when: ['SUCCESS', 'BACK TO NORMAL',
-                      'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   // We don't need to notify on start because the buildmaster
+                   // does it for us; on success the we explicitly send
+                   // alertMsgs.SUCCESS; and aborts usually just mean the
+                   // buildmaster killed things and the user already knows or
+                   // does not care.  (See also the catch(e) below.)
+                   when: ['FAILURE', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: 'build-webapp'],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                        'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
       }
