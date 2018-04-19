@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
-//import vars.onTestWorker
+//import vars.onWorker
 //import vars.withSecrets
 
 
@@ -39,7 +39,7 @@ when it's equal to the <code>Instance Cap</code> value for
 the <code>ka-test worker</code> ec2 setup at
 <a href=\"/configure\">the Jenkins configure page</a>.  You'll need
 to click on 'advanced' to see the instance cap.""",
-   onTestWorker.defaultNumWorkerMachines().toString()
+   onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addCronSchedule(
    '0 3 * * *'
@@ -113,7 +113,9 @@ def determineSplits() {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["sync-webapp-${workerNum}"] = {
-         onTestWorker('10m') {      // timeout
+         // TODO(benkraft): Refactor this to do the setup in the same
+         // onWorker() block, like we did for webapp-test.
+         onWorker('ka-test-ec2', '10m') {      // timeout
             _setupWebapp();
          }
       }
@@ -130,7 +132,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["test-deps-${workerNum}"] = {
-         onTestWorker('3h') {     // timeout
+         onWorker('ka-test-ec2', '3h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f tests_for.*.json");
             unstash("splits");
