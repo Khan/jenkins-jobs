@@ -206,29 +206,30 @@ def publishResults() {
 }
 
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                sender: 'Testing Turtle',
-                emoji: ':turtle:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "5h"]) {
-   initializeGlobals();
+onMaster('5h') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      initializeGlobals();
 
-   stage("Determining splits") {
-      determineSplits();
-   }
-
-   try {
-      stage("Running tests") {
-         runTests();
+      stage("Determining splits") {
+         determineSplits();
       }
-   } finally {
-      // We want to analyze results even if -- especially if -- there
-      // were failures; hence we're in the `finally`.
-      stage("Publishing results") {
-         publishResults();
+
+      try {
+         stage("Running tests") {
+            runTests();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if -- there
+         // were failures; hence we're in the `finally`.
+         stage("Publishing results") {
+            publishResults();
+         }
       }
    }
 }

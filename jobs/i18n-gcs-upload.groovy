@@ -105,34 +105,35 @@ def resetRepo() {
 }
 
 
-// TODO(csilvers): update the slack message with the updated locales.
-notify([slack: [channel: '#i18n',
-                sender: 'I18N Imp',
-                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "23h"]) {
-   // Make sure LOCALES was specified -- it's an error not to list a
-   // locale to update!
-   if (!params.LOCALES) {
-      error("You must specify at least one locale to upload!");
-   }
-
-   stage("Syncing repos") {
-      syncRepos();
-   }
-
-   try {
-      stage("Running script") {
-         runScript();
+onMaster('23h') {
+   // TODO(csilvers): update the slack message with the updated locales.
+   notify([slack: [channel: '#i18n',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      // Make sure LOCALES was specified -- it's an error not to list a
+      // locale to update!
+      if (!params.LOCALES) {
+         error("You must specify at least one locale to upload!");
       }
-   } finally {
-      // Just to be nice -- it's not essential -- let's reset the repo
-      // back to normal.
-      stage("Resetting repo") {
-         resetRepo();
+
+      stage("Syncing repos") {
+         syncRepos();
+      }
+
+      try {
+         stage("Running script") {
+            runScript();
+         }
+      } finally {
+         // Just to be nice -- it's not essential -- let's reset the repo
+         // back to normal.
+         stage("Resetting repo") {
+            resetRepo();
+         }
       }
    }
 }

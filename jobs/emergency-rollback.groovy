@@ -47,29 +47,30 @@ def doRollback() {
 }
 
 
-notify([slack: [channel: '#1s-and-0s-deploys',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['BUILD START', 'SUCCESS',
-                       'FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "1h"]) {
-    stage("setup") {
-        doSetup();
-    }
-    stage("rollback") {
-        doRollback();
-    }
-    // Let's kick off the content-publish e2e tests again to make sure
-    // everything is working ok.
-    build(job: '../misc/content-publish-e2e-test',
-          wait: false,
-          propagate: false,  // e2e errors are not fatal for a rollback
-          parameters: [
-             string(name: 'URL', value: "https://www.khanacademy.org"),
-             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
-             booleanParam(name: 'FORCE', value: true),
-          ]);
+onMaster('1h') {
+   notify([slack: [channel: '#1s-and-0s-deploys',
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   when: ['BUILD START', 'SUCCESS',
+                          'FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+       stage("setup") {
+           doSetup();
+       }
+       stage("rollback") {
+           doRollback();
+       }
+       // Let's kick off the content-publish e2e tests again to make sure
+       // everything is working ok.
+       build(job: '../misc/content-publish-e2e-test',
+             wait: false,
+             propagate: false,  // e2e errors are not fatal for a rollback
+             parameters: [
+                string(name: 'URL', value: "https://www.khanacademy.org"),
+                string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+                booleanParam(name: 'FORCE', value: true),
+             ]);
+   }
 }
