@@ -12,14 +12,16 @@ def defaultNumTestWorkerMachines() {
 
 // label is the label of the node.  It should be one of the worker labels
 // defined under "Cloud" in the global jenkins settings, currently:
-VALID_WORKER_LABELS = [
-   'ka-test-ec2',        // normal test workers, used for webapp-test,
-                         // e2e-test, and other similar jobs
-   "build-worker",       // used for build-webapp
-   "znd-worker",         // used for deploy-znd
-   "ka-content-sync-ec2",              // used for build-current-sqlite
-   "ka-page-weight-monitoring-ec2",    // used for page-weight-test
-];
+def validWorkerLabels() {
+   return [
+      'ka-test-ec2',        // normal test workers, used for webapp-test,
+                            // e2e-test, and other similar jobs
+      "build-worker",       // used for build-webapp
+      "znd-worker",         // used for deploy-znd
+      "ka-content-sync-ec2",              // used for build-current-sqlite
+      "ka-page-weight-monitoring-ec2",    // used for page-weight-test
+   ];
+}
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.
 def call(def label, def timeoutString, Closure body) {
