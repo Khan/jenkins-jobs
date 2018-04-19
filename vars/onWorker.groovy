@@ -12,7 +12,7 @@ def defaultNumTestWorkerMachines() {
 
 // label is the label of the node.  It should be one of the worker labels
 // defined under "Cloud" in the global jenkins settings, currently:
-def VALID_WORKER_LABELS = [
+VALID_WORKER_LABELS = [
    'ka-test-ec2',        // normal test workers, used for webapp-test,
                          // e2e-test, and other similar jobs
    "build-worker",       // used for build-webapp
