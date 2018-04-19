@@ -36,6 +36,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.onWorker
 //import vars.withSecrets
 //import vars.withTimeout
 
@@ -472,7 +473,7 @@ def finishWithFailure(why) {
 
 // We use a build worker, because this is a very CPU-heavy job and we may want
 // to run several at a time.
-onBuildWorker('4h') {
+onWorker('build-worker', '4h') {
    notify.runWithNotification([
          slack: [channel: params.SLACK_CHANNEL,
                  sender: 'Mr Monkey',

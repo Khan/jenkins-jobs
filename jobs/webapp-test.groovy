@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
-//import vars.onTestWorker
+//import vars.onWorker
 //import vars.singleton
 //import vars.withSecrets
 
@@ -99,7 +99,7 @@ when it's equal to the <code>Instance Cap</code> value for
 the <code>ka-test worker</code> ec2 setup at
 <a href=\"/configure\">the Jenkins configure page</a>.  You'll need
 to click on 'advanced' to see the instance cap.""",
-   onTestWorker.defaultNumWorkerMachines().toString()
+   onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
@@ -237,7 +237,7 @@ def _determineTests() {
 
 
 def doTestOnWorker(workerNum) {
-   onTestWorker('2h') {     // timeout
+   onWorker('ka-test-ec2', '2h') {     // timeout
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
