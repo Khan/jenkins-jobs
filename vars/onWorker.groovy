@@ -4,34 +4,27 @@
 //import vars.withVirtualenv
 
 // How many test-workers we run in parallel, by default.
-// In theory, every job can decide the right number of worker machines
-// it needs.  But in practice, there's not much point because of the
-// way the lockable-resources jenkins plugin works: it only lets
-// you allocate fixed-sized "banks" of worker machines.  (There's
-// an open issue to give it more flexibility, at which point having
-// this default may make less sense.)  This constant says how big
-// each "bank" is.
-//
-// If you update this, you'll want to update jenkins to match: go to
-//    https://jenkins.khanacademy.org/configure
-// First, search for "Lockable Resources" and see how many banks
-// of test-workers we have (the highest `test-workers-#` you see).
-// Then search for "Amazon EC2" and then click on "Advanced".
-// Then search for "Instance Cap".  Set it to
-//    defaultNumWorkerMachines * |number of test-worker banks|
-// You should do that *before* deploying any changes here.
-def defaultNumWorkerMachines() {
+// This no longer needs to be consistent across jobs, but
+// most jobs using the ka-test-ec2 workers use it by default.
+def defaultNumTestWorkerMachines() {
    return 10;
 }
 
-
+// label is the label of the node.  It should be one of the worker labels
+// defined under "Cloud" in the global jenkins settings, currently:
+//    ka-test-ec2 (normal test workers, used for webapp-test, e2e-test, and
+//        other similar jobs)
+//    build-worker (used for build-webapp)
+//    znd-worker (used for deploy-znd)
+//    ka-content-sync-ec2 (used for build-current-sqlite)
+//    ka-page-weight-monitoring-ec2 (used for page-weight-test)
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.
-def call(def timeoutString, Closure body) {
-   node("ka-test-ec2") {
+def call(def label, def timeoutString, Closure body) {
+   node(label) {
       timestamps {
          // We use a shared workspace for all jobs that are run on the
-         // ec2 test machines.
+         // worker machines.
          dir("/home/ubuntu/webapp-workspace") {
             kaGit.checkoutJenkinsTools();
             withVirtualenv() {

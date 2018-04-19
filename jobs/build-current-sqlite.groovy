@@ -7,8 +7,8 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
+//import vars.onWorker
 //import vars.withSecrets
-//import vars.withTimeout
 
 
 new Setup(steps
@@ -38,45 +38,36 @@ that haven't yet been merged to master.""",
 
 
 def runScript() {
-   // We run on a special worker machine because this job uses so much
-   // memory.  There's no `onFoo` macro for this, so we have to repeat
-   // all that logic here ourselves.
-   node("ka-content-sync-ec2") {
-      timestamps {
-         kaGit.checkoutJenkinsTools();
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                          params.GIT_REVISION);
 
-         withVirtualenv() {
-            withTimeout("7h") {
-               kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                      params.GIT_REVISION);
+   dir("webapp") {
+       sh("make clean_pyc");    // in case some .py files went away
+       sh("make deps");
+   }
 
-               dir("webapp") {
-                   sh("make clean_pyc");    // in case some .py files went away
-                   sh("make deps");
-               }
-
-               // We need secrets to talk to gcs, prod.
-               withSecrets() {
-                  withEnv(
-                     ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
-                      "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
-                     sh("jenkins-jobs/build_current_sqlite.sh");
-                  }
-               }
-            }
-         }
+   // We need secrets to talk to gcs, prod.
+   withSecrets() {
+      withEnv(
+         ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
+          "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
+         sh("jenkins-jobs/build_current_sqlite.sh");
       }
    }
 }
 
 
-notify([slack: [channel: '#infrastructure',
-                when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "8h"]) {
-   stage("Running script") {
-      runScript();
+// We run on a special worker machine because this job uses so much
+// memory.  
+onWorker("ka-content-sync-ec2", "8h") {
+   notify.runWithNotification([
+         slack: [channel: '#infrastructure',
+                 when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],
+         aggregator: [initiative: 'infrastructure',
+                      when: ['SUCCESS', 'BACK TO NORMAL',
+                             'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      stage("Running script") {
+         runScript();
+      }
    }
 }
