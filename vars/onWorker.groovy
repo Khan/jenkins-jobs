@@ -25,7 +25,7 @@ def validWorkerLabels() {
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.
 def call(def label, def timeoutString, Closure body) {
-   if (!(label in VALID_WORKER_LABELS)) {
+   if (!(label in validWorkerLabels())) {
       // Fail loudly -- the default behavior is to wait forever.
       // Notify may not notify here -- we're outside a node -- but it'll at
       // least raise an exception, which is the best we can do.
