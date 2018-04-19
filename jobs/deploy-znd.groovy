@@ -12,6 +12,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.onWorker
 //import vars.withTimeout
 
 
@@ -96,6 +97,9 @@ defined if the znd-deploy originates from the Phabricator Herald Build Plan 6.
 It helps us access data from the a revision, namely the summary, which we need
 in order to know the appropriate fixtures to post links for in Phabricator.""",
     ""
+
+// Since we use build workers, there's no need to serialize znd deploys.
+).allowConcurrentBuilds(
 
 ).apply();
 
@@ -318,19 +322,21 @@ def deploy() {
 }
 
 
-notify([slack: [channel: SLACK_CHANNEL,
-                sender: CHAT_SENDER,
-                emoji: EMOJI,
-                // We don't need to notify on success because deploy.sh does.
-                when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "2h"]) {
-   // TODO(benkraft): Run deploy-znd on the build workers, so we can run
-   // several at a time.
-   verifyVersion();
-   stage("Deploying") {
-      deploy();
+// We use a separate worker type, identical to build-worker, so znds don't make
+// a mess of our build caches for the main deploy.
+onWorker('znd-worker', '2h') {
+   notify.runWithNotification([
+         slack: [channel: SLACK_CHANNEL,
+                 sender: CHAT_SENDER,
+                 emoji: EMOJI,
+                 // We don't need to notify on success because deploy.sh does.
+                 when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
+         aggregator: [initiative: 'infrastructure',
+                      when: ['SUCCESS', 'BACK TO NORMAL',
+                             'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      verifyVersion();
+      stage("Deploying") {
+         deploy();
+      }
    }
 }
