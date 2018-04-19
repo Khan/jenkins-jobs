@@ -367,7 +367,8 @@ def analyzeResults() {
                   // Since people sometimes run tests on very old branches, we
                   // check that test_pickle_util.py supports slack threads
                   // before trying to pass that argument.
-                  (exec.outputOf(["tools/test_pickle_util.py", "--help"])
+                  (exec.outputOf(["tools/test_pickle_util.py",
+                                  "summarize-to-slack", "--help"])
                    .contains("--slack-thread"))) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
