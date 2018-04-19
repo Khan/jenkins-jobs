@@ -46,35 +46,36 @@ def runScript() {
 
 
 def tryUpdateStrings() {
-  notify([slack: [channel: '#i18n',
-                  sender: 'I18N Imp',
-                  emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                  extraText: "@joshua",
-                  when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-          email: [to: 'jenkins-admin+builds',
-                  when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-          aggregator: [initiative: 'infrastructure',
-                       when: ['SUCCESS', 'BACK TO NORMAL',
-                              'FAILURE', 'ABORTED', 'UNSTABLE']],
-          timeout: "6h"]) {
-     def updatedLocales = '';
+  onMaster('6h') {
+     notify([slack: [channel: '#i18n',
+                     sender: 'I18N Imp',
+                     emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                     extraText: "@joshua",
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+             email: [to: 'jenkins-admin+builds',
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+             aggregator: [initiative: 'infrastructure',
+                          when: ['SUCCESS', 'BACK TO NORMAL',
+                                 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+        def updatedLocales = '';
 
-     // i18n-download-translations also uses our workspace, and edits files
-     // in it.  So we don't want to run at the same time it does.  We use
-     // this lock to prevent that.
-     lock("using-update-strings-workspace") {
-        stage("Running script") {
-           updatedLocales = runScript();
+        // i18n-download-translations also uses our workspace, and edits files
+        // in it.  So we don't want to run at the same time it does.  We use
+        // this lock to prevent that.
+        lock("using-update-strings-workspace") {
+           stage("Running script") {
+              updatedLocales = runScript();
+           }
         }
-     }
 
-     currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
+        currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
 
-     stage("Uploading to gcs") {
-        build(job: 'i18n-gcs-upload',
-              parameters: [
-                 string(name: 'LOCALES', value: updatedLocales),
-              ])
+        stage("Uploading to gcs") {
+           build(job: 'i18n-gcs-upload',
+                 parameters: [
+                    string(name: 'LOCALES', value: updatedLocales),
+                 ])
+        }
      }
   }
 }

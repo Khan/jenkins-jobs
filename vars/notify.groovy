@@ -349,7 +349,7 @@ def emitFailureText(e) {
 }
 
 
-def runWithNotification(options, Closure body) {
+def call(options, Closure body) {
    def abortState = [complete: false, aborted: false];
    def failureText = '';
 
@@ -439,15 +439,5 @@ def runWithNotification(options, Closure body) {
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
       }
-   }
-}
-
-
-def call(options, Closure body) {
-   // This ensures the entire job runs with an executor.  If you don't
-   // want that, call runWithNotification() directly; but then you're
-   // responsible for using `onMaster()` when appropriate.
-   onMaster(options.timeout) {
-      runWithNotification(options, body);
    }
 }

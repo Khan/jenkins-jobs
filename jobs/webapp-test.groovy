@@ -371,17 +371,16 @@ def analyzeResults() {
 // running nowadays running it on the master can overwhelm the master, and we
 // have plenty of workers.
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify.runWithNotification([
-         slack: [channel: params.SLACK_CHANNEL,
-                 thread: params.SLACK_THREAD,
-                 sender: 'Testing Turtle',
-                 emoji: ':turtle:',
-                 when: ['FAILURE', 'UNSTABLE']],
-         aggregator: [initiative: 'infrastructure',
-                      when: ['SUCCESS', 'BACK TO NORMAL',
-                             'FAILURE', 'ABORTED', 'UNSTABLE']],
-         buildmaster: [sha: params.GIT_REVISION,
-                       what: 'webapp-test']]) {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: 'webapp-test']]) {
       initializeGlobals();
 
       def key = ["rGW${GIT_SHA1S.join('+')}",

@@ -31,38 +31,39 @@ def runScript() {
 }
 
 
-notify([slack: [channel: '#infrastructure',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        email: [to: 'jenkins-admin+builds, csilvers',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "10h"]) {
-   def jobs = [];
-   stage("Listing jobs to run") {
-      def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
-      echo("Running these jobs:\n${job_str}");
-      jobs = job_str.split("\n");
-   }
+onMaster('10h') {
+   notify([slack: [channel: '#infrastructure',
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           email: [to: 'jenkins-admin+builds, csilvers',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      def jobs = [];
+      stage("Listing jobs to run") {
+         def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
+         echo("Running these jobs:\n${job_str}");
+         jobs = job_str.split("\n");
+      }
 
-   def failed_jobs = [];
-   for (def i = 0; i < jobs.size(); i++) {
-      stage(jobs[i]) {
-         def rc = exec.statusOf(
-            ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
-         if (rc != 0) {
-            echo("${jobs[i]} failed with rc ${rc}");
-            failed_jobs << jobs[i];
+      def failed_jobs = [];
+      for (def i = 0; i < jobs.size(); i++) {
+         stage(jobs[i]) {
+            def rc = exec.statusOf(
+               ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
+            if (rc != 0) {
+               echo("${jobs[i]} failed with rc ${rc}");
+               failed_jobs << jobs[i];
+            }
          }
       }
-   }
 
-  stage("Analyzing results") {
-     if (failed_jobs.size() > 0) {
-        notify.fail("These jobs failed: " + failed_jobs.join(" "))
+     stage("Analyzing results") {
+        if (failed_jobs.size() > 0) {
+           notify.fail("These jobs failed: " + failed_jobs.join(" "))
+        }
      }
-  }
+   }
 }

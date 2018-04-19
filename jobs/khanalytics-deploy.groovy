@@ -54,28 +54,29 @@ def deploy() {
     }
 }
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['SUCCESS', 'BUILD START', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL', 'FAILURE',
-                            'UNSTABLE', 'ABORTED']],
-        timeout: "60m"]) {
+onMaster('60m') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   when: ['SUCCESS', 'BUILD START', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL', 'FAILURE',
+                               'UNSTABLE', 'ABORTED']]]) {
 
-    stage("Cloning repository"){
-        cloneKhanalyticsPrivate();
-    }
+       stage("Cloning repository"){
+           cloneKhanalyticsPrivate();
+       }
 
-    stage("Updating substate") {
-        substateKhanalytics();
-    }
+       stage("Updating substate") {
+           substateKhanalytics();
+       }
 
-    stage("Running tests") {
-        runTests();
-    }
+       stage("Running tests") {
+           runTests();
+       }
 
-    stage("Deploy") {
-        deploy();
-    }
+       stage("Deploy") {
+           deploy();
+       }
+   }
 }

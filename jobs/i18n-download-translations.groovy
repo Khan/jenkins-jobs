@@ -94,39 +94,40 @@ def runScript() {
 }
 
 
-// TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-notify([slack: [channel: '#i18n',
-                sender: 'I18N Imp',
-                emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                extraText: "@joshua",
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        email: [to: 'jenkins-admin+builds',
-                when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "2h"]) {
-   def updatedLocales = '';
+onMaster('2h') {
+   // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
+   notify([slack: [channel: '#i18n',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   extraText: "@joshua",
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           email: [to: 'jenkins-admin+builds',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      def updatedLocales = '';
 
-   // We modify files in this workspace -- which is not our own! -- so
-   // we acquire a lock to make sure update-strings doesn't try to run
-   // at the same time.
-   lock("using-update-strings-workspace") {
-      stage("Running script") {
-         updatedLocales = runScript();
+      // We modify files in this workspace -- which is not our own! -- so
+      // we acquire a lock to make sure update-strings doesn't try to run
+      // at the same time.
+      lock("using-update-strings-workspace") {
+         stage("Running script") {
+            updatedLocales = runScript();
+         }
       }
-   }
 
-   currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
+      currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
 
-   // It's possible that no locale was updated. Only trigger the
-   // upload job when there are changes.
-   if (updatedLocales) {
-      stage("Uploading to gcs") {
-         build(job: 'i18n-gcs-upload',
-               parameters: [
-                  string(name: 'LOCALES', value: updatedLocales),
-               ])
+      // It's possible that no locale was updated. Only trigger the
+      // upload job when there are changes.
+      if (updatedLocales) {
+         stage("Uploading to gcs") {
+            build(job: 'i18n-gcs-upload',
+                  parameters: [
+                     string(name: 'LOCALES', value: updatedLocales),
+                  ])
+         }
       }
    }
 }

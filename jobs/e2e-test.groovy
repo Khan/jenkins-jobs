@@ -413,7 +413,7 @@ if (params.NOTIFY_BUILDMASTER) {
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify.runWithNotification(notify_args) {
+   notify(notify_args) {
       initializeGlobals();
 
       try {

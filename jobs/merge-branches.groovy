@@ -109,27 +109,26 @@ def mergeBranches() {
    }
 }
 
-notify([slack: [channel: params.SLACK_CHANNEL,
-                thread: params.SLACK_THREAD,
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']],
-        timeout: "5m"]) {
-   try {
-      withTimeout('5m') {
+onMaster('5m') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
+                   sender: 'Mr Monkey',
+                   emoji: ':monkey_face:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      try {
          checkArgs();
          def sha1 = mergeBranches();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success', sha1);
+      } catch (e) {
+         // We don't really care about the difference between aborted and failed;
+         // we can't use notify because we want somewhat special semantics; and
+         // without all the things notify does it's hard to tell the difference
+         // between aborted and failed.  So we don't bother.
+         buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null);
+         throw e;
       }
-   } catch (e) {
-      // We don't really care about the difference between aborted and failed;
-      // we can't use notify because we want somewhat special semantics; and
-      // without all the things notify does it's hard to tell the difference
-      // between aborted and failed.  So we don't bother.
-      buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null);
-      throw e;
    }
 }

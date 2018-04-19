@@ -36,39 +36,40 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
 
-// We want to notify that make-allcheck started, but don't need to
-// notify how it did because the sub-jobs will each notify
-// individually.
-// TODO(csilvers): use notify.runWithNotification instead, and
-//     just allocate the executor in the notify clean-up steps.
-notify(
-   [slack: [channel: '#1s-and-0s',
-            when: ['STARTED', 'ABORTED']],
-    bugtracker: [project: 'Infrastructure',
-                 when: ['FAILURE']],
-    aggregator: [initiative: 'infrastructure',
-                 when: ['SUCCESS', 'BACK TO NORMAL',
-                        'FAILURE', 'ABORTED', 'UNSTABLE']],
-    timeout: "5h"]) {
-   // We need this only to get the secrets to send to slack/asana/etc
-   // when there are failures.
-   // TODO(csilvers): move those secrets somewhere else instead.
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", null);
+onMaster('5h') {
+   // We want to notify that make-allcheck started, but don't need to
+   // notify how it did because the sub-jobs will each notify
+   // individually.
+   // TODO(csilvers): remove onMaster(), and just allocate
+   // the executor in the notify clean-up steps.
+   notify(
+      [slack: [channel: '#1s-and-0s',
+               when: ['STARTED', 'ABORTED']],
+       bugtracker: [project: 'Infrastructure',
+                    when: ['FAILURE']],
+       aggregator: [initiative: 'infrastructure',
+                    when: ['SUCCESS', 'BACK TO NORMAL',
+                           'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      // We need this only to get the secrets to send to slack/asana/etc
+      // when there are failures.
+      // TODO(csilvers): move those secrets somewhere else instead.
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", null);
 
-   build(job: '../deploy/webapp-test',
-         parameters: [
-            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            string(name: 'TEST_TYPE', value: "all"),
-            string(name: 'MAX_SIZE', value: "huge"),
-            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-            booleanParam(name: 'FORCE', value: params.FORCE),
-         ]);
+      build(job: '../deploy/webapp-test',
+            parameters: [
+               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+               string(name: 'TEST_TYPE', value: "all"),
+               string(name: 'MAX_SIZE', value: "huge"),
+               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+               booleanParam(name: 'FORCE', value: params.FORCE),
+            ]);
 
-   build(job: '../deploy/e2e-test',
-         parameters: [
-            string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-         ]);
+      build(job: '../deploy/e2e-test',
+            parameters: [
+               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+            ]);
+   }
 }
