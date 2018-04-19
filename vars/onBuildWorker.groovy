@@ -5,14 +5,17 @@
 
 // timeout is an outer bound on how long we expect body to take.
 // It is like '5s' or '10m' or '20h' or '1d'.
+// workspace is the name of a workspace to use, if we don't want to use the
+// main one.  This is used by jobs like deploy-znd that tend to build on old
+// branches and thus wipe away chached builds.
 // TODO(benkraft): This duplicates almost entirely from onTestWorker; refactor
 // and simplify.
-def call(def timeoutString, Closure body) {
+def call(def timeoutString, def workspace = 'webapp-workspace', Closure body) {
    node("build-worker") {
       timestamps {
          // We use a shared workspace for all jobs that are run on the
          // ec2 build machines.
-         dir("/home/ubuntu/webapp-workspace") {
+         dir("/home/ubuntu/${workspace}") {
             kaGit.checkoutJenkinsTools();
             withVirtualenv() {
                withTimeout(timeoutString) {
