@@ -267,7 +267,10 @@ def _sendCommentToPhabricator() {
 
 def deploy() {
    withTimeout('90m') {
-      alertMsgs = load("${pwd()}/../workspace@script/jobs/deploy-webapp_slackmsgs.groovy");
+      // In principle we should fetch from workspace@script which is where this
+      // script itself is loaded from, but that doesn't exist on znd-workers
+      // and our checkout of jenkins-jobs will work fine.
+      alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
 
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                              params.GIT_REVISION);
