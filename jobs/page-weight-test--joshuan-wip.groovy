@@ -11,9 +11,7 @@ import java.net.URLEncoder;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
-//import vars.notify
-//import vars.withTimeout
-//import vars.onTestWorker
+//import vars.onWorker
 //import vars.withSecrets
 
 
@@ -161,62 +159,32 @@ def _computePageWeightDelta() {
 
 
 def calculatePageWeightDeltas() {
-   // NOTE(joshuan): This is mostly stolen from onTestWorker.groovy.
-   // Consider adding a label param to onTestWorker.groovy?
-   node("ka-page-weight-monitoring-ec2") {
-      timestamps {
-         dir("/home/ubuntu/webapp-workspace") {
-            kaGit.checkoutJenkinsTools();
-            withVirtualenv() {
-               try {
-                  withTimeout('2h') {
-                     // We document what machine we're running on, to help
-                     // with debugging.
-                     def instanceId = exec.outputOf(
-                        ["curl", "-s",
-                         "http://169.254.169.254/latest/meta-data/instance-id"]);
-                     def ip = exec.outputOf(
-                        ["curl", "-s",
-                         "http://169.254.169.254/latest/meta-data/public-ipv4"]);
-                     echo("Running on ec2 instance ${instanceId} at ip ${ip}");
-                     withEnv(["PATH=/usr/local/google_appengine:" +
-                              "/home/ubuntu/google-cloud-sdk/bin:" +
-                              "${env.HOME}/git-bigfile/bin:" +
-                              "${env.PATH}"]) {
-                        _setupWebapp();
+   try {
+      _setupWebapp();
 
-                        // This is apparently needed to avoid hanging with
-                        // the chrome driver.  See
-                        // https://github.com/SeleniumHQ/docker-selenium/issues/87
-                        // We also work around https://bugs.launchpad.net/bugs/1033179
-                        withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
-                                 "TMPDIR=/tmp"]) {
-                           withSecrets() {   // we need secrets to talk to bq/GCS
-                              dir("webapp") {
-                                 _computePageWeightDelta();
-                              }
-                           }
-                        }
-                     }
-                  }
-               } catch (e) {
-                  if (params.BUILD_PHID != "") {
-                     _submitPhabricatorComment("Failed to compute page weight deltas.");
-                     _submitPhabricatorHarbormasterMsg("fail");
-                  }
-                  throw e;
-               }
+      // This is apparently needed to avoid hanging with
+      // the chrome driver.  See
+      // https://github.com/SeleniumHQ/docker-selenium/issues/87
+      // We also work around https://bugs.launchpad.net/bugs/1033179
+      withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
+               "TMPDIR=/tmp"]) {
+         withSecrets() {   // we need secrets to talk to bq/GCS
+            dir("webapp") {
+               _computePageWeightDelta();
             }
          }
       }
+   } catch (e) {
+      if (params.BUILD_PHID != "") {
+         _submitPhabricatorComment("Failed to compute page weight deltas.");
+         _submitPhabricatorHarbormasterMsg("fail");
+      }
+      throw e;
    }
 }
 
-// Notify does more than notify on Slack. It also acts as a node and sets a timeout.
-// We don't need notifications for this job, currently, but using this instead of a
-// node and `onMaster` keeps this consistent with other jobs.
-// TODO(joshuan): Consider renaming `notify`.
-notify([timeout: "2h"]) {
+// We don't currently need notify for this job.
+onWorker('ka-page-weight-monitoring-ec2', '2h') {
    initializeGlobals();
 
    stage("Calculating page weight deltas") {
