@@ -306,9 +306,9 @@ def determineSplitsAndRunTests() {
             }
          }
       },
-      // These two run on the "parent" worker, and wait for setup before doing
-      // anything; we spawn them at the same time as everything else just to
-      // keep things simple and avoid more nesting.
+      // These two run on the master, and wait for setup before doing anything;
+      // we spawn them at the same time as everything else just to keep things
+      // simple and avoid more nesting.
       "android-integration-test": { runAndroidTests(
          slackArgs, slackArgsWithoutChannel); },
       "graphql-integration-test": { runGraphlSchemaTest(
@@ -409,23 +409,18 @@ if (params.NOTIFY_BUILDMASTER) {
 }
 
 
-// We run the test-splitter, reporter, and graphql/android tests on a worker --
-// with all the tests running nowadays running it on the master can overwhelm
-// the master, and we have plenty of workers.
-onWorker('ka-test-ec2', '5h') {     // timeout
-   notify.runWithNotification(notify_args) {
-      initializeGlobals();
+notify(notify_args) {
+   initializeGlobals();
 
-      try {
-         stage("Running tests") {
-            determineSplitsAndRunTests();
-         }
-      } finally {
-         // We want to analyze results even if -- especially if -- there
-         // were failures; hence we're in the `finally`.
-         stage("Analyzing results") {
-            analyzeResults();
-         }
+   try {
+      stage("Running tests") {
+         determineSplitsAndRunTests();
+      }
+   } finally {
+      // We want to analyze results even if -- especially if -- there
+      // were failures; hence we're in the `finally`.
+      stage("Analyzing results") {
+         analyzeResults();
       }
    }
 }
