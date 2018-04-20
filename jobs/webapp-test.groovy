@@ -360,7 +360,7 @@ def analyzeResults() {
 }
 
 
-onMaster('5h') {     // timeout
+onWorker('ka-test-ec2', '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
