@@ -313,7 +313,8 @@ def deploy() {
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
          [deployUrl: deployedUrl(""),
-          version: canonicalVersion()]);
+          version: canonicalVersion(),
+          branches: params.GIT_REVISION]);
 
       // If the phab_revision param exists than this znd-deploy must have
       // originated from the Herald Build Plan 6 and we can expect that the
