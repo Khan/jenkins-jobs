@@ -17,7 +17,6 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withTimeout
 //import vars.onWorker
-//import vars.singleton
 //import vars.withSecrets
 
 
@@ -72,12 +71,6 @@ origin/master, but the buildmaster will specify a better value when it can.""",
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
 API.""", ""
-
-).addBooleanParam(
-   "FORCE",
-   """If set, run the tests even if the database says that the tests
-have already passed at this GIT_REVISION.""",
-   false
 
 ).addChoiceParam(
    "CLEAN",
@@ -380,19 +373,15 @@ onMaster('5h') {     // timeout
                          what: 'webapp-test']]) {
       initializeGlobals();
 
-      def key = ["rGW${GIT_SHA1S.join('+')}",
-                 params.TEST_TYPE, params.MAX_SIZE];
-      singleton(params.FORCE ? null : key.join(":")) {
-         try {
-            stage("Determining splits & running tests") {
-               determineSplitsAndRunTests();
-            }
-         } finally {
-            // We want to analyze results even if -- especially if --
-            // there were failures; hence we're in the `finally`.
-            stage("Analyzing results") {
-               analyzeResults();
-            }
+      try {
+         stage("Determining splits & running tests") {
+            determineSplitsAndRunTests();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if --
+         // there were failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
          }
       }
    }
