@@ -134,6 +134,7 @@ gc_all_repos() {
         cd "$dir"
 
         git fetch --progress origin
+        git gc
         )
     done
 
