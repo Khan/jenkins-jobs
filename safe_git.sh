@@ -179,13 +179,14 @@ clone() {
         # Now clone locally as well.
         # TODO(csilvers): figure out how to use `git clone -s` but still
         # have our version point to the correct remote.
-        timeout 60m git clone -b "$commit" "$repo" "$repo_workspace"
+        timeout 60m git clone "$repo" "$repo_workspace"
 
         cd "$repo_workspace"
         # This is the magic that makes all our repos share an "objects" dir.
         echo "$repo_dir/.git/objects" > .git/objects/info/alternates
         # Force our new repo to share the objects too.
         timeout 60m git gc
+        timeout 10m git checkout -f "$commit"
     fi
     )
 }
