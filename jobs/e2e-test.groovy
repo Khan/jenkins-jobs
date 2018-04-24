@@ -60,7 +60,10 @@ for num in `seq 1 16`; do echo -- \$num; time tools/runsmoketests.py -j\$num >/d
 </blockquote>
 and pick the number with the shortest time.  For m3.large,
 the best value is 4.""",
-   "4"
+   // Changed to 1 to work around chromedriver hangs, see INFRA-1127.
+   // TODO(benkraft): Bump back up to 4 once we (or chrome) fix the issue, or
+   // have a better workaround.
+   "1"
 
 ).addStringParam(
    "GIT_REVISION",
