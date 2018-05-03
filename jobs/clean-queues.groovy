@@ -27,7 +27,7 @@ def deleteQueues() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
-         exec(["deploy/upload_queues.py clean"]);
+         sh("deploy/upload_queues.py clean");
       }
    }
 }
