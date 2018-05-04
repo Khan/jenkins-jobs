@@ -61,34 +61,28 @@ new Setup(steps
     """<b>REQUIRED</b>. The sha1 to deploy.""",
     ""
 
-).addChoiceParam(
-    "DEPLOY",
-    """\
+
+).addStringParam(
+    "SERVICES",
+    """<p>A comma-separated list of services we wish to change to the new
+version (see below for options), or the special value "auto", which says to
+choose the services to set-default automatically based on what files have
+changed.  For example, you might specify "dynamic,static" to force setting
+default on both GAE and GCS.</p>
+
+<p>Here are the services:</p>
 <ul>
-  <li> <b>default</b>: Switch the static version if there have been
-       changes to the static files since the last deploy, and/or
-       the dynamic version if there have been changes to the dynamic
-       files since the last deploy.  For tools-only changes
-       (e.g. to Makefile), do not deploy at all. </li>
-  <li> <b>static</b>: Switch the static (e.g. js) version, but not the
-       GAE version.  Only select this if you know your changes do not
-       affect the server code in any way! </li>
-  <li> <b>dynamic</b>: Switch the python (e.g. py), but not the static
-       version.  Only select this if your changes do not affect
-       user-facing code (js, images) in any way!, and you're
-       confident the existing-live user-facing code will work with your
-       changes. </li>
-  <li> <b>both</b>: Switch both static and dynamic versions. </li>
-  <li> <b>none</b>: Do not switch any versions (<b>dangerous!</b> --
-       do not use lightly).  Select this for tools-only changes. </li>
+  <li> <b>static</b>: The static (e.g. js) version. </li>
+  <li> <b>dynamic</b>: The dynamic (e.g. py) version. </li>
 </ul>
 
-<p>You may wonder: why do you need to run this job at all if you're
-just changing the Makefile?  Well, it's the only way of getting files
-into the master branch, so you do a 'quasi' deploy that still merges
-to master but doesn't actually deploy.</p>
+<p>You can specify the empty string to do no version-switching, like if you
+just change the Makefile.  (Do not do this lightly!)  You may wonder: why do
+you need to run this job at all if you're just changing the Makefile?  Well,
+it's the only way of getting files into the master branch, so you do a 'quasi'
+deploy that just merges to master.</p>
 """,
-    ["default", "both", "static", "dynamic", "none"]
+    "auto"
 
 ).addStringParam(
     "MONITORING_TIME",
@@ -151,9 +145,9 @@ DEPLOYER_USERNAME = null;
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
 
-// True if we should deploy to GCS/GAE (respectively).
-DEPLOY_STATIC = null;
-DEPLOY_DYNAMIC = null;
+// The list of services to which to deploy: currently a subset of
+// ["dynamic", "static"].
+SERVICES = null;
 
 // The git-tagname to roll back to if this deploy fails.  It
 // should be the git tag of the current-live deploy when this
@@ -329,20 +323,19 @@ def mergeFromMasterAndInitializeGlobals() {
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
-         if (params.DEPLOY == "default") {
-            // TODO(csilvers): look for output == yes/no instead, and
-            // if it's neither raise an exception.
-            def rc = exec.statusOf(shouldDeployArgs + ["static"]);
-            DEPLOY_STATIC = (rc != 0);
+         if (params.SERVICES == "auto") {
+            try {
+               SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
+            } catch(e) {
+               notify.fail("Automatic detection of what to deploy failed. " +
+                           "You can likely work around this by setting " +
+                           "SERVICES on your deploy; see " +
+                           "${env.BUILD_URL}rebuild for documentation, and " +
+                           "`sun: help flags` for how to set it.  If you " +
+                           "aren't sure, ask dev-support for help!");
+            }
          } else {
-            DEPLOY_STATIC = (params.DEPLOY in ["static", "both"]);
-         }
-
-         if (params.DEPLOY == "default") {
-            def rc = exec.statusOf(shouldDeployArgs + ["dynamic"]);
-            DEPLOY_DYNAMIC = (rc != 0);
-         } else {
-            DEPLOY_DYNAMIC = (params.DEPLOY in ["dynamic", "both"]);
+            SERVICES = params.SERVICES.split(",");
          }
 
          // If this deploy fails, we want to roll back to the version
@@ -352,7 +345,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
 
-         if (DEPLOY_STATIC && !DEPLOY_DYNAMIC) {
+         if ("static" in SERVICES && !("dynamic" in SERVICES)) {
             GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
                                          ROLLBACK_TO]);
             GCS_VERSION = gaeVersionName;
@@ -393,7 +386,7 @@ def promptForSetDefault() {
       // deploys, we therefore show a link directly to the vm module.
       // TODO(aasmund): Remove when we have a better vm deployment
       def maybeVmMessage = (
-         DEPLOY_DYNAMIC
+         ("dynamic" in SERVICES)
          ? "Note that if you want to test the CMS or the publish pages " +
            "(`/devadmin/content` or `/devadmin/publish`), " +
            "you need to do so on the " +
@@ -557,7 +550,7 @@ def finishWithSuccess() {
    withTimeout('10m') {
       dir("webapp") {
          // Create the git tag (if we actually deployed something somewhere).
-         if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+         if ("dynamic" in SERVICES || "static" in SERVICES) {
             def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
             if (!existingTag) {
                exec(["git", "tag", "-m",
@@ -705,7 +698,7 @@ onMaster('4h') {
          mergeFromMasterAndInitializeGlobals();
       }
 
-      if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+      if ("dynamic" in SERVICES || "static" in SERVICES) {
          try {
             stage("Prompt 1") {
                promptForSetDefault();

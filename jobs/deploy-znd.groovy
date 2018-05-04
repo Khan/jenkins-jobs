@@ -40,6 +40,8 @@ deploying non-default modules!</i>""",
     "If set, do not build translated versions of the webapp content.",
     false
 
+// TODO(benkraft): Modify this script to think in terms of services,
+// like build-webapp does, if we ever have znds for other services.
 ).addBooleanParam(
     "DEPLOYING_STATIC",
     """If set, deploy the static content at GIT_REVISION (js files, etc) to
