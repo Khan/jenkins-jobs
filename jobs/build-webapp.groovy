@@ -55,41 +55,35 @@ new Setup(steps
     "BASE_REVISION",
     """<p>Deploy everything that has happened since this revision.</p>
 
-    <p>This only matters if DEPLOY is "default".  In that case, we deploy to
+    <p>This only matters if SERVICES is "auto".  In that case, we deploy to
     static if there have been changes to static files since this revision.
     (So it must be a successfully built revision.)</p>""",
     ""
 
-).addChoiceParam(
-    "DEPLOY",
-    """\
+).addStringParam(
+    "SERVICES",
+    """<p>A comma-separated list of services we wish to deploy (see below for
+options), or the special value "auto", which says to choose the services to
+deploy automatically based on what files have changed.  For example, you might
+specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+
+<p>Here are the services:</p>
 <ul>
-  <li> <b>default</b>: Upload static files if they have been changed
-       since the last deploy, and/or dynamic files similarly.  For
-       tools-only changes (e.g. to Makefile), do not upload anything. </li>
-  <li> <b>static</b>: Upload static (e.g. js) files to GCS, but do not
-       upload to GAE.  Only select this if you know your changes do not
-       affect the server code in any way! </li>
-  <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE, but do
-       not update GCS.  Only select this if your changes do not affect
-       user-facing code (js, images) in any way!, and you're
-       confident, the existing-live user-facing code will work with your
-       changes. </li>
-  <li> <b>both</b>: Upload to both GCS and GAE. </li>
-  <li> <b>none</b>: Do not upload anything (<b>dangerous!</b> --
-       do not use lightly).  Select this for tools-only changes. </li>
+  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
+  <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
 </ul>
 
-<p>You may wonder: why do you need to run this job at all if you're
-just changing the Makefile?  Well, it's the only way of getting files
-into the master branch, so you do a 'quasi' deploy that just merges
-to master.</p>
+<p>You can specify the empty string to deploy to none of these services, like
+if you just change the Makefile.  (Do not do this lightly!)  You may wonder:
+why do you need to run this job at all if you're just changing the Makefile?
+Well, it's the only way of getting files into the master branch, so you do a
+'quasi' deploy that just merges to master.</p>
 
 <p>TODO(benkraft): In principle we shouldn't need this job at all for that case
 -- we should be able to skip straight to deploy-webapp.  But right now we don't
 know that we can do that at the right time.</p>
 """,
-    ["default", "both", "static", "dynamic", "none"]
+    "auto"
 
 ).addBooleanParam(
     "ALLOW_SUBMODULE_REVERTS",
@@ -106,7 +100,7 @@ revert a bug for instance, you must set this flag.""",
     """When set, force a deploy to GAE (AppEngine) even if the version has
 already been deployed. Likewise, force a copy of <i>all</i> files to
 GCS (Cloud Storage), even those the md5 checksum indicate are already
-present on GCS.  Note that this does not override <code>DEPLOY</code>;
+present on GCS.  Note that this does not override <code>SERVICES</code>;
 we only force GAE (or GCS) if we're actually deploying to it.""",
     false
 
@@ -171,9 +165,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
-// True if we should deploy to GCS/GAE (respectively).
-DEPLOY_STATIC = null;
-DEPLOY_DYNAMIC = null;
+// The list of services to which to deploy: currently a subset of
+// ["dynamic", "static"].
+SERVICES = null;
 
 // The "permalink" url used to access code deployed.
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
@@ -306,25 +300,16 @@ def mergeFromMasterAndInitializeGlobals() {
             shouldDeployArgs += ["--from-commit", params.BASE_REVISION]
          }
 
-         if (params.DEPLOY == "default") {
-            // TODO(csilvers): look for output == yes/no instead, and
-            // if it's neither raise an exception.
-            def rc = exec.statusOf(shouldDeployArgs + ["static"]);
-            DEPLOY_STATIC = (rc != 0);
+         if (params.SERVICES == "default") {
+            SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
          } else {
-            DEPLOY_STATIC = (params.DEPLOY in ["static", "both"]);
+            SERVICES = params.SERVICES.split(",");
          }
-
-         if (params.DEPLOY == "default") {
-            def rc = exec.statusOf(shouldDeployArgs + ["dynamic"]);
-            DEPLOY_DYNAMIC = (rc != 0);
-         } else {
-            DEPLOY_DYNAMIC = (params.DEPLOY in ["dynamic", "both"]);
-         }
+         echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
 
-         if (DEPLOY_STATIC && !DEPLOY_DYNAMIC) {
+         if ("static" in SERVICES && !("dynamic" in SERVICES)) {
             // In this case, we want to use the GAE version of the
             // BASE_REVISION, or that of the currently active version, if
             // BASE_REVISION is unset.
@@ -355,7 +340,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
 // This should be called from within a node().
 def deployToGAE() {
-   if (!DEPLOY_DYNAMIC) {
+   if (!("dynamic" in SERVICES)) {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
@@ -395,7 +380,7 @@ def deployToGCS() {
                "--deployer-username=${DEPLOYER_USERNAME}",
                // Same as for deploy_to_gae, we suppress the changelog for now.
                "--suppress-changelog"];
-   if (!DEPLOY_STATIC) {
+   if (!("static" in SERVICES)) {
       if (params.BASE_REVISION) {
          // Copy from the specified version.  Note that this may not be a
          // "real" static version (if BASE_REVISION was also a python-only
@@ -425,7 +410,7 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployAndReport() {
-    if (DEPLOY_STATIC || DEPLOY_DYNAMIC) {
+    if ("static" in SERVICES || "dynamic" in SERVICES) {
         parallel(
             "deploy-to-gae": { deployToGAE(); },
             "deploy-to-gcs": { deployToGCS(); },
