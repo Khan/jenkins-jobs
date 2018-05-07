@@ -230,11 +230,12 @@ logs>.
 
 FAILED_MERGE_TO_MASTER = [
    "severity": "error",
+   // the <!subteam> thing is "@dev-support".
    "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`)
 succeeded, but we did not successfully merge `%(branch)s` into
-`master`. Merge and then push manually via
-`git --no-verify push origin master`.
+`master`. <!subteam^S41PPSJ21> will need to fix things up, or
+see "Advanced Troubleshooting" in the deploy system user guide.
 """)];
 
 
