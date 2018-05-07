@@ -548,18 +548,19 @@ def promptToFinish() {
 
 def finishWithSuccess() {
    withTimeout('10m') {
-      dir("webapp") {
-         // Create the git tag (if we actually deployed something somewhere).
-         if ("dynamic" in SERVICES || "static" in SERVICES) {
-            def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
-            if (!existingTag) {
-               exec(["git", "tag", "-m",
-                     "Deployed to appengine from branch " +
-                     "${REVISION_DESCRIPTION}",
-                     GIT_TAG, params.GIT_REVISION]);
+      try {
+         dir("webapp") {
+            // Create the git tag (if we actually deployed something somewhere).
+            if ("dynamic" in SERVICES || "static" in SERVICES) {
+               def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
+               if (!existingTag) {
+                  exec(["git", "tag", "-m",
+                        "Deployed to appengine from branch " +
+                        "${REVISION_DESCRIPTION}",
+                        GIT_TAG, params.GIT_REVISION]);
+               }
             }
-         }
-         try {
+
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -597,13 +598,13 @@ def finishWithSuccess() {
             }
 
             echo("Done merging ${REVISION_DESCRIPTION} into master");
-         } catch (e) {
-            echo("FATAL ERROR merging to master: ${e}");
-            _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
-                   [combinedVersion: COMBINED_VERSION,
-                    branch: REVISION_DESCRIPTION]);
-            throw e;
          }
+      } catch (e) {
+         echo("FATAL ERROR merging to master: ${e}");
+         _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
+                [combinedVersion: COMBINED_VERSION,
+                 branch: REVISION_DESCRIPTION]);
+         throw e;
       }
 
       _alert(alertMsgs.SUCCESS,
