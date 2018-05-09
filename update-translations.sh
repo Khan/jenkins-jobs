@@ -234,14 +234,9 @@ cd ..         # get back to workspace-root.
 
 echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 ( cd webapp/intl/translations && git add . )
-jenkins-jobs/safe_git.sh commit_and_push_submodule \
-    webapp intl/translations \
-    -a \
-    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
-    -m "(locales: $updated_locales)" \
-    -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
 
-# If we updated some "bigfiles", we need to push them to S3 now, as well.
+# If we updated some "bigfiles", we need to push them to S3.  We do
+# that first so if it fails we don't do the git push.
 (
     echo "Pushing bigfiles"
     cd webapp/intl/translations
@@ -253,5 +248,13 @@ jenkins-jobs/safe_git.sh commit_and_push_submodule \
     timeout 120m find "`git rev-parse --git-dir`/bigfile/objects" -mtime +2 -type f -print0 \
         | xargs -r0 rm -f
 )
+
+# Now we can push to git.
+jenkins-jobs/safe_git.sh commit_and_push_submodule \
+    webapp intl/translations \
+    -a \
+    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+    -m "(locales: $updated_locales)" \
+    -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
 
 echo "DONE"
