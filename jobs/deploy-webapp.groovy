@@ -561,6 +561,21 @@ def finishWithSuccess() {
                }
             }
 
+            // When any of our datastore models or dataflow code changes, we
+            // need to rebuild the binary we use to export out datastore models
+            // to bigquery.
+            // We should do this more selectively (i.e. only when specific
+            // relevant files changed), but this is quick (< 30s), so to be
+            // safe as a stopgap measure we just do it all the time.
+            // We do this at finish time because we'd rather hit the edge case
+            // where a schema is slightly out of date, than the case where we
+            // did an export with a rolled-back schema change.
+            // TODO(colin): do this only in response to a SERVICES flag
+            // set by a should_deploy rule, as for "dynamic" and "static" above.
+            dir("dataflow/datastore_bigquery_adapter") {
+                exec(["./gradlew", "build_and_upload_jar"])
+            }
+
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
