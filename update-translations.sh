@@ -19,11 +19,11 @@
 #
 #   NUM_LANGS_TO_DOWNLOAD - update at most this many languages. The
 #       default is to process all languages that have updates.
+#       Ignored unless UPDATE_STRINGS is also set.
 #
 #   OVERRIDE_LANGS - a whitespace-separated list of languages to
-#       process, e.g., "fr es pt". Ignored unless
-#       DOWNLOAD_TRANSLATIONS is also set. When this is set,
-#       NUM_LANGS_TO_DOWNLOAD is ignored.
+#       process, e.g., "fr es pt". Must be set if
+#       DOWNLOAD_TRANSLATIONS is also set. Ignored otherwise.
 
 : ${DOWNLOAD_TRANSLATIONS:=}
 : ${UPDATE_STRINGS:=}
@@ -95,20 +95,7 @@ UPDATED_LOCALES_FILE=`pwd`/updated_locales.txt
 cd webapp
 
 if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
-
-    if [ -n "$OVERRIDE_LANGS" ]; then
-        list_of_langs="$OVERRIDE_LANGS"
-        # Even when we override the langs, we still call the ordering script as
-        # it also updates the first time we have seen any changed string counts
-        # so we know how long a language has been waiting to be updated
-        # correctly.
-        deploy/order_download_i18n.py
-    else
-        # Download the next NUM_LANGS_TO_DOWNLOAD most important langs
-        # pofiles and stats files in parallel and create the combined
-        # intl/translations/pofiles and intl/translations/approved_pofiles
-        list_of_langs=`deploy/order_download_i18n.py --verbose | head -n "$NUM_LANGS_TO_DOWNLOAD"`
-    fi
+    list_of_langs="$OVERRIDE_LANGS"
 
     # xargs -n1 takes a string and puts each word on its own line.
     for lang in `echo "$list_of_langs" | xargs -n1`; do

@@ -60,14 +60,20 @@ def runScript() {
 
          def overrideLangs = params.LOCALES;
 
-         if (!overrideLangs) {
-            withSecrets() {   // secrets are needed to talk to crowdin
-               dir("webapp") {
-                  // If not passed in as a param, get the single
-                  // highest priority lang.
-                  overrideLangs = exec.outputOf([
-                    "deploy/order_download_i18n.py",
-                    "--verbose"]).split("\n")[0];
+         withSecrets() {   // secrets are needed to talk to crowdin
+            dir("webapp") {
+               // Even when we override the langs, we still call the ordering
+               // script as it also updates the first time we have seen any
+               // changed string counts so we know how long a language has been
+               // waiting to be updated correctly.
+               def highestPriorityLang = exec.outputOf([
+                 "deploy/order_download_i18n.py",
+                 "--verbose"]).split("\n")[0];
+
+               // If not passed in as a param, get the single
+               // highest priority lang.
+               if (!overrideLangs) {
+                   overrideLangs = highestPriorityLang;
                }
             }
          }
@@ -81,7 +87,6 @@ def runScript() {
          lock("using-a-lot-of-memory") {
             withSecrets() {
                withEnv(["DOWNLOAD_TRANSLATIONS=1",
-                        "NUM_LANGS_TO_DOWNLOAD=1",
                         "OVERRIDE_LANGS=${overrideLangs}"]) {
                   sh("jenkins-jobs/update-translations.sh")
                }
