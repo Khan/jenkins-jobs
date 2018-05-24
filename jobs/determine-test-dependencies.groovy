@@ -132,7 +132,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["test-deps-${workerNum}"] = {
-         onWorker('ka-test-ec2', '4h') {     // timeout
+         onWorker('ka-test-ec2', '6h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f tests_for.*.json");
             unstash("splits");
