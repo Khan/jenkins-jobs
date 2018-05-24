@@ -206,7 +206,7 @@ def publishResults() {
 }
 
 
-onMaster('5h') {
+onMaster('7h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
