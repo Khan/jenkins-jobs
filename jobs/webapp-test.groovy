@@ -19,6 +19,7 @@ import org.khanacademy.Setup;
 //import vars.onWorker
 //import vars.withSecrets
 
+_DEV_SUPPORT_SLACK_CHANNEL = "C090KRE5P" // TODO: change to #dev-support
 
 new Setup(steps
 
@@ -329,12 +330,15 @@ def analyzeResults() {
                "genfiles/test-results.pickle genfiles/test-info.db");
             summarize_args = [
                "tools/test_pickle_util.py", "summarize-to-slack",
-               "genfiles/test-results.pickle", params.SLACK_CHANNEL,
+               "genfiles/test-results.pickle", _DEV_SUPPORT_SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--commit", REVISION_DESCRIPTION];
+
+            exec(summarize_args)  // Send stack trace to #dev-support
+            summarize_args[3] = params.SLACK_CHANNEL
             if (params.SLACK_THREAD &&
                   // Since people sometimes run tests on very old branches, we
                   // check that test_pickle_util.py supports slack threads
@@ -344,7 +348,8 @@ def analyzeResults() {
                    .contains("--slack-thread"))) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
-            exec(summarize_args);
+            exec(summarize_args); // Send results to #1s-and-0s-deploys
+
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
