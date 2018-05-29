@@ -76,7 +76,7 @@ def notifyWaiting(sha1, result) {
       git_sha: sha1,
       result: result,
    ];
-   return _makeHttpRequest("commits/waiting", "PATCH", params);
+   return _makeHttpRequest("commits/waiting", "POST", params);
 }
 
 def notifyId(job, sha1) {
