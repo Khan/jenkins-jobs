@@ -70,6 +70,15 @@ def notifyShouldDeploy(sha1, result, deploysNeeded) {
    return _makeHttpRequest("commits/deploys_needed", "PATCH", params);
 }
 
+def notifyWaiting(sha1, result) {
+   echo("Setting for ${sha1}: ${result}");
+   def params = [
+      git_sha: sha1,
+      result: result,
+   ];
+   return _makeHttpRequest("commits/waiting", "PATCH", params);
+}
+
 def notifyId(job, sha1) {
    echo("Phoning home to log job ID #${env.BUILD_NUMBER} for ${sha1} ${job}");
    def params = [
