@@ -22,8 +22,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H/10 * * * *"
-
 ).addStringParam(
     "URL",
     "The url-base to run these tests against.",
