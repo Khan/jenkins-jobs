@@ -66,7 +66,7 @@ onMaster('1h') {
        // working ok.
        build(job: '../deploy/e2e-test',
              parameters: [
-                string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+                string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
              ]);
    }
 }
