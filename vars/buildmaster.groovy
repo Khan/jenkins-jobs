@@ -70,10 +70,11 @@ def notifyShouldDeploy(sha1, result, deploysNeeded) {
    return _makeHttpRequest("commits/deploys_needed", "PATCH", params);
 }
 
-def notifyWaiting(sha1, result) {
+def notifyWaiting(job, sha1, result) {
    echo("Setting for ${sha1}: ${result}");
    def params = [
       git_sha: sha1,
+      job: job,
       result: result,
    ];
    return _makeHttpRequest("commits/waiting", "POST", params);

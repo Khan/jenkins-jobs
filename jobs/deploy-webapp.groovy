@@ -717,14 +717,14 @@ onMaster('4h') {
       if ("dynamic" in SERVICES || "static" in SERVICES) {
          try {
             stage("Prompt 1") {
-               buildmaster.notifyWaiting(sha, 'waiting SetDefault');
+               buildmaster.notifyWaiting(buildmasterOptions.what, sha, 'waiting SetDefault');
                promptForSetDefault();
             }
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
             }
             stage("Prompt 2") {
-               buildmaster.notifyWaiting(sha, 'waiting Finish');
+               buildmaster.notifyWaiting(buildmasterOptions.what, sha, 'waiting Finish');
                promptToFinish();
             }
          } catch (e) {
