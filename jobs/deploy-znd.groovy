@@ -107,6 +107,8 @@ in order to know the appropriate fixtures to post links for in Phabricator.""",
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.VERSION}:${params.GIT_REVISION})");
 
+// The full exact version-name we will use.
+VERSION = null;
 
 // This is hard-coded.
 SLACK_CHANNEL = "#1s-and-0s-deploys";
@@ -122,31 +124,17 @@ def _currentUser() {
 }
 
 
-def verifyVersion() {
+def determineVersion() {
    if (!params.VERSION) {
       notify.fail("The VERSION parameter is required.");
    }
-   if (version == "default") {
-      notify.fail("Hey there, deploy-znd is for deploying " +
-                  "non-defaults. Use the deploy-default job instead.");
-   }
-}
-
-
-// `version` as converted to znd-YYMMDD-<username>-foo form.
-// This must be called within a node() (because _currentUser needs that).
-def canonicalVersion() {
-   // TODO(benkraft): Remove the validation, and always prepend the
-   // znd-date-user stuff, once people are used to not including it.
-   def user = _currentUser();
-   def versionMatcher = params.VERSION =~ "(znd-)?(\\d{6}-)?(${user}-)?(.*)";
-   if (!versionMatcher.matches()) {
-      notify.fail("Unexpected regexp-parse error for '${params.VERSION}'");
+   if (version[:3] == "znd") {
+      notify.fail("No need to include the 'znd-YYMMDD-username' prefix! " +
+                  "We'll add it for you.");
    }
 
-   def date = versionMatcher[0][2] ?: new Date().format("yyMMdd");
-   def zndName = versionMatcher[0][4];
-   return "znd-${date}-${user}-${zndName}";
+   def date = new Date().format("yyMMdd");
+   VERSION = "znd-${date}-${_currentUser()}-${params.VERSION}";
 }
 
 
@@ -155,14 +143,12 @@ def canonicalVersion() {
 // ignored for static-only deploys as those respect dispatch.yaml rules as
 // normal.
 def deployedUrl(def module) {
-   def version = canonicalVersion();
    if (!params.DEPLOYING_DYNAMIC) {
-      return "https://static-${canonicalVersion()}.khanacademy.org";
+      return "https://static-${VERSION}.khanacademy.org";
    } else if (module) {
-      return ("https://${canonicalVersion()}-dot-${module}-dot-khan-academy" +
-              ".appspot.com");
+      return ("https://${VERSION}-dot-${module}-dot-khan-academy.appspot.com");
    } else {
-      return "https://${canonicalVersion()}-dot-khan-academy.appspot.com";
+      return "https://${VERSION}-dot-khan-academy.appspot.com";
    }
 }
 
@@ -173,7 +159,7 @@ def deployToGAE() {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
-               "--version=${canonicalVersion()}",
+               "--version=${VERSION}",
                "--modules=${params.MODULES}",
                "--no-browser", "--no-up",
                "--slack-channel=${SLACK_CHANNEL}",
@@ -200,7 +186,7 @@ def deployToGAE() {
 def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", canonicalVersion()];
+   def args = ["deploy/deploy_to_gcs.py", VERSION];
    if (!params.DEPLOYING_STATIC) {
       args += ["--copy-from=default"];
    }
@@ -259,7 +245,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
 // for full description of the workflow from including `Components for Review:` in
 // diff summary to running a znd deploy to posting fixture links to Phab.
 def _sendCommentToPhabricator() {
-   def args = ["deploy/post_znd_fixture_links.py", PHAB_REVISION, "${canonicalVersion()}"];
+   def args = ["deploy/post_znd_fixture_links.py", PHAB_REVISION, VERSION];
 
    withSecrets() {      // we need secrets to talk to phabricator
       dir("webapp") {
@@ -316,7 +302,7 @@ def deploy() {
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
          [deployUrl: deployedUrl(""),
-          version: canonicalVersion(),
+          version: VERSION,
           branches: params.GIT_REVISION]);
 
       // If the phab_revision param exists than this znd-deploy must have
@@ -340,7 +326,7 @@ onWorker('znd-worker', '2h') {
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      verifyVersion();
+      determineVersion();
       stage("Deploying") {
          deploy();
       }
