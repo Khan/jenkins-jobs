@@ -717,7 +717,7 @@ onMaster('4h') {
       if ("dynamic" in SERVICES || "static" in SERVICES) {
          try {
             stage("Prompt 1") {
-               buildmaster.notifyWaiting('deploy-webapp', sha,
+               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting SetDefault');
                promptForSetDefault();
             }
@@ -725,7 +725,7 @@ onMaster('4h') {
                setDefaultAndMonitor();
             }
             stage("Prompt 2") {
-               buildmaster.notifyWaiting('deploy-webapp', sha,
+               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting Finish');
                promptToFinish();
             }
