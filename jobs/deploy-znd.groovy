@@ -28,10 +28,9 @@ possible: a commit-sha1 to deploy. Basically, this is passed to
 ).addStringParam(
     "VERSION",
     """<b>REQUIRED</b>. The name of the this release on appengine.
-If your VERSION does not start with
-<code>znd-YYMMDD-&lt;your username&gt-</code>, that text will be
-automatically prepended.  <i>Due to DNS limitations, please keep
-this short, especially if your username is long and/or you are
+The "znd-", date, and your username will be automatically prepended,
+so don't include those.  <i>Due to DNS limitations, please keep this
+extremely short, especially if your username is long and/or you are
 deploying non-default modules!</i>""",
     ""
 
@@ -137,6 +136,8 @@ def verifyVersion() {
 // `version` as converted to znd-YYMMDD-<username>-foo form.
 // This must be called within a node() (because _currentUser needs that).
 def canonicalVersion() {
+   // TODO(benkraft): Remove the validation, and always prepend the
+   // znd-date-user stuff, once people are used to not including it.
    def user = _currentUser();
    def versionMatcher = params.VERSION =~ "(znd-)?(\\d{6}-)?(${user}-)?(.*)";
    if (!versionMatcher.matches()) {
