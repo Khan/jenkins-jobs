@@ -242,7 +242,7 @@ def _inputWithPrompts(message, id, warningsInMinutes) {
             // watchdog (in vars/notify.groovy) noticed.  We want to
             // continue with the abort process.
             throw e;
-         } else if (i == warningsInMinutes.size - 1) {
+         } else if (i == warningsInMinutes.size() - 1) {
             // Means we're at the last warningsInMinutes.  We're done warning.
             throw e;
          } else {
