@@ -227,7 +227,7 @@ def _alert(def slackArgs, def interpolationArgs) {
 def _inputWithPrompts(message, id, warningsInMinutes) {
    // We prompt (to remind people to do the input), at
    // warningsInMinutes[0..-1].  At the last warningsInMinutes we abort.
-   for (def i = 0; i < warningsInMinutes.size; i++) {
+   for (def i = 0; i < warningsInMinutes.size(); i++) {
       def sleepTime = (warningsInMinutes[i] -
                        (i > 0 ? warningsInMinutes[i - 1] : 0));
       try {
