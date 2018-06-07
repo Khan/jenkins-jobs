@@ -98,11 +98,16 @@ def mergeBranches() {
          }
       }
       // We need to at least tag the commit, otherwise github may prune it.
+      // (We can skip this step if something already points to the commit; in
+      // fact we want to to avoid Phabricator paying attention to this commit.)
       // TODO(benkraft): Prune these tags eventually.
-      tag_name = ("buildmaster-${params.COMMIT_ID}-" +
-                  "${new Date().format('yyyyMMdd-HHmmss')}");
-      exec(["git", "tag", tag_name, "HEAD"]);
-      exec(["git", "push", "--tags", "origin"]);
+      if (exec.outputOf(["git", "tag", "--points-at", "HEAD"]) == "" &&
+          exec.outputOf(["git", "branch", "-r", "--points-at", "HEAD"]) == "") {
+         tag_name = ("buildmaster-${params.COMMIT_ID}-" +
+                     "${new Date().format('yyyyMMdd-HHmmss')}");
+         exec(["git", "tag", tag_name, "HEAD"]);
+         exec(["git", "push", "--tags", "origin"]);
+      }
       def sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
       echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
       return sha1;
