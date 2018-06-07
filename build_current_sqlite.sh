@@ -73,6 +73,8 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     fi
 done
 
+# make sure that the file is fully written before uploading it
+sleep 30
 
 cd ..
 # upload current.sqlite and new content prefill files (deleteing old ones)
