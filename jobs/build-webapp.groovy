@@ -177,11 +177,8 @@ DEPLOY_URL = null;
 // (only set if BASE_REVISION is set).
 BASE_REVISION_VERSION = null;
 
-// The dynamic-deploy and static-deploy version-names.
-GAE_VERSION = null;
-GCS_VERSION = null;
-// This is the git tag but without the `gae-` prefix.
-COMBINED_VERSION = null;
+// The new version number (for whichever services will be deployed).
+NEW_VERSION = null;
 
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
@@ -316,32 +313,13 @@ def mergeFromMasterAndInitializeGlobals() {
          }
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
-         def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
+         NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
 
          if ("static" in SERVICES && !("dynamic" in SERVICES)) {
-            // In this case, we want to use the GAE version of the
-            // BASE_REVISION, or that of the currently active version, if
-            // BASE_REVISION is unset.
-            if (params.BASE_REVISION) {
-               GAE_VERSION = BASE_REVISION_VERSION;
-            } else {
-               def currentVersionTag = exec.outputOf(
-                  ["deploy/current_version.py", "--git-tag"]);
-               GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
-                                            currentVersionTag]);
-            }
-            GCS_VERSION = gaeVersionName;
-            DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
+            DEPLOY_URL = "https://static-${NEW_VERSION}.khanacademy.org";
          } else {
-            GAE_VERSION = gaeVersionName;
-            GCS_VERSION = gaeVersionName;
-            DEPLOY_URL = "https://${GAE_VERSION}-dot-khan-academy.appspot.com";
+            DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
          }
-
-         def gitTag = exec.outputOf(["deploy/git_tags.py",
-                                     GAE_VERSION, GCS_VERSION]);
-         // The git tag, but without the "gae-" prefix.
-         COMBINED_VERSION = gitTag.substring("gae-".length());
       }
    }
 }
@@ -384,7 +362,7 @@ def deployToGAE() {
 def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", GCS_VERSION,
+   def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
                // Same as for deploy_to_gae, we suppress the changelog for now.
@@ -427,7 +405,8 @@ def deployAndReport() {
         );
         _alert(alertMsgs.JUST_DEPLOYED,
                [deployUrl: DEPLOY_URL,
-                version: COMBINED_VERSION,
+                version: NEW_VERSION,
+                services: SERVICES.join(', ') ?: "tools-only",
                 branches: REVISION_DESCRIPTION]);
     }
 
@@ -457,7 +436,9 @@ def deployAndReport() {
 def finishWithFailure(why) {
    withTimeout('20m') {
       _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-             [combinedVersion: COMBINED_VERSION,
+             [version: NEW_VERSION,
+              // TODO(benkraft): Report specifically which service failed.
+              services: SERVICES.join(', ') ?: "tools-only",
               branch: REVISION_DESCRIPTION,
               why: why]);
       env.SENT_TO_SLACK = '1';
