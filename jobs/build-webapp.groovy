@@ -203,7 +203,8 @@ def _interpolateString(def s, def interpolationArgs) {
 // case, `interpolationArgs` are used to resolve those placeholders.
 // It should be a dict whose keys are the placeholder keywords and
 // whose values are the proper values for this alert.  Example:
-//    _alert(alert.STARTING_DEPLOY, [deployType: "static", branch: GIT_COMMIT]);
+//    _alert(alertMsgs.SETTING_DEFAULT, [combinedVersion: COMBINED_VERSION,
+//                                       abortUrl: "${env.BUILD_URL}stop"]);
 //
 // Should be run under a node in the workspace-root directory.
 def _alert(def slackArgs, def interpolationArgs) {
