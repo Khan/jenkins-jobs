@@ -69,8 +69,9 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 
 <p>Here are the services:</p>
 <ul>
-  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
+  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
+  <li> <b>kotlin-routes</b>: webapp's services/kotlin_routes/. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -315,19 +316,14 @@ def mergeFromMasterAndInitializeGlobals() {
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-
-         if ("static" in SERVICES && !("dynamic" in SERVICES)) {
-            DEPLOY_URL = "https://static-${NEW_VERSION}.khanacademy.org";
-         } else {
-            DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
-         }
+         DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
       }
    }
 }
 
 
 // This should be called from within a node().
-def deployToGAE() {
+defdeployToGAE() {
    if (!("dynamic" in SERVICES)) {
       return;
    }
@@ -361,8 +357,8 @@ def deployToGAE() {
 
 // This should be called from within a node().
 def deployToGCS() {
-   // We always "deploy" to gcs, even for python-only deploys, though
-   // for python-only deploys the gcs-deploy is very simple.
+   // We always "deploy" to gcs, even if it's not in SERVICES, though
+   // if it's not then the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
@@ -397,11 +393,27 @@ def deployToGCS() {
 
 
 // This should be called from within a node().
+def deployToKotlinRoutes() {
+   if (!("kotlin-routes" in SERVICES)) {
+      return;
+   }
+
+   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+      dir("webapp/services/kotlin_routes") {
+         sh("./gradlew deploy");
+      }
+   }
+}
+      
+
+
+// This should be called from within a node().
 def deployAndReport() {
-    if ("static" in SERVICES || "dynamic" in SERVICES) {
+    if (SERVICES) {
         parallel(
             "deploy-to-gae": { deployToGAE(); },
             "deploy-to-gcs": { deployToGCS(); },
+            "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
             "failFast": true,
         );
         _alert(alertMsgs.JUST_DEPLOYED,
