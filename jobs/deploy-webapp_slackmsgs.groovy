@@ -10,7 +10,8 @@
 // deploy-webapp.groovy can use this via something like:
 //    alert = load("jenkins-jobs/deploy-webapp_slackmsgs.groovy");
 // and then
-//    _alert(alert.STARTING_DEPLOY, [deployKind: kind, branch: GIT_COMMIT]);
+//    _alert(alertMsgs.SETTING_DEFAULT, [combinedVersion: COMBINED_VERSION,
+//                                       abortUrl: "${env.BUILD_URL}stop"]);
 // The second parameter is a dict used to interpolate variables into
 // the string using a python-like syntax of '%(varname)s'.
 
@@ -50,17 +51,6 @@ _abortField = [
    "value": ":speech_balloon: `sun: abort` (or <%(abortUrl)s|click me>)",
    "short": true,
 ];
-
-STARTING_DEPLOY = [
-   "severity": "info",
-   "simpleMessage": true,
-   "text": _textWrap("""\
-*Starting a %(deployType)sdeploy of branch `%(branch)s`.* :treeeee:
-
-I'll post again when tests are done & the deploy is finished.
-If you wish to cancel before then you can abort the deploy by
-typing `sun: abort`.
-""")];
 
 
 ROLLING_BACK = [
