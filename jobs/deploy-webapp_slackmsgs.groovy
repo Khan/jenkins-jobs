@@ -85,7 +85,7 @@ JUST_DEPLOYED = [
     "simpleMessage": true,
     "text": _textWrap("""\
 I've just uploaded <%(deployUrl)s|%(version)s>
-(containing `%(branches)s`)."""),
+(containing `%(branches)s`) to %(services)s."""),
 ];
 
 
@@ -232,7 +232,8 @@ see "Advanced Troubleshooting" in the deploy system user guide.
 FAILED_WITHOUT_ROLLBACK = [
    "severity": "error",
    "text": _textWrap("""\
-:ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) failed: %(why)s.
+:ohnoes: Deploy of `%(version)s` (branch `%(branch)s`)
+to %(services) failed: %(why)s.
 """)];
 
 
