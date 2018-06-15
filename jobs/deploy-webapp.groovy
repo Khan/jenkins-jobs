@@ -410,6 +410,7 @@ def promptForSetDefault() {
 def _promote() {
    def cmd = ["deploy/set_default.py",
               GAE_VERSION,
+              "--previous-tag-name=${ROLLBACK_TO}",
               "--slack-channel=${SLACK_CHANNEL}",
               "--deployer-username=${DEPLOYER_USERNAME}"];
    if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
