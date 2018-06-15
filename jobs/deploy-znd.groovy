@@ -128,7 +128,7 @@ def determineVersion() {
    if (!params.VERSION) {
       notify.fail("The VERSION parameter is required.");
    }
-   if (version[0..<3] == "znd") {
+   if (version.size() >= 3 && version[0..<3] == "znd") {
       notify.fail("No need to include the 'znd-YYMMDD-username' prefix! " +
                   "We'll add it for you.");
    }
