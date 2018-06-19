@@ -13,6 +13,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
+//import vars.onWorker
 
 new Setup(steps
 
@@ -100,7 +101,7 @@ def runTests() {
     }
 }
 
-onMaster('5h') {
+onWorker('ka-test-ec2', '1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
