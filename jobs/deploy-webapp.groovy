@@ -119,6 +119,13 @@ such as sun.  You can, but need not, include the leading `@`.""",
    ""
 
 ).addStringParam(
+    "PRETTY_DEPLOYER_USERNAME",
+    """The slack display name/real name of who asked to run this job. This
+should be the human-readable version of DEPLOYER_USERNAME, and does not
+have a leading `@`.""",
+    ""
+
+).addStringParam(
     "REVISION_DESCRIPTION",
     """Set by the buildmaster to give a more human-readable description
 of the GIT_REVISION, especially if it is a commit rather than a branch.
@@ -141,6 +148,9 @@ SLACK_CHANNEL = "#1s-and-0s-deploys";
 
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
+
+// The `<display_name>` we use to talk about the deployer (does not ping).
+PRETTY_DEPLOYER_USERNAME = null;
 
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
@@ -281,6 +291,12 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
+      if (params.PRETTY_DEPLOYER_USERNAME) {
+         PRETTY_DEPLOYER_USERNAME = params.PRETTY_DEPLOYER_USERNAME;
+      } else if (!DEPLOYER_USERNAME.startsWith("<@")) {
+         PRETTY_DEPLOYER_USERNAME = DEPLOYER_USERNAME.lstrip('@')
+      }
+
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
@@ -412,7 +428,9 @@ def _promote() {
               GAE_VERSION,
               "--previous-tag-name=${ROLLBACK_TO}",
               "--slack-channel=${SLACK_CHANNEL}",
-              "--deployer-username=${DEPLOYER_USERNAME}"];
+              "--deployer-username=${DEPLOYER_USERNAME}"],
+              "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}";
+
    if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
       cmd += ["--static-content-version=${GCS_VERSION}"];
    }
