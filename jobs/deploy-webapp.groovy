@@ -112,10 +112,10 @@ disruptions to users. Only to be used in case of urgent emergency.""",
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
-   """Who asked to run this job, used to ping on slack.
+   """The user id of who asked to run this job, used to ping on slack.
 If not specified, guess from the username of the person who started
 this job in Jenkins.  Typically not set manually, but by hubot scripts
-such as sun.  You can, but need not, include the leading `@`.""",
+such as sun. Should be of the form <@U1337H4KS>.""",
    ""
 
 ).addStringParam(
@@ -286,16 +286,8 @@ def mergeFromMasterAndInitializeGlobals() {
             DEPLOYER_USERNAME = env.BUILD_USER_ID.split("@")[0];
          }
       }
-      if (!DEPLOYER_USERNAME.startsWith("@") &&
-          !DEPLOYER_USERNAME.startsWith("<@")) {
-         DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
-      }
 
-      if (params.PRETTY_DEPLOYER_USERNAME) {
-         PRETTY_DEPLOYER_USERNAME = params.PRETTY_DEPLOYER_USERNAME;
-      } else if (!DEPLOYER_USERNAME.startsWith("<@")) {
-         PRETTY_DEPLOYER_USERNAME = DEPLOYER_USERNAME.lstrip('@')
-      }
+      PRETTY_DEPLOYER_USERNAME = params.PRETTY_DEPLOYER_USERNAME;
 
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
@@ -428,8 +420,8 @@ def _promote() {
               GAE_VERSION,
               "--previous-tag-name=${ROLLBACK_TO}",
               "--slack-channel=${SLACK_CHANNEL}",
-              "--deployer-username=${DEPLOYER_USERNAME}"],
-              "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}";
+              "--deployer-username=${DEPLOYER_USERNAME}",
+              "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
 
    if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
       cmd += ["--static-content-version=${GCS_VERSION}"];
