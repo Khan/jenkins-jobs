@@ -168,11 +168,8 @@ ROLLBACK_TO = null;
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
-// The dynamic-deploy and static-deploy version-names.
-GAE_VERSION = null;
-GCS_VERSION = null;
-// This is `GIT_TAG` but without the `gae-` prefix.
-COMBINED_VERSION = null;
+// The new service-version for any services we are deploying.
+NEW_VERSION = null;
 
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
@@ -194,7 +191,7 @@ def _interpolateString(def s, def interpolationArgs) {
 // case, `interpolationArgs` are used to resolve those placeholders.
 // It should be a dict whose keys are the placeholder keywords and
 // whose values are the proper values for this alert.  Example:
-//    _alert(alertMsgs.SETTING_DEFAULT, [combinedVersion: COMBINED_VERSION,
+//    _alert(alertMsgs.SETTING_DEFAULT, [combinedVersion: GIT_TAG,
 //                                       abortUrl: "${env.BUILD_URL}stop"]);
 //
 // Should be run under a node in the workspace-root directory.
@@ -352,23 +349,13 @@ def mergeFromMasterAndInitializeGlobals() {
          ROLLBACK_TO = exec.outputOf(["deploy/current_version.py",
                                       "--git-tag"]);
 
-         def gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
+         def NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
 
-         if ("static" in SERVICES && !("dynamic" in SERVICES)) {
-            GAE_VERSION = exec.outputOf(["deploy/git_tags.py", "--gae",
-                                         ROLLBACK_TO]);
-            GCS_VERSION = gaeVersionName;
-            DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
-         } else {
-            GAE_VERSION = gaeVersionName;
-            GCS_VERSION = gaeVersionName;
-            DEPLOY_URL = "https://${GAE_VERSION}-dot-khan-academy.appspot.com";
-         }
+         DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
 
+         // STOPSHIP need to add a new mode to git_tags.py
          GIT_TAG = exec.outputOf(["deploy/git_tags.py",
                                   GAE_VERSION, GCS_VERSION]);
-         // The same as GIT_TAG, but without the "gae-" prefix.
-         COMBINED_VERSION = GIT_TAG.substring("gae-".length());
       }
    }
 }
@@ -407,7 +394,7 @@ def promptForSetDefault() {
               maybeVmMessage: maybeVmMessage,
               setDefaultUrl: "${env.BUILD_URL}input/",
               abortUrl: "${env.BUILD_URL}stop",
-              combinedVersion: COMBINED_VERSION,
+              combinedVersion: GIT_TAG,
               branch: params.REVISION_DESCRIPTION]);
    }
 
@@ -421,6 +408,7 @@ def _promote() {
               GAE_VERSION,
               "--previous-tag-name=${ROLLBACK_TO}",
               "--slack-channel=${SLACK_CHANNEL}",
+              // STOPSHIP need to figure this thing out
               "--deployer-username=${DEPLOYER_USERNAME}",
               "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
 
@@ -481,6 +469,7 @@ def _monitor() {
       return;
    }
 
+   // STOPSHIP what to do about monitoring
    cmd = ["deploy/monitor.py", GAE_VERSION, GCS_VERSION,
           "--monitor=${params.MONITORING_TIME}",
           "--slack-channel=${SLACK_CHANNEL}",
@@ -511,7 +500,7 @@ def _monitor() {
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
-             [combinedVersion: COMBINED_VERSION,
+             [combinedVersion: GIT_TAG,
               abortUrl: "${env.BUILD_URL}stop"]);
 
       // Note that while we start these jobs at the same time, the
@@ -536,7 +525,7 @@ def promptToFinish() {
          "https://console.developers.google.com/project/khan-academy/logs" +
          "?service=appengine.googleapis.com&key1=default&key2=${GAE_VERSION}");
       def interpolationArgs = [logsUrl: logsUrl,
-                               combinedVersion: COMBINED_VERSION,
+                               combinedVersion: GIT_TAG,
                                finishUrl: "${env.BUILD_URL}input/",
                                abortUrl: "${env.BUILD_URL}stop",
                               ];
@@ -629,13 +618,13 @@ def finishWithSuccess() {
       } catch (e) {
          echo("FATAL ERROR merging to master: ${e}");
          _alert(alertMsgs.FAILED_MERGE_TO_MASTER,
-                [combinedVersion: COMBINED_VERSION,
+                [combinedVersion: GIT_TAG,
                  branch: REVISION_DESCRIPTION]);
          throw e;
       }
 
       _alert(alertMsgs.SUCCESS,
-             [combinedVersion: COMBINED_VERSION, branch: REVISION_DESCRIPTION]);
+             [combinedVersion: GIT_TAG, branch: REVISION_DESCRIPTION]);
       env.SENT_TO_SLACK = '1';
    }
 }
@@ -662,7 +651,7 @@ def finishWithFailure(why) {
             echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
                  "rollback-to: ${ROLLBACK_TO}");
             _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-                   [version: COMBINED_VERSION,
+                   [version: GIT_TAG,
                     branch: REVISION_DESCRIPTION,
                     why: why]);
             env.SENT_TO_SLACK = '1';
@@ -698,7 +687,7 @@ def finishWithFailure(why) {
       }
 
       _alert(alertMsgs.FAILED_WITH_ROLLBACK,
-             [combinedVersion: COMBINED_VERSION,
+             [combinedVersion: GIT_TAG,
               branch: REVISION_DESCRIPTION,
               rollbackToAsVersion: rollbackToAsVersion,
               why: why]);
