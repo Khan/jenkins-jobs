@@ -310,7 +310,7 @@ def mergeFromMasterAndInitializeGlobals() {
                            "aren't sure, ask dev-support for help!");
             }
          } else {
-            SERVICES = params.SERVICES.split(",");
+            SERVICES = params.SERVICES ? params.SERVICES.split(",") : [];
          }
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
