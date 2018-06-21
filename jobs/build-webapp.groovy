@@ -310,7 +310,13 @@ def mergeFromMasterAndInitializeGlobals() {
                            "aren't sure, ask dev-support for help!");
             }
          } else {
-            SERVICES = params.SERVICES ? params.SERVICES.split(",") : [];
+            SERVICES = params.SERVICES.split(",");
+         }
+         if (SERVICES == [""]) {
+            // Either of the above could be [""], if we should deploy nothing.
+            // We want to use [] instead: [""] would mean deploying a single
+            // nameless service or something.
+            SERVICES = [];
          }
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
