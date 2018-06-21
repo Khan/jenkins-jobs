@@ -315,12 +315,23 @@ def mergeFromMasterAndInitializeGlobals() {
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-
-         if ("static" in SERVICES && !("dynamic" in SERVICES)) {
-            DEPLOY_URL = "https://static-${NEW_VERSION}.khanacademy.org";
-         } else {
-            DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
+         // Normally, the deploy url will be the new version's appspot URL --
+         // we use these URLs for testing even for static versions.  But, if we
+         // have a tools-only version, there is no such version anywhere on app
+         // engine, and the URL won't work, so we fall back to the base
+         // revision (i.e. either BASE_REVISION_VERSION or the live default).
+         // Either way, we use an appspot URL, for consistency and to make sure
+         // the appspot URL cases in e2e-test get tested.
+         def urlVersion = NEW_VERSION;
+         if (!SERVICES) {
+            if (params.BASE_REVISION) {
+               urlVersion = BASE_REVISION_VERSION;
+            } else {
+               urlVersion = exec.outputOf(
+                  ["deploy/current_version.py", "--dynamic"]);
+            }
          }
+         DEPLOY_URL = "https://${urlVersion}-dot-khan-academy.appspot.com";
       }
    }
 }
