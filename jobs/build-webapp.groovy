@@ -334,7 +334,7 @@ def mergeFromMasterAndInitializeGlobals() {
                urlVersion = BASE_REVISION_VERSION;
             } else {
                urlVersion = exec.outputOf(
-                  ["deploy/current_version.py", "--dynamic"]);
+                  ["deploy/current_version.py", "--service", "dynamic"]);
             }
          }
          DEPLOY_URL = "https://${urlVersion}-dot-khan-academy.appspot.com";
