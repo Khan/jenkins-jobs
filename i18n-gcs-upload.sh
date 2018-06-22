@@ -80,7 +80,7 @@ if [ -n "$GIT_TAG" ]; then
     # If it turns out it's problematic, we can still roll back, it
     # will just be a bit further back than we'd roll back if we did a
     # real js-only deploy.
-    STATIC_CONTENT_VERSION=`deploy/git_tags.py --static "$GIT_TAG"`
+    STATIC_CONTENT_VERSION=`deploy/git_tags.py --service static "$GIT_TAG"`
 
     if [ -n "$locales_for_static_upload" ]; then
         # We don't send to slack since there aren't really any changes
