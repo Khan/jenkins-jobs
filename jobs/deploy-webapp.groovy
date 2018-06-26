@@ -662,7 +662,7 @@ def finishWithFailure(why) {
             echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
                  "rollback-to: ${ROLLBACK_TO}");
             _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-                   [combinedVersion: COMBINED_VERSION,
+                   [version: COMBINED_VERSION,
                     branch: REVISION_DESCRIPTION,
                     why: why]);
             env.SENT_TO_SLACK = '1';
