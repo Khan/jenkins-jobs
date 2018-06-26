@@ -233,7 +233,7 @@ FAILED_WITHOUT_ROLLBACK = [
    "severity": "error",
    "text": _textWrap("""\
 :ohnoes: Deploy of `%(version)s` (branch `%(branch)s`)
-to %(services) failed: %(why)s.
+to %(services)s failed: %(why)s.
 """)];
 
 
