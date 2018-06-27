@@ -421,8 +421,12 @@ def deployToKotlinRoutes() {
    }
 
    withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp/services/kotlin_routes") {
-         sh("./gradlew deploy");
+      dir("webapp") {
+         // HACK: If we sh() in a directory d, jenkins creates a sibling
+         // directory d@tmp.  If d is a subdirectory of webapp, this confuses
+         // deploy_to_gae.py's local changes check.  Instead we have the shell
+         // do the cd, which is ugly but works.
+         sh("cd services/kotlin_routes && ./gradlew deploy");
       }
    }
 }
