@@ -344,18 +344,34 @@ def mergeFromMasterAndInitializeGlobals() {
             SERVICES = params.SERVICES.split(",");
          }
 
-         // If this deploy fails, we want to roll back to the version
-         // that was active when the deploy started.  That's now!
-         ROLLBACK_TO = exec.outputOf(["deploy/current_version.py",
-                                      "--git-tag"]);
-
-         def NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-
+         NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
 
-         // STOPSHIP need to add a new mode to git_tags.py
-         GIT_TAG = exec.outputOf(["deploy/git_tags.py",
-                                  GAE_VERSION, GCS_VERSION]);
+         def currentVersionTag = exec.outputOf(
+            ["deploy/current_version.py", "--git-tag"]);
+         def currentVersionParts = exec.outputOf(
+            ["deploy/git_tags.py", currentVersionTag]).split("\n");
+
+         // If this deploy fails, we want to roll back to the version
+         // that was active when the deploy started.  That's now!
+         ROLLBACK_TO = currentVersionTag;
+
+         // The new version will be like the old version, except replacing each
+         // service in SERVICES with NEW_VERSION.
+         def newVersionParts = [];
+         for (def i = 0; i < versionParts.size(); i++) {
+            def serviceAndVersion = versionParts[i];
+            if (serviceAndVersion) {
+               def service = serviceAndVersion.split("=")[0];
+               if (service in SERVICES) {
+                  newVersionParts += ["${service}=${NEW_VERSION}"];
+               } else {
+                  newVersionParts += [serviceAndVersion];
+               }
+            }
+         }
+         // Now combine those into a git tag.
+         GIT_TAG = exec.outputOf(["deploy/git_tags.py"] + newVersionParts);
       }
    }
 }
@@ -386,7 +402,7 @@ def promptForSetDefault() {
          ? "Note that if you want to test the CMS or the publish pages " +
            "(`/devadmin/content` or `/devadmin/publish`), " +
            "you need to do so on the " +
-           "<https://${GAE_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
+           "<https://${NEW_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
            "vm module> instead. "
          : "");
       _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
@@ -403,26 +419,57 @@ def promptForSetDefault() {
 }
 
 
-def _promote() {
-   def cmd = ["deploy/set_default.py",
-              GAE_VERSION,
-              "--previous-tag-name=${ROLLBACK_TO}",
-              "--slack-channel=${SLACK_CHANNEL}",
-              // STOPSHIP need to figure this thing out
-              "--deployer-username=${DEPLOYER_USERNAME}",
-              "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
-
-   if (GCS_VERSION && GCS_VERSION != GAE_VERSION) {
-      cmd += ["--static-content-version=${GCS_VERSION}"];
+def _promoteWebapp() {  // call from webapp-root
+   if (!('static' in SERVICES || 'dynamic' in SERVICES)) {
+      return;
    }
+
+   def cmd = ["deploy/set_default.py"];
+
+   if ('static' in SERVICES && !('dynamic' in SERVICES)) {
+      // TODO(benkraft): Have set_default.py just choose its own version
+      // against which to set-default in this case.
+      def gaeVersion = exec.outputOf(["deploy/current_version.py",
+                                      "--service dynamic"]);
+      cmd += [gaeVersion, "--static-content-version=${NEW_VERSION}"];
+   } else {
+      cmd += [NEW_VERSION];
+   }
+
+   cmd += ["--previous-tag-name=${ROLLBACK_TO}",
+           "--slack-channel=${SLACK_CHANNEL}",
+           "--deployer-username=${DEPLOYER_USERNAME}",
+           "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
+
    if (params.SKIP_PRIMING) {
       cmd += ["--no-priming"];
    }
 
+   exec(cmd);
+}
+
+
+def _promoteKotlinRoutes() {  // call from webapp-root
+   if (!('kotlin-routes' in SERVICES)) {
+      return;
+   }
+   
+   // We do the cd in the shell to avoid tmpdir issues -- see comments in
+   // build-webapp for details.
+   sh("cd services/kotlin_routes && ./gradlew set_default " +
+      "--new-version='${NEW_VERSION}'");
+}
+
+
+def _promote() {
+
    withSecrets() {
       dir("webapp") {
          try {
-            exec(cmd);
+            parallel(
+               [ "promote-kotlin-routes": { _promoteKotlinRoutes(); },
+                 "promote-webapp": { _promoteWebapp(); },
+               ]);
 
             // Once we finish (successfully) promoting, let's run
             // the e2e tests again.  I'd rather do this at the top
@@ -469,8 +516,8 @@ def _monitor() {
       return;
    }
 
-   // STOPSHIP what to do about monitoring
-   cmd = ["deploy/monitor.py", GAE_VERSION, GCS_VERSION,
+   cmd = ["deploy/monitor.py", NEW_VERSION,
+          "--services=${','.join(SERVICES)}",
           "--monitor=${params.MONITORING_TIME}",
           "--slack-channel=${SLACK_CHANNEL}",
           "--monitor-error-is-fatal"];
@@ -523,7 +570,7 @@ def promptToFinish() {
    withTimeout('1m') {
       def logsUrl = (
          "https://console.developers.google.com/project/khan-academy/logs" +
-         "?service=appengine.googleapis.com&key1=default&key2=${GAE_VERSION}");
+         "?service=appengine.googleapis.com&key1=default&key2=${NEW_VERSION}");
       def interpolationArgs = [logsUrl: logsUrl,
                                combinedVersion: GIT_TAG,
                                finishUrl: "${env.BUILD_URL}input/",
