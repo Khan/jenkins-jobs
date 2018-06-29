@@ -356,7 +356,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          if ("static" in SERVICES && !("dynamic" in SERVICES)) {
             GAE_VERSION = exec.outputOf(["deploy/git_tags.py",
-                                         "--service dynamic", ROLLBACK_TO]);
+                                         ROLLBACK_TO, "--service dynamic"]);
             GCS_VERSION = gaeVersionName;
             DEPLOY_URL = "https://static-${GCS_VERSION}.khanacademy.org";
          } else {
