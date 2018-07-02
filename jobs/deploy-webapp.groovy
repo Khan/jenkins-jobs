@@ -365,6 +365,11 @@ def mergeFromMasterAndInitializeGlobals() {
                def service = serviceAndVersion.split("=")[0];
                if (service in SERVICES) {
                   newVersionParts += ["${service}=${NEW_VERSION}"];
+               } else if (service == "static" && "dynamic" in SERVICES) {
+                  // We deploy a "copied" static version anytime we deploy
+                  // dynamic.
+                  // TODO(benkraft): Handle this in a less bespoke way.
+                  newVersionParts += ["${service}=${NEW_VERSION}"];
                } else {
                   newVersionParts += [serviceAndVersion];
                }
