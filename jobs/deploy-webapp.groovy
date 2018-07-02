@@ -359,8 +359,8 @@ def mergeFromMasterAndInitializeGlobals() {
          // The new version will be like the old version, except replacing each
          // service in SERVICES with NEW_VERSION.
          def newVersionParts = [];
-         for (def i = 0; i < versionParts.size(); i++) {
-            def serviceAndVersion = versionParts[i];
+         for (def i = 0; i < currentVersionParts.size(); i++) {
+            def serviceAndVersion = currentVersionParts[i];
             if (serviceAndVersion) {
                def service = serviceAndVersion.split("=")[0];
                if (service in SERVICES) {
