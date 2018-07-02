@@ -115,10 +115,10 @@ onWorker('ka-test-ec2', '1h') {
             allowMissing: true,
             alwaysLinkToLastBuild: false,
             keepAll: true,
-            reportDir: 'khanalytics-private/khanalytics/kt/core/build/reports' +
-               '/tests/test',
+            reportDir: 'khanalytics-private/khanalytics/kt/build' +
+                '/reports/allTests',
             reportFiles: 'index.html',
-            reportName: 'Kotlintest report [core]'
+            reportName: 'Kotlintest report [combined]'
         ];
     }
 }
