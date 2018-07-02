@@ -761,7 +761,7 @@ onMaster('4h') {
          mergeFromMasterAndInitializeGlobals();
       }
 
-      if ("dynamic" in SERVICES || "static" in SERVICES) {
+      if (SERVICES) {
          try {
             stage("Prompt 1") {
                buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
