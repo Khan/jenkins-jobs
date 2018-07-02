@@ -516,7 +516,7 @@ def _monitor() {
    }
 
    cmd = ["deploy/monitor.py", NEW_VERSION,
-          "--services=${','.join(SERVICES)}",
+          "--services=${SERVICES.join(',')}",
           "--monitor=${params.MONITORING_TIME}",
           "--slack-channel=${SLACK_CHANNEL}",
           "--monitor-error-is-fatal"];
