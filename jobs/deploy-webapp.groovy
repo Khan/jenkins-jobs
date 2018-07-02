@@ -598,7 +598,7 @@ def finishWithSuccess() {
       try {
          dir("webapp") {
             // Create the git tag (if we actually deployed something somewhere).
-            if ("dynamic" in SERVICES || "static" in SERVICES) {
+            if (SERVICES) {
                def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
                if (!existingTag) {
                   exec(["git", "tag", "-m",
