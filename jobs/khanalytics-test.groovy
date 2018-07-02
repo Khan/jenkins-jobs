@@ -102,14 +102,23 @@ def runTests() {
 }
 
 onWorker('ka-test-ec2', '1h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-       initializeGlobals();
-       runTests();
-   }
+    notify([slack: [channel: params.SLACK_CHANNEL,
+                    sender: 'Testing Turtle',
+                    emoji: ':turtle:',
+                    when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
+            aggregator: [initiative: 'infrastructure',
+                         when: ['SUCCESS', 'BACK TO NORMAL',
+                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+        initializeGlobals();
+        runTests();
+        publishHTML target: [
+            allowMissing: true,
+            alwaysLinkToLastBuild: false,
+            keepAll: true,
+            reportDir: 'khanalytics-private/khanalytics/kt/core/build/reports' +
+               '/tests/test',
+            reportFiles: 'index.html',
+            reportName: 'Kotlintest report [core]'
+        ];
+    }
 }
