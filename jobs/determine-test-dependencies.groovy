@@ -196,7 +196,9 @@ def publishResults() {
          sh("tools/determine_tests_for.py --merge " +
             "-o testing/tests_for.json " +
             "../tests_for.*.json");
-         sh("git add testing/tests_for.json");
+         // Compress to keep github happy with the filesize.
+         sh("gzip testing/tests_for.json")
+         sh("git add testing/tests_for.json.gz");
       }
       // Check it in!
       kaGit.safeCommitAndPush(
