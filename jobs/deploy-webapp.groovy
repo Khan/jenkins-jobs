@@ -435,7 +435,7 @@ def _promoteWebapp() {  // call from webapp-root
       // TODO(benkraft): Have set_default.py just choose its own version
       // against which to set-default in this case.
       def gaeVersion = exec.outputOf(["deploy/current_version.py",
-                                      "--service dynamic"]);
+                                      "--service", "dynamic"]);
       cmd += [gaeVersion, "--static-content-version=${NEW_VERSION}"];
    } else {
       cmd += [NEW_VERSION];
