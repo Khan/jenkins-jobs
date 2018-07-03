@@ -329,6 +329,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
+         // TODO(benkraft): Extract the resolution of services into a util
          if (params.SERVICES == "auto") {
             try {
                SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
@@ -343,6 +344,13 @@ def mergeFromMasterAndInitializeGlobals() {
          } else {
             SERVICES = params.SERVICES.split(",");
          }
+         if (SERVICES == [""]) {
+            // Either of the above could be [""], if we should deploy nothing.
+            // We want to use [] instead: [""] would mean deploying a single
+            // nameless service or something.
+            SERVICES = [];
+         }
+         echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
