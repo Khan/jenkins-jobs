@@ -349,6 +349,13 @@ def deployToGAE() {
    if (!("dynamic" in SERVICES)) {
       return;
    }
+
+   // Sometimes deploy_to_gae fails with "local changes in this directory,
+   // canceling deploy."  This command will help diagnose what's wrong.
+   dir("webapp") {
+      sh("git status")
+   }
+
    def args = ["deploy/deploy_to_gae.py",
                "--no-browser", "--no-up",
                "--slack-channel=${params.SLACK_CHANNEL}",
