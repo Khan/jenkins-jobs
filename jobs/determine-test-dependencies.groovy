@@ -197,6 +197,7 @@ def publishResults() {
             "-o testing/tests_for.json " +
             "../tests_for.*.json");
          // Compress to keep github happy with the filesize.
+         sh("rm -rf testing/tests_for.json.gz")
          sh("gzip testing/tests_for.json")
          sh("git add testing/tests_for.json.gz");
       }
