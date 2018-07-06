@@ -44,7 +44,7 @@ _verify_at_master() {
 create_git_history() {
     for i in `seq ${3-1}`; do
         echo "${2-$1}" >> "$1"
-        git add "$1"
+        git add -f "$1"
         git commit -m "$1: commit #$i"
     done
 }
@@ -61,6 +61,7 @@ create_test_repos() {
         git init "subrepo3 sub"
         git init subrepo_extra
         cd subrepo1
+        create_git_history ".gitignore" "README"
         create_git_history "foo" "foo subrepo1" 3
         create_git_history "bar" "bar subrepo1" 3
         cd ../subrepo2
@@ -286,6 +287,17 @@ test_delete_a_subsubmodule() {
     ( cd ../origin/repo/subrepo3; git checkout master; git pull; git clean -ffd;
         cd ..; git commit -am "Update subrepo";
         git submodule update --recursive )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+    _verify_at_master repo ../origin/repo
+}
+
+test_delete_a_submodule_with_gitignored_files() {
+    ( cd ../origin/subrepo1; create_git_history "README" )
+    ( cd ../origin/repo/subrepo1; git pull;
+        cd ..; git commit -am "Submodules" )
+    "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
+
+    ( cd ../origin/repo; git rm subrepo1; git commit -am "Nix subrepo" )
     "$SAFE_GIT" sync_to_origin "$ROOT/origin/repo" "master"
     _verify_at_master repo ../origin/repo
 }

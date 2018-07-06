@@ -109,6 +109,20 @@ _destructive_checkout() {
         exit 1
     fi
     timeout 1m git clean -ffd
+    # When we are cleaning out a submodule, *and* that submodule
+    # disappeared as part of this `git checkout -f`, *and* that
+    # submodule had a .gitignored file in it (such as a .pyc file)
+    # then the clean above won't totally delete this submodule
+    # because it will leave around the .pyc file.  BUT it will
+    # delete the .gitignore, so a subsequent git clean -ffd will
+    # delete it.  We always just clean twice to be safe.
+    # TODO(csilvers): is it faster to check when we need to the
+    # second clean?
+    # TODO(csilvers): this scheme doesn't work for files excluded
+    # via a global .gitignore, rather than a local one.  Come up
+    # with a plan for that as well.
+    timeout 1m git clean -ffd
+
     # No need to init, or resync, or recurse here: we just want to
     # make sure that when we visit changed subrepos, they're at the
     # right version.  (We handle the recursion ourselves below.)
@@ -125,14 +139,6 @@ _destructive_checkout() {
             ( cd "$f" && _destructive_checkout HEAD )
         fi
     done
-
-    # TOOD(csilvers): if any submodules disappeared as part of this
-    # `git checkout -f`, and thus submodules had .gitignored files
-    # in them (such as .pyc files), then the submodule's `.git` file
-    # won't be deleted by `git clean` even though it should be.  It is
-    # also invisible to `git status`.  Ideally we should find such
-    # `.git` files and nuke them manually.  Or we should consider
-    # using `git clean -ffdx` above.
 }
 
 # $* (optional): submodules to update.  If left out, update all submodules.
