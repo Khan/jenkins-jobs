@@ -204,7 +204,7 @@ def publishResults() {
       // Check it in!
       kaGit.safeCommitAndPush(
          "webapp", ["-m", "Automated update of tests_for.json",
-                    "testing/tests_for.json"]);
+                    "testing/tests_for.json.gz"]);
    }
 }
 
