@@ -353,7 +353,7 @@ def deployToGAE() {
    // Sometimes deploy_to_gae fails with "local changes in this directory,
    // canceling deploy."  This command will help diagnose what's wrong.
    dir("webapp") {
-      sh("git status")
+      sh("git status -u -s")
    }
 
    def args = ["deploy/deploy_to_gae.py",
