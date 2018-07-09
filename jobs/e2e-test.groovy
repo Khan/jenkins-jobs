@@ -172,21 +172,27 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    // Wait until the other thread has finished setup, then go.
    waitUntil({ HAVE_RUN_SETUP });
 
-   def successMsg = "GraphQL schema integration test succeeded for " +
-      REVISION_DESCRIPTION;
-   def failureMsg = "GraphQL schema integration test failed for " +
-      "${REVISION_DESCRIPTION}. This means " +
-      "the GraphQL schema is not valid or does not support all active " +
-      "queries (most likely the schema breaks a mobile native query).";
    def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
       "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
       "grep -q '.passed.: *true'";
    withSecrets() {  // we need secrets to talk to slack!
       try {
          sh(cmd)
+         def successMsg = "GraphQL schema integration test succeeded for " +
+            REVISION_DESCRIPTION;
          sh("echo ${exec.shellEscape(successMsg)} | " +
             "${exec.shellEscapeList(slackArgs)} --severity=info");
       } catch (e) {
+         def msg = exec.outputOf(
+            ['curl', '-s',
+             ('${params.URL}/api/internal/graphql_whitelist/validate' +
+              '?format=pretty')
+            ]);
+         def failureMsg = "GraphQL schema integration test failed for " +
+            "${REVISION_DESCRIPTION}. This means " +
+            "the GraphQL schema is not valid or does not support all active " +
+            "queries (most likely the schema breaks a mobile native query). "
+            "Failure message: ```${msg}```";
          sh("echo ${exec.shellEscape(failureMsg)} | " +
             "${exec.shellEscapeList(slackArgs)} --severity=error");
          sh("echo ${exec.shellEscape(failureMsg)} | " +
