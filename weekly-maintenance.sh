@@ -268,7 +268,7 @@ clean_ka_static() {
 
 backup_network_config() {
     # TODO(csilvers): figure out how to automate the runs of the other dirs too
-    NETWORK_CONFIG_BACKUP_DIRS="bigquery dns fastly gce gcs network_configs s3"
+    NETWORK_CONFIG_BACKUP_DIRS="bigquery dns fastly firewall gce gcs network_configs s3"
     for dir in $NETWORK_CONFIG_BACKUP_DIRS; do
         (
             cd "network-config/$dir"
