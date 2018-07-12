@@ -77,10 +77,10 @@ jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR"/crowdin_data.pickle
 echo "Dropbox folders are ready and fully synched"
 
 echo "Updating the webapp repo."
-# We do our work in the 'translations' branch.
-jenkins-jobs/safe_git.sh pull_in_branch webapp translations
+# We do our work in the 'automated-commits' branch.
+jenkins-jobs/safe_git.sh pull_in_branch webapp automated-commits
 # ...which we want to make sure is up-to-date with master.
-jenkins-jobs/safe_git.sh merge_from_master webapp translations
+jenkins-jobs/safe_git.sh merge_from_master webapp automated-commits
 # We also make sure the intl/translations sub-repo is up to date.
 jenkins-jobs/safe_git.sh pull webapp/intl/translations
 

@@ -362,7 +362,8 @@ fi
 set -x
 
 # Sync the repos we're going to be pushing changes to.
-jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "master"
+# We change webapp in the 'automated-commits' branch.
+jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "automated-commits"
 jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
 
 ( cd webapp && make deps )

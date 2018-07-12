@@ -23,11 +23,11 @@ def updateRepo() {
    withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
-      // We do our work in the 'translations' branch.
-      kaGit.safePullInBranch("webapp", "translations");
+      // We do our work in the 'automated-commits' branch.
+      kaGit.safePullInBranch("webapp", "automated-commits");
 
       // ...which we want to make sure is up-to-date with master.
-      kaGit.safeMergeFromMaster("webapp", "translations");
+      kaGit.safeMergeFromMaster("webapp", "automated-commits");
 
       // We also make sure the intl/translations sub-repo is up to date.
       kaGit.safePull("webapp/intl/translations");

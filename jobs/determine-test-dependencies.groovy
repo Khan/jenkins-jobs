@@ -63,6 +63,13 @@ def initializeGlobals() {
 
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
+
+   // We do our work in the 'automated-commits' branch.
+   kaGit.safePullInBranch("webapp", "automated-commits");
+
+   // ...which we want to make sure is up-to-date with master.
+   kaGit.safeMergeFromMaster("webapp", "automated-commits");
+
    dir("webapp") {
       sh("make clean_pyc");    // in case some .py files went away
       sh("make deps");
@@ -77,10 +84,11 @@ def determineSplits() {
    // That will save time later.
    def jobs = [
       "determine-splits": {
+         withTimeout('1h') {
+            _setupWebapp();
+         }
          withTimeout('10m') {
             def NUM_SPLITS = NUM_WORKER_MACHINES;
-
-            _setupWebapp();
             dir("webapp") {
                sh("tools/runtests.py -n --just-split -j${NUM_SPLITS} " +
                   // We have to specify js_test because it is @manual_only.
@@ -115,7 +123,7 @@ def determineSplits() {
       jobs["sync-webapp-${workerNum}"] = {
          // TODO(benkraft): Refactor this to do the setup in the same
          // onWorker() block, like we did for webapp-test.
-         onWorker('ka-test-ec2', '10m') {      // timeout
+         onWorker('ka-test-ec2', '1h') {      // timeout
             _setupWebapp();
          }
       }
