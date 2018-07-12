@@ -303,15 +303,16 @@ def mergeFromMasterAndInitializeGlobals() {
          }
 
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                                params.GIT_REVISION)
+                                params.GIT_REVISION);
 
          dir("webapp") {
-            if (exec.outputOf(
-                  ["git", "rev-list", "${params.GIT_REVISION}..master"])) {
+            def revList = exec.outputOf(
+                  ["git", "rev-list", "${params.GIT_REVISION}..master"])
+            if (revList) {
                // We do an extra safety check, that GIT_REVISION
                // is a valid sha ahead of master.
                notify.fail("GIT_REVISION ${params.GIT_REVISION} is " +
-                              "behind master!")
+                           "behind master!  Output: ${revList}");
             }
          }
       }
