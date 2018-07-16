@@ -43,6 +43,14 @@ alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
 API.""", ""
 
+).addStringParam(
+  "JOB_PRIORITY",
+   """The priority of the job to be run (a lower priority means it is run
+   sooner). Jenkins will use the Priority Sorter plugin to reorder jobs in the
+   queue accordingly. Should be set to 1 if the job is depended on by the
+   currently deploying branch, otherwise 4.""",
+   "4"
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS})";
