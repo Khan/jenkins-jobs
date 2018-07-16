@@ -272,7 +272,8 @@ backup_network_config() {
         make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default
         git add .
     )
-    jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of $NETWORK_CONFIG_BACKUP_DIRS"
+    @: The subshell lists every directory we have a Makefile in.
+    jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of `ls network-config/*/Makefile | xargs -n1 dirname | xargs -n1 basename | xargs`"
 }
 
 
