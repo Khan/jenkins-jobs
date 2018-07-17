@@ -60,6 +60,22 @@ clean_genfiles() {
 }
 
 
+# Every week, we compress jenkins logs.  Jenkins can read compressed
+# log files but has trouble making them, so we just making them manually.
+compress_jenkins_logs() {
+    for dir in $HOME/jobs/*/jobs/*/builds; do
+        (
+        echo "Compressing log-files in $dir"
+        cd "$dir"
+
+        # Ignore logs that are less than a day old; we might still be
+        # writing to them.  (We assume no jenkins job runs for >24 hours!)
+        find . -mtime +1 -a -type f -a \( -name 'log' -o -name '*.log' \) -print0 | xargs -0rt gzip
+        )
+    done
+}
+
+
 # Every week, we prune invalid branches that creep into our repos somehow.
 # See http://stackoverflow.com/questions/6265502/getting-rid-of-does-not-point-to-a-valid-object-for-an-old-git-branch
 clean_invalid_branches() {
