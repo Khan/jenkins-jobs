@@ -100,9 +100,9 @@ Defaults to GIT_REVISION.""",
    """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
 in the queue accordingly. Should be set to 3 if the job is depended on by
-the currently deploying branch, otherwise 4. Legal values are 1
-through 5.""",
-   "4"
+the currently deploying branch, otherwise 6. Legal values are 1
+through 11.""",
+   "6"
 
 ).apply();
 
