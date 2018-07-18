@@ -132,7 +132,9 @@ def initializeGlobals() {
                                      params.GIT_REVISION);
    // Required for buildmaster to accept a notification
    IS_ONE_GIT_SHA = true;
-   JOB_PRIORITY = params.JOB_PRIORITY;
+   if (params.JOB_PRIORITY) {
+         JOB_PRIORITY = params.JOB_PRIORITY;
+   }
 }
 
 

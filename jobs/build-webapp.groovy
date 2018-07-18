@@ -273,12 +273,16 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
+      if (params.JOB_PRIORITY) {
+          JOB_PRIORITY = params.JOB_PRIORITY;
+      }
+
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${params.SLACK_CHANNEL}",
                "SLACK_THREAD=${params.SLACK_THREAD}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}",
-               "JOB_PRIORITY=${params.JOB_PRIORITY}"]) {
+               "JOB_PRIORITY=${JOB_PRIORITY}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                                 params.GIT_REVISION)
       }
