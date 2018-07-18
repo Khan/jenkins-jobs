@@ -295,6 +295,10 @@ def mergeFromMasterAndInitializeGlobals() {
 
       PRETTY_DEPLOYER_USERNAME = params.PRETTY_DEPLOYER_USERNAME;
 
+      if (params.JOB_PRIORITY) {
+          JOB_PRIORITY = params.JOB_PRIORITY;
+      }
+
       // Create the deploy branch and merge in the requested branch.
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
@@ -512,8 +516,7 @@ def _promote() {
                             value: DEPLOYER_USERNAME),
                      string(name: 'REVISION_DESCRIPTION',
                             value: params.REVISION_DESCRIPTION),
-                     string(name: 'JOB_PRIORITY',
-                            value: params.JOB_PRIORITY),
+                     string(name: 'JOB_PRIORITY', value: JOB_PRIORITY),
                   ]);
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
