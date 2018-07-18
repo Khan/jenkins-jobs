@@ -155,9 +155,10 @@ Defaults to GIT_REVISION.""",
 ).addStringParam(
     "JOB_PRIORITY",
     """The priority of the job to be run (a lower priority means it is run
-    sooner). Jenkins will use the Priority Sorter plugin to reorder jobs in the
-    queue accordingly. Should be set to 2 if the job is depended on by the
-    currently deploying branch, otherwise 4.""",
+    sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+    in the queue accordingly. Should be set to 2 if the job is depended on by
+    the currently deploying branch, otherwise 4. Legal values are 1
+    through 5.""",
     "4"
 ).apply();
 
@@ -273,16 +274,12 @@ def mergeFromMasterAndInitializeGlobals() {
          DEPLOYER_USERNAME = "@${DEPLOYER_USERNAME}";
       }
 
-      if (params.JOB_PRIORITY) {
-          JOB_PRIORITY = params.JOB_PRIORITY;
-      }
-
       // TODO(csilvers): have these return an error message instead
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${params.SLACK_CHANNEL}",
                "SLACK_THREAD=${params.SLACK_THREAD}",
                "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}",
-               "JOB_PRIORITY=${JOB_PRIORITY}"]) {
+               "JOB_PRIORITY=${params.JOB_PRIORITY}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                                 params.GIT_REVISION)
       }
@@ -361,8 +358,6 @@ def deployToGAE() {
    if (!("dynamic" in SERVICES)) {
       return;
    }
-   // STOPSHIP: Just to make sure, we don't touch jenkins here, and therefore
-   // don't need a priority right?
    def args = ["deploy/deploy_to_gae.py",
                "--no-browser", "--no-up",
                "--slack-channel=${params.SLACK_CHANNEL}",
@@ -481,7 +476,7 @@ def deployAndReport() {
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
                   string(name: 'REVISION_DESCRIPTION',
                          value: REVISION_DESCRIPTION),
-                  string(name: 'JOB_PRIORITY', value: JOB_PRIORITY),
+                  string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
               ]);
     }
 }
