@@ -152,6 +152,15 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
     ""
 
+).addStringParam(
+    "JOB_PRIORITY",
+    """The priority of the job to be run (a lower priority means it is run
+    sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+    in the queue accordingly. Should be set to 3 if the job is depended on by
+    the currently deploying branch, otherwise 6. Legal values are 1
+    through 11. See https://jenkins.khanacademy.org/advanced-build-queue/ for
+    more information.""",
+    "6"
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -270,7 +279,8 @@ def mergeFromMasterAndInitializeGlobals() {
       // of alerting themselves, so we can use notify.fail().
       withEnv(["SLACK_CHANNEL=${params.SLACK_CHANNEL}",
                "SLACK_THREAD=${params.SLACK_THREAD}",
-               "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}"]) {
+               "DEPLOYER_USERNAME=${DEPLOYER_USERNAME}",
+               "JOB_PRIORITY=${params.JOB_PRIORITY}"]) {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                                 params.GIT_REVISION)
       }
@@ -349,7 +359,6 @@ def deployToGAE() {
    if (!("dynamic" in SERVICES)) {
       return;
    }
-
    def args = ["deploy/deploy_to_gae.py",
                "--no-browser", "--no-up",
                "--slack-channel=${params.SLACK_CHANNEL}",
@@ -468,6 +477,7 @@ def deployAndReport() {
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
                   string(name: 'REVISION_DESCRIPTION',
                          value: REVISION_DESCRIPTION),
+                  string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
               ]);
     }
 }

@@ -132,6 +132,16 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
     ""
 
+).addStringParam(
+    "JOB_PRIORITY",
+    """The priority of the job to be run (a lower priority means it is run
+    sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+    in the queue accordingly. Should be set to 3 if the job is depended on by
+    the currently deploying branch, otherwise 6. Legal values are 1
+    through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
+    for more information.""",
+    "6"
+
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -504,6 +514,7 @@ def _promote() {
                             value: DEPLOYER_USERNAME),
                      string(name: 'REVISION_DESCRIPTION',
                             value: params.REVISION_DESCRIPTION),
+                     string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
                   ]);
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort

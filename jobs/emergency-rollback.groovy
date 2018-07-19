@@ -21,7 +21,17 @@ import org.khanacademy.Setup;
 //import vars.withSecrets
 
 // No bespoke setup: this is as simple a job as they get!
-new Setup(steps).apply();
+new Setup(steps
+
+).addStringParam(
+   "JOB_PRIORITY",
+   """The priority of the job to be run (a lower priority means it is run
+sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+in the queue accordingly. Should always be set to 1. See
+https://jenkins.khanacademy.org/advanced-build-queue/ for more information.""",
+   "1"
+
+).apply();
 
 
 // TODO(csilvers): maybe use another workspace to save time syncing?
