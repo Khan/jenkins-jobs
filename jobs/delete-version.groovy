@@ -25,6 +25,15 @@ spaces. Must exactly match the name of an existing version (e.g.
 "webapp" modules.""",
     ""
 
+).addStringParam(
+   "JOB_PRIORITY",
+   """The priority of the job to be run (a lower priority means it is run
+sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+in the queue accordingly. Should usually be set to 6. Legal values are 1
+through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
+for more information.""",
+   "6"
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.VERSION})";
