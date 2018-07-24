@@ -1,6 +1,7 @@
-// The pipeline job to run the full suite of webapp tests.
+// The pipeline job to test the dev-only e2e tests
 //
-// This just calls a few other jobs in order to do the running.
+// This just calls webapp-test with different paramters in order to do the
+// running.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -21,6 +22,11 @@ to such a commit-hash.""",
    "If set, stop running tests after the first failure.",
    false
 
+).addStringParam(
+   "SLACK_CHANNEL",
+   "The slack channel to which to send failure alerts.",
+   "#coached-eng"
+
 ).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
@@ -28,7 +34,7 @@ have already passed at this GIT_REVISION.""",
    false
 
 ).addCronSchedule(
-   '0 2 * * 1-5'        // Run every weekday morning at 2am
+   '0 5,8,11,14,17,20 * * 1-5'        // Run every three hours during workdays
 
 ).apply();
 
@@ -37,16 +43,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 
 onMaster('5h') {
-   // We want to notify that make-allcheck started, but don't need to
-   // notify how it did because the sub-jobs will each notify
-   // individually.
-   // TODO(csilvers): remove onMaster(), and just allocate
-   // the executor in the notify clean-up steps.
    notify(
-      [slack: [channel: '#1s-and-0s',
+      [slack: [channel: params.SLACK_CHANNEL,
                when: ['STARTED', 'ABORTED']],
-       bugtracker: [project: 'Infrastructure',
-                    when: ['FAILURE']],
        aggregator: [initiative: 'infrastructure',
                     when: ['SUCCESS', 'BACK TO NORMAL',
                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
@@ -60,23 +59,11 @@ onMaster('5h') {
                string(name: 'GIT_REVISION', value: params.GIT_REVISION),
                string(name: 'TEST_TYPE', value: "all"),
                string(name: 'MAX_SIZE', value: "huge"),
+               string(name: 'TEST_FILE_GLOB', value: "_e2etest.py"),
                booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+               string(name: 'SLACK_CHANNEL', value: params.SLACK_CHANNEL),
                booleanParam(name: 'FORCE', value: params.FORCE),
             ]);
 
-      build(job: '../deploy/e2e-test',
-            parameters: [
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            ]);
-
-      build(job: '../deploy/dev-e2e-test',
-            parameters: [
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            ]);
    }
 }
