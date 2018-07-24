@@ -117,7 +117,20 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
 
-).apply();
+).addStringParam(
+   "NUM_RETRIES",
+   """The number of times we should retry a failing test after failure. This
+should always be set to 0 unless we're running end to end tests that have some
+inherent flakiness.""",
+   "0"
+
+).addStringParam(
+   "TEST_FILE_GLOB",
+   """Specify the file glob to use when searching for which tests to run. You
+may want to set this if you only want to run a subset of tests based on their
+file name, but most callers should be happy with the default.""",
+   "*_test.py"
+).apply()
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
@@ -199,6 +212,7 @@ def _determineTests() {
    // tests that are not the right size.  Finally, it figures out splits.
    def runtestsCmd = ("tools/runtests.py " +
                       "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+                      "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} " +
                       "--jobs=${NUM_WORKER_MACHINES} " +
                       "--timing-db=genfiles/test-info.db " +
                       "--dry-run --just-split");
@@ -260,6 +274,7 @@ def doTestOnWorker(workerNum) {
             "--pickle-file=../test-results.${workerNum}.pickle " +
             "--quiet --jobs=1 " +
             "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+            "--retries=${params.NUM_RETRIES.toInteger()} " +
             (params.FAILFAST ? "--failfast " : "") +
             "- < ../test_splits.${workerNum}.txt");
       } finally {
