@@ -7,6 +7,7 @@
 @Library("kautils")
 
 import org.khanacademy.Setup;
+//import vars.exec
 //import vars.kaGit
 //import vars.notify
 
@@ -17,6 +18,7 @@ new Setup(steps).addStringParam(
 ).apply();
 
 REPOSITORY = "git@github.com:Khan/khanalytics-private";
+PROJECT = "khanalytics-160822-160823";
 
 def runTests() {
     // TODO(colin): allow customizing the commit we're deploying?
@@ -45,11 +47,24 @@ def substateKhanalytics() {
 
 def deploy() {
     dir('khanalytics-private') {
-        // TODO(colin): this makefile rule will set a global configuration for
-        // what kubernetes cluster to talk to. If we ever have jobs that
-        // interact with other clusters, we will need to wrap this in a lock.
         withEnv(["CLOUDSDK_COMPUTE_ZONE=us-central1-c"]) {
-            sh("make deploy-prod");
+            // TODO(colin): these makefile rules will set a global configuration
+            // for what kubernetes cluster to talk to. If we ever have jobs that
+            // interact with other clusters, we will need to wrap this in a lock.
+            sh("make prepare-deploy-prod");
+            sh("make base-image");
+            sh("make build-dockerfiles");
+            def images = exec.outputOf(["ls", "build/Dockerfiles"]).split('\n');
+            def imagesMap = [:];
+            for (image in images) {
+                imagesMap[image] = {
+                    sh("deployment/build_single_image.sh $PROJECT $image");
+                }
+            }
+            parallel(imagesMap);
+            sh("deployment/retag_deploy_images.sh $PROJECT");
+            sh("make deploy-static");
+            sh("make update-deployments");
         }
     }
 }
