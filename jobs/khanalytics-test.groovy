@@ -27,6 +27,14 @@ new Setup(steps
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
    "#future-of-pipelines"
+).addStringParam(
+   "JOB_PRIORITY",
+   """The priority of the job to be run (a lower priority means it is run
+   sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
+   in the queue accordingly. Should be set to 6. Legal values are 1
+   through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
+   for more information.""",
+   "6"
 ).apply();
 
 REPOSITORY = "git@github.com:Khan/khanalytics-private";
