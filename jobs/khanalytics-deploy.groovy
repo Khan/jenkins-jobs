@@ -54,7 +54,7 @@ def deploy() {
     }
 }
 
-onMaster('60m') {
+onMaster('90m') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
