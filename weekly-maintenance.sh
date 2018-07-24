@@ -285,7 +285,7 @@ clean_ka_static() {
 backup_network_config() {
     (
         cd network-config
-        make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default
+        make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json
         git add .
     )
     @: The subshell lists every directory we have a Makefile in.
