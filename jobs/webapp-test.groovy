@@ -212,12 +212,19 @@ def _setupWebapp() {
 def _determineTests() {
    def tests;
 
+   // Only add the `--test-file-glob` param if differs from the default
+   // TODO(dhruv): remove this check once enough folks have merged master to
+   // get the new --test-file-glob param. Definitely by 2018/09/01.
+   def testFileGlobFlag = ""
+   if (params.TEST_FILE_GLOB != "*_test.py") {
+     testFileGlobFlag = "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} "
+   }
+
    // This command expands directory arguments, and also filters out
    // tests that are not the right size.  Finally, it figures out splits.
    def runtestsCmd = ("tools/runtests.py " +
                       "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-                      // TODO(csilvers): uncomment after dhruv's deploy
-                      //                      "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} " +
+                      testFileGlobFlag +
                       "--jobs=${NUM_WORKER_MACHINES} " +
                       "--timing-db=genfiles/test-info.db " +
                       "--dry-run --just-split");
