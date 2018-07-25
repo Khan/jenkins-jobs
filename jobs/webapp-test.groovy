@@ -216,7 +216,8 @@ def _determineTests() {
    // tests that are not the right size.  Finally, it figures out splits.
    def runtestsCmd = ("tools/runtests.py " +
                       "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-                      "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} " +
+                      // TODO(csilvers): uncomment after dhruv's deploy
+                      //                      "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} " +
                       "--jobs=${NUM_WORKER_MACHINES} " +
                       "--timing-db=genfiles/test-info.db " +
                       "--dry-run --just-split");
