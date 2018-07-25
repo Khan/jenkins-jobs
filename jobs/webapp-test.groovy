@@ -44,6 +44,10 @@ origin/master, but the buildmaster will specify a better value when it can.""",
    """\
 <ul>
   <li> <b>all</b>: run all tests</li>
+  <li> <b>all_non_manual</b>: run all tests, excluding ones that are 'manual
+        only' (as identified by the
+        `only_run_when_explicitly_specified_on_runtests_commandline`
+        decorator)</li>
   <li> <b>relevant</b>: run only those tests that are affected by
          files that have changed between master and GIT_REVISION.</li>
 </ul>
@@ -221,6 +225,9 @@ def _determineTests() {
       // We have to specify these explicitly because they are @manual_only.
       sh("${runtestsCmd} . testing.js_test testing.lint_test dev.flow_test " +
          " > genfiles/test_splits.txt");
+   } else if (params.TEST_TYPE == "all_non_manual") {
+      sh("${runtestsCmd} .  > genfiles/test_splits.txt");
+   }
    } else if (params.TEST_TYPE == "relevant") {
       sh("tools/tests_for.py -i ${exec.shellEscape(params.BASE_REVISION)} " +
          " | ${runtestsCmd} -" +
