@@ -23,6 +23,14 @@ new Setup(steps).addStringParam(
    through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
    for more information.""",
    "6"
+).addBooleanParam(
+    "TESTS",
+    """Whether to run tests on this deploy. You should never turn this off for
+    a normal deploy; this is intended only for debugging the deploy process
+    itself once tests have already passed.
+    TODO(colin): instead of this option, figure out if tests have already
+    passed at this commit and don't run them again.""",
+    true
 ).apply();
 
 REPOSITORY = "git@github.com:Khan/khanalytics-private";
@@ -65,8 +73,9 @@ def deploy() {
             def images = exec.outputOf(["ls", "build/Dockerfiles"]).split('\n');
             def imagesMap = [:];
             for (image in images) {
+                def localImage = image;
                 imagesMap[image] = {
-                    sh("deployment/build_single_image.sh $PROJECT $image");
+                    sh("deployment/build_single_image.sh $PROJECT $localImage");
                 }
             }
             parallel(imagesMap);
@@ -95,7 +104,9 @@ onMaster('90m') {
        }
 
        stage("Running tests") {
-           runTests();
+            if (params.TESTS) {
+                runTests();
+            }
        }
 
        stage("Deploy") {
