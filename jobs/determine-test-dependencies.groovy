@@ -195,7 +195,7 @@ def publishResults() {
       }
 
       // Get ready to overwrite a file in our repo.
-      kaGit.safePull("webapp");
+      kaGit.safePullInBranch("webapp", "automated-commits");
       dir("webapp") {
          // Make deps again in case they've changed.
          sh("make clean_pyc");
