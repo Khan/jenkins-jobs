@@ -227,7 +227,6 @@ def _determineTests() {
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "all_non_manual") {
       sh("${runtestsCmd} .  > genfiles/test_splits.txt");
-   }
    } else if (params.TEST_TYPE == "relevant") {
       sh("tools/tests_for.py -i ${exec.shellEscape(params.BASE_REVISION)} " +
          " | ${runtestsCmd} -" +
