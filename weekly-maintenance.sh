@@ -285,6 +285,7 @@ clean_ka_static() {
 backup_network_config() {
     (
         cd network-config
+        make deps
         make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json
         git add .
     )
