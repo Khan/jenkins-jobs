@@ -35,6 +35,35 @@ have already passed at this GIT_REVISION.""",
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.GIT_REVISION})");
 
+def runAllTests() {
+    build(job: '../deploy/webapp-test',
+          parameters: [
+             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+             string(name: 'TEST_TYPE', value: "all"),
+             string(name: 'MAX_SIZE', value: "huge"),
+             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+             booleanParam(name: 'FORCE', value: params.FORCE),
+          ]);
+}
+
+def runSmokeTests() {
+    build(job: '../deploy/e2e-test',
+          parameters: [
+             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+          ]);
+}
+
+def runDevE2eTests() {
+    build(job: '../deploy/dev-e2e-test',
+          parameters: [
+             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+          ]);
+}
 
 onMaster('5h') {
    // We want to notify that make-allcheck started, but don't need to
@@ -55,28 +84,10 @@ onMaster('5h') {
       // TODO(csilvers): move those secrets somewhere else instead.
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", null);
 
-      build(job: '../deploy/webapp-test',
-            parameters: [
-               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-               string(name: 'TEST_TYPE', value: "all"),
-               string(name: 'MAX_SIZE', value: "huge"),
-               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-               booleanParam(name: 'FORCE', value: params.FORCE),
-            ]);
-
-      build(job: '../deploy/e2e-test',
-            parameters: [
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            ]);
-
-      build(job: '../deploy/dev-e2e-test',
-            parameters: [
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-               string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-               booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-            ]);
+      parallel([
+         "webapp-test": runAllTests,
+         "smoke-tests": runSmokeTests,
+         "dev-e2e-tests": runDevE2eTests,
+      ])
    }
 }
