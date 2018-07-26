@@ -85,9 +85,9 @@ onMaster('5h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", null);
 
       parallel([
-         "webapp-test": runAllTests,
-         "smoke-tests": runSmokeTests,
-         "dev-e2e-tests": runDevE2eTests,
+         "webapp-test": { runAllTests(); },
+         "smoke-tests": { runSmokeTests(); },
+         "dev-e2e-tests": { runDevE2eTests(); },
       ])
    }
 }
