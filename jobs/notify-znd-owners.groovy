@@ -25,7 +25,7 @@ new Setup(steps).apply();
 
 
 def runScript() {
-   withTimeout('15m') {
+   withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need secrets to talk to slack
          dir("webapp") {
