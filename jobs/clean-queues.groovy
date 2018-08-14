@@ -23,7 +23,7 @@ new Setup(steps
 
 
 def deleteQueues() {
-   withTimeout('15m') {
+   withTimeout('1h') {  // normally 15m, but sometimes cloning takes forever.
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
@@ -33,7 +33,7 @@ def deleteQueues() {
 }
 
 
-onMaster('30m') {
+onMaster('1h') {
    notify([slack: [channel: '#infrastructure',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
