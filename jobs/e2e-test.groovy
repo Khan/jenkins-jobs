@@ -98,6 +98,19 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
    ""
 
+).addBooleanParam(
+   "SET_SPLIT_COOKIE",
+   """Set by deploy-webapp when we are in the middle of migrating traffic;
+this causes us to set the magic cookie to send tests to the new version.
+Only works when the URL is www.khanacademy.org.""",
+   false
+
+).addStringParam(
+   "EXPECTED_VERSION",
+   """Set along with SET_SPLIT_COOKIE if we wish to verify we got the right
+version.  Currently only supported when we are deploying dynamic.""",
+   ""
+
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
@@ -248,6 +261,12 @@ def _runOneTest(splitId) {
                "-"];
    if (params.FAILFAST) {
       args += ["--failfast"];
+   }
+   if (params.SET_SPLIT_COOKIE) {
+      args += ["--set-split-cookie"];
+   }
+   if (params.EXPECTED_VERSION) {
+      args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
 
    try {

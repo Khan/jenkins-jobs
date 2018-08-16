@@ -489,33 +489,12 @@ def _promote() {
    withSecrets() {
       dir("webapp") {
          try {
+            // TODO(benkraft): Since we no longer wait on e2e tests, we could
+            // probably merge this parallel() into the parent one.
             parallel(
                [ "promote-kotlin-routes": { _promoteKotlinRoutes(); },
                  "promote-webapp": { _promoteWebapp(); },
                ]);
-
-            // Once we finish (successfully) promoting, let's run
-            // the e2e tests again.  I'd rather do this at the top
-            // level, but since we run in a `parallel` it's better
-            // to do this here so we don't have to wait for the
-            // monitor job to finish before running this.  We could
-            // set `wait` to false, but I think it's better to wait
-            // for e2e's before saying set-default is finished,
-            // just like we wait for the other kind of monitoring.
-            build(job: 'e2e-test',
-                  propagate: false,  // e2e errors are not fatal for deploy
-                  parameters: [
-                     string(name: 'URL',
-                            value: "https://www.khanacademy.org"),
-                     string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                     string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-                     booleanParam(name: 'FAILFAST', value: false),
-                     string(name: 'DEPLOYER_USERNAME',
-                            value: DEPLOYER_USERNAME),
-                     string(name: 'REVISION_DESCRIPTION',
-                            value: params.REVISION_DESCRIPTION),
-                     string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
-                  ]);
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
             if (currentBuild.result == "ABORTED") {
@@ -568,6 +547,46 @@ def _monitor() {
 }
 
 
+def _waitAndStartTests() {
+   try {
+      withTimeout("1h") {
+         exec(["deploy/wait_for_default.py", NEW_VERSION,
+               "--services=${SERVICES.join(',')}"]);
+      }
+   } catch (e) {
+      echo("Failed to wait for new version: ${e}");
+      _alert(alertMsgs.VERSION_NOT_CHANGED, []);
+      return;
+   }
+      
+   def params = 
+   // Once we have started moving traffic, we can start the
+   // smoke tests.  We could set `wait` to false, but I
+   // think it's better to wait for e2e's before saying
+   // set-default is finished, just like we wait for the
+   // other kinds of monitoring.
+   build(job: 'e2e-test',
+         propagate: false,  // e2e errors are not fatal for deploy
+         parameters: [
+            string(name: 'URL',
+                   value: "https://www.khanacademy.org"),
+            string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
+            string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+            booleanParam(name: 'FAILFAST', value: false),
+            string(name: 'DEPLOYER_USERNAME',
+                   value: DEPLOYER_USERNAME),
+            string(name: 'REVISION_DESCRIPTION',
+                   value: params.REVISION_DESCRIPTION),
+            string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
+            booleanParam(name: 'SET_SPLIT_COOKIE', value: true),
+            string(name: 'EXPECTED_VERSION', value: (
+               // Only works when deploying dynamic.
+               ("dynamic" in SERVICES) ? NEW_VERSION : "")),
+         ]);
+}
+   
+
+
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
@@ -581,10 +600,12 @@ def setDefaultAndMonitor() {
       // _monitor() after _promote() -- is that not all instances
       // switch to the new version at the same time; we want to start
       // monitoring as soon as the first instance switches, not after
-      // the last one does.
+      // the last one does.  Similarly, we want to start smoke tests
+      // while waiting for promote and monitor to finish.
       parallel(
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
+           "wait-and-start-tests": { _waitAndStartTests(); },
          ]);
    }
 }
