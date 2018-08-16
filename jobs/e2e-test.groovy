@@ -99,6 +99,13 @@ Defaults to GIT_REVISION.""",
    ""
 
 ).addStringParam(
+   "EXPECTED_VERSION",
+   """Set by deploy-webapp to the new version ID we want to test to make sure
+we get the right version when running tests before all traffic is migrated.
+Only works when the URL is www.khanacademy.org.""".
+   ""
+
+).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
@@ -248,6 +255,9 @@ def _runOneTest(splitId) {
                "-"];
    if (params.FAILFAST) {
       args += ["--failfast"];
+   }
+   if (params.EXPECTED_VERSION) {
+      args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
 
    try {
