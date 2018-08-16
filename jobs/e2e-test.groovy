@@ -16,6 +16,12 @@ new Setup(steps
 
 ).allowConcurrentBuilds(
 
+// We do a lot of e2e-test runs, and QA would like to be able to see details
+// for a bit longer.
+// TODO(benkraft): Keep more failures and fewer successes.
+).resetNumBuildsToKeep(
+   250,
+
 ).addStringParam(
    "URL",
    "The url-base to run these tests against.",
