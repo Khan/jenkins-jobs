@@ -105,6 +105,13 @@ Typically not set manually, but rather by other jobs that call this one.""",
    ""
 
 ).addStringParam(
+   "JOB_DISPLAY_NAME",
+   """Set this string to change how this test run will appear in the jenkins ui
+and when notifying users of test results. This can be useful to distinguish
+callers that override some of the parameters here.""",
+   "webapp-test"
+
+).addStringParam(
    "REVISION_DESCRIPTION",
    """Set by the buildmaster to give a more human-readable description
 of the GIT_REVISION, especially if it is a commit rather than a branch.
@@ -138,7 +145,7 @@ file name, but most callers should be happy with the default.""",
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
-currentBuild.displayName = ("${currentBuild.displayName} " +
+currentBuild.displayName = ("${params.JOB_DISPLAY_NAME} " +
                             "(${REVISION_DESCRIPTION})");
 
 
