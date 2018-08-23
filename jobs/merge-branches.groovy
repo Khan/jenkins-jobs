@@ -74,7 +74,8 @@ def mergeBranches() {
    // we need is enough to merge.  This saves us a *lot* of time traversing all
    // the submodules on each branch, and being careful to clean at each step.
    def allBranches = params.GIT_REVISIONS.split(/\+/);
-   kaGit.quickClone("git@github.com:Khan/webapp", "webapp", allBranches[0]);
+   kaGit.quickClone("git@github.com:Khan/webapp", "webapp",
+                    allBranches[0].trim());
    dir('webapp') {
       // We need to reset before fetching, because if a previous incomplete
       // merge left .gitmodules in a weird state, git will fail to read its
