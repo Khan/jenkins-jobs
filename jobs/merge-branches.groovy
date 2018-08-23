@@ -124,7 +124,7 @@ def mergeBranches() {
    }
 }
 
-onMaster('10m') {
+onMaster('1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Mr Monkey',
