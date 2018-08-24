@@ -366,17 +366,12 @@ def analyzeResults() {
             numPickleFileErrors++;
          }
       }
-      if (numPickleFileErrors) {
-         def msg = ("${numPickleFileErrors} test workers did not " +
-                    "even finish (could be due to timeouts or framework " +
-                    "errors; search for `Failed in branch` at " +
-                    "${env.BUILD_URL}consoleFull to see exactly why)");
-         // One could imagine it's useful to go on in this case, and
-         // analyze the pickle-file we *did* get back.  But in my
-         // experience it's too confusing: people think that the
-         // results we emit are the full results, even though this
-         // error indicates some results could not be processed.
-         notify.fail(msg, "UNSTABLE");
+      // Send a special message if all workers fail, because that's not good
+      // (and the normal script can't handle it).
+      if (numPickleFileErrors == NUM_WORKER_MACHINES) {
+         def msg = ("All test workers failed!  Check
+                    "${env.BUILD_URL}consoleFull to see why.)");
+         notify.fail(msg, "UNSTABLE")
       }
 
       withSecrets() {     // we need secrets to talk to slack!
@@ -393,7 +388,8 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
-               "--commit", REVISION_DESCRIPTION];
+               "--commit", REVISION_DESCRIPTION,
+               "--expected-tests-file", "genfiles/test-splits.txt"];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
