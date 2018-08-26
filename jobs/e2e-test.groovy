@@ -176,6 +176,9 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
+               // TODO(benkraft): This should really set the cookie
+               // GOOGAPPUID=999 to make sure it gets the data from the new
+               // version if we are still in a traffic split.
                sh("jenkins-jobs/run_android_db_generator.sh");
                sh("echo ${exec.shellEscape(successMsg)} | " +
                   "${exec.shellEscapeList(slackArgs)} --severity=info");
@@ -199,8 +202,8 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    waitUntil({ HAVE_RUN_SETUP });
 
    def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
-      "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
-      "grep -q '.passed.: *true'";
+      "graphql_whitelist/validate?format=pretty' -b GOOGAPPUID=999 " +
+      "| tee /dev/stderr | grep -q '.passed.: *true'";
    withSecrets() {  // we need secrets to talk to slack!
       try {
          sh(cmd)
