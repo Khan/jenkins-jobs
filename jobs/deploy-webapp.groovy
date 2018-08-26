@@ -550,16 +550,17 @@ def _monitor() {
 def _waitAndStartTests() {
    try {
       withTimeout("1h") {
-         exec(["deploy/wait_for_default.py", NEW_VERSION,
-               "--services=${SERVICES.join(',')}"]);
+         dir("webapp") {
+            exec(["deploy/wait_for_default.py", NEW_VERSION,
+                  "--services=${SERVICES.join(',')}"]);
+         }
       }
    } catch (e) {
       echo("Failed to wait for new version: ${e}");
       _alert(alertMsgs.VERSION_NOT_CHANGED, []);
       return;
    }
-      
-   def params = 
+
    // Once we have started moving traffic, we can start the
    // smoke tests.  We could set `wait` to false, but I
    // think it's better to wait for e2e's before saying
