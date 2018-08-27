@@ -513,7 +513,9 @@ def _promote() {
                      string(name: 'DEPLOYER_USERNAME',
                             value: DEPLOYER_USERNAME),
                      string(name: 'REVISION_DESCRIPTION',
-                            value: params.REVISION_DESCRIPTION),
+                            // We add a note to make it clear this is in prod.
+                            value: (
+                              "${params.REVISION_DESCRIPTION} (*now live*)")),
                      string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
                   ]);
          } catch (e) {

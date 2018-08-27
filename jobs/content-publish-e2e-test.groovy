@@ -188,7 +188,7 @@ def analyzeResults(label) {
             exec(["tools/test_pickle_util.py", "summarize-to-slack",
                   "genfiles/test-results.pickle", params.SLACK_CHANNEL,
                   "--jenkins-build-url", env.BUILD_URL,
-                  "--commit", label,
+                  "--label", label,
                   "--deployer", deployer]);
             // Let notify() know not to send any messages to slack,
             // because we just did it above.

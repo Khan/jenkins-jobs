@@ -395,7 +395,7 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
-               "--commit", REVISION_DESCRIPTION];
+               "--label", REVISION_DESCRIPTION];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }

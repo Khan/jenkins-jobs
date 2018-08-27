@@ -386,9 +386,9 @@ def analyzeResults() {
                "genfiles/test-results.pickle", params.SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
-               // The commit here is just used for a human-readable
-               // slack message, so we use REVISION_DESCRIPTION.
-               "--commit", REVISION_DESCRIPTION,
+               // The label goes at the top of the message; we include
+               // both the URL and the REVISION_DESCRIPTION.
+               "--label", "${params.URL}: REVISION_DESCRIPTION",
                "--expected-tests-file", "genfiles/test-splits.txt",
                "--cc-always", "#qa-log"];
             if (params.SLACK_THREAD) {
