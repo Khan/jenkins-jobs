@@ -299,11 +299,19 @@ def deploy() {
             "you need to <${env.BUILD_URL}/rebuild|redeploy this ZND> " +
             "and add `vm` to the `MODULES` parameter in Jenkins.");
       }
+      def services = []
+      if (DEPLOYING_STATIC) {
+         services += ["static"];
+      } else {
+         services += ["dynamic"];
+      }
+
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text + vmMessage,
          [deployUrl: deployedUrl(""),
           version: VERSION,
-          branches: params.GIT_REVISION]);
+          branches: params.GIT_REVISION,
+          services: ', '.join(services) ?: 'nothing (?!)']);
 
       // If the phab_revision param exists than this znd-deploy must have
       // originated from the Herald Build Plan 6 and we can expect that the
