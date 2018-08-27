@@ -389,7 +389,8 @@ def analyzeResults() {
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--commit", REVISION_DESCRIPTION,
-               "--expected-tests-file", "genfiles/test-splits.txt"];
+               "--expected-tests-file", "genfiles/test-splits.txt",
+               "--cc-always", "#qa-log"];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
