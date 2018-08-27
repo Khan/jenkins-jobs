@@ -156,18 +156,6 @@ Will wait %(minutesRemaining)s minutes more, then abort.
 """),
 ];
 
-VERSION_NOT_CHANGED = [
-   "severity": "warning",
-   "simpleMessage": true,
-   "text": _textWrap("""\
-I've gotten bored waiting for the version to start changing.
-Something may be wrong; in any case, after it changes,
-you'll need to start the
-<https://jenkins.khanacademy.org/job/deploy/job/e2e-test/build|smoke tests>
-yourself, or abort.
-"""),
-];
-
 FINISH_WITH_WARNING = [
    "severity": "warning",
    "text": _textWrap("""\

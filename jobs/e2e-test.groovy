@@ -98,19 +98,6 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
    ""
 
-).addBooleanParam(
-   "SET_SPLIT_COOKIE",
-   """Set by deploy-webapp when we are in the middle of migrating traffic;
-this causes us to set the magic cookie to send tests to the new version.
-Only works when the URL is www.khanacademy.org.""",
-   false
-
-).addStringParam(
-   "EXPECTED_VERSION",
-   """Set along with SET_SPLIT_COOKIE if we wish to verify we got the right
-version.  Currently only supported when we are deploying dynamic.""",
-   ""
-
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
@@ -176,9 +163,6 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
       withEnv(["URL=${params.URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
-               // TODO(benkraft): This should really set the cookie
-               // GOOGAPPUID=999 to make sure it gets the data from the new
-               // version if we are still in a traffic split.
                sh("jenkins-jobs/run_android_db_generator.sh");
                sh("echo ${exec.shellEscape(successMsg)} | " +
                   "${exec.shellEscapeList(slackArgs)} --severity=info");
@@ -202,8 +186,8 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    waitUntil({ HAVE_RUN_SETUP });
 
    def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
-      "graphql_whitelist/validate?format=pretty' -b GOOGAPPUID=999 " +
-      "| tee /dev/stderr | grep -q '.passed.: *true'";
+      "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
+      "grep -q '.passed.: *true'";
    withSecrets() {  // we need secrets to talk to slack!
       try {
          sh(cmd)
@@ -264,12 +248,6 @@ def _runOneTest(splitId) {
                "-"];
    if (params.FAILFAST) {
       args += ["--failfast"];
-   }
-   if (params.SET_SPLIT_COOKIE) {
-      args += ["--set-split-cookie"];
-   }
-   if (params.EXPECTED_VERSION) {
-      args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
 
    try {
