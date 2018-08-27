@@ -198,7 +198,7 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
       } catch (e) {
          def msg = exec.outputOf(
             ['curl', '-s',
-             ('${params.URL}/api/internal/graphql_whitelist/validate' +
+             ("${params.URL}/api/internal/graphql_whitelist/validate" +
               '?format=pretty')
             ]);
          def failureMsg = "GraphQL schema integration test failed for " +
