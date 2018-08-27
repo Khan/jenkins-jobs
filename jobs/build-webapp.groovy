@@ -476,7 +476,8 @@ def deployAndReport() {
                   booleanParam(name: 'FAILFAST', value: false),
                   string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
                   string(name: 'REVISION_DESCRIPTION',
-                         value: REVISION_DESCRIPTION),
+                         value: (
+                           "${REVISION_DESCRIPTION} (currently deploying)")),
                   string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
               ]);
     }
