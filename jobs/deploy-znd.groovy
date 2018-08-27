@@ -303,7 +303,7 @@ def deploy() {
       if (DEPLOYING_STATIC) {
          services += ["static"];
       } else {
-         services += ["dynamic"];
+         services += ["dynamic (modules: ${params.MODULES})"];
       }
 
       _sendSimpleInterpolatedMessage(
