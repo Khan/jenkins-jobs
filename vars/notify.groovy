@@ -201,15 +201,20 @@ def sendToSlack(slackOptions, status, extraText='') {
       emoji = slackOptions.emojiOnFailure ?: emoji;
    }
 
-   def extraFlags = ["--slack=${slackOptions.channel}",
-                     "--chat-sender=${sender}",
+   def channelFlags = ["--slack=${slackOptions.channel}"];
+   def extraFlags = ["--chat-sender=${sender}",
                      "--icon-emoji=${emoji}"];
 
    if (slackOptions.thread) {
-      extraFlags += ["--slack-thread=${slackOptions.thread}"];
+      channelFlags += ["--slack-thread=${slackOptions.thread}"];
    }
 
-   _sendToAlertlib(subject, severity, body, extraFlags);
+   _sendToAlertlib(subject, severity, body, extraFlags + channelFlags);
+   if (_failed(status)) {
+      // Also send all failures to dev-support-log
+      def logChannelFlags = ["--slack=CB00L3VFZ"];   // dev-support-log
+      _sendToAlertlib(subject, severity, body, extraFlags + logChannelFlags);
+   }
 }
 
 
