@@ -311,7 +311,7 @@ def deploy() {
          [deployUrl: deployedUrl(""),
           version: VERSION,
           branches: params.GIT_REVISION,
-          services: ', '.join(services) ?: 'nothing (?!)']);
+          services: services.join(', ') ?: 'nothing (?!)']);
 
       // If the phab_revision param exists than this znd-deploy must have
       // originated from the Herald Build Plan 6 and we can expect that the
