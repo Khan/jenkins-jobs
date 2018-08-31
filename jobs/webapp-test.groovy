@@ -369,10 +369,12 @@ def analyzeResults() {
       // below instead of checking which workers failed.
       // TODO(benkraft): By November 2018, when no one is running tests on
       // branches old enough not to support that flag, remove this case.
-      def supportsExpectedTestsFile = (
-         exec.outputOf(["tools/test_pickle_util.py",
-                        "summarize-to-slack", "--help"])
-         .contains("--expected-tests-file"));
+      dir(webapp) {
+         def supportsExpectedTestsFile = (
+            exec.outputOf(["tools/test_pickle_util.py",
+                           "summarize-to-slack", "--help"])
+            .contains("--expected-tests-file"));
+      }
       if (!supportsExpectedTestsFile && numPickleFileErrors) {
          def msg = ("${numPickleFileErrors} test workers did not " +
                     "even finish (could be due to timeouts or framework " +
