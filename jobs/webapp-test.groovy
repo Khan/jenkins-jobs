@@ -369,8 +369,9 @@ def analyzeResults() {
       // below instead of checking which workers failed.
       // TODO(benkraft): By November 2018, when no one is running tests on
       // branches old enough not to support that flag, remove this case.
+      def supportsExpectedTestsFile;
       dir("webapp") {
-         def supportsExpectedTestsFile = (
+         supportsExpectedTestsFile = (
             exec.outputOf(["tools/test_pickle_util.py",
                            "summarize-to-slack", "--help"])
             .contains("--expected-tests-file"));
