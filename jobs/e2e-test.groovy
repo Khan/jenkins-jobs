@@ -388,7 +388,7 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The label goes at the top of the message; we include
                // both the URL and the REVISION_DESCRIPTION.
-               "--label", "${params.URL}: REVISION_DESCRIPTION",
+               "--label", "${params.URL}: ${REVISION_DESCRIPTION}",
                "--expected-tests-file", "genfiles/test-splits.txt",
                "--cc-always", "#qa-log"];
             if (params.SLACK_THREAD) {
