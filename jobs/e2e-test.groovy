@@ -371,7 +371,7 @@ def analyzeResults() {
       if (numPickleFileErrors == NUM_WORKER_MACHINES) {
          def msg = ("All test workers failed!  Check " +
                     "${env.BUILD_URL}consoleFull to see why.)");
-         notify.fail(msg, "UNSTABLE")
+         notify.fail(msg, "UNSTABLE");
       }
 
       withSecrets() {     // we need secrets to talk to slack!

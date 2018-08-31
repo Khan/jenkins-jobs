@@ -360,9 +360,9 @@ def analyzeResults() {
       // Send a special message if all workers fail, because that's not good
       // (and the normal script can't handle it).
       if (numPickleFileErrors == NUM_WORKER_MACHINES) {
-         def msg = ("All test workers failed!  Check
+         def msg = ("All test workers failed!  Check " +
                     "${env.BUILD_URL}consoleFull to see why.)");
-         notify.fail(msg)
+         notify.fail(msg);
       }
 
       // If our test-runner script supports --expected-tests-file, we use that
