@@ -458,29 +458,6 @@ def deployAndReport() {
                 services: SERVICES.join(', '),
                 branches: REVISION_DESCRIPTION]);
     }
-
-    // (Note: we run the e2e tests even for tools-only deploys, to make
-    // sure the deploy doesn't break the e2e test system.)
-    // TODO(csilvers): remove "wait: false"?  It means people would have to
-    // wait for e2e tests to finish before being able to set default, and
-    // we'd have to refactor `deploy_pipeline manual-test`.
-    stage("First e2e test") {
-        build(job: 'e2e-test',
-              wait: false,
-              propagate: false,  // e2e errors are not fatal for a deploy
-              parameters: [
-                  string(name: 'URL', value: DEPLOY_URL),
-                  string(name: 'SLACK_CHANNEL', value: params.SLACK_CHANNEL),
-                  string(name: 'SLACK_THREAD', value: params.SLACK_THREAD),
-                  string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-                  booleanParam(name: 'FAILFAST', value: false),
-                  string(name: 'DEPLOYER_USERNAME', value: DEPLOYER_USERNAME),
-                  string(name: 'REVISION_DESCRIPTION',
-                         value: (
-                           "${REVISION_DESCRIPTION} (currently deploying)")),
-                  string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
-              ]);
-    }
 }
 
 
