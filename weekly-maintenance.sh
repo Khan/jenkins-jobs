@@ -229,16 +229,13 @@ clean_ka_static() {
             # if needed. (`-f` handles uncompressed data correctly too.)
             gsutil cat "$manifest" | zcat -f | grep -o '"[^"]*":' | tr -d '":' \
                 >> "$files_to_keep"
-            # We also keep the manifest file itself around.  This
-            # shouldn't be necessary -- it includes itself as an
-            # entry -- but in the case where we "copy" a static version
-            # (webapp's deploy.deploy_to_gcs.symlink_static_content)
-            # we don't update that self-reference.  (And it's safer
-            # anyway.)  We also explicitly keep the version's toc-file,
-            # because it is also copied, and the manifest's reference
-            # to it is similarly not updated.
+            # We also keep the manifest file itself around -- we do so
+            # explicitly since it does not reference itself.  We also
+            # explicitly keep the version's toc-file, because it is
+            # copied on a static-only deploy, and the manifest's
+            # reference to it is not updated.
             # TODO(benkraft): Update the manifest on copy, and remove
-            # these special cases.
+            # at least the latter special case.
             echo "$manifest" >> "$files_to_keep"
             echo "/genfiles/manifests/toc-$manifest_version.json" >> "$files_to_keep"
             manifests_seen=`expr $manifests_seen + 1`
@@ -268,12 +265,19 @@ clean_ka_static() {
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
     # are directories.  We also ignore any files in the whitelist.
+    # Finally, we keep any files touched recently: they were presumably
+    # deployed for a reason, perhaps due to an ongoing deploy whose
+    # manifest has not yet been uploaded.
+    # The 'ls -l' output looks like this:
+    #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
     # TODO(csilvers): make the xargs 'gsutil -m' after we've debugged
     # why that sometimes fails with 'file not found'.
+    yesterday_or_today="-e `date --utc +"%Y-%m-%d"`T -e `date --utc -d "-1 day" +"%Y-%m-%d"`T"
     gsutil -m ls -r gs://ka-static/ \
         | grep . \
         | grep -v ':$' \
         | grep -v $KA_STATIC_WHITELIST \
+        | grep -v $yesterday_or_today \
         | LANG=C sort > "$files_to_keep.candidates"
     # This prints files in 'candidates that are *not* in files_to_keep.
     LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
