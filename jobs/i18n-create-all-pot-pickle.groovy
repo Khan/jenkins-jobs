@@ -29,10 +29,6 @@ def runScript() {
       // update-translations.
       sh("rm -f updated_locales.txt")
 
-      // TODO(csilvers): see if we can break up this script into
-      // pieces, so we can put using-a-lot-of-memory only around
-      // the parts that use a lot of memory.
-
       withSecrets() {
           sh("jenkins-jobs/create-all-pot-pickle.sh")
       }

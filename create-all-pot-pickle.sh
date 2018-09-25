@@ -18,7 +18,6 @@ cd webapp
 
 echo "Starting update_strings job at $(date +%H:%M:%S)"
 
-echo "Downloading and extracting sync snapshot"
 # find_graphie_images_in_items.js needs this snapshot of article content in
 # order to extract images from articles.
 echo "Starting extracting sync snapshot at $(date +%H%M)"
@@ -29,7 +28,6 @@ tools/extract_lintable_content.py \
     --output article_content.zip
 echo "Ending extracting sync snapshot at $(date +%H:%M:%S)"
 
-echo "Updating the list of graphie images."
 # find_graphie_images_in_items.js caches items here, so we create the directory
 # for it.
 echo "Starting updating the list of graphie images at $(date +%H:%M:%S)"
@@ -37,15 +35,7 @@ mkdir -p genfiles/assessment_items
 dev/tools/run_js_in_node.js content_editing/tools/find_graphie_images_in_items.js
 echo "Ending updating the list of graphie images at $(date +%H%M)"
 
-echo "Creating a new, up-to-date all.pot."
 echo "Starting to create a new, up-to-date all.pot at $(date +%H:%M:%S)"
-# Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,
-# but we also want to keep a version in source control for debugging purposes.
-# TODO(csilvers): uncomment once we get popular_pages up and using bigquery.
-#tools/popular_pages.py --limit 10000 > "$DATA_DIR"/popular_urls
-cp -f "$DATA_DIR"/popular_urls /tmp/
-# By removing genfiles/extracted_strings/en/intl/datastore.pot.pickle,
-# we force compile_all_pot to re-fetch nltext datastore info from prod.
 rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
 echo "Starting build_prod_main $(date +%H:%M:%S)"
 build/kake/build_prod_main.py -v3 new_pot
@@ -56,6 +46,8 @@ ALL_POT="$PWD"/genfiles/translations/new/all.pot.pickle
 echo "Sanity check: will fail if the new all.pot is missing stuff."
 [ `strings "$ALL_POT" | wc -l` -gt 3000000 ]
 strings "$ALL_POT" | grep -q 'intl/datastore'
+
+echo "Ending create of all.pot at $(date +%H:%M:%S)"
 
 # Update export timestamps for fake languages.
 mark_fake_langs=`cat <<PYCOMMAND
