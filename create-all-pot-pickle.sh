@@ -1,6 +1,13 @@
 #!/bin/bash -xe
 
 # This script is run by the jenkins 'i18n-create-all-pot-pickle' job
+# Step 1: Updating the webapp repo for automated-commits and translations.
+#    This step ensures that translations submodule is in sync for master.
+# Step 2: Extract and download the sync snapshot of article content
+# Step 3: Graphie images (from the sync snapshot) are collected
+#    as they contain translatable strings
+# Step 4: Call build/kake/build_prod_main.py to create the all.pot file.
+
 
 ( cd webapp && make install_deps )
 
@@ -38,12 +45,12 @@ echo "Ending updating the list of graphie images at $(date +%H%M)"
 echo "Starting to create a new, up-to-date all.pot at $(date +%H:%M:%S)"
 rm -f genfiles/extracted_strings/en/intl/datastore.pot.pickle
 echo "Starting build_prod_main $(date +%H:%M:%S)"
-build/kake/build_prod_main.py -v3 new_pot
+build/kake/build_prod_main.py -v3 pot
 # This is where build_prod_main.py puts the output all.pot
 echo "Ending build_prod_main $(date +%H:%M:%S)"
-ALL_POT="$PWD"/genfiles/translations/new/all.pot.pickle
+ALL_POT="$PWD"/genfiles/translations/all.pot.pickle
 
-echo "Sanity check: will fail if the new all.pot is missing stuff."
+echo "Sanity check: will fail if the all.pot is missing stuff."
 [ `strings "$ALL_POT" | wc -l` -gt 3000000 ]
 strings "$ALL_POT" | grep -q 'intl/datastore'
 
