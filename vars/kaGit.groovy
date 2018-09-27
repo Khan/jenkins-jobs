@@ -31,10 +31,10 @@ def checkoutJenkinsTools() {
           changelog: false, poll: false);
       // The built-in 'git' step is not great: it doesn't do
       // submodules, and it messes up the tracking with the remote.
-      sh("if [ `git branch | grep \* | cut -d ' ' -f2`!="gce_porting" ]; then git checkout gce_porting; fi ");
+      // sh("if [ `git branch | grep \* | cut -d ' ' -f2`!="gce_porting" ]; then git checkout gce_porting; fi ");
       sh("git pull origin gce_porting");
       sh("git submodule update --init --recursive");
-      sh("git branch --set-upstream-to origin/gce_porting gce_porting");
+      // sh("git branch --set-upstream-to origin/gce_porting gce_porting");
 
    }
 }
