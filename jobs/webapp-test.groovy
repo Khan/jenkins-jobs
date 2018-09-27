@@ -423,5 +423,28 @@ def analyzeResults() {
 
 
 onWorker('ka-test-ec2', '5h') {     // timeout
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: 'webapp-test']]) {
+      initializeGlobals();
 
+      try {
+         stage("Determining splits & running tests") {
+            determineSplitsAndRunTests();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if --
+         // there were failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
+         }
+      }
+   }
 }
