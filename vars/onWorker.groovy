@@ -49,7 +49,7 @@ def call(def label, def timeoutString, Closure body) {
                   // def ip = exec.outputOf(
                   //    ["curl", "-s",
                   //    "http://169.254.169.254/latest/meta-data/public-ipv4"]);
-                  echo("Running on ec2 instance ${instanceId} at ip ${ip}");
+                  // echo("Running on ec2 instance ${instanceId} at ip ${ip}");
                   // TODO(csilvers): figure out how to get the worker
                   // to source the .bashrc like it did before.  Now I
                   // think it's inheriting the PATH from the parent instead.
