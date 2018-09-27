@@ -21,7 +21,7 @@ def call(Closure body) {
          sh("virtualenv --python=python2.7-dbg env.dbg");
          // Need one more fix, as per
          // http://stackoverflow.com/questions/22931774/how-to-use-gdb-python-debugging-extension-inside-virtualenv
-         sh("cp -a /usr/lib/debug/usr/bin/python*gdb.py env.dbg/bin/");
+         sh("[ -e /usr/lib/debug/usr/bin/python*gdb.py ] && cp -a /usr/lib/debug/usr/bin/python*gdb.py env.dbg/bin/");
       }
       // Have 'env' point to 'env.normal'.  To debug, you just manually
       // change the symlink to point to env.dbg

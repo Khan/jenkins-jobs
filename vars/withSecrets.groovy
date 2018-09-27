@@ -22,7 +22,7 @@ def call(Closure body) {
       // "secrets_decrypt" in the webapp project.
       // Note that we do this even if ACTIVE_SECRETS_BLOCKS > 0;
       // secrets.py.cast5 might have changed.
-      exec(["openssl", "cast5-cbc", "-d",
+      exec(["openssl", "cast5-cbc", "-d", "-md", "md5",
             "-in", "webapp/shared/secrets.py.cast5",
             "-out", "webapp/shared/secrets.py",
             "-kfile", _secretsPasswordPath()]);
