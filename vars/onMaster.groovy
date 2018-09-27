@@ -4,7 +4,7 @@
 //import vars.withVirtualenv
 
 def call(timeoutString, Closure body) {
-   node("gce_porting") {
+   node("master") {
       timestamps {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
