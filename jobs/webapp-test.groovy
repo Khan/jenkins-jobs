@@ -211,7 +211,6 @@ def _setupWebapp() {
       //kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
       //sh("rm -rf devtools/khan-linter");
       //sh("cp -r khan-linter devtools/");
-   }
 }
 
 
