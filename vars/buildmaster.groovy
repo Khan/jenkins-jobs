@@ -85,7 +85,7 @@ def notifyDefaultSet(sha1) {
    def params = [
       git_sha: sha1
    ];
-   return _makeHttpRequest("commits/set-default", "PATCH", params);
+   return _makeHttpRequest("commits/default-set", "PATCH", params);
 }
 
 def pingForStatus(job, sha1) {
