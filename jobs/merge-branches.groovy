@@ -126,6 +126,15 @@ def mergeBranches() {
 }
 
 
+def getGaeVersionName() {
+   dir('webapp') {
+     def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
+     echo("Found gae version name: ${gae_version_name}");
+     return gae_version_name;
+   }
+}
+
+
 onMaster('1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
@@ -138,9 +147,7 @@ onMaster('1h') {
       try {
          checkArgs();
          def sha1 = mergeBranches();
-         dir('webapp') {
-            def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
-         }
+         def gae_version_name = getGaeVersionName();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
                                        sha1, gae_version_name);
       } catch (e) {
