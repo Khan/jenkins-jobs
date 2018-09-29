@@ -122,6 +122,7 @@ NUM_WORKER_MACHINES = null;
 JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
+IS_SECOND_RUN = null;
 
 // Set to true once master has run setup, so graphql/android tests can begin.
 HAVE_RUN_SETUP = false;
