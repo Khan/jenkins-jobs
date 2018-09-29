@@ -94,7 +94,7 @@ def pingForStatus(job, sha1) {
       git_sha: sha1,
       job: job
    ]
-   resp = _makeHttpRequest("job-status", "GET", params)
+   resp = _makeHttpRequest("job-status", "POST", params)
 
    if (resp[1] == '200') {
       return resp[0];
