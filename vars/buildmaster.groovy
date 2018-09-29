@@ -20,15 +20,6 @@ def initializeBuildmasterToken() {
 // `params` is expected to be a map
 def _makeHttpRequest(resource, httpMode, params) {
    initializeBuildmasterToken();
-
-   def url = "https://buildmaster.khanacademy.org/${resource}";
-   def requestBody;
-   if (httpMode == 'GET') {
-      url += "?${params}"
-      requestBody = null;
-   } else {
-      requestBody = new JsonBuilder(params).toString();
-   }
    try {
       def response = httpRequest(
          acceptType: "APPLICATION_JSON",
@@ -38,8 +29,8 @@ def _makeHttpRequest(resource, httpMode, params) {
                           // Replace value with ***** when logging request.
                           maskValue: true]],
          httpMode: httpMode,
-         requestBody: requestBody,
-         url: url);
+         requestBody: new JsonBuilder(params).toString(),
+         url: "https://buildmaster.khanacademy.org/${resource}");
       return response;
    } catch (e) {
       // Ideally, we'd just catch hudson.AbortException, but for some reason
@@ -99,7 +90,10 @@ def notifyDefaultSet(sha1) {
 
 def pingForStatus(job, sha1) {
    echo("Asking buildmaster for the ${job} status for ${sha1}.")
-   def params = "git_sha=${sha1}&job=${job}";
+   def params = [
+      git_sha: sha1,
+      job: job
+   ]
    resp = _makeHttpRequest("job-status", "GET", params)
 
    if (resp[1] == '200') {
