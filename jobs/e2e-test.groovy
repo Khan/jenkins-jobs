@@ -137,6 +137,9 @@ def initializeGlobals() {
                                      params.GIT_REVISION);
    // Required for buildmaster to accept a notification
    IS_ONE_GIT_SHA = true;
+   // Required for buildmaster to know if results pertain to first or second
+   // run of smoke tests
+   IS_SECOND_RUN = (params.URL == "https://www.khanacademy.org" ? true: false)
 }
 
 
@@ -410,29 +413,22 @@ def analyzeResults() {
 }
 
 
-def notify_args = [
-   slack: [channel: params.SLACK_CHANNEL,
-           thread: params.SLACK_THREAD,
-           sender: 'Testing Turtle',
-           emoji: ':turtle:',
-           when: ['FAILURE', 'UNSTABLE']],
-   aggregator: [initiative: 'infrastructure',
-                when: ['SUCCESS', 'BACK TO NORMAL',
-                       'FAILURE', 'ABORTED', 'UNSTABLE']],
-   timeout: "2h"];
-
-
-if (params.NOTIFY_BUILDMASTER) {
-   notify_args.buildmaster = [sha: GIT_SHA1,
-                              what: 'e2e-test'];
-}
-
-
 // We run the test-splitter, reporter, and graphql/android tests on a worker --
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify(notify_args) {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: (IS_SECOND_RUN ? 'second-smoke-test':
+                               'first-smoke-test')],
+           timeout: "2h"]) {
       initializeGlobals();
 
       try {
