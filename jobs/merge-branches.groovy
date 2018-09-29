@@ -138,7 +138,9 @@ onMaster('1h') {
       try {
          checkArgs();
          def sha1 = mergeBranches();
-         def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
+         dir('webapp') {
+            def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
+         }
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
                                        sha1, gae_version_name);
       } catch (e) {
