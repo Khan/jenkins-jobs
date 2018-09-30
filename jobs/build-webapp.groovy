@@ -405,6 +405,10 @@ def deployToGCS() {
       } else {
          args += ["--copy-from=default"];
       }
+   } else {
+       // Since we're deploying new static code, we should upload the updated
+       // sourcemap files to our error reporting system
+       args += ["--upload-sourcemaps"]
    }
 
    args += params.SLACK_THREAD ? [
