@@ -562,7 +562,7 @@ def _promote() {
             // Once we finish (successfully) promoting, we tell buildmaster
             // that the default has been set so it can trigger the second
             // round of smoke tests.
-            buildmaster.notifyDefaultSet(git_sha: params.GIT_REVISION);
+            buildmaster.notifyDefaultSet(params.GIT_REVISION);
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
             if (currentBuild.result == "ABORTED") {
