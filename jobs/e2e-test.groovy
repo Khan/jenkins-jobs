@@ -122,7 +122,6 @@ NUM_WORKER_MACHINES = null;
 JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
-IS_SECOND_RUN = null;
 
 // Set to true once master has run setup, so graphql/android tests can begin.
 HAVE_RUN_SETUP = false;
@@ -138,9 +137,6 @@ def initializeGlobals() {
                                      params.GIT_REVISION);
    // Required for buildmaster to accept a notification
    IS_ONE_GIT_SHA = true;
-   // Required for buildmaster to know if results pertain to first or second
-   // run of smoke tests
-   IS_SECOND_RUN = (params.URL == "https://www.khanacademy.org" ? true: false)
 }
 
 
@@ -427,8 +423,8 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: (IS_SECOND_RUN ? 'second-smoke-test':
-                               'first-smoke-test')],
+                         what: (params.URL == "https://www.khanacademy.org" ?
+                                'second-smoke-test': 'first-smoke-test')],
            timeout: "2h"]) {
       initializeGlobals();
 
