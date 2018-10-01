@@ -525,6 +525,12 @@ def _promoteWebapp() {  // call from webapp-root
       cmd += [NEW_VERSION];
    }
 
+    // If we're not deploying a new version of static content, the Sentry
+    // version number should not be updated
+   if (!('static' in SERVICES)) {
+       cmd += ["--keep-error-version"]
+   }
+
    cmd += ["--previous-tag-name=${ROLLBACK_TO}",
            "--slack-channel=${SLACK_CHANNEL}",
            "--deployer-username=${DEPLOYER_USERNAME}",
