@@ -111,8 +111,8 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 VERSION = null;
 
 // This is hard-coded.
-SLACK_CHANNEL = "#1s-and-0s-deploys";
-CHAT_SENDER =  'Mr Monkey';
+SLACK_CHANNEL = "#bot-testing";
+CHAT_SENDER =  'GCE Jenkins';
 EMOJI = ':monkey_face:';
 
 
