@@ -566,9 +566,9 @@ def _promote() {
                ]);
 
             // Once we finish (successfully) promoting, we tell buildmaster
-            // that the default has been set.
-            // (In the past, this started smoke tests; soon it will happen
-            // where we set "started".)
+            // that the default has been set.  (Currently this information
+            // is only used in status; in the future it may be used for slack
+            // messages as well.)
             buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
@@ -637,8 +637,8 @@ def _waitForSetDefaultStart() {
    }
 
    // Once we have started moving traffic, tell the buildmaster.
-   // (Soon this will start smoke tests; for now it's above
-   // under "started".)
+   // (This starts smoke tests, as well as appearing in status,
+   // and perhaps more places in the future.)
    buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
 }
 
