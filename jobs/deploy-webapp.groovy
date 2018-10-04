@@ -566,9 +566,10 @@ def _promote() {
                ]);
 
             // Once we finish (successfully) promoting, we tell buildmaster
-            // that the default has been set so it can trigger the second
-            // round of smoke tests.
-            buildmaster.notifyDefaultSet(params.GIT_REVISION);
+            // that the default has been set.
+            // (In the past, this started smoke tests; soon it will happen
+            // where we set "started".)
+            buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
             if (currentBuild.result == "ABORTED") {
@@ -621,6 +622,27 @@ def _monitor() {
 }
 
 
+def _waitForSetDefaultStart() {
+   try {
+      withTimeout("1h") {
+         dir("webapp") {
+            exec(["deploy/wait_for_default.py", NEW_VERSION,
+                  "--services=${SERVICES.join(',')}"]);
+         }
+      }
+   } catch (e) {
+      echo("Failed to wait for new version: ${e}");
+      _alert(alertMsgs.VERSION_NOT_CHANGED, []);
+      return;
+   }
+
+   // Once we have started moving traffic, tell the buildmaster.
+   // (Soon this will start smoke tests; for now it's above
+   // under "started".)
+   buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
+}
+
+
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
@@ -634,10 +656,13 @@ def setDefaultAndMonitor() {
       // _monitor() after _promote() -- is that not all instances
       // switch to the new version at the same time; we want to start
       // monitoring as soon as the first instance switches, not after
-      // the last one does.
+      // the last one does.  Similarly, we want to start notify the
+      // buildmaster that set-default is underway while waiting for
+      // it to finish.
       parallel(
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
+           "wait-and-start-tests": { _waitForSetDefaultStart(); },
          ]);
    }
 }
