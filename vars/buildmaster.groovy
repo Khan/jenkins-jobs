@@ -83,6 +83,7 @@ def notifyId(job, sha1) {
 
 // status is one of "started" or "finished".
 def notifyDefaultSet(sha1, status) {
+   echo("Marking set-default status for ${sha1}: ${status}");
    def params = [
       git_sha: sha1,
       status: status,
