@@ -46,9 +46,7 @@ onMaster('2h') {
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
 
       stage("Running script") {
-            updatedLocales = runScript();
+           runScript();
       }
-
-      currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
    }
 }
