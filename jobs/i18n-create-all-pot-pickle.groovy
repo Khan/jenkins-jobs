@@ -8,20 +8,47 @@
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
-//import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
 //import vars.withSecrets
 
 
-new Setup(steps).addCronSchedule("H 2 * * *").apply();
+new Setup(steps
+
+).addCronSchedule("H 2 * * *"
+
+).apply();
+
 
 def runScript() {
-   withTimeout('5h') {
+   withTimeout('2h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
+      // Secrets are currently needed for mark_strings_export
+      // Remove this when secrets are no longer needed
       withSecrets() {
           sh("jenkins-jobs/create-all-pot-pickle.sh")
       }
+   }
+}
+
+
+onMaster('2h') {
+   notify([slack: [channel: '#cp-eng',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   extraText: "@cp-support",
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           email: [to: 'jenkins-admin+builds',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+
+      stage("Running script") {
+            updatedLocales = runScript();
+      }
+
+      currentBuild.displayName = "${currentBuild.displayName} (${updatedLocales})";
    }
 }
