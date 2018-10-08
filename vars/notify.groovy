@@ -318,12 +318,13 @@ def sendToBuildmaster(buildmasterOptions, status) {
       return;
    } else if (status == 'SUCCESS') {
       buildmasterStatus = "success";
-   } else if (status == 'UNSTABLE') {
-      buildmasterStatus = "success";
    } else if (status == 'BACK TO NORMAL') {
       buildmasterStatus = "success";
    } else if (status == 'ABORTED') {
       buildmasterStatus = "aborted";
+   } else if (status == 'UNSTABLE' &&
+              buildmasterOptions.what == 'deploy-webapp') {
+      buildmasterStatus = "success";
    } else {
       buildmasterStatus = "failed";
    }

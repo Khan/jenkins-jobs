@@ -64,12 +64,6 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
-   // We do our work in the 'automated-commits' branch.
-   kaGit.safePullInBranch("webapp", "automated-commits");
-
-   // ...which we want to make sure is up-to-date with master.
-   kaGit.safeMergeFromMaster("webapp", "automated-commits");
-
    dir("webapp") {
       sh("make clean_pyc");    // in case some .py files went away
       sh("make deps");
@@ -194,8 +188,12 @@ def publishResults() {
          notify.fail(msg);
       }
 
-      // Get ready to overwrite a file in our repo.
+      // Get ready to overwrite a file in our repo.  We do this in the
+      // 'automated-commits' branch.
       kaGit.safePullInBranch("webapp", "automated-commits");
+      // ...which we want to make sure is up-to-date with master.
+      kaGit.safeMergeFromMaster("webapp", "automated-commits");
+
       dir("webapp") {
          // Make deps again in case they've changed.
          sh("make clean_pyc");
