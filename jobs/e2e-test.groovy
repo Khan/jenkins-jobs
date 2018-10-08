@@ -215,12 +215,12 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
          def msg = exec.outputOf(
             ['curl', '-s',
              ("${params.URL}/api/internal/graphql_whitelist/validate" +
-              '?format=pretty')
+              '?format=pretty -b GOOGAPPUID=999')
             ]);
          def failureMsg = "GraphQL schema integration test failed for " +
             "${REVISION_DESCRIPTION}. This means " +
             "the GraphQL schema is not valid or does not support all active " +
-            "queries (most likely the schema breaks a mobile native query). "
+            "queries (most likely the schema breaks a mobile native query). " +
             "Failure message: ```${msg}```";
          sh("echo ${exec.shellEscape(failureMsg)} | " +
             "${exec.shellEscapeList(slackArgs)} --severity=error");
