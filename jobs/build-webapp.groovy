@@ -288,6 +288,7 @@ def mergeFromMasterAndInitializeGlobals() {
       dir("webapp") {
          clean(params.CLEAN);
          sh("make deps");
+         sh("sudo rm -f /etc/boto.cfg");
 
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
