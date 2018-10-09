@@ -124,6 +124,7 @@ for more information.""",
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
+URL = params.URL[-1] == '/' ? params.URL.substring(0, -1): params.URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
@@ -173,7 +174,7 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
    withTimeout('1h') {
-      withEnv(["URL=${params.URL}"]) {
+      withEnv(["URL=${URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
                // TODO(benkraft): This should really set the cookie
@@ -201,7 +202,7 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    // Wait until the other thread has finished setup, then go.
    waitUntil({ HAVE_RUN_SETUP });
 
-   def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
+   def cmd = "curl -s ${exec.shellEscape(URL)}'/api/internal/" +
       "graphql_whitelist/validate?format=pretty' -b GOOGAPPUID=999 " +
       "| tee /dev/stderr | grep -q '.passed.: *true'";
    withSecrets() {  // we need secrets to talk to slack!
@@ -214,7 +215,7 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
       } catch (e) {
          def msg = exec.outputOf(
             ['curl', '-s',
-             ("${params.URL}/api/internal/graphql_whitelist/validate" +
+             ("${URL}/api/internal/graphql_whitelist/validate" +
               '?format=pretty -b GOOGAPPUID=999')
             ]);
          def failureMsg = "GraphQL schema integration test failed for " +
@@ -255,7 +256,7 @@ def _determineTests() {
 
 def _runOneTest(splitId) {
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
-               "--url=${params.URL}",
+               "--url=${URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
                "--timing-db=genfiles/test-info.db",
                "--xml-dir=genfiles/test-reports",
@@ -411,7 +412,7 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The label goes at the top of the message; we include
                // both the URL and the REVISION_DESCRIPTION.
-               "--label", "${params.URL}: ${REVISION_DESCRIPTION}",
+               "--label", "${URL}: ${REVISION_DESCRIPTION}",
                "--expected-tests-file", "genfiles/test-splits.txt",
                "--cc-always", "#qa-log"];
             if (params.SLACK_THREAD) {
@@ -446,7 +447,7 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: (params.URL == "https://www.khanacademy.org" ?
+                         what: (URL == "https://www.khanacademy.org" ?
                                 'second-smoke-test': 'first-smoke-test')],
            timeout: "2h"]) {
       initializeGlobals();
