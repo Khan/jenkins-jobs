@@ -191,7 +191,7 @@ def sendToSlack(slackOptions, status, extraText='') {
    if (slackOptions.extraText) {
       body += "\n${slackOptions.extraText}";
    }
-   subject += "${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
+   subject += " ${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
    def sender = slackOptions.sender ?: 'Janet Jenkins';
    def emoji = slackOptions.emoji ?: ':crocodile:';
    if (status == "UNSTABLE") {
