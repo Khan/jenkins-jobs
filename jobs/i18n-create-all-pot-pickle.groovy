@@ -21,7 +21,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('2h') {
+   withTimeout('6h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Secrets are currently needed for mark_strings_export
