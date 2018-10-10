@@ -31,8 +31,11 @@ onMaster('1h') {
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-         exec(["webapp/dev/tools/failing_taskqueue_tasks.py",
-               "--slack-channel=${params.SLACK_CHANNEL}"]);
+         dir("webapp") {
+            sh("make python_deps")
+            exec(["dev/tools/failing_taskqueue_tasks.py",
+                  "--slack-channel=${params.SLACK_CHANNEL}"]);
+         }
       }
    }
 }
