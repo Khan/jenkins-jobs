@@ -15,8 +15,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 2 * * *"
-
 ).apply();
 
 
