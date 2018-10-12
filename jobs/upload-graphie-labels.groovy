@@ -66,7 +66,7 @@ def uploadLabels() {
    }
 }
 
-/ We run on a special worker machine because this job uses so much
+// We run on a special worker machine because this job uses so much
 // memory and time.
 onWorker("ka-content-sync-ec2", "23h") {
    notify([slack: [channel: '#cp-eng',
