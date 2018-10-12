@@ -32,8 +32,9 @@ def runScript() {
    }
 }
 
-
-onMaster('2h') {
+// We run on a special worker machine because this job uses so much
+// memory and time.
+onWorker("ka-content-sync-ec2", "2h") {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
