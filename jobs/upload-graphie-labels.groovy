@@ -66,8 +66,9 @@ def uploadLabels() {
    }
 }
 
-
-onMaster('23h') {
+/ We run on a special worker machine because this job uses so much
+// memory and time.
+onWorker("ka-content-sync-ec2", "23h") {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
@@ -89,3 +90,4 @@ onMaster('23h') {
       }
    }
 }
+
