@@ -126,7 +126,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["test-deps-${workerNum}"] = {
-         onWorker('ka-test-ec2', '6h') {     // timeout
+         onWorker('ka-test-ec2', '9h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f tests_for.*.json");
             unstash("splits");
@@ -203,7 +203,7 @@ def publishResults() {
 }
 
 
-onMaster('7h') {
+onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
