@@ -14,8 +14,9 @@ import org.khanacademy.Setup;
 
 
 new Setup(steps
-
-).addCronSchedule("H 2 * * *"
+// TODO(Kai): tempoary disable cron schedule
+// until figure out the OOM issue of Jenkins server
+// ).addCronSchedule("H 2 * * *"
 
 ).apply();
 
