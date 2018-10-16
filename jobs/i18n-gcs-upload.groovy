@@ -105,7 +105,7 @@ def resetRepo() {
 }
 
 
-onMaster('23h') {
+onWorker("ka-content-sync-ec2", "23h"){
    // TODO(csilvers): update the slack message with the updated locales.
    notify([slack: [channel: '#i18n',
                    sender: 'I18N Imp',

@@ -67,7 +67,7 @@ def uploadLabels() {
 }
 
 
-onMaster('23h') {
+onWorker("ka-content-sync-ec2", "23h") {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',

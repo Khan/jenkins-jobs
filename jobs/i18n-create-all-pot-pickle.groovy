@@ -15,13 +15,11 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 2 * * *"
-
 ).apply();
 
 
 def runScript() {
-   withTimeout('6h') {
+   withTimeout('10h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Secrets are currently needed for mark_strings_export
@@ -33,7 +31,7 @@ def runScript() {
 }
 
 
-onMaster('2h') {
+onWorker("ka-content-sync-ec2", "10h") {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',

@@ -25,7 +25,7 @@ most in need of an update.""",
 
 
 def runScript() {
-   withTimeout('1h') {
+   withTimeout('2h') {
       // We run in the i18n-update-strings workspace.  That way we
       // don't need our own copy of webapp.  This matters because
       // these jobs update intl/translations, which is huge.
@@ -94,7 +94,7 @@ def runScript() {
 }
 
 
-onMaster('2h') {
+onWorker("ka-content-sync-ec2", "2h") {
    // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
    notify([slack: [channel: '#i18n',
                    sender: 'I18N Imp',
