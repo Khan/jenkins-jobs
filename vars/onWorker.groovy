@@ -19,6 +19,7 @@ def validWorkerLabels() {
       "build-worker",       // used for build-webapp
       "znd-worker",         // used for deploy-znd
       "ka-content-sync-ec2",              // used for build-current-sqlite
+      "ka-i18n-ec2",              // used for i18n jobs
       "ka-page-weight-monitoring-ec2",    // used for page-weight-test
    ];
 }
