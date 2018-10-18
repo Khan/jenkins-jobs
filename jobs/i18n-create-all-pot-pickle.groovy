@@ -22,7 +22,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('6h') {
+   withTimeout('10h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Secrets are currently needed for mark_strings_export
@@ -34,7 +34,7 @@ def runScript() {
 }
 
 
-onMaster('2h') {
+onWorker("ka-i18n-ec2", "10h")  {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
