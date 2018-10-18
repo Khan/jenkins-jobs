@@ -508,51 +508,34 @@ def verifySmokeTestResults(defaultSet, buildmasterFailures=0) {
 }
 
 
-def _promoteWebapp() {  // call from webapp-root
-   if (!('static' in SERVICES || 'dynamic' in SERVICES)) {
-      return;
-   }
+def _promoteServices() {  // call from webapp-root
+    def cmd = ["deploy/set_default.py"];
+    def services = [];
+    def args = [];
 
-   def cmd = ["deploy/set_default.py"];
-
-   if ('static' in SERVICES && !('dynamic' in SERVICES)) {
-      // TODO(benkraft): Have set_default.py just choose its own version
-      // against which to set-default in this case.
-      def gaeVersion = exec.outputOf(["deploy/current_version.py",
-                                      "--service", "dynamic"]);
-      cmd += [gaeVersion, "--static-content-version=${NEW_VERSION}"];
-   } else {
-      cmd += [NEW_VERSION];
-   }
+    for (service : services) {
+        services += ["${service}=${NEW_VERSION}"]
+    }
 
     // If we're not deploying a new version of static content, the Sentry
     // version number should not be updated
-   if (!('static' in SERVICES)) {
-       cmd += ["--keep-error-version"]
-   }
+    if (!('static' in SERVICES)) {
+        args += ["--keep-error-version"];
+    }
 
-   cmd += ["--previous-tag-name=${ROLLBACK_TO}",
-           "--slack-channel=${SLACK_CHANNEL}",
-           "--deployer-username=${DEPLOYER_USERNAME}",
-           "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
+    args += ["--previous-tag-name=${ROLLBACK_TO}",
+             "--slack-channel=${SLACK_CHANNEL}",
+             "--deployer-username=${DEPLOYER_USERNAME}",
+             "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
 
-   if (params.SKIP_PRIMING) {
-      cmd += ["--no-priming"];
-   }
+    if (params.SKIP_PRIMING) {
+        args += ["--no-priming"];
+    }
 
-   exec(cmd);
-}
+    cmd += [services.join(",")];
+    cmd += args;
 
-
-def _promoteKotlinRoutes() {  // call from webapp-root
-   if (!('kotlin-routes' in SERVICES)) {
-      return;
-   }
-
-   // We do the cd in the shell to avoid tmpdir issues -- see comments in
-   // build-webapp for details.
-   sh("cd services/kotlin_routes && ./gradlew set_default " +
-      "--new-version='${NEW_VERSION}'");
+    exec(cmd);
 }
 
 
@@ -560,10 +543,7 @@ def _promote() {
    withSecrets() {
       dir("webapp") {
          try {
-            parallel(
-               [ "promote-kotlin-routes": { _promoteKotlinRoutes(); },
-                 "promote-webapp": { _promoteWebapp(); },
-               ]);
+            _promoteServices();
 
             // Once we finish (successfully) promoting, we tell buildmaster
             // that the default has been set.  (Currently this information
