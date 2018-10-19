@@ -44,6 +44,7 @@ def runScript() {
    dir("webapp") {
        sh("make clean_pyc");    // in case some .py files went away
        sh("make deps");
+       sh("sudo rm -f /etc/boto.cfg");
    }
 
    // We need secrets to talk to gcs, prod.
@@ -58,7 +59,7 @@ def runScript() {
 
 
 // We run on a special worker machine because this job uses so much
-// memory.  
+// memory.
 onWorker("ka-content-sync-ec2", "8h") {
    notify([slack: [channel: '#infrastructure',
                    when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],

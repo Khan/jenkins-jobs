@@ -92,6 +92,7 @@ def syncWebapp() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make deps");
+         sh("sudo rm -f /etc/boto.cfg");
       }
    }
 }
