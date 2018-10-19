@@ -342,6 +342,13 @@ def determineSplitsAndRunTests() {
 
 def analyzeResults() {
    withTimeout('5m') {
+      if (currentBuild.result == 'ABORTED') {
+         // No need to report the results in the case of abort!  They will
+         // likely be more confusing than useful.
+         echo('We were aborted; no need to report results.');
+         return;
+      }
+
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
