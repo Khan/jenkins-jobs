@@ -30,7 +30,7 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "#bot-testing"
 
 ).addStringParam(
    "SLACK_THREAD",
@@ -444,18 +444,10 @@ def analyzeResults() {
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: (E2E_URL == "https://www.khanacademy.org" ?
-                                'second-smoke-test': 'first-smoke-test')],
-           timeout: "2h"]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       initializeGlobals();
 
       try {

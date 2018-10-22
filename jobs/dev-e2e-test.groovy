@@ -25,16 +25,13 @@ to such a commit-hash.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#classroom-eng"
+   "#bot-testing"
 
 ).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
 have already passed at this GIT_REVISION.""",
    false
-
-).addCronSchedule(
-   '0 5,8,11,14,17,20 * * 1-5'        // Run every three hours during workdays
 
 ).apply();
 
@@ -43,12 +40,10 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 
 onMaster('5h') {
-   notify(
-      [slack: [channel: params.SLACK_CHANNEL,
-               when: ['STARTED', 'ABORTED']],
-       aggregator: [initiative: 'infrastructure',
-                    when: ['SUCCESS', 'BACK TO NORMAL',
-                           'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
       // TODO(csilvers): move those secrets somewhere else instead.
