@@ -30,7 +30,7 @@ new Setup(steps
 ).addStringParam(
     "SLACK_CHANNEL",
     "The slack channel to which to send failure alerts.",
-    "#content-beep-boop"
+    "#bot-testing"
 
 ).addStringParam(
     "PUBLISH_USERNAME",
@@ -207,7 +207,7 @@ def analyzeResults(label) {
 
 
 onMaster('4h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
+   notify([slack: [channel: "#bot-testing",
                   sender: 'Taskqueue Totoro',
                   emoji: ':totoro:',
                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
