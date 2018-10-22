@@ -27,9 +27,6 @@ to such a commit-hash.""",
 have already passed at this GIT_REVISION.""",
    false
 
-).addCronSchedule(
-   '0 2 * * 1-5'        // Run every weekday morning at 2am
-
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
@@ -72,13 +69,7 @@ onMaster('5h') {
    // TODO(csilvers): remove onMaster(), and just allocate
    // the executor in the notify clean-up steps.
    notify(
-      [slack: [channel: '#1s-and-0s',
-               when: ['STARTED', 'ABORTED']],
-       bugtracker: [project: 'Infrastructure',
-                    when: ['FAILURE']],
-       aggregator: [initiative: 'infrastructure',
-                    when: ['SUCCESS', 'BACK TO NORMAL',
-                           'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      ) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
       // TODO(csilvers): move those secrets somewhere else instead.

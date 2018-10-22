@@ -207,13 +207,9 @@ def analyzeResults(label) {
 
 
 onMaster('4h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify(
+
+   ) {
       def key = getRedisKey();
 
       currentBuild.displayName = "${currentBuild.displayName} (${key})";

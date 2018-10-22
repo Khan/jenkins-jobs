@@ -13,26 +13,18 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to send our results, or empty string to disable.",
-   "#infrastructure"
-
-).addCronSchedule(
-   '0 7 * * 1'        // Run every monday morning at 7am
+   "#bot-testing"
 
 ).apply();
 
 
 onMaster('1h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Taskqueue Totoro',
-                   emoji: ':totoro:',
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify() {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          dir("webapp") {
             sh("make python_deps")
+            sh("sudo rm -f /etc/boto.cfg")
             exec(["dev/tools/failing_taskqueue_tasks.py",
                   "--slack-channel=${params.SLACK_CHANNEL}"]);
          }

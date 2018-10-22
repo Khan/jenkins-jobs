@@ -13,8 +13,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 21 * * *"
-
 ).addStringParam(
     "SNAPSHOT_NAMES",
     """We assume that the locale name is the part of the bucket name that
@@ -61,11 +59,8 @@ def runScript() {
 // We run on a special worker machine because this job uses so much
 // memory.
 onWorker("ka-content-sync-ec2", "8h") {
-   notify([slack: [channel: '#infrastructure',
-                   when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify(
+       ) {
       stage("Running script") {
          runScript();
       }

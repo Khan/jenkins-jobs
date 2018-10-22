@@ -41,9 +41,6 @@ the <code>ka-test worker</code> ec2 setup at
 to click on 'advanced' to see the instance cap.""",
    onWorker.defaultNumTestWorkerMachines().toString()
 
-).addCronSchedule(
-   '0 3 * * *'
-
 ).apply();
 
 
@@ -205,13 +202,7 @@ def publishResults() {
 
 
 onMaster('10h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify() {
       initializeGlobals();
 
       stage("Determining splits") {
