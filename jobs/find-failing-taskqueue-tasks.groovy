@@ -19,7 +19,6 @@ new Setup(steps
 
 
 onMaster('1h') {
-   notify(
       notify([slack: [channel: params.SLACK_CHANNEL,
                   sender: 'Taskqueue Totoro',
                   emoji: ':totoro:',
