@@ -329,9 +329,16 @@ def sendToBuildmaster(buildmasterOptions, status) {
       buildmasterStatus = "failed";
    }
 
+   // In the case of a failure we don't send the list of services as it may
+   // not have been set yet (and therefore may be inaccurate).
+   if (!buildmasterStatus == "success" || !buildmasterOptions.services) {
+      buildmasterOptions.services = '';
+   }
+
    try {
       buildmaster.notifyStatus(
-         buildmasterOptions.what, buildmasterStatus, buildmasterOptions.sha);
+         buildmasterOptions.what, buildmasterStatus, buildmasterOptions.sha,
+         buildmasterOptions.services);
    } catch (e) {
       echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
    }

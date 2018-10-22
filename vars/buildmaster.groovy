@@ -41,11 +41,12 @@ def _makeHttpRequest(resource, httpMode, params) {
    }
 }
 
-def notifyStatus(job, result, sha1) {
+def notifyStatus(job, result, sha1, services) {
    def params = [
       git_sha: sha1,
       job: job,
       result: result,
+      services: services,
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }

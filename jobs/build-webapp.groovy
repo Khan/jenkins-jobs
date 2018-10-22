@@ -494,7 +494,8 @@ onWorker('build-worker', '4h') {
                    // does not care.  (See also the catch(e) below.)
                    when: ['FAILURE', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: 'build-webapp'],
+                         what: 'build-webapp',
+                         services: SERVICES.join(', ') ?: "tools-only"],
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                         'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
