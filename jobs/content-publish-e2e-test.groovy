@@ -88,13 +88,11 @@ def getRedisKey() {
 
 
 def syncWebapp() {
-   withTimeout('15m') {
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-      dir("webapp") {
-         sh("make deps");
-         sh("sudo rm -f /etc/boto.cfg");
-      }
-   }
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+    dir("webapp") {
+        sh("make deps");
+        sh("sudo rm -f /etc/boto.cfg");
+    }
 }
 
 
