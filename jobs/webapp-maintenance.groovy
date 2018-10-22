@@ -37,7 +37,10 @@ def runScript() {
 
 
 onMaster('10h') {
-   notify() {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       def jobs = [];
       stage("Listing jobs to run") {
          def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);

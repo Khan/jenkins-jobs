@@ -207,9 +207,10 @@ def analyzeResults(label) {
 
 
 onMaster('4h') {
-   notify(
-
-   ) {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       def key = getRedisKey();
 
       currentBuild.displayName = "${currentBuild.displayName} (${key})";

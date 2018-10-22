@@ -202,7 +202,10 @@ def publishResults() {
 
 
 onMaster('10h') {
-   notify() {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       initializeGlobals();
 
       stage("Determining splits") {

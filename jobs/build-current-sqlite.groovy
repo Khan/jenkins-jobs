@@ -59,8 +59,10 @@ def runScript() {
 // We run on a special worker machine because this job uses so much
 // memory.
 onWorker("ka-content-sync-ec2", "8h") {
-   notify(
-       ) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Running script") {
          runScript();
       }

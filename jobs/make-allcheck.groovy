@@ -68,8 +68,10 @@ onMaster('5h') {
    // individually.
    // TODO(csilvers): remove onMaster(), and just allocate
    // the executor in the notify clean-up steps.
-   notify(
-      ) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
       // TODO(csilvers): move those secrets somewhere else instead.
