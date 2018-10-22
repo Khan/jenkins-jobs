@@ -846,6 +846,9 @@ onMaster('4h') {
             stage("Prompt 1") {
                buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting SetDefault');
+               if (!params.SKIP_TESTS) {
+                  verifySmokeTestResults(defaultSet=false);
+               }
                promptForSetDefault();
             }
             stage("Promoting and monitoring") {
@@ -854,6 +857,9 @@ onMaster('4h') {
             stage("Prompt 2") {
                buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting Finish');
+               if (!params.SKIP_TESTS) {
+                  verifySmokeTestResults(defaultSet=true);
+               }
                promptToFinish();
             }
          } catch (e) {
