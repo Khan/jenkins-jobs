@@ -20,7 +20,10 @@ new Setup(steps
 
 onMaster('1h') {
    notify(
-
+      notify([slack: [channel: params.SLACK_CHANNEL,
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]
       ) {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
