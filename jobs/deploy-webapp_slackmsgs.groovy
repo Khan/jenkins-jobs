@@ -57,7 +57,8 @@ ROLLING_BACK = [
    "severity": "info",
    "text": _textWrap("""\
 Automatically rolling the default back to %(rollbackToAsVersion)s and tagging
-%(gitTag)s as bad (in git)
+%(gitTag)s as bad (in git).  This will take a few minutes, after which you can
+decide whether to try again, or move on to the next deploy.
 """)];
 
 
@@ -153,6 +154,18 @@ STILL_WAITING = [
 Are you ready to %(action)s?
 Waited %(minutesSoFar)s minutes so far.
 Will wait %(minutesRemaining)s minutes more, then abort.
+"""),
+];
+
+VERSION_NOT_CHANGED = [
+   "severity": "warning",
+   "simpleMessage": true,
+   "text": _textWrap("""\
+I've gotten bored waiting for the version to start changing.
+Something may be wrong; in any case, after it changes,
+you'll need to start the
+<https://jenkins.khanacademy.org/job/deploy/job/e2e-test/build|smoke tests>
+yourself, or abort.
 """),
 ];
 

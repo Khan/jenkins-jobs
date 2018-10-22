@@ -191,7 +191,7 @@ def sendToSlack(slackOptions, status, extraText='') {
    if (slackOptions.extraText) {
       body += "\n${slackOptions.extraText}";
    }
-   subject += "${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
+   subject += " ${currentBuild.displayName} (<${env.BUILD_URL}|Open>)";
    def sender = slackOptions.sender ?: 'Janet Jenkins';
    def emoji = slackOptions.emoji ?: ':crocodile:';
    if (status == "UNSTABLE") {
@@ -318,12 +318,13 @@ def sendToBuildmaster(buildmasterOptions, status) {
       return;
    } else if (status == 'SUCCESS') {
       buildmasterStatus = "success";
-   } else if (status == 'UNSTABLE') {
-      buildmasterStatus = "success";
    } else if (status == 'BACK TO NORMAL') {
       buildmasterStatus = "success";
    } else if (status == 'ABORTED') {
       buildmasterStatus = "aborted";
+   } else if (status == 'UNSTABLE' &&
+              buildmasterOptions.what == 'deploy-webapp') {
+      buildmasterStatus = "success";
    } else {
       buildmasterStatus = "failed";
    }

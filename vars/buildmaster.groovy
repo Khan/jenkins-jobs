@@ -50,24 +50,15 @@ def notifyStatus(job, result, sha1) {
    return _makeHttpRequest("commits", "PATCH", params);
 }
 
-def notifyMergeResult(commitId, result, sha1) {
+def notifyMergeResult(commitId, result, sha1, gae_version_name) {
    echo("Marking commit #${commitId} as ${result}: ${sha1}");
    def params = [
       commit_id: commitId,
       result: result,
       git_sha: sha1,
+      gae_version_name: gae_version_name
    ];
    return _makeHttpRequest("commits/merge", "PATCH", params);
-}
-
-def notifyShouldDeploy(sha1, result, deploysNeeded) {
-   echo("Setting deploys needed for ${sha1} ${result}: ${deploysNeeded}");
-   def params = [
-      git_sha: sha1,
-      result: result,
-      deploys_needed: deploysNeeded,
-   ];
-   return _makeHttpRequest("commits/deploys_needed", "PATCH", params);
 }
 
 def notifyWaiting(job, sha1, result) {
@@ -88,4 +79,28 @@ def notifyId(job, sha1) {
       id: env.BUILD_NUMBER as Integer,
    ];
    return _makeHttpRequest("commits", "PATCH", params);
+}
+
+// status is one of "started" or "finished".
+def notifyDefaultSet(sha1, status) {
+   echo("Marking set-default status for ${sha1}: ${status}");
+   def params = [
+      git_sha: sha1,
+      status: status,
+   ];
+   return _makeHttpRequest("commits/set-default-status", "PATCH", params);
+}
+
+def pingForStatus(job, sha1) {
+   echo("Asking buildmaster for the ${job} status for ${sha1}.")
+   def params = [
+      git_sha: sha1,
+      job: job
+   ]
+   resp = _makeHttpRequest("job-status", "POST", params)
+
+   if (resp[1] == '200') {
+      return resp[0];
+   }
+   return
 }

@@ -64,12 +64,6 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
-   // We do our work in the 'automated-commits' branch.
-   kaGit.safePullInBranch("webapp", "automated-commits");
-
-   // ...which we want to make sure is up-to-date with master.
-   kaGit.safeMergeFromMaster("webapp", "automated-commits");
-
    dir("webapp") {
       sh("make clean_pyc");    // in case some .py files went away
       sh("make deps");
@@ -106,14 +100,6 @@ def determineSplits() {
                   stash(includes: "test-splits.*.txt", name: "splits");
                }
             }
-
-            // Touch this file right before we start using the jenkins
-            // make-check workers.  We have a cron job running on jenkins
-            // that will keep track of the make-check workers and
-            // complain if a job that uses the make-check workers is
-            // running, but all the workers aren't up.  (We delete this
-            // file in a try/finally.)
-            sh("touch /tmp/make_check.run");
          }
       }
    ];
@@ -141,7 +127,7 @@ def runTests() {
       def workerNum = i;
 
       jobs["test-deps-${workerNum}"] = {
-         onWorker('ka-test-ec2', '6h') {     // timeout
+         onWorker('ka-test-ec2', '9h') {     // timeout
             // Out with the old, in with the new!
             sh("rm -f tests_for.*.json");
             unstash("splits");
@@ -166,10 +152,6 @@ def runTests() {
 
 def publishResults() {
    withTimeout('10m') {
-      // Once we get here, we're done using the worker machines,
-      // so let our cron overseer know.
-      sh("rm -f /tmp/make_check.run");
-
       def numWorkerErrors = 0;
 
       sh("rm -f tests_for.*.json");
@@ -195,8 +177,12 @@ def publishResults() {
          notify.fail(msg);
       }
 
-      // Get ready to overwrite a file in our repo.
+      // Get ready to overwrite a file in our repo.  We do this in the
+      // 'automated-commits' branch.
       kaGit.safePullInBranch("webapp", "automated-commits");
+      // ...which we want to make sure is up-to-date with master.
+      kaGit.safeMergeFromMaster("webapp", "automated-commits");
+
       dir("webapp") {
          // Make deps again in case they've changed.
          sh("make clean_pyc");
@@ -218,7 +204,7 @@ def publishResults() {
 }
 
 
-onMaster('7h') {
+onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',

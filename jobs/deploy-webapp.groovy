@@ -142,6 +142,13 @@ Defaults to GIT_REVISION.""",
     for more information.""",
     "6"
 
+).addBooleanParam(
+    "SKIP_TESTS",
+    """If set to true, proceed to deploying this branch even if tests have not
+    yet completed, or have failed. Only use this with a very good reason, such
+    as a site outage.""",
+    false
+
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -443,6 +450,64 @@ def promptForSetDefault() {
 }
 
 
+def _manualSmokeTestCheck(job){
+   def msg = ("Usually we can do this step for you, but when sun is down, " +
+              "you must manually confirm that your ${job} is done and all tests " +
+              "have passed!\n\n")
+
+   if (job == 'first-smoke-test') {
+      msg += ("If you haven't aleady started these tests after your build ended, " +
+              "go to https://jenkins.khanacademy.org/job/deploy/job/e2e-test/" +
+              "build?URL=${DEPLOY_URL} to kick off your smoke tests.\n\n")
+   } else {
+      msg += ("If you haven't aleady started these tests after default was set, " +
+              "go to https://jenkins.khanacademy.org/job/deploy/job/e2e-test/build " +
+              "to kick off your smoke tests (you can just use the default URL).\n\n")
+   }
+   msg += ("Then after your tests have passed (don't worry there's usually time " +
+          "for at least one retry), click Proceed to continue with your deploy.")
+   // We've given up to 60m to confirm smoke tests have passed. In
+   // a sun outage, this should be enough to cover this step, even
+   // if it requires rerunning an smoke test job.
+   input(message: msg, id: "ConfirmE2eSuccess");
+   return;
+}
+
+
+def verifySmokeTestResults(defaultSet, buildmasterFailures=0) {
+   withTimeout('60m') {
+      def jobName = defaultSet ? 'second-smoke-test': 'first-smoke-test';
+      def status;
+      while (!(status == "succeeded")) {
+         status = buildmaster.pingForStatus(jobName,
+                                            params.GIT_REVISION)
+
+         // If sun is down (even after a retry), we ask people to manually
+         // check the result of their smoke tests.
+         if (!status) {
+            if (buildmasterFailures == 0) {
+               buildmasterFailures += 1;
+            } else {
+               _manualSmokeTestCheck(jobName)
+               return;
+            }
+         }
+         // For now, we're making smoke tests non-blocking, but
+         // if we improve the flakiness of smoke tests in the future
+         // this should be changed to only allow the deploy job to
+         // continue if a job has succeeded.
+         if (status in ["succeeded", "aborted", "failed", "killed"]) {
+            return;
+         } else {
+           // continue pinging once a minute until smoke tests succeed
+           // or until we time out
+           sleep(60);
+         }
+      }
+   }
+}
+
+
 def _promoteWebapp() {  // call from webapp-root
    if (!('static' in SERVICES || 'dynamic' in SERVICES)) {
       return;
@@ -458,6 +523,12 @@ def _promoteWebapp() {  // call from webapp-root
       cmd += [gaeVersion, "--static-content-version=${NEW_VERSION}"];
    } else {
       cmd += [NEW_VERSION];
+   }
+
+    // If we're not deploying a new version of static content, the Sentry
+    // version number should not be updated
+   if (!('static' in SERVICES)) {
+       cmd += ["--keep-error-version"]
    }
 
    cmd += ["--previous-tag-name=${ROLLBACK_TO}",
@@ -494,30 +565,11 @@ def _promote() {
                  "promote-webapp": { _promoteWebapp(); },
                ]);
 
-            // Once we finish (successfully) promoting, let's run
-            // the e2e tests again.  I'd rather do this at the top
-            // level, but since we run in a `parallel` it's better
-            // to do this here so we don't have to wait for the
-            // monitor job to finish before running this.  We could
-            // set `wait` to false, but I think it's better to wait
-            // for e2e's before saying set-default is finished,
-            // just like we wait for the other kind of monitoring.
-            build(job: 'e2e-test',
-                  propagate: false,  // e2e errors are not fatal for deploy
-                  parameters: [
-                     string(name: 'URL',
-                            value: "https://www.khanacademy.org"),
-                     string(name: 'SLACK_CHANNEL', value: SLACK_CHANNEL),
-                     string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-                     booleanParam(name: 'FAILFAST', value: false),
-                     string(name: 'DEPLOYER_USERNAME',
-                            value: DEPLOYER_USERNAME),
-                     string(name: 'REVISION_DESCRIPTION',
-                            // We add a note to make it clear this is in prod.
-                            value: (
-                              "${params.REVISION_DESCRIPTION} (*now live*)")),
-                     string(name: 'JOB_PRIORITY', value: params.JOB_PRIORITY),
-                  ]);
+            // Once we finish (successfully) promoting, we tell buildmaster
+            // that the default has been set.  (Currently this information
+            // is only used in status; in the future it may be used for slack
+            // messages as well.)
+            buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
             if (currentBuild.result == "ABORTED") {
@@ -570,6 +622,27 @@ def _monitor() {
 }
 
 
+def _waitForSetDefaultStart() {
+   try {
+      withTimeout("1h") {
+         dir("webapp") {
+            exec(["deploy/wait_for_default.py", NEW_VERSION,
+                  "--services=${SERVICES.join(',')}"]);
+         }
+      }
+   } catch (e) {
+      echo("Failed to wait for new version: ${e}");
+      _alert(alertMsgs.VERSION_NOT_CHANGED, []);
+      return;
+   }
+
+   // Once we have started moving traffic, tell the buildmaster.
+   // (This starts smoke tests, as well as appearing in status,
+   // and perhaps more places in the future.)
+   buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
+}
+
+
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
@@ -583,10 +656,13 @@ def setDefaultAndMonitor() {
       // _monitor() after _promote() -- is that not all instances
       // switch to the new version at the same time; we want to start
       // monitoring as soon as the first instance switches, not after
-      // the last one does.
+      // the last one does.  Similarly, we want to start notify the
+      // buildmaster that set-default is underway while waiting for
+      // it to finish.
       parallel(
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
+           "wait-and-start-tests": { _waitForSetDefaultStart(); },
          ]);
    }
 }

@@ -125,6 +125,16 @@ def mergeBranches() {
    }
 }
 
+
+def getGaeVersionName() {
+   dir('webapp') {
+     def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
+     echo("Found gae version name: ${gae_version_name}");
+     return gae_version_name;
+   }
+}
+
+
 onMaster('1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
@@ -137,13 +147,15 @@ onMaster('1h') {
       try {
          checkArgs();
          def sha1 = mergeBranches();
-         buildmaster.notifyMergeResult(params.COMMIT_ID, 'success', sha1);
+         def gae_version_name = getGaeVersionName();
+         buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
+                                       sha1, gae_version_name);
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
          // without all the things notify does it's hard to tell the difference
          // between aborted and failed.  So we don't bother.
-         buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null);
+         buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null, null);
          throw e;
       }
    }

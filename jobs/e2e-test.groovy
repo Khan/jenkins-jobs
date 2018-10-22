@@ -98,6 +98,19 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
    ""
 
+).addBooleanParam(
+   "SET_SPLIT_COOKIE",
+   """Set by deploy-webapp when we are in the middle of migrating traffic;
+this causes us to set the magic cookie to send tests to the new version.
+Only works when the URL is www.khanacademy.org.""",
+   false
+
+).addStringParam(
+   "EXPECTED_VERSION",
+   """Set along with SET_SPLIT_COOKIE if we wish to verify we got the right
+version.  Currently only supported when we are deploying dynamic.""",
+   ""
+
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
@@ -111,6 +124,7 @@ for more information.""",
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
+E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
@@ -160,9 +174,12 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
                      "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
 
    withTimeout('1h') {
-      withEnv(["URL=${params.URL}"]) {
+      withEnv(["URL=${E2E_URL}"]) {
          withSecrets() {  // we need secrets to talk to slack!
             try {
+               // TODO(benkraft): This should really set the cookie
+               // GOOGAPPUID=999 to make sure it gets the data from the new
+               // version if we are still in a traffic split.
                sh("jenkins-jobs/run_android_db_generator.sh");
                sh("echo ${exec.shellEscape(successMsg)} | " +
                   "${exec.shellEscapeList(slackArgs)} --severity=info");
@@ -185,9 +202,9 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
    // Wait until the other thread has finished setup, then go.
    waitUntil({ HAVE_RUN_SETUP });
 
-   def cmd = "curl -s ${exec.shellEscape(params.URL)}'/api/internal/" +
-      "graphql_whitelist/validate?format=pretty' | tee /dev/stderr | " +
-      "grep -q '.passed.: *true'";
+   def cmd = "curl -s ${exec.shellEscape(E2E_URL)}'/api/internal/" +
+      "graphql_whitelist/validate?format=pretty' -b GOOGAPPUID=999 " +
+      "| tee /dev/stderr | grep -q '.passed.: *true'";
    withSecrets() {  // we need secrets to talk to slack!
       try {
          sh(cmd)
@@ -196,15 +213,14 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
          sh("echo ${exec.shellEscape(successMsg)} | " +
             "${exec.shellEscapeList(slackArgs)} --severity=info");
       } catch (e) {
-         def msg = exec.outputOf(
-            ['curl', '-s',
-             ("${params.URL}/api/internal/graphql_whitelist/validate" +
-              '?format=pretty')
-            ]);
+         def msg = exec.outputOf([
+            'curl', '-s',
+            "${E2E_URL}/api/internal/graphql_whitelist/validate?format=pretty",
+            '-b', 'GOOGAPPUID=999']);
          def failureMsg = "GraphQL schema integration test failed for " +
             "${REVISION_DESCRIPTION}. This means " +
             "the GraphQL schema is not valid or does not support all active " +
-            "queries (most likely the schema breaks a mobile native query). "
+            "queries (most likely the schema breaks a mobile native query). " +
             "Failure message: ```${msg}```";
          sh("echo ${exec.shellEscape(failureMsg)} | " +
             "${exec.shellEscapeList(slackArgs)} --severity=error");
@@ -239,7 +255,7 @@ def _determineTests() {
 
 def _runOneTest(splitId) {
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
-               "--url=${params.URL}",
+               "--url=${E2E_URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
                "--timing-db=genfiles/test-info.db",
                "--xml-dir=genfiles/test-reports",
@@ -249,6 +265,13 @@ def _runOneTest(splitId) {
    if (params.FAILFAST) {
       args += ["--failfast"];
    }
+   if (params.SET_SPLIT_COOKIE) {
+      args += ["--set-split-cookie"];
+   }
+   if (params.EXPECTED_VERSION) {
+      args += ["--expected-version=${params.EXPECTED_VERSION}"];
+   }
+
 
    try {
       sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
@@ -351,6 +374,13 @@ def determineSplitsAndRunTests() {
 
 def analyzeResults() {
    withTimeout('5m') {
+      if (currentBuild.result == 'ABORTED') {
+         // No need to report the results in the case of abort!  They will
+         // likely be more confusing than useful.
+         echo('We were aborted; no need to report results.');
+         return;
+      }
+
       sh("rm -f test-results.*.pickle");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
@@ -388,7 +418,7 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The label goes at the top of the message; we include
                // both the URL and the REVISION_DESCRIPTION.
-               "--label", "${params.URL}: ${REVISION_DESCRIPTION}",
+               "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
                "--expected-tests-file", "genfiles/test-splits.txt",
                "--cc-always", "#qa-log"];
             if (params.SLACK_THREAD) {
@@ -410,29 +440,22 @@ def analyzeResults() {
 }
 
 
-def notify_args = [
-   slack: [channel: params.SLACK_CHANNEL,
-           thread: params.SLACK_THREAD,
-           sender: 'Testing Turtle',
-           emoji: ':turtle:',
-           when: ['FAILURE', 'UNSTABLE']],
-   aggregator: [initiative: 'infrastructure',
-                when: ['SUCCESS', 'BACK TO NORMAL',
-                       'FAILURE', 'ABORTED', 'UNSTABLE']],
-   timeout: "2h"];
-
-
-if (params.NOTIFY_BUILDMASTER) {
-   notify_args.buildmaster = [sha: GIT_SHA1,
-                              what: 'e2e-test'];
-}
-
-
 // We run the test-splitter, reporter, and graphql/android tests on a worker --
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify(notify_args) {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: (E2E_URL == "https://www.khanacademy.org" ?
+                                'second-smoke-test': 'first-smoke-test')],
+           timeout: "2h"]) {
       initializeGlobals();
 
       try {
