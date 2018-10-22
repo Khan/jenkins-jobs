@@ -79,7 +79,7 @@ def determineSplits() {
          withTimeout('1h') {
             _setupWebapp();
          }
-         withTimeout('10m') {
+         withTimeout('30m') {
             def NUM_SPLITS = NUM_WORKER_MACHINES;
             dir("webapp") {
                sh("tools/runtests.py -n --just-split -j${NUM_SPLITS} " +
@@ -184,6 +184,7 @@ def publishResults() {
          // Make deps again in case they've changed.
          sh("make clean_pyc");
          sh("make deps");
+         sh("sudo rm -f /etc/boto.cfg");
          // Combine all the dicts into one dict.
          sh("tools/determine_tests_for.py --merge " +
             "-o testing/tests_for.json " +
