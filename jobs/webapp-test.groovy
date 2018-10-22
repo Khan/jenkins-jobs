@@ -431,16 +431,10 @@ def analyzeResults() {
 
 
 onWorker('ka-test-ec2', '5h') {     // timeout
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: 'webapp-test']]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       initializeGlobals();
 
       try {
