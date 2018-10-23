@@ -70,7 +70,7 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make deps");
-
+      sh("sudo rm -f /etc/boto.cfg");
       // Update current.sqlite if not present, or once per week
       sh("""\
          #!/bin/bash

@@ -31,6 +31,7 @@ def runScript() {
          dir("webapp") {
             sh("make clean_pyc");    // in case some .py files went away
             sh("make python_deps");
+            sh("sudo rm -f /etc/boto.cfg");
             sh("deploy/notify_znd_owners.py --notify_slack");
          }
       }
@@ -39,13 +40,10 @@ def runScript() {
 
 
 onMaster('1h') {
-   notify([slack: [channel: '#1s-and-0s-deploys',
-                   sender: 'Mr Monkey',
-                   emoji: ':monkey_face:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Notifying") {
          runScript();
       }

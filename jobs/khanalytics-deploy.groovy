@@ -14,7 +14,7 @@ import org.khanacademy.Setup;
 new Setup(steps).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send status alerts.",
-   "#future-of-pipelines"
+   "#boto-testing"
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
@@ -87,13 +87,10 @@ def deploy() {
 }
 
 onMaster('90m') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Mr Monkey',
-                   emoji: ':monkey_face:',
-                   when: ['SUCCESS', 'BUILD START', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL', 'FAILURE',
-                               'UNSTABLE', 'ABORTED']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
 
        stage("Cloning repository"){
            cloneKhanalyticsPrivate();

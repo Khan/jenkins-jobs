@@ -34,7 +34,7 @@ create.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "bot-testing"
 
 ).addStringParam(
    "SLACK_THREAD",
@@ -136,14 +136,10 @@ def getGaeVersionName() {
 
 
 onMaster('1h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Mr Monkey',
-                   emoji: ':monkey_face:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       try {
          checkArgs();
          def sha1 = mergeBranches();

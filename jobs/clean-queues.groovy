@@ -14,11 +14,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule(
-   // Run every Tuesday at 10am.  The time is arbitrary, but during business
-   // hours so we can fix things if they break.
-   '0 10 * * 2'
-
 ).apply();
 
 
@@ -27,6 +22,7 @@ def deleteQueues() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
+         sh("sudo rm -f /etc/boto.cfg");
          sh("deploy/upload_queues.py clean");
       }
    }
@@ -34,13 +30,10 @@ def deleteQueues() {
 
 
 onMaster('1h') {
-   notify([slack: [channel: '#infrastructure',
-                sender: 'Mr Monkey',
-                emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Deleting queues") {
          deleteQueues();
       }

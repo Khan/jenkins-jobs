@@ -159,6 +159,8 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make python_deps");
+      sh("sudo rm -f /etc/boto.cfg");
+
    }
 }
 

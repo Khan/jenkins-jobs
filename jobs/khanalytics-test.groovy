@@ -26,7 +26,7 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#future-of-pipelines"
+   "#fbot-testing"
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
@@ -110,13 +110,10 @@ def runTests() {
 }
 
 onWorker('ka-test-ec2', '1h') {
-    notify([slack: [channel: params.SLACK_CHANNEL,
-                    sender: 'Testing Turtle',
-                    emoji: ':turtle:',
-                    when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
-            aggregator: [initiative: 'infrastructure',
-                         when: ['SUCCESS', 'BACK TO NORMAL',
-                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+    notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
         initializeGlobals();
         runTests();
         publishHTML target: [
