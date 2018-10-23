@@ -67,7 +67,7 @@ origin/master, but the buildmaster will specify a better value when it can.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "#bot-testing"
 
 ).addStringParam(
    "SLACK_THREAD",
