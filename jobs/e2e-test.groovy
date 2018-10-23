@@ -190,7 +190,7 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
                   "${exec.shellEscapeList(slackArgs)} --severity=error");
                sh("echo ${exec.shellEscape(failureMsg)} | " +
                   "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
-                  "--slack='#mobile-1s-and-0s' --severity=error");
+                  "--slack='#bot-testing' --severity=error");
                throw e;
             }
          }
@@ -228,7 +228,7 @@ def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
             "${exec.shellEscapeList(slackArgs)} --severity=error");
          sh("echo ${exec.shellEscape(failureMsg)} | " +
             "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
-            "--slack='#mobile-1s-and-0s' --severity=error");
+            "--slack='#bot-testing' --severity=error");
          throw e;
       }
    }
@@ -422,7 +422,7 @@ def analyzeResults() {
                // both the URL and the REVISION_DESCRIPTION.
                "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
                "--expected-tests-file", "genfiles/test-splits.txt",
-               "--cc-always", "#qa-log"];
+               "--cc-always", "#bot-testing"];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
