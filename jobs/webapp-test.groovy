@@ -434,7 +434,9 @@ onWorker('ka-test-ec2', '5h') {     // timeout
    notify([slack: [channel: "#bot-testing",
                   sender: 'Taskqueue Totoro',
                   emoji: ':totoro:',
-                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
+            buildmaster: [sha: params.GIT_REVISION,
+                  what: 'webapp-test']]) {
       initializeGlobals();
 
       try {

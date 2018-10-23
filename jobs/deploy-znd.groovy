@@ -255,7 +255,7 @@ def _sendCommentToPhabricator() {
 }
 
 def deploy() {
-   withTimeout('90m') {
+   withTimeout('3h') {
       // In principle we should fetch from workspace@script which is where this
       // script itself is loaded from, but that doesn't exist on znd-workers
       // and our checkout of jenkins-jobs will work fine.
