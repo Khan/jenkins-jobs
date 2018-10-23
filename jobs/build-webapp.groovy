@@ -430,21 +430,24 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployToKotlinRoutes() {
-   if (!("kotlin-routes" in SERVICES)) {
-      return;
-   }
+    if (!("kotlin-routes" in SERVICES)) {
+        return;
+    }
 
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp") {
-         // HACK: If we sh() in a directory d, jenkins creates a sibling
-         // directory d@tmp.  If d is a subdirectory of webapp, this confuses
-         // deploy_to_gae.py's local changes check.  So instead we have the
-         // shell do the cd.
-         sh("cd services/kotlin_routes && ./gradlew deploy");
-      }
-   }
+    withSecrets() {     // TODO(benkraft): do we actually need secrets?
+        dir("webapp") {
+            // HACK: If we sh() in a directory d, jenkins creates a sibling
+            // directory d@tmp.  If d is a subdirectory of webapp, this
+            // confuses deploy_to_gae.py's local changes check.  So instead
+            // we have the shell do the cd.
+            // TODO(colin): can we now run this from webapp root and avoid the
+            // cd?
+            withEnv(["VERSION=${NEW_VERSION}"]) {
+                sh("cd services/kotlin_routes && ./gradlew appengineDeploy");
+            }
+        }
+    }
 }
-
 
 
 // This should be called from within a node().
