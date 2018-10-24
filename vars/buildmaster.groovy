@@ -45,7 +45,7 @@ def notifyStatus(job, result, sha1) {
    def params = [
       git_sha: sha1,
       job: job,
-      result: result,
+      result: result
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }
@@ -91,16 +91,26 @@ def notifyDefaultSet(sha1, status) {
    return _makeHttpRequest("commits/set-default-status", "PATCH", params);
 }
 
+def notifyServices(sha1, services) {
+   echo("Sending list of services for ${sha1}: ${services}");
+   def params = [
+      git_sha: sha1,
+      services: services,
+   ];
+   return _makeHttpRequest("commits/services", "PATCH", params);
+}
+
 def pingForStatus(job, sha1) {
    echo("Asking buildmaster for the ${job} status for ${sha1}.")
    def params = [
       git_sha: sha1,
       job: job
    ]
-   resp = _makeHttpRequest("job-status", "POST", params)
+   def resp = _makeHttpRequest("job-status", "POST", params)
 
-   if (resp[1] == '200') {
-      return resp[0];
+   if (resp.getStatus() == 200) {
+      return resp.getContent();
    }
+   echo("Received a non-200 response, perhaps buildmaster is down.");
    return
 }

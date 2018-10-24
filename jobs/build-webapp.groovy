@@ -332,6 +332,10 @@ def mergeFromMasterAndInitializeGlobals() {
          }
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
+         // Phone home to buildmaster about the services we're deploying to
+         buildmaster.notifyServices(params.GIT_REVISION,
+                                   SERVICES.join(', ') ?: "tools-only");
+
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          // Normally, the deploy url will be the new version's appspot URL --
          // we use these URLs for testing even for static versions.  But, if we
@@ -431,21 +435,24 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployToKotlinRoutes() {
-   if (!("kotlin-routes" in SERVICES)) {
-      return;
-   }
+    if (!("kotlin-routes" in SERVICES)) {
+        return;
+    }
 
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp") {
-         // HACK: If we sh() in a directory d, jenkins creates a sibling
-         // directory d@tmp.  If d is a subdirectory of webapp, this confuses
-         // deploy_to_gae.py's local changes check.  So instead we have the
-         // shell do the cd.
-         sh("cd services/kotlin_routes && ./gradlew deploy");
-      }
-   }
+    withSecrets() {     // TODO(benkraft): do we actually need secrets?
+        dir("webapp") {
+            // HACK: If we sh() in a directory d, jenkins creates a sibling
+            // directory d@tmp.  If d is a subdirectory of webapp, this
+            // confuses deploy_to_gae.py's local changes check.  So instead
+            // we have the shell do the cd.
+            // TODO(colin): can we now run this from webapp root and avoid the
+            // cd?
+            withEnv(["VERSION=${NEW_VERSION}"]) {
+                sh("cd services/kotlin_routes && ./gradlew appengineDeploy");
+            }
+        }
+    }
 }
-
 
 
 // This should be called from within a node().
