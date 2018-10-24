@@ -474,9 +474,8 @@ def _manualSmokeTestCheck(job){
 }
 
 
-def verifySmokeTestResults(defaultSet, buildmasterFailures=0) {
+def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    withTimeout('60m') {
-      def jobName = defaultSet ? 'second-smoke-test': 'first-smoke-test';
       def status;
       while (!(status == "succeeded")) {
          status = buildmaster.pingForStatus(jobName,
@@ -845,7 +844,7 @@ onMaster('4h') {
          try {
             stage("Prompt 1") {
                if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults(defaultSet=false);
+                  verifySmokeTestResults('first-smoke-test');
                }
                buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting SetDefault');
@@ -856,7 +855,7 @@ onMaster('4h') {
             }
             stage("Prompt 2") {
                if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults(defaultSet=true);
+                  verifySmokeTestResults('second-smoke-test');
                }
                buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
                                          'waiting Finish');
