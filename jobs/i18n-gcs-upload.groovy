@@ -97,7 +97,7 @@ def runScript() {
 
 
 def resetRepo() {
-   withTimeout("30m") {
+   withTimeout("2h") {
       dir("webapp") {
          sh("git submodule update");
       }
