@@ -844,22 +844,22 @@ onMaster('4h') {
       if (SERVICES) {
          try {
             stage("Prompt 1") {
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting SetDefault');
                if (!params.SKIP_TESTS) {
                   verifySmokeTestResults(defaultSet=false);
                }
+               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
+                                         'waiting SetDefault');
                promptForSetDefault();
             }
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
             }
             stage("Prompt 2") {
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting Finish');
                if (!params.SKIP_TESTS) {
                   verifySmokeTestResults(defaultSet=true);
                }
+               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
+                                         'waiting Finish');
                promptToFinish();
             }
          } catch (e) {
