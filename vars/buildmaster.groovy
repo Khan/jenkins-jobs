@@ -41,12 +41,11 @@ def _makeHttpRequest(resource, httpMode, params) {
    }
 }
 
-def notifyStatus(job, result, sha1, services) {
+def notifyStatus(job, result, sha1) {
    def params = [
       git_sha: sha1,
       job: job,
-      result: result,
-      services: services,
+      result: result
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }
@@ -90,6 +89,15 @@ def notifyDefaultSet(sha1, status) {
       status: status,
    ];
    return _makeHttpRequest("commits/set-default-status", "PATCH", params);
+}
+
+def notifyServices(sha1, services) {
+   echo("Sending list of services for ${sha1}: ${services}");
+   def params = [
+      git_sha: sha1,
+      services: services,
+   ];
+   return _makeHttpRequest("commits/services", "PATCH", params);
 }
 
 def pingForStatus(job, sha1) {

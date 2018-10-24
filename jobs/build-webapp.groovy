@@ -331,6 +331,10 @@ def mergeFromMasterAndInitializeGlobals() {
          }
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
+         // Phone home to buildmaster about the services we're deploying to
+         buildmaster.notifyServices(params.GIT_REVISION,
+                                   SERVICES.join(', ') ?: "tools-only");
+
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          // Normally, the deploy url will be the new version's appspot URL --
          // we use these URLs for testing even for static versions.  But, if we
@@ -494,8 +498,7 @@ onWorker('build-worker', '4h') {
                    // does not care.  (See also the catch(e) below.)
                    when: ['FAILURE', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: 'build-webapp',
-                         services: SERVICES.join(', ') ?: "tools-only"],
+                         what: 'build-webapp'],
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                         'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
