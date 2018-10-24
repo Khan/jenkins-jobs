@@ -26,7 +26,7 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#fbot-testing"
+   "#bot-testing"
 ).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run

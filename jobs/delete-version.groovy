@@ -38,7 +38,7 @@ def verifyArgs() {
 
 
 def deleteVersion() {
-   withTimeout('15m') {
+   withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
@@ -55,7 +55,7 @@ def deleteVersion() {
 }
 
 
-onMaster('30m') {
+onMaster('2h') {
    notify([slack: [channel: "#bot-testing",
                   sender: 'Taskqueue Totoro',
                   emoji: ':totoro:',
