@@ -52,7 +52,7 @@ currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALES})";
 
 
 def syncRepos() {
-   withTimeout("10m") {
+   withTimeout("1h") {
       def gitTag = params.GIT_TAG;
       if (!gitTag) {
          // We sync to master so we can get the git-tag of the current
@@ -97,7 +97,7 @@ def runScript() {
 
 
 def resetRepo() {
-   withTimeout("10m") {
+   withTimeout("30m") {
       dir("webapp") {
          sh("git submodule update");
       }
