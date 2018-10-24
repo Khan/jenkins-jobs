@@ -107,13 +107,10 @@ def resetRepo() {
 
 onMaster('23h') {
    // TODO(csilvers): update the slack message with the updated locales.
-   notify([slack: [channel: '#i18n',
-                   sender: 'I18N Imp',
-                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       // Make sure LOCALES was specified -- it's an error not to list a
       // locale to update!
       if (!params.LOCALES) {

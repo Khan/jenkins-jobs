@@ -16,8 +16,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 2 * * *"
-
 ).apply();
 
 
@@ -47,16 +45,10 @@ def runScript() {
 
 def tryUpdateStrings() {
   onMaster('6h') {
-     notify([slack: [channel: '#i18n',
-                     sender: 'I18N Imp',
-                     emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                     extraText: "@joshua",
-                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-             email: [to: 'jenkins-admin+builds',
-                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-             aggregator: [initiative: 'infrastructure',
-                          when: ['SUCCESS', 'BACK TO NORMAL',
-                                 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+     notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
         def updatedLocales = '';
 
         // i18n-download-translations also uses our workspace, and edits files

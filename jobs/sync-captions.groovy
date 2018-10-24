@@ -13,8 +13,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 3 * * 3,6"
-
 ).addStringParam(
     "SKIP_TO_STAGE",
     """Skip some stages of the sync.
@@ -33,6 +31,7 @@ def runScript() {
       // now install the other deps
       sh("make clean_pyc");    // in case some .py files went away
       sh("make python_deps");
+      sh("sudo rm -f /etc/boto.cfg");
    }
 
    withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
@@ -45,16 +44,10 @@ def runScript() {
 
 onMaster('23h') {
    // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-   notify([slack: [channel: '#i18n',
-                   sender: 'I18N Imp',
-                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@joshua",
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Syncing captions") {
          runScript();
       }

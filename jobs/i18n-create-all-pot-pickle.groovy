@@ -35,17 +35,10 @@ def runScript() {
 
 
 onWorker("ka-i18n-ec2", "10h")  {
-   notify([slack: [channel: '#cp-eng',
-                   sender: 'I18N Imp',
-                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@cp-support",
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Running script") {
            runScript();
       }

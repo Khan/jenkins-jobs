@@ -15,8 +15,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 5 * * 6,2"
-
 ).apply();
 
 
@@ -36,6 +34,7 @@ def updateRepo() {
       dir("webapp") {
          sh("make clean_pyc");    // in case some .py files went away
          sh("make python_deps");
+         sh("sudo rm -f /etc/boto.cfg");
       }
    }
 }
@@ -63,16 +62,10 @@ def runAndCommit() {
 
 
 onMaster('23h') {
-   notify([slack: [channel: '#cp-eng',
-                   sender: 'I18N Imp',
-                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@cp-support",
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Updating webapp repo") {
          updateRepo();
       }

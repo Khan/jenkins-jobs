@@ -12,8 +12,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H/5 * * * *"
-
 ).addStringParam(
     "LOCALES",
     """Set this to a whitespace-separate list of locales process, e.g.,
@@ -52,6 +50,7 @@ def runScript() {
          dir("webapp") {
             sh("make clean_pyc");
             sh("make python_deps");
+            sh("sudo rm -f /etc/boto.cfg");
          }
 
          // Remove output from a previous run.  Re-created by
@@ -96,16 +95,10 @@ def runScript() {
 
 onMaster('2h') {
    // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-   notify([slack: [channel: '#i18n',
-                   sender: 'I18N Imp',
-                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@joshua",
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify([slack: [channel: "#bot-testing",
+                  sender: 'Taskqueue Totoro',
+                  emoji: ':totoro:',
+                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       def updatedLocales = '';
 
       // We modify files in this workspace -- which is not our own! -- so
