@@ -76,10 +76,10 @@ def determineSplits() {
    // That will save time later.
    def jobs = [
       "determine-splits": {
-         withTimeout('1h') {
+         withTimeout('2h') {
             _setupWebapp();
          }
-         withTimeout('30m') {
+         withTimeout('1h') {
             def NUM_SPLITS = NUM_WORKER_MACHINES;
             dir("webapp") {
                sh("tools/runtests.py -n --just-split -j${NUM_SPLITS} " +
@@ -107,7 +107,7 @@ def determineSplits() {
       jobs["sync-webapp-${workerNum}"] = {
          // TODO(benkraft): Refactor this to do the setup in the same
          // onWorker() block, like we did for webapp-test.
-         onWorker('ka-test-ec2', '1h') {      // timeout
+         onWorker('ka-test-ec2', '2h') {      // timeout
             _setupWebapp();
          }
       }
