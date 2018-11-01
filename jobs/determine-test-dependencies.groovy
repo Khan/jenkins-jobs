@@ -133,7 +133,7 @@ def runTests() {
             // double-check.
             _setupWebapp();
 
-            sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
+            sh("cd webapp; ../jenkins-jobs/timeout_output.py 3h " +
                "tools/determine_tests_for.py " +
                "-o ../tests_for.${workerNum}.json " +
                "- < ../test-splits.${workerNum}.txt");
