@@ -106,11 +106,20 @@ def pingForStatus(job, sha1) {
       git_sha: sha1,
       job: job
    ]
-   def resp = _makeHttpRequest("job-status", "POST", params)
-
+   try {
+      def resp = _makeHttpRequest("job-status", "POST", params)
+      if (resp.getStatus() == 200) {
+         return resp.getContent();
+      }
+   } catch (e) {
+      echo("Error getting job status: ${e}");
+      return
+   }
+      
    if (resp.getStatus() == 200) {
       return resp.getContent();
    }
-   echo("Received a non-200 response, perhaps buildmaster is down.");
+
+   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
    return
 }
