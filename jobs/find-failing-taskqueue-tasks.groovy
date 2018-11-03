@@ -27,7 +27,6 @@ onMaster('1h') {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          dir("webapp") {
             sh("make python_deps");
-            sh("sudo rm -f /etc/boto.cfg");
             exec(["dev/tools/failing_taskqueue_tasks.py",
                   "--slack-channel=${params.SLACK_CHANNEL}"]);
          }
