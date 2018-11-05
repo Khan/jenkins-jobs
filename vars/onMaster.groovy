@@ -9,7 +9,11 @@ def call(timeoutString, Closure body) {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
             withTimeout(timeoutString) {
-               body();
+                // To export BOTO_CONFIG, for some reason, master did not
+                // source the .profile or .bashrc anymore.
+                withEnv(["BOTO_CONFIG=/var/lib/jenkins/.boto"]) {
+                     body();
+                }
             }
          }
       }
