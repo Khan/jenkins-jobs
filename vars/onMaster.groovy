@@ -11,7 +11,7 @@ def call(timeoutString, Closure body) {
             withTimeout(timeoutString) {
                 // To export BOTO_CONFIG, for some reason, master did not
                 // source the .profile or .bashrc anymore.
-                withEnv(["BOTO_CONFIG=/var/lib/jenkins/.boto"]) {
+                withEnv(["BOTO_CONFIG=${env.HOME}/.boto"]) {
                      body();
                 }
             }
