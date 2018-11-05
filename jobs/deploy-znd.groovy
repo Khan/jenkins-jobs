@@ -267,7 +267,6 @@ def deploy() {
       dir("webapp") {
          clean(params.CLEAN);
          sh("make deps");
-         sh("sudo rm -f /etc/boto.cfg");
       }
 
       parallel(
