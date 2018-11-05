@@ -9,9 +9,9 @@ def call(timeoutString, Closure body) {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
             withTimeout(timeoutString) {
-                // withEnv(["BOTO_CONFIG=/var/lib/jenkins/.boto"]) {
+                 withEnv(["BOTO_CONFIG=/var/lib/jenkins/.boto"]) {
                      body();
-                // }
+                 }
             }
          }
       }
