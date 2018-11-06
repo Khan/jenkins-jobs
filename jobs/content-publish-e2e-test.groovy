@@ -125,6 +125,7 @@ def runAndroidTests() {
                // run, that's fine). Note that the tests are mostly
                // failing during the publish e2es.  See:
                // https://app.asana.com/0/31965416896056/268841235736013.
+               // (see also /r/asana-links)
                //sh("echo ${exec.shellEscape(failureMsg)} | " +
                //     "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
                //     "--slack='#mobile-1s-and-0s' --severity=error");
