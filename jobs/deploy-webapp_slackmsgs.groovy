@@ -108,7 +108,7 @@ is uploaded to App Engine!
 
 Do some manual testing, perhaps via
 `tools/manual_webapp_testing.py %(deployUrl)s`, while I run the
-<https://jenkins.khanacademy.org/job/deploy/job/e2e-test/lastBuild/|end-to-end tests>.
+end-to-end tests (Sun knows the details).
 %(maybeVmMessage)sThen, either:"""),
          "fields": [
             [
