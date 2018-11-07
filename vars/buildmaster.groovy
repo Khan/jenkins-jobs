@@ -4,6 +4,7 @@ import groovy.transform.Field;
 
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.notify
+//import vars.retry
 
 
 @Field BUILDMASTER_TOKEN = null;
@@ -21,17 +22,21 @@ def initializeBuildmasterToken() {
 def _makeHttpRequest(resource, httpMode, params) {
    initializeBuildmasterToken();
    try {
-      def response = httpRequest(
-         acceptType: "APPLICATION_JSON",
-         contentType: "APPLICATION_JSON",
-         customHeaders: [[name: 'X-Buildmaster-Token',
-                          value: BUILDMASTER_TOKEN,
-                          // Replace value with ***** when logging request.
-                          maskValue: true]],
-         httpMode: httpMode,
-         requestBody: new JsonBuilder(params).toString(),
-         url: "https://buildmaster.khanacademy.org/${resource}");
-      return response;
+      // We retry if the buildmaster fails.
+      // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
+      retry {
+         def response = httpRequest(
+            acceptType: "APPLICATION_JSON",
+            contentType: "APPLICATION_JSON",
+            customHeaders: [[name: 'X-Buildmaster-Token',
+                             value: BUILDMASTER_TOKEN,
+                             // Replace value with ***** when logging request.
+                             maskValue: true]],
+            httpMode: httpMode,
+            requestBody: new JsonBuilder(params).toString(),
+            url: "https://buildmaster.khanacademy.org/${resource}");
+         return response;
+      }
    } catch (e) {
       // Ideally, we'd just catch hudson.AbortException, but for some reason
       // it's not being caught properly.
