@@ -1,0 +1,11 @@
+Retry a block if it fails.
+
+Use like:
+   retry {
+      // this block will be retried up to 3 times on failure
+   }
+or
+   retry([retryCount: 5, rejectFn: hasFoo]) {
+      // this block will be retried up to 5 times,
+      // except we'll give up if hasFoo(<the error>).
+   }
