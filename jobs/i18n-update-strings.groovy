@@ -22,7 +22,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('10h') {
+   withTimeout('14h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Remove output from a previous run.  Re-created by
