@@ -3,8 +3,7 @@ def call(options=null, Closure body) {
    def retryCount = options.retryCount ?: 3;
    for (def i = 0; i <= retryCount; i++) {
       try {
-         body();
-         break;
+         return body();
       } catch (e) {
          def msgStart = "Try #${i}: got ${e}."
          if (i == retryCount) {
