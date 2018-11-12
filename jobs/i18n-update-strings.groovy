@@ -47,10 +47,10 @@ def runScript() {
 
 def tryUpdateStrings() {
   onMaster('6h') {
-     notify([slack: [channel: '#i18n',
+     notify([slack: [channel: '#i18n','#cp-eng',
                      sender: 'I18N Imp',
                      emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                     extraText: "@joshua",
+                     extraText: "@cp-support",
                      when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
              email: [to: 'jenkins-admin+builds',
                      when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
