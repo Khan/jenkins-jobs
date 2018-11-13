@@ -47,7 +47,7 @@ def runScript() {
 
 def tryUpdateStrings() {
   onMaster('6h') {
-     notify([slack: [channel: '#i18n','#cp-eng',
+     notify([slack: [channel: '#i18n',
                      sender: 'I18N Imp',
                      emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                      extraText: "@cp-support",
