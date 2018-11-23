@@ -55,7 +55,7 @@ def do_timeout(p, signum, kill_after):
     return 124        # what `signal(1)` returns on timeout
 
 
-def main(cmd_list, duration, signum, kill_after):
+def main(cmd_list, duration, signum, kill_after, verbose=False):
     input = ''
 
     p = subprocess.Popen(cmd_list, stdin=subprocess.PIPE,
@@ -71,6 +71,9 @@ def main(cmd_list, duration, signum, kill_after):
         if timeout <= 0:
             # This means there's been no output in at least `duration`
             # seconds so we have timed out!
+            if verbose:
+                print >>sys.stderr, ("KILLING process %s after %s seconds of "
+                                     "no output to stdout" % (p.pid, duration))
             return do_timeout(p, signum, kill_after)
 
         try:
@@ -140,6 +143,8 @@ if __name__ == '__main__':
                         help=('Specify the signal to be sent on timeout. '
                               'SIGNAL may be a name like "HUP" or a number. '
                               'See `kill -l` for a list of signals.'))
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help=('Print to stderr when we timeout'))
     parser.add_argument('duration',
                         help=('A floating point number with an optional '
                               'suffix: "s" for seconds (the default), '
@@ -167,5 +172,5 @@ if __name__ == '__main__':
         parser.error('Unknown signal "%s" (do not include leading "SIG"!)'
                      % args.signal)
 
-    rc = main(args.command, duration, signum, kill_after)
+    rc = main(args.command, duration, signum, kill_after, args.verbose)
     sys.exit(rc)
