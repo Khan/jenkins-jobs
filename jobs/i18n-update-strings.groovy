@@ -22,7 +22,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('6h') {
+   withTimeout('12h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Remove output from a previous run.  Re-created by
@@ -46,7 +46,7 @@ def runScript() {
 
 
 def tryUpdateStrings() {
-  onMaster('6h') {
+  onMaster('12h') {
      notify([slack: [channel: '#i18n',
                      sender: 'I18N Imp',
                      emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
