@@ -241,11 +241,11 @@ echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
     echo "Pushing bigfiles"
     cd webapp/intl/translations
     # If this repo uses bigfiles, we have to push them to S3 now, as well.
-    timeout 60m env PATH="$HOME/git-bigfile/bin:$PATH" \
+    timeout 120m env PATH="$HOME/git-bigfile/bin:$PATH" \
                     PYTHONPATH="/usr/lib/python2.7/dist-packages:$PYTHONPATH" \
                     git bigfile push
     # Clean up bigfile objects older than two days.
-    timeout 120m find "`git rev-parse --git-dir`/bigfile/objects" -mtime +2 -type f -print0 \
+    timeout 240m find "`git rev-parse --git-dir`/bigfile/objects" -mtime +2 -type f -print0 \
         | xargs -r0 rm -f
 )
 
