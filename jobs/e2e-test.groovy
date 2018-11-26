@@ -196,42 +196,6 @@ def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
    }
 }
 
-
-// Verify that candidate schema supports all active queries.
-def runGraphlSchemaTest(slackArgs, slackArgsWithoutChannel) {
-   // Wait until the other thread has finished setup, then go.
-   waitUntil({ HAVE_RUN_SETUP });
-
-   def cmd = "curl -s ${exec.shellEscape(E2E_URL)}'/api/internal/" +
-      "graphql_whitelist/validate?format=pretty' -b GOOGAPPUID=999 " +
-      "| tee /dev/stderr | grep -q '.passed.: *true'";
-   withSecrets() {  // we need secrets to talk to slack!
-      try {
-         sh(cmd)
-         def successMsg = "GraphQL schema integration test succeeded for " +
-            REVISION_DESCRIPTION;
-         sh("echo ${exec.shellEscape(successMsg)} | " +
-            "${exec.shellEscapeList(slackArgs)} --severity=info");
-      } catch (e) {
-         def msg = exec.outputOf([
-            'curl', '-s',
-            "${E2E_URL}/api/internal/graphql_whitelist/validate?format=pretty",
-            '-b', 'GOOGAPPUID=999']);
-         def failureMsg = "GraphQL schema integration test failed for " +
-            "${REVISION_DESCRIPTION}. This means " +
-            "the GraphQL schema is not valid or does not support all active " +
-            "queries (most likely the schema breaks a mobile native query). " +
-            "Failure message: ```${msg}```";
-         sh("echo ${exec.shellEscape(failureMsg)} | " +
-            "${exec.shellEscapeList(slackArgs)} --severity=error");
-         sh("echo ${exec.shellEscape(failureMsg)} | " +
-            "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
-            "--slack='#mobile-1s-and-0s' --severity=error");
-         throw e;
-      }
-   }
-}
-
 def _determineTests() {
    // Figure out how to split up the tests.  We run 4 jobs on
    // each of 4 workers.  We put this in the location where the
@@ -351,12 +315,10 @@ def determineSplitsAndRunTests() {
             }
          }
       },
-      // These two run on the "parent" worker, and wait for setup before doing
+      // This runs on the "parent" worker, and wait for setup before doing
       // anything; we spawn them at the same time as everything else just to
       // keep things simple and avoid more nesting.
       "android-integration-test": { runAndroidTests(
-         slackArgs, slackArgsWithoutChannel); },
-      "graphql-integration-test": { runGraphlSchemaTest(
          slackArgs, slackArgsWithoutChannel); },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
