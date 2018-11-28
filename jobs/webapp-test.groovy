@@ -293,7 +293,7 @@ def doTestOnWorker(workerNum) {
       unstash("splits");
 
       try {
-         sh("cd webapp; ../jenkins-jobs/timeout_output.py 45m " +
+         sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 45m " +
             "tools/runtests.py " +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +

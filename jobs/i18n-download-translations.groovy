@@ -23,7 +23,7 @@ most in need of an update.""",
 
 
 def runScript() {
-   withTimeout('1h') {
+   withTimeout('3h') {
       // We run in the i18n-update-strings workspace.  That way we
       // don't need our own copy of webapp.  This matters because
       // these jobs update intl/translations, which is huge.
@@ -93,12 +93,18 @@ def runScript() {
 }
 
 
-onMaster('2h') {
+onMaster('3h') {
    // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-   notify([slack: [channel: "#bot-testing",
-                  sender: 'Taskqueue Totoro',
-                  emoji: ':totoro:',
-                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+   notify([slack: [channel: '#i18n',
+                   sender: 'I18N Imp',
+                   emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                   extraText: "@cp-support",
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           email: [to: 'jenkins-admin+builds',
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'infrastructure',
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       def updatedLocales = '';
 
       // We modify files in this workspace -- which is not our own! -- so

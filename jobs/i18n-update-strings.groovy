@@ -20,7 +20,7 @@ new Setup(steps
 
 
 def runScript() {
-   withTimeout('5h') {
+   withTimeout('12h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // Remove output from a previous run.  Re-created by
@@ -44,11 +44,17 @@ def runScript() {
 
 
 def tryUpdateStrings() {
-  onMaster('6h') {
-     notify([slack: [channel: "#bot-testing",
-                  sender: 'Taskqueue Totoro',
-                  emoji: ':totoro:',
-                  when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+  onMaster('12h') {
+     notify([slack: [channel: '#i18n',
+                     sender: 'I18N Imp',
+                     emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
+                     extraText: "@cp-support",
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+             email: [to: 'jenkins-admin+builds',
+                     when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
+             aggregator: [initiative: 'infrastructure',
+                          when: ['SUCCESS', 'BACK TO NORMAL',
+                                 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
         def updatedLocales = '';
 
         // i18n-download-translations also uses our workspace, and edits files

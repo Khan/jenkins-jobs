@@ -131,8 +131,7 @@ def runTests() {
             // the right commit, but we can't depend on that, so we
             // double-check.
             _setupWebapp();
-
-            sh("cd webapp; ../jenkins-jobs/timeout_output.py 3h " +
+            sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 45m " +
                "tools/determine_tests_for.py " +
                "-o ../tests_for.${workerNum}.json " +
                "- < ../test-splits.${workerNum}.txt");

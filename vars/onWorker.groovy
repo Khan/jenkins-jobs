@@ -54,6 +54,8 @@ def call(def label, def timeoutString, Closure body) {
                   // TODO(csilvers): figure out how to get the worker
                   // to source the .bashrc like it did before.  Now I
                   // think it's inheriting the PATH from the parent instead.
+                  // To export BOTO_CONFIG, for some reason, worker did not
+                  // source the .profile or .bashrc anymore.
                   withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
                            "PATH=/usr/local/google_appengine:" +
                            "/home/ubuntu/google-cloud-sdk/bin:" +
