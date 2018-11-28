@@ -52,6 +52,7 @@ def call(def label, def timeoutString, Closure body) {
                      ["curl", "-s",
                       "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
                       "-H", '"Metadata-Flavor: Google"' ]);
+                  echo("Running on GCE instance ${instanceId} at ip ${ip}");
                   // TODO(csilvers): figure out how to get the worker
                   // to source the .bashrc like it did before.  Now I
                   // think it's inheriting the PATH from the parent instead.
