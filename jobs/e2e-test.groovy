@@ -251,6 +251,10 @@ def doTestOnWorker(workerNum) {
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
+      // We also need to sync mobile, so we can run the mobile integration test
+      // (if we are assigned to do so).
+      // TODO(benkraft): Only run this if we get it from the splits?
+      kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
