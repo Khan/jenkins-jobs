@@ -163,39 +163,6 @@ def _setupWebapp() {
 }
 
 
-def runAndroidTests(slackArgs, slackArgsWithoutChannel) {
-   // Wait until the other thread has finished setup, then go.
-   waitUntil({ HAVE_RUN_SETUP });
-
-   def successMsg = ("Android integration tests succeeded for " +
-                     REVISION_DESCRIPTION);
-   def failureMsg = ("Android integration tests failed for " +
-                     REVISION_DESCRIPTION +
-                     "(search for 'ANDROID' in ${env.BUILD_URL}consoleFull)");
-
-   withTimeout('1h') {
-      withEnv(["URL=${E2E_URL}"]) {
-         withSecrets() {  // we need secrets to talk to slack!
-            try {
-               // TODO(benkraft): This should really set the cookie
-               // GOOGAPPUID=999 to make sure it gets the data from the new
-               // version if we are still in a traffic split.
-               sh("jenkins-jobs/run_android_db_generator.sh");
-               sh("echo ${exec.shellEscape(successMsg)} | " +
-                  "${exec.shellEscapeList(slackArgs)} --severity=info");
-            } catch (e) {
-               sh("echo ${exec.shellEscape(failureMsg)} | " +
-                  "${exec.shellEscapeList(slackArgs)} --severity=error");
-               sh("echo ${exec.shellEscape(failureMsg)} | " +
-                  "${exec.shellEscapeList(slackArgsWithoutChannel)} " +
-                  "--slack='#mobile-1s-and-0s' --severity=error");
-               throw e;
-            }
-         }
-      }
-   }
-}
-
 def _determineTests() {
    // Figure out how to split up the tests.  We run 4 jobs on
    // each of 4 workers.  We put this in the location where the
@@ -319,11 +286,6 @@ def determineSplitsAndRunTests() {
             }
          }
       },
-      // This runs on the "parent" worker, and wait for setup before doing
-      // anything; we spawn them at the same time as everything else just to
-      // keep things simple and avoid more nesting.
-      "android-integration-test": { runAndroidTests(
-         slackArgs, slackArgsWithoutChannel); },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
