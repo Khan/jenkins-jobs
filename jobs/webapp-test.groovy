@@ -372,23 +372,15 @@ def analyzeResults() {
          notify.fail(msg);
       }
 
-      // If our test-runner script supports --expected-tests-file, we use that
-      // below instead of checking which workers failed.
-      // TODO(benkraft): By November 2018, when no one is running tests on
-      // branches old enough not to support that flag, remove this case.
-      def supportsExpectedTestsFile;
+      // If our test-reporter supports --rerun-command, use it!
+      // TODO(benkraft): When everyone's branches are new enough to support it,
+      // definitely by February 2019, remove this conditional.
+      def supportsRerunCommand;
       dir("webapp") {
-         supportsExpectedTestsFile = (
+         supportsRerunCommand = (
             exec.outputOf(["tools/test_pickle_util.py",
                            "summarize-to-slack", "--help"])
-            .contains("--expected-tests-file"));
-      }
-      if (!supportsExpectedTestsFile && numPickleFileErrors) {
-         def msg = ("${numPickleFileErrors} test workers did not " +
-                    "even finish (could be due to timeouts or framework " +
-                    "errors; search for `Failed in branch` at " +
-                    "${env.BUILD_URL}consoleFull to see exactly why)");
-         notify.fail(msg);
+            .contains("--rerun-command"));
       }
 
       withSecrets() {     // we need secrets to talk to slack!
@@ -405,13 +397,22 @@ def analyzeResults() {
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
-               "--label", REVISION_DESCRIPTION];
+               "--label", REVISION_DESCRIPTION,
+               "--expected-tests-file", "genfiles/test_splits.txt"];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
-            if (supportsExpectedTestsFile) {
+            if (supportsRerunCommand) {
+               // We try to keep the command short and clear.
+               // max-size is the only option we need locally, and only
+               // if it is not "medium".
+               maxSizeParam = "";
+               if (params.MAX_SIZE != "medium") {
+                  maxSizeParam = (
+                     " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
+               }
                summarize_args += [
-                  "--expected-tests-file", "genfiles/test_splits.txt"];
+                  "--rerun-command", "tools/runtests.py${maxSizeParam}"];
             }
             exec(summarize_args);
             // Let notify() know not to send any messages to slack,
