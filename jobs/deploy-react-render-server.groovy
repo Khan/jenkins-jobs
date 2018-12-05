@@ -14,6 +14,26 @@ import org.khanacademy.Setup;
 new Setup(steps
 
 ).addBooleanParam(
+    "FLEX_DEPLOY",
+    """If set, deploy to an Appengine Flex instance instead of
+Appengine Standard.  If you set this to true, you should set
+SET_DEFAULT to false -- see the react-render-server README for
+details.""",
+    false
+
+).addBooleanParam(
+    "SET_DEFAULT",
+    """If set (the default), set the new version as default.
+Otherwise, this is left to the deployer to do manually.""",
+    true
+
+).addBooleanParam(
+    "PRIME",
+    """If set (the default), prime the version after deploying.
+TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
+    true
+
+).addBooleanParam(
     "SKIP_TESTS",
     """Do not run tests before deploying.
 TODO(jlfwong): Make this actually skip tests by modifying
@@ -57,11 +77,22 @@ def installDeps() {
 def deploy() {
    withTimeout('90m') {
       dir("react-render-server") {
-         sh("sh -ex ./deploy.sh");
+         withEnv(["DOCKER=${params.FLEX_DEPLOY ? "1" : ""}"]) {
+            sh("sh -ex ./deploy.sh");
+         }
       }
    }
 }
 
+def setDefault() {
+   withTimeout('90m') {
+      dir("react-render-server") {
+         withEnv(["DOCKER=${params.FLEX_DEPLOY ? "1" : ""}"]) {
+            sh("sh -ex ./set_default.sh");
+         }
+      }
+   }
+}
 
 
 onMaster('5h') {
@@ -78,6 +109,11 @@ onMaster('5h') {
       }
       stage("Deploying") {
          deploy();
+      }
+      if (params.SET_DEFAULT) {
+         stage("Setting default") {
+            setDefault();
+         }
       }
    }
 }
