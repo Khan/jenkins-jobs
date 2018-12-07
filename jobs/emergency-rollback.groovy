@@ -20,7 +20,8 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 //import vars.withSecrets
 
-// No bespoke setup: this is as simple a job as they get!
+// We try to keep minimal options in this job: you don't want to have to
+// figure out which options are right when the site is down!
 new Setup(steps
 
 ).addStringParam(
@@ -31,7 +32,22 @@ in the queue accordingly. Should always be set to 1. See
 https://jenkins.khanacademy.org/advanced-build-queue/ for more information.""",
    "1"
 
+).addBooleanParam(
+   "DRY_RUN",
+   """Don't actually run emergency rollback, just say what we would do.  This
+is primarily useful for making sure the job has a recent checkout of webapp.
+(We run it on a cron job for that purpose.)""",
+   false
+
+// NOTE(benkraft): This runs in a cron job started from the buildmaster,
+// instead of a jenkins cron job, because jenkins cron jobs can't pass
+// parameters and we need to pass DRY_RUN.
+
 ).apply();
+
+if (params.DRY_RUN) {
+   currentBuild.displayName = "${currentBuild.displayName} **DRY RUN**";
+}
 
 
 // TODO(csilvers): maybe use another workspace to save time syncing?
@@ -50,7 +66,11 @@ def doRollback() {
    withTimeout('30m') {
       withSecrets() {
          dir("webapp") {
-            sh("deploy/rollback.py");
+            if (params.DRY_RUN) {
+               sh("deploy/rollback.py -n");
+            } else {
+               sh("deploy/rollback.py");
+            }
          }
       }
    }
