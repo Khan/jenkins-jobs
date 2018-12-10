@@ -74,10 +74,12 @@ all versions, good and bad.)
 
 ROLLBACK_FAILED = [
    "severity": "critical",
+   // the <!subteam> thing is "@dev-support".
    "text": _textWrap("""\
 :ohnoes: :ohnoes: Auto-rollback failed!
 Roll back to %(rollbackToAsVersion)s manually by running
 `deploy/rollback.py --bad '%(gitTag)s' --good '%(rollbackTo)s'`
+cc <!subteam^S41PPSJ21>
 """)];
 
 

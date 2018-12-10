@@ -764,7 +764,7 @@ def finishWithFailure(why) {
 
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
-   withTimeout('20m') {
+   withTimeout('40m') {
       try {
          def currentGAEGitTag = exec.outputOf(
             // Don't trust git here -- we likely haven't merged to master yet
