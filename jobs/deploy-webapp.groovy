@@ -768,6 +768,22 @@ def finishWithSuccess() {
 }
 
 
+def finishWithFailureNoRollback(why) {
+   if (currentBuild.result == "ABORTED") {
+      why = "the deploy was manually aborted";   // a prettier error message
+   } else {
+      currentBuild.result = "FAILURE";
+   }
+
+    _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
+          [version: GIT_TAG,
+           branch: REVISION_DESCRIPTION,
+           services: SERVICES.join(', '),
+           why: why]);
+    env.SENT_TO_SLACK = '1';
+}
+
+
 def finishWithFailure(why) {
    if (currentBuild.result == "ABORTED") {
       why = "the deploy was manually aborted";   // a prettier error message
@@ -775,35 +791,16 @@ def finishWithFailure(why) {
       currentBuild.result = "FAILURE";
    }
 
+   // If our deploy fails after set-default, we always try a rollback, in
+   // case traffic is split. If it turns out traffic was never migrated to
+   // the new version our rollback script will determine that and exit early.
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
    withTimeout('40m') {
       try {
-         def currentGAEGitTag = exec.outputOf(
-            // Don't trust git here -- we likely haven't merged to master yet
-            // even if we did set default.
-            ["webapp/deploy/current_version.py", "--git-tag", "--no-git"]);
-
-         if (currentGAEGitTag != GIT_TAG) {
-            echo("No need to roll back: our deploy did not succeed");
-            echo("Us: ${GIT_TAG}, current: ${currentGAEGitTag}, " +
-                 "rollback-to: ${ROLLBACK_TO}");
-            _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-                   [version: GIT_TAG,
-                    branch: REVISION_DESCRIPTION,
-                    why: why]);
-            env.SENT_TO_SLACK = '1';
-            return
-         }
-      } catch (e) {
-         echo("Couldn't get current version: ${e}.  Rolling back to be safe.");
-      }
-
-      // Have to roll back.
-      try {
          _alert(alertMsgs.ROLLING_BACK,
-                [rollbackToAsVersion: rollbackToAsVersion,
-                 gitTag: GIT_TAG]);
+               [rollbackToAsVersion: rollbackToAsVersion,
+                gitTag: GIT_TAG]);
          dir("webapp") {
             exec(["deploy/rollback.py",
                   "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
@@ -813,22 +810,22 @@ def finishWithFailure(why) {
                                              "${ROLLBACK_TO}-bad"]);
             if (existingTag) {
                _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
-                      [rollbackToAsVersion: rollbackToAsVersion]);
+                     [rollbackToAsVersion: rollbackToAsVersion]);
             }
          }
       } catch (e) {
          echo("Auto-rollback failed: ${e}");
          _alert(alertMsgs.ROLLBACK_FAILED,
-                [rollbackToAsVersion: rollbackToAsVersion,
-                 gitTag: GIT_TAG,
-                 rollbackTo: ROLLBACK_TO]);
+               [rollbackToAsVersion: rollbackToAsVersion,
+                gitTag: GIT_TAG,
+                rollbackTo: ROLLBACK_TO]);
       }
 
       _alert(alertMsgs.FAILED_WITH_ROLLBACK,
-             [combinedVersion: GIT_TAG,
-              branch: REVISION_DESCRIPTION,
-              rollbackToAsVersion: rollbackToAsVersion,
-              why: why]);
+            [combinedVersion: GIT_TAG,
+             branch: REVISION_DESCRIPTION,
+             rollbackToAsVersion: rollbackToAsVersion,
+             why: why]);
       env.SENT_TO_SLACK = '1';
    }
 }
@@ -863,6 +860,13 @@ onMaster('4h') {
                                          'waiting SetDefault');
                promptForSetDefault();
             }
+         } catch (e) {
+            echo("Deploy failed before setting default: ${e}");
+            finishWithFailureNoRollback(e.toString())
+            throw e;
+         }
+
+         try {
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
             }

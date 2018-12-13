@@ -56,9 +56,9 @@ _abortField = [
 ROLLING_BACK = [
    "severity": "info",
    "text": _textWrap("""\
-Automatically rolling the default back to %(rollbackToAsVersion)s and tagging
-%(gitTag)s as bad (in git).  This will take a few minutes, after which you can
-decide whether to try again, or move on to the next deploy.
+Automatically rolling the default back to %(rollbackToAsVersion)s, if needed,
+and tagging %(gitTag)s as bad (in git).  This may take a few minutes, after
+which you can decide whether to try again, or move on to the next deploy.
 """)];
 
 
