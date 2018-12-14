@@ -39,6 +39,20 @@ is primarily useful for making sure the job has a recent checkout of webapp.
 (We run it on a cron job for that purpose.)""",
    false
 
+
+).addStringParam(
+   "ROLLBACK_TO",
+   """The version to rollback to. If not provided, we will default to the
+   most recent good version on app engine. This is a full version tag name,
+   e.g. gae-181217-1330-b18f83d38a3d-kotlin-routes-181217-0832-789e0227e0ba""",
+   ""
+
+).addStringParam(
+   "BAD_VERSION",
+   """The version to rollback from and mark `-bad` in git. If not provided, we
+   look for the current live version. This is also a full version tag name,
+   e.g. gae-181217-2111-5f05dc51cf56-kotlin-routes-181217-0832-789e0227e0ba""",
+   ""
 // NOTE(benkraft): This runs in a cron job started from the buildmaster,
 // instead of a jenkins cron job, because jenkins cron jobs can't pass
 // parameters and we need to pass DRY_RUN.
@@ -62,14 +76,60 @@ def doSetup() {
     }
 }
 
+
+// This attempts to verify that a provided tag is valid.
+// When a tag is explicitly provided but cannot be verified we
+// throw a failure rather than attempting to fallback to a default.
+// We'd prefer not to run the rollback on a version that was
+// not intended. Someone can run this without the params if they
+// want to rely on the defaults.
+def verifyValidTag(tag) {
+   // A full version tag should always include the dynamic version, which will
+   // be listed first. We strip everything else (e.g. 181217-1330-b18f83d38a3d)
+   if (!tag.contains('gae')) {
+      notify.fail("Version tag should always include the " +
+                  "dynamic version. To see all potential tags, " +
+                  "use `git tag -l 'gae-*'.");
+   }
+   def dynamic = tag.split('-')[1..3].join('-');
+   // Check that the dynamic version in fact exists on GAE
+   def args = ["gcloud app versions list",
+               "--project khan-academy",
+               "--service default"];
+   def gae_version = exec.outputOf(
+      args + ["--filter='version.name:${dynamic}'"]);
+   // when a version is not found, gcloud returns "Listed 0 items."
+   if (!gae_version.contains(dynamic)) {
+      notify.fail("Version gae-${dynamic} not found. " +
+                  "Check versions that exist on GAE using: " +
+                  "`${args.join(' ')}`");
+   }
+   return true;
+}
+
+
 def doRollback() {
    withTimeout('30m') {
       withSecrets() {
          dir("webapp") {
+            cmd = ["deploy/rollback.py"];
             if (params.DRY_RUN) {
-               sh("deploy/rollback.py -n");
-            } else {
-               sh("deploy/rollback.py");
+               cmd += ["-n"];
+            }
+
+            if (params.ROLLBACK_TO && verifyValidTag(params.ROLLBACK_TO)) {
+               cmd += ["--good=${params.ROLLBACK_TO}"];
+            }
+            if (params.BAD_VERSION && verifyValidTag(params.BAD_VERSION)) {
+               cmd += ["--bad=${params.BAD_VERSION}"];
+            }
+            try {
+               exec(cmd);
+            } catch(e) {
+               notify.fail("Rollback failed: ${e}.\nTo try running again " +
+                           "manually, see the <https://docs.google.com/document/" +
+                           "d/1sdN7_fNIDkTkLp16ztubklf57bgXqeGAhsL4DrGjP7s|" +
+                           "emergency rollback checklist>.");
             }
          }
       }
