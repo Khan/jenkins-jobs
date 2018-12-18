@@ -91,6 +91,11 @@ all modules.""",
     "5"
 
 ).addBooleanParam(
+    "WAIT_LONGER",
+    """Allow up to 6 hours, instead of 1 hour, for set-default and finish.""",
+    false
+
+).addBooleanParam(
     "SKIP_PRIMING",
     """If set to True, we will change the default version without priming any
 of the new instances. THIS IS DANGEROUS, and will definitely cause
@@ -190,6 +195,17 @@ NEW_VERSION = null;
 
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
+
+// Remind people after 30m, 45m, and 55m, then timeout at 60m.
+// Unless you ask for longer!  Then we give you 6 hours, pinging
+// every hour for the most part.
+// TODO(benkraft, INFRA-2228): Make this more configurable, especially after
+// the fact rather than at queue-time.
+_PROMPT_TIMES = (
+   params.WAIT_LONGER
+      // We still ping you every hour, just to make sure.
+      ? [60, 120, 180, 240, 300, 330, 345, 355, 360]
+      : [30, 45, 55, 60]);
 
 
 @NonCPS     // for replaceAll()
@@ -446,7 +462,7 @@ def promptForSetDefault() {
    }
 
    // Remind people after 30m, 45m, and 55m, then timeout at 60m.
-   _inputWithPrompts("Set default?", "SetDefault", [30, 45, 55, 60]);
+   _inputWithPrompts("Set default?", "SetDefault", _PROMPT_TIMES);
 }
 
 
@@ -668,7 +684,7 @@ def promptToFinish() {
    // data, and automatically revert back to the previous version when
    // you're done, you could just set a timeout for '5h' or whatever
    // and let the timeout-trigger abort the deploy.
-   _inputWithPrompts("Finish up?", "Finish", [30, 45, 55, 60]);
+   _inputWithPrompts("Finish up?", "Finish", _PROMPT_TIMES);
 }
 
 
