@@ -51,7 +51,7 @@ def call(def label, def timeoutString, Closure body) {
                   def ip = exec.outputOf(
                      ["curl", "-s",
                       "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
-                      "-H", 'Metadata-Flavor: Google' ]);
+                      "-H", 'Metadata-Flavor: Google', "|", "awk", "-F." '{ print $1 }']);
                   echo("Running on GCE instance ${instanceId} at ip ${ip}");
                   // TODO(csilvers): figure out how to get the worker
                   // to source the .bashrc like it did before.  Now I
