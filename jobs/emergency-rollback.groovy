@@ -152,11 +152,16 @@ onMaster('1h') {
        stage("rollback") {
            doRollback();
        }
+
        // Let's kick off the e2e tests again to make sure everything is
        // working ok.
-       build(job: '../deploy/e2e-test',
-             parameters: [
-                string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
-             ]);
+       if (!params.DRY_RUN) {
+          build(job: '../deploy/e2e-test',
+                parameters: [
+                   string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+                ]);
+       } else {
+          echo("Would run deploy/e2e-test job on master.");
+       }
    }
 }
