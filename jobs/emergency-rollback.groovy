@@ -93,16 +93,15 @@ def verifyValidTag(tag) {
    }
    def dynamic = tag.split('-')[1..3].join('-');
    // Check that the dynamic version in fact exists on GAE
-   def args = ["gcloud app versions list",
-               "--project khan-academy",
-               "--service default"];
-   def gae_version = exec.outputOf(
-      args + ["--filter='version.name:${dynamic}'"]);
+   def args = ("gcloud app versions list --project khan-academy " +
+               "--service default");
+   def gae_version = sh(script: args + " --filter='version.name:${dynamic}'",
+                        returnStdout: true).trim();
    // when a version is not found, gcloud returns "Listed 0 items."
    if (!gae_version.contains(dynamic)) {
       notify.fail("Version gae-${dynamic} not found. " +
                   "Check versions that exist on GAE using: " +
-                  "`${args.join(' ')}`");
+                  "`${args}`");
    }
    return true;
 }
