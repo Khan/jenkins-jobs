@@ -68,6 +68,12 @@ and pick the number with the shortest time.  For m3.large,
 the best value is 4.""",
    "4"
 
+
+).addBooleanParam(
+   "DEV_SERVER",
+   "If set, run the tests on a dev server (overrides URL).",
+   false
+
 ).addStringParam(
    "GIT_REVISION",
    """A commit-ish to check out.  This only affects the version of the
@@ -159,6 +165,13 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make python_deps");
+      if (params.DEV_SERVER) {
+         // Running with a dev server requires current.sqlite, so we download
+         // the latest one.
+         // TODO(benkraft): Don't do so if it was done within the last day --
+         // it only gets updated once a day anyway.
+         sh("make current.sqlite");
+      }
    }
 }
 
@@ -193,6 +206,9 @@ def _runOneTest(splitId) {
                "--quiet", "--jobs=1", "--retries=3",
                "--driver=chrome", "--backup-driver=sauce",
                "-"];
+   if (params.DEV_SERVER) {
+      args += ["--with-dev-server"];
+   }
    if (params.FAILFAST) {
       args += ["--failfast"];
    }
