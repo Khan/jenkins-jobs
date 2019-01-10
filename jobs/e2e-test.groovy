@@ -406,10 +406,14 @@ def analyzeResults() {
 }
 
 
+// If we're using a dev server, we need a bit more disk space, because
+// current.sqlite and dev server tmpdirs get big.  So we have a special worker
+// type.
+workerType = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
 // We run the test-splitter, reporter, and graphql/android tests on a worker --
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
-onWorker('ka-test-ec2', '5h') {     // timeout
+onWorker(workerType, '5h') {  // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
