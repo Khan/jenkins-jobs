@@ -21,6 +21,7 @@ def validWorkerLabels() {
       "ka-content-sync-ec2",              // used for build-current-sqlite
       "ka-i18n-ec2",            // used for i18n jobs
       "ka-page-weight-monitoring-ec2",    // used for page-weight-test
+      "big-test-worker"     // like ka-test-ec2 but for jobs needing more disk
    ];
 }
 // timeout is an outer bound on how long we expect body to take.
