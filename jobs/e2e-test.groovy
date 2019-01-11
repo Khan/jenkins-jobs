@@ -148,6 +148,11 @@ HAVE_RUN_SETUP = false;
 // Set to true once we have stashed the list of tests for the workers to run.
 HAVE_STASHED_TESTS = false;
 
+// If we're using a dev server, we need a bit more disk space, because
+// current.sqlite and dev server tmpdirs get big.  So we have a special
+// worker type.
+WORKER_TYPE = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
+
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
@@ -230,7 +235,7 @@ def _runOneTest(splitId) {
 }
 
 def doTestOnWorker(workerNum) {
-   onWorker('ka-test-ec2', '1h') {     // timeout
+   onWorker(WORKER_TYPE, '1h') {     // timeout
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
@@ -405,15 +410,10 @@ def analyzeResults() {
    }
 }
 
-
-// If we're using a dev server, we need a bit more disk space, because
-// current.sqlite and dev server tmpdirs get big.  So we have a special worker
-// type.
-workerType = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
 // We run the test-splitter, reporter, and graphql/android tests on a worker --
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
-onWorker(workerType, '5h') {  // timeout
+onWorker(WORKER_TYPE, '5h') {  // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
