@@ -209,10 +209,14 @@ def _runOneTest(splitId) {
                "--timing-db=genfiles/test-info.db",
                "--xml-dir=genfiles/test-reports",
                "--quiet", "--jobs=1", "--retries=3",
-               "--driver=chrome", "--backup-driver=sauce",
+               "--driver=chrome",
                "-"];
    if (params.DEV_SERVER) {
+      // TODO(benkraft): Figure out how to use sauce with the dev server -- I
+      // think sauce has some tool to allow this but I don't know how it works.
       args += ["--with-dev-server"];
+   } else {
+      args += ["--backup-driver=sauce"];
    }
    if (params.FAILFAST) {
       args += ["--failfast"];
