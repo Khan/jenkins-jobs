@@ -120,9 +120,25 @@ def pingForStatus(job, sha1) {
       echo("Error getting job status: ${e}");
       return
    }
-      
-   if (resp.getStatus() == 200) {
-      return resp.getContent();
+
+   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
+   return
+}
+
+def pingForPromptStatus(prompt, sha1) {
+   echo("Asking buildmaster for the ${prompt} prompt status for ${sha1}.")
+   def params = [
+      git_sha: sha1,
+      prompt: prompt
+   ]
+   try {
+      def resp = _makeHttpRequest("prompt-status", "POST", params)
+      if (resp.getStatus() == 200) {
+         return resp.getContent();
+      }
+   } catch (e) {
+      echo("Error getting job status: ${e}");
+      return
    }
 
    echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");

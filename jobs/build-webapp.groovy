@@ -193,7 +193,6 @@ NEW_VERSION = null;
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
 
-
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
    // Arguments to replaceAll().  `all` is the entire regexp match,
@@ -472,6 +471,22 @@ def deployAndReport() {
 }
 
 
+def sendChangelog() {
+   withTimeout('5m') {
+      // Send the changelog!
+      withSecrets() {
+         dir("webapp") {
+            // Prints the diff BASE_REVISION..GIT_REVISION (i.e. changes since
+            // the currently live version).
+            exec(["deploy/chat_messaging.py", params.BASE_REVISION,
+                  params.GIT_REVISION, "-o", params.SLACK_CHANNEL,
+                  "-t", params.SLACK_THREAD]);
+         }
+      }
+   }
+}
+
+
 def finishWithFailure(why) {
    withTimeout('20m') {
       _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
@@ -511,6 +526,11 @@ onWorker('build-worker', '4h') {
             withTimeout('120m') {
                deployAndReport();
             }
+         }
+         // TODO(jacqueline): This may get spammy. Is there somewhere we can
+         // move this so that it doesn't send for every build?
+         stage("Send changelog") {
+            sendChangelog();
          }
       } catch (e) {
          echo("FATAL ERROR deploying: ${e}");

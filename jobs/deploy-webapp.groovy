@@ -424,49 +424,6 @@ def mergeFromMasterAndInitializeGlobals() {
 }
 
 
-def promptForSetDefault() {
-   withTimeout('5m') {
-      // Send the changelog!
-      withSecrets() {
-         dir("webapp") {
-            // Prints the diff ROLLBACK_TO..GIT_REVISION (i.e. changes since
-            // the currently live version).
-            exec(["deploy/chat_messaging.py", ROLLBACK_TO, GIT_REVISION,
-                  // We omit the deployer username; the next message has an
-                  // at-mention in it already.
-                  "-o", SLACK_CHANNEL]);
-         }
-      }
-      // The CMS endpoints must be handled on the vm module. However,
-      // the rules in dispatch.yaml only match *.khanacademy.org,
-      // so the routing doesn't work in dynamic deploys (which are
-      // accessed through *.appspot.com) before the new version is
-      // set as default (but static-only deploys do work). In dynamic
-      // deploys, we therefore show a link directly to the vm module.
-      // TODO(aasmund): Remove when we have a better vm deployment
-      def maybeVmMessage = (
-         ("dynamic" in SERVICES)
-         ? "Note that if you want to test the CMS or the publish pages " +
-           "(`/devadmin/content` or `/devadmin/publish`), " +
-           "you need to do so on the " +
-           "<https://${NEW_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
-           "vm module> instead. "
-         : "");
-      _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
-             [deployUrl: DEPLOY_URL,
-              maybeVmMessage: maybeVmMessage,
-              setDefaultUrl: "${env.BUILD_URL}input/",
-              abortUrl: "${env.BUILD_URL}stop",
-              combinedVersion: GIT_TAG,
-              branch: params.REVISION_DESCRIPTION]);
-   }
-
-   // Remind people (normally 30m, 45m, 55m, then timeout at 60m, but see
-   // _PROMPT_TIMES for details).
-   _inputWithPrompts("Set default?", "SetDefault", _PROMPT_TIMES);
-}
-
-
 def _manualSmokeTestCheck(job){
    def msg = ("Usually we can do this step for you, but when sun is down, " +
               "you must manually confirm that your ${job} is done and all tests " +
@@ -494,7 +451,7 @@ def _manualSmokeTestCheck(job){
 def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    withTimeout('60m') {
       def status;
-      while (!(status == "succeeded")) {
+      while (status != "succeeded") {
          status = buildmaster.pingForStatus(jobName,
                                             params.GIT_REVISION)
 
@@ -508,6 +465,13 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
                return;
             }
          }
+
+         // We care about consecutive failures, so if we get a status after
+         // we've previously logged a buildmaster failure, reset to 0.
+         if (status && buildmasterFailures == 1) {
+            buildmasterFailures = 0;
+         }
+
          // For now, we're making smoke tests non-blocking, but
          // if we improve the flakiness of smoke tests in the future
          // this should be changed to only allow the deploy job to
@@ -523,6 +487,49 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    }
 }
 
+
+def _manualPromptCheck(prompt){
+   def msg = "Looks like buildmaster is not responding!\n\n";
+   if (prompt == 'set-default') {
+      msg += ("If you have aleady done `sun: set-default` then " +
+              "click Proceed to continue with your deploy. Or, " +
+              "complete your manual testing on  ${DEPLOY_URL} and let " +
+              "us know when you're ready.");
+   input(message: msg, id: "ConfirmSetDefaultPrompt");
+   return;
+}
+
+// TODO(jacqueline): Make this a shared func with verifying smoke tests.
+def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
+   def status;
+   while (status != "confirmed") {
+      status = buildmaster.pingForPromptStatus(prompt,
+                                               params.GIT_REVISION)
+
+      // If sun is down (even after a retry), we ask people to manually
+      // check the result of their smoke tests.
+      if (!status) {
+         if (buildmasterFailures == 0) {
+            buildmasterFailures += 1;
+         } else {
+            _manualPromptCheck(prompt)
+            return;
+         }
+      }
+
+      // We care about consecutive failures, so if we get a status after
+      // we've previously logged a buildmaster failure, reset to 0.
+      if (status && buildmasterFailures == 1) {
+         buildmasterFailures = 0;
+      }
+
+      // Continue pinging every 10 seconds until the prompt is confirmed
+      if (status in ["unacknowledged", "acknowledged"]) {
+        sleep(10);
+      }
+   }
+   return;
+}
 
 def _promoteServices() {  // call from webapp-root
     def cmd = ["deploy/set_default.py"];
@@ -852,13 +859,11 @@ onMaster('4h') {
 
       if (SERVICES) {
          try {
-            stage("Prompt 1") {
+            stage("Await first smoke test and set-default confirmation") {
                if (!params.SKIP_TESTS) {
                   verifySmokeTestResults('first-smoke-test');
                }
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting SetDefault');
-               promptForSetDefault();
+               verifyPromptConfirmed("set-default");
             }
          } catch (e) {
             echo("Deploy failed before setting default: ${e}");
