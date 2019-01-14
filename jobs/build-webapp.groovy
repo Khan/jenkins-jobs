@@ -347,8 +347,11 @@ def mergeFromMasterAndInitializeGlobals() {
             if (params.BASE_REVISION) {
                urlVersion = BASE_REVISION_VERSION;
             } else {
-               urlVersion = exec.outputOf(
-                  ["deploy/current_version.py", "--service", "dynamic"]);
+               def urlVersions = exec.outputOf(["deploy/current_version.py",
+                                                "--service", "dynamic"]
+                                               ).split("\n").sort();
+               // If there are multiple current versions, we grab the latest.
+               urlVersion = urlVersions[-1];
             }
          }
          DEPLOY_URL = "https://${urlVersion}-dot-khan-academy.appspot.com";
