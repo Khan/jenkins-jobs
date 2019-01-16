@@ -275,10 +275,10 @@ def _determineTests() {
 
 
 def doTestOnWorker(workerNum) {
-   // Normally each worker should take 20-30m so we give them an hour just in
-   // case; when running huge tests, the one that gets make_test_db_test can
-   // take 2+ hours so we give it lots of time.
-   def workerTimeout = params.MAX_SIZE == 'huge' ? '4h' : '1h';
+   // Normally each worker should take 20-30m so we give them an hour
+   // or two just in case; when running huge tests, the one that gets
+   // make_test_db_test can take 2+ hours so we give it lots of time.
+   def workerTimeout = params.MAX_SIZE == 'huge' ? '4h' : '2h';
    onWorker('ka-test-ec2', workerTimeout) {     // timeout
       // We can sync webapp right away, before we know what tests we'll be
       // running.
@@ -293,7 +293,7 @@ def doTestOnWorker(workerNum) {
       unstash("splits");
 
       try {
-         sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 45m " +
+         sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +
