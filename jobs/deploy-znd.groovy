@@ -255,7 +255,7 @@ def _sendCommentToPhabricator() {
 }
 
 def deploy() {
-   withTimeout('90m') {
+   withTimeout('150m') {
       // In principle we should fetch from workspace@script which is where this
       // script itself is loaded from, but that doesn't exist on znd-workers
       // and our checkout of jenkins-jobs will work fine.
@@ -325,7 +325,7 @@ def deploy() {
 
 // We use a separate worker type, identical to build-worker, so znds don't make
 // a mess of our build caches for the main deploy.
-onWorker('znd-worker', '2h') {
+onWorker('znd-worker', '3h') {
    notify([slack: [channel: SLACK_CHANNEL,
                    sender: CHAT_SENDER,
                    emoji: EMOJI,
