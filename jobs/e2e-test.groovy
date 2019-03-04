@@ -27,6 +27,18 @@ new Setup(steps
    "The url-base to run these tests against.",
    "https://www.khanacademy.org"
 
+).addChoiceParam(
+   "TEST_TYPE",
+   """\
+<ul>
+  <li> <b>all</b>: run all tests</li>
+  <li> <b>deploy</b>: run only those tests that are important to run at
+        deploy-time (as identified by the `@run_on_every_deploy`
+        decorator)</li>
+</ul>
+""",
+   ["all", "deploy"]
+
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
@@ -190,8 +202,15 @@ def _determineTests() {
    // copy the file from here to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
-   sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS}" +
-      "> genfiles/test-splits.txt");
+   if (params.TEST_TYPE == "all") {
+      sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
+         "> genfiles/test-splits.txt");
+   } else if (params.TEST_TYPE == "deploy") {
+      sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
+         "--deploy-tests-only > genfiles/test-splits.txt");
+   } else {
+      error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
+   }
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
       for (def i = 0; i < allSplits.size(); i++) {
