@@ -44,6 +44,7 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
         --max_module_instances=1 \
         --log_level=info \
         --host=127.0.0.1 \
+        $DEV_APPSERVER_ARGS \
         ./app.yaml > genfiles/appserver.log 2>&1 &
     appserver_pid=$!
 
