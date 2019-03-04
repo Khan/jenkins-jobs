@@ -56,7 +56,7 @@ def runScript() {
    withSecrets() {
       withEnv(
          ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
-          "DEV_APPSERVER_ARGS=${params.SNAPSHOT_NAMES}",
+          "DEV_APPSERVER_ARGS=${params.DEV_APPSERVER_ARGS}",
           "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
          sh("jenkins-jobs/build_current_sqlite.sh");
       }
