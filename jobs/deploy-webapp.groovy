@@ -495,6 +495,7 @@ def _manualPromptCheck(prompt){
               "click Proceed to continue with your deploy. Or, " +
               "complete your manual testing on  ${DEPLOY_URL} and let " +
               "us know when you're ready.");
+   }
    input(message: msg, id: "ConfirmSetDefaultPrompt");
    return;
 }
