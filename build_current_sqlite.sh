@@ -49,7 +49,7 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     appserver_pid=$!
 
     # wait for server to start
-    sleep 30
+    sleep 60
 
     # do sync
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
@@ -63,19 +63,20 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
 
     # stop dev server
     kill -15 "$appserver_pid"
-    sleep 3
+    sleep 10
     if ps -p "$appserver_pid" > /dev/null; then
         kill -15 "$appserver_pid"
-        sleep 3
+        sleep 10
     fi
     if ps -p "$appserver_pid" > /dev/null; then
         kill -9 "$appserver_pid"
-        sleep 3
+        sleep 10
     fi
-done
 
-# make sure that the file is fully written before uploading it
-sleep 30
+    # wait some extra time to make sure everything has actually shut down and
+    # fully written current.sqlite to disk
+    sleep 30
+done
 
 cd ..
 # upload current.sqlite and new content prefill files (deleteing old ones)
