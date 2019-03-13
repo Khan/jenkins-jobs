@@ -491,9 +491,14 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
 def _manualPromptCheck(prompt){
    def msg = "Looks like buildmaster is not responding!\n\n";
    if (prompt == 'set-default') {
-      msg += ("If you have aleady done `sun: set-default` then " +
+      msg += ("If you have aleady done `sun: set default` then " +
               "click Proceed to continue with your deploy. Or, " +
               "complete your manual testing on  ${DEPLOY_URL} and let " +
+              "us know when you're ready.");
+   } else if (prompt == 'finish-up') {
+      msg += ("If you have aleady done `sun: finish up` then " +
+              "click Proceed to continue with your deploy. Or, " +
+              "double check your monitoring errors and let " +
               "us know when you're ready.");
    }
    input(message: msg, id: "ConfirmSetDefaultPrompt");
@@ -618,6 +623,11 @@ def _monitor() {
             echo("Marking unstable due to monitoring failure: ${e}");
             currentBuild.result = "UNSTABLE";
          }
+         // Once we finish monitoring, we tell buildmaster. We do not
+         // differentiate between finishing with success vs finishing with
+         // failure as that is not a blocker for continuing a deploy.
+         // Notifying buildmaster of completion is used to trigger finish up.
+         buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished");
       }
    }
 }
@@ -666,30 +676,6 @@ def setDefaultAndMonitor() {
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
          ]);
    }
-}
-
-
-def promptToFinish() {
-   withTimeout('1m') {
-      def logsUrl = (
-         "https://console.developers.google.com/project/khan-academy/logs" +
-         "?service=appengine.googleapis.com&key1=default&key2=${NEW_VERSION}");
-      def interpolationArgs = [logsUrl: logsUrl,
-                               combinedVersion: GIT_TAG,
-                               finishUrl: "${env.BUILD_URL}input/",
-                               abortUrl: "${env.BUILD_URL}stop",
-                              ];
-      // The build is unstable if monitoring detected problems (or died).
-      if (currentBuild.result == "UNSTABLE") {
-         _alert(alertMsgs.FINISH_WITH_WARNING, interpolationArgs);
-      } else {
-         _alert(alertMsgs.FINISH_WITH_NO_WARNING, interpolationArgs);
-      }
-   }
-
-   // Remind people (normally 30m, 45m, 55m, then timeout at 60m, but see
-   // _PROMPT_TIMES for details).
-   _inputWithPrompts("Finish up?", "Finish", _PROMPT_TIMES);
 }
 
 
@@ -876,13 +862,11 @@ onMaster('4h') {
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
             }
-            stage("Prompt 2") {
-               if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults('second-smoke-test');
-               }
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting Finish');
-               promptToFinish();
+            // Unlike above, we do not need to verify second smoke tests
+            // have finished. Buildmaster does that for us before prompting
+            // a deployer to finish up.
+            stage("Await finish-up confirmation") {
+               verifyPromptConfirmed("finish-up");
             }
          } catch (e) {
             echo("FATAL ERROR promoting and monitoring and prompting: ${e}");

@@ -96,6 +96,15 @@ def notifyDefaultSet(sha1, status) {
    return _makeHttpRequest("commits/set-default-status", "PATCH", params);
 }
 
+def notifyMonitoringStatus(sha1, status) {
+   echo("Marking monitoring status for ${sha1}: ${status}");
+   def params = [
+      git_sha: sha1,
+      status: status,
+   ];
+   return _makeHttpRequest("commits/monitoring-status", "PATCH", params);
+}
+
 def notifyServices(sha1, services) {
    echo("Sending list of services for ${sha1}: ${services}");
    def params = [
