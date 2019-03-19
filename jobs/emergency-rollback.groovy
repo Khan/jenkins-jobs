@@ -130,6 +130,13 @@ def doRollback() {
                            "d/1sdN7_fNIDkTkLp16ztubklf57bgXqeGAhsL4DrGjP7s|" +
                            "emergency rollback checklist>.");
             }
+            // rollback to datastore_bigquery_adapter.jar.$rollbackToAsVersion
+            def rollbackToAsVersion = params.ROLLBACK_TO.substring("gae-".length());
+            dir("dataflow/datastore_bigquery_adapter") {
+               withEnv(["VERSION=${rollbackToAsVersion}"]) {
+                  exec(["./gradlew", "rollback_jar"])
+               }
+            }
          }
       }
    }
