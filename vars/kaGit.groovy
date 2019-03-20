@@ -32,6 +32,7 @@ def checkoutJenkinsTools() {
       // The built-in 'git' step is not great: it doesn't do
       // submodules, and it messes up the tracking with the remote.
       sh("git submodule update --init --recursive");
+      sh("git checkout kai-deploy");
       sh("git branch --set-upstream-to origin/kai-deploy kai-deploy");
    }
 }
