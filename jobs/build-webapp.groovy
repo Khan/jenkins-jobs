@@ -516,7 +516,7 @@ onWorker('build-worker', '4h') {
                    // We don't need to notify on start because the buildmaster
                    // does it for us; on success the we explicitly send
                    // alertMsgs.SUCCESS.
-                   when: ['ABORTED']]) {
+                   when: ['ABORTED']]]) {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
       }
