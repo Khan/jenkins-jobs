@@ -259,7 +259,7 @@ def mergeFromMasterAndInitializeGlobals() {
       // In principle we should fetch from workspace@script which is where this
       // script itself is loaded from, but that doesn't exist on build-workers
       // and our checkout of jenkins-jobs will work fine.
-      alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
+      // alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
 
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
@@ -474,18 +474,13 @@ def deployToDataflowDatastoreBigqueryAdapter() {
 def deployAndReport() {
     if (SERVICES) {
         parallel(
-            "deploy-to-gae": { deployToGAE(); },
-            "deploy-to-gcs": { deployToGCS(); },
+            // "deploy-to-gae": { deployToGAE(); },
+            // "deploy-to-gcs": { deployToGCS(); },
             "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
             "deploy-to-dataflow-datastore-bigquery-adapter":
                { deployToDataflowDatastoreBigqueryAdapter(); },
             "failFast": true,
         );
-        _alert(alertMsgs.JUST_DEPLOYED,
-               [deployUrl: DEPLOY_URL,
-                version: NEW_VERSION,
-                services: SERVICES.join(', '),
-                branches: REVISION_DESCRIPTION]);
     }
 }
 
@@ -508,13 +503,6 @@ def sendChangelog() {
 
 def finishWithFailure(why) {
    withTimeout('20m') {
-      _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-             [version: NEW_VERSION,
-              // TODO(benkraft): Report specifically which service failed.
-              services: SERVICES.join(', ') ?: "tools-only",
-              branch: REVISION_DESCRIPTION,
-              why: why]);
-      env.SENT_TO_SLACK = '1';
    }
 }
 
@@ -522,20 +510,7 @@ def finishWithFailure(why) {
 // We use a build worker, because this is a very CPU-heavy job and we may want
 // to run several at a time.
 onWorker('build-worker', '4h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   sender: 'Mr Monkey',
-                   emoji: ':monkey_face:',
-                   // We don't need to notify on start because the buildmaster
-                   // does it for us; on success the we explicitly send
-                   // alertMsgs.SUCCESS; and aborts usually just mean the
-                   // buildmaster killed things and the user already knows or
-                   // does not care.  (See also the catch(e) below.)
-                   when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: 'build-webapp'],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                        'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+   notify() {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
       }
@@ -545,11 +520,6 @@ onWorker('build-worker', '4h') {
             withTimeout('120m') {
                deployAndReport();
             }
-         }
-         // TODO(jacqueline): This may get spammy. Is there somewhere we can
-         // move this so that it doesn't send for every build?
-         stage("Send changelog") {
-            sendChangelog();
          }
       } catch (e) {
          echo("FATAL ERROR deploying: ${e}");
