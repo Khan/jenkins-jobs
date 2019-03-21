@@ -476,9 +476,14 @@ def sendChangelog() {
       // Send the changelog!
       withSecrets() {
          dir("webapp") {
+            if (!params.BASE_REVISION) {
+               def currentVersionTag = exec.outputOf(
+                  ["deploy/current_version.py", "--git-tag"]);
+            }
             // Prints the diff BASE_REVISION..GIT_REVISION (i.e. changes since
             // the currently live version).
-            exec(["deploy/chat_messaging.py", params.BASE_REVISION,
+            exec(["deploy/chat_messaging.py",
+                  params.BASE_REVISION ?: currentVersionTag,
                   params.GIT_REVISION, "-o", params.SLACK_CHANNEL,
                   "-t", params.SLACK_THREAD]);
          }
