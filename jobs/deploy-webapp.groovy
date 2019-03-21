@@ -708,9 +708,8 @@ def finishWithSuccess() {
                }
             }
 
-            // we switch the ".jar.$NewDeployVersion" file to
-            // to gs://khanalytics/datastore_bigquery_adapter.jar to make it
-            // live
+            // we switch the "$NewDeployVersion.jar" file to
+            // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
             dir("dataflow/datastore_bigquery_adapter") {
                withEnv(["VERSION=${NEW_VERSION}"]) {
                   exec(["./gradlew", "switch_deploy_jar"])
@@ -806,13 +805,6 @@ def finishWithFailure(why) {
          dir("webapp") {
             exec(["deploy/rollback.py",
                   "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
-
-            // rollback to datastore_bigquery_adapter.jar.$rollbackToAsVersion
-            dir("dataflow/datastore_bigquery_adapter") {
-               withEnv(["VERSION=${rollbackToAsVersion}"]) {
-                  exec(["./gradlew", "rollback_jar"])
-               }
-            }
             // If the version we rolled back *to* is marked bad, warn
             // about that.
             def existingTag = exec.outputOf(["git", "tag", "-l",

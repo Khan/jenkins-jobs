@@ -459,7 +459,8 @@ def deployToKotlinRoutes() {
 // relevant files changed), but this is quick (< 30s), so to be
 // safe as a stopgap measure we just do it all the time.
 // We do this at build time, to build jar file and upload it
-// to gs://khanalytics/datastore_bigquery_adapter.jar.$NewDeployVersion.
+// to "gs://khanalytics/datastore-bigquery-adapter-jar-versions/
+// datastore_bigquery_adapter.$NewDeployVersion.jar"
 // We will swtich the new deploy version to
 // gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
 def deployToDataflowDatastoreBigqueryAdapter() {
