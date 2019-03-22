@@ -476,8 +476,9 @@ def sendChangelog() {
       // Send the changelog!
       withSecrets() {
          dir("webapp") {
+            def currentVersionTag;
             if (!params.BASE_REVISION) {
-               def currentVersionTag = exec.outputOf(
+               currentVersionTag = exec.outputOf(
                   ["deploy/current_version.py", "--git-tag"]);
             }
             // Prints the diff BASE_REVISION..GIT_REVISION (i.e. changes since
