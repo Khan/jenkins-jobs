@@ -643,6 +643,23 @@ def _waitForSetDefaultStart() {
    buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
 }
 
+def _switchDatastoreBigqueryAdapterJar() {
+   // we switch the "$NewDeployVersion.jar" file to
+   // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
+   try {
+      withTimeout("10m") {
+         dir("webapp/dataflow/datastore_bigquery_adapter") {
+            withEnv(["VERSION=${NEW_VERSION}"]) {
+               exec(["./gradlew", "switch_deploy_jar"])
+            }
+         }
+      }
+   } catch (e) {
+      echo("Failed to switch datastore_bigquery_adapter.jar: ${e}");
+      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED, []);
+      return;
+   }
+}
 
 def setDefaultAndMonitor() {
    withTimeout('120m') {
@@ -664,10 +681,11 @@ def setDefaultAndMonitor() {
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
+           "switch-datastore-bigquery-adapter-jar":
+               { _switchDatastoreBigqueryAdapterJar; },
          ]);
    }
 }
-
 
 def promptToFinish() {
    withTimeout('1m') {
@@ -707,15 +725,6 @@ def finishWithSuccess() {
                         GIT_TAG, params.GIT_REVISION]);
                }
             }
-
-            // we switch the "$NewDeployVersion.jar" file to
-            // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
-            dir("dataflow/datastore_bigquery_adapter") {
-               withEnv(["VERSION=${NEW_VERSION}"]) {
-                  exec(["./gradlew", "switch_deploy_jar"])
-               }
-            }
-
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -812,6 +821,13 @@ def finishWithFailure(why) {
             if (existingTag) {
                _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
                      [rollbackToAsVersion: rollbackToAsVersion]);
+            }
+            // rollback to datastore_bigquery_adapter.$dynamicVersion.jar
+            def dynamicVersion = rollbackToAsVersion.split('-')[1..3].join('-');
+            dir("dataflow/datastore_bigquery_adapter") {
+               withEnv(["VERSION=${dynamicVersion}"]) {
+                  exec(["./gradlew", "rollback_jar"])
+               }
             }
          }
       } catch (e) {
