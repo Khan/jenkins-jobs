@@ -656,7 +656,8 @@ def _switchDatastoreBigqueryAdapterJar() {
       }
    } catch (e) {
       echo("Failed to switch datastore_bigquery_adapter.jar: ${e}");
-      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED, []);
+      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED,
+             [newVersion: NEW_VERSION]);
       return;
    }
 }

@@ -259,6 +259,12 @@ FAILED_WITH_ROLLBACK = [
 Rolled back to %(rollbackToAsVersion)s.
 """)];
 
+DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED = [
+   "severity": "error",
+   "text": _textWrap("""\
+:ohnoes: Switch of datastore_bigquery_adapter.`%(newVersion)`.jar failed.
+""")];
+
 
 SUCCESS = [
    "severity": "info",
