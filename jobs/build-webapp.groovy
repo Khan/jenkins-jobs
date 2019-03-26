@@ -529,7 +529,7 @@ onWorker('build-worker', '4h') {
 
       try {
          stage("Deploying") {
-            withTimeout('120m') {
+            withTimeout('150m') {
                deployAndReport();
             }
          }
