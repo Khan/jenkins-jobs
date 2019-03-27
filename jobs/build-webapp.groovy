@@ -452,6 +452,24 @@ def deployToKotlinRoutes() {
     }
 }
 
+// When any of our datastore models or dataflow code changes, we
+// need to rebuild the binary we use to export out datastore models
+// to bigquery.
+// We should do this more selectively (i.e. only when specific
+// relevant files changed), but this is quick (< 30s), so to be
+// safe as a stopgap measure we just do it all the time.
+// We do this at build time, to build jar file and upload it
+// to "gs://khanalytics/datastore-bigquery-adapter-jar-versions/
+// datastore_bigquery_adapter.$NewDeployVersion.jar"
+// We will swtich the new deploy version to
+// gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
+def deployToDataflowDatastoreBigqueryAdapter() {
+   dir("webapp/dataflow/datastore_bigquery_adapter") {
+      withEnv(["VERSION=${NEW_VERSION}"]) {
+         exec(["./gradlew", "build_and_upload_jar"])
+      }
+   }
+}
 
 // This should be called from within a node().
 def deployAndReport() {
@@ -460,6 +478,8 @@ def deployAndReport() {
             "deploy-to-gae": { deployToGAE(); },
             "deploy-to-gcs": { deployToGCS(); },
             "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
+            "deploy-to-dataflow-datastore-bigquery-adapter":
+               { deployToDataflowDatastoreBigqueryAdapter(); },
             "failFast": true,
         );
         _alert(alertMsgs.JUST_DEPLOYED,

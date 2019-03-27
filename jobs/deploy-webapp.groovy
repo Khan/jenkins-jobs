@@ -653,6 +653,24 @@ def _waitForSetDefaultStart() {
    buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
 }
 
+def _switchDatastoreBigqueryAdapterJar() {
+   // we switch the "$NewDeployVersion.jar" file to
+   // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
+   try {
+      withTimeout("10m") {
+         dir("webapp/dataflow/datastore_bigquery_adapter") {
+            withEnv(["VERSION=${NEW_VERSION}"]) {
+               exec(["./gradlew", "switch_deploy_jar"])
+            }
+         }
+      }
+   } catch (e) {
+      echo("Failed to switch datastore_bigquery_adapter.jar: ${e}");
+      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED,
+             [newVersion: NEW_VERSION]);
+      return;
+   }
+}
 
 def setDefaultAndMonitor() {
    withTimeout('120m') {
@@ -674,10 +692,11 @@ def setDefaultAndMonitor() {
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
+           "switch-datastore-bigquery-adapter-jar":
+               { _switchDatastoreBigqueryAdapterJar; },
          ]);
    }
 }
-
 
 def finishWithSuccess() {
    withTimeout('10m') {
@@ -693,22 +712,6 @@ def finishWithSuccess() {
                         GIT_TAG, params.GIT_REVISION]);
                }
             }
-
-            // When any of our datastore models or dataflow code changes, we
-            // need to rebuild the binary we use to export out datastore models
-            // to bigquery.
-            // We should do this more selectively (i.e. only when specific
-            // relevant files changed), but this is quick (< 30s), so to be
-            // safe as a stopgap measure we just do it all the time.
-            // We do this at finish time because we'd rather hit the edge case
-            // where a schema is slightly out of date, than the case where we
-            // did an export with a rolled-back schema change.
-            // TODO(colin): do this only in response to a SERVICES flag
-            // set by a should_deploy rule, as for "dynamic" and "static" above.
-            dir("dataflow/datastore_bigquery_adapter") {
-                exec(["./gradlew", "build_and_upload_jar"])
-            }
-
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -805,6 +808,15 @@ def finishWithFailure(why) {
             if (existingTag) {
                _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
                      [rollbackToAsVersion: rollbackToAsVersion]);
+            }
+            // rollback to datastore_bigquery_adapter.$dynamicVersion.jar
+            def dynamicVersion = exec.outputOf(
+               ["deploy/git_tags.py", "--service",
+               "dynamic", ROLLBACK_TO]);
+            dir("dataflow/datastore_bigquery_adapter") {
+               withEnv(["VERSION=${dynamicVersion}"]) {
+                  exec(["./gradlew", "rollback_jar"])
+               }
             }
          }
       } catch (e) {
