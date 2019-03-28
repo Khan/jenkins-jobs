@@ -693,7 +693,7 @@ def setDefaultAndMonitor() {
            "monitor": { _monitor(); },
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
            "switch-datastore-bigquery-adapter-jar":
-               { _switchDatastoreBigqueryAdapterJar; },
+               { _switchDatastoreBigqueryAdapterJar(); },
          ]);
    }
 }
