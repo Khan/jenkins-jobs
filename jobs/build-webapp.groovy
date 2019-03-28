@@ -464,9 +464,9 @@ def deployToKotlinRoutes() {
 // We will swtich the new deploy version to
 // gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
 def deployToDataflowDatastoreBigqueryAdapter() {
-   dir("webapp/dataflow/datastore_bigquery_adapter") {
+   dir("webapp") {
       withEnv(["VERSION=${NEW_VERSION}"]) {
-         exec(["./gradlew", "build_and_upload_jar"])
+         sh("cd dataflow/datastore_bigquery_adapter && ./gradlew build_and_upload_jar");
       }
    }
 }
