@@ -29,12 +29,10 @@ def runScript() {
     }
 
     def locale = params.LOCALE;
-
-    if (!overrideLangs) {
-        lock("using-a-lot-of-memory") {
-            withSecrets() {
-                sh("jenkins-jobs/tap-setup.sh ${locale}");
-            }
+    
+    lock("using-a-lot-of-memory") {
+        withSecrets() {
+            sh("jenkins-jobs/tap-setup.sh ${locale}");
         }
     }
 }
