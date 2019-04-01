@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-# A script to build a virtualenv
+# A script to run the Translation Analytics to update the Dashboard.
 #
 # This script should be run from workspace-root.
 #
@@ -11,5 +11,6 @@ rm -f current.sqlite
 
 cd webapp
 make deps
+make current.sqlite
 
-tools/devshell.py --prod --script tools/run_translation_analytics_pipeline.py "$locale"
+tools/devshell.py --prod --script tools/run_translation_analytics.py "$locale"
