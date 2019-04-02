@@ -237,7 +237,7 @@ clean_ka_static() {
             # TODO(benkraft): Update the manifest on copy, and remove
             # at least the latter special case.
             echo "$manifest" >> "$files_to_keep"
-            echo "/genfiles/manifests/toc-$manifest_version.json" >> "$files_to_keep"
+            echo "/genfiles/manifests/toc-webpack-manifest-$manifest_version.json" >> "$files_to_keep"
             manifests_seen=`expr $manifests_seen + 1`
         fi
     done
