@@ -131,13 +131,17 @@ def doRollback() {
                            "emergency rollback checklist>.");
             }
             // rollback to datastore_bigquery_adapter.$dynamicVersion.jar
-            def dynamicVersion = exec.outputOf(
+            if (!params.DRY_RUN) {
+               def dynamicVersion = exec.outputOf(
                ["deploy/git_tags.py", "--service",
                "dynamic", params.ROLLBACK_TO]);
-            dir("dataflow/datastore_bigquery_adapter") {
-               withEnv(["VERSION=${dynamicVersion}"]) {
-                  exec(["./gradlew", "rollback_jar"])
+               dir("dataflow/datastore_bigquery_adapter") {
+                  withEnv(["VERSION=${dynamicVersion}"]) {
+                     exec(["./gradlew", "rollback_jar"])
+                  }
                }
+            } else {
+               echo("Would run rollback datastore_bigquery_adapter.jar file");
             }
          }
       }
