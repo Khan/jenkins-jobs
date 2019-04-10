@@ -29,7 +29,7 @@ def runScript() {
     }
 
     def locale = params.LOCALE;
-    
+
     lock("using-a-lot-of-memory") {
         withSecrets() {
             sh("jenkins-jobs/tap-setup.sh ${locale}");
