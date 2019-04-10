@@ -17,9 +17,21 @@ new Setup(steps
 def runScript() {
     def locale = params.LOCALE;
 
-    lock("using-a-lot-of-memory") {
-        withSecrets() {
-            sh("jenkins-jobs/dashboard.sh ${locale}");
+    if (!locale) {
+        // Meaning this is a scheduled job that needs to run on all locales
+        // This could be copied from across AUTOMATICALLY_UPDATED_LOCALES
+        def list = ["es","pt","hi","ar","gu"];
+        for (item in list) {
+            println(item);
+            withSecrets() {
+                sh("jenkins-jobs/dashboard.sh ${item}");
+            }
+        }
+    } else {
+        lock("using-a-lot-of-memory") {
+            withSecrets() {
+                sh("jenkins-jobs/dashboard.sh ${locale}");
+            }
         }
     }
 }
