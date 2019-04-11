@@ -20,17 +20,18 @@ def runScript() {
     if (!locale) {
         // Meaning this is a scheduled job that needs to run on all locales
         // This could be copied from across AUTOMATICALLY_UPDATED_LOCALES
-        def list = ["es","pt","hi","ar","gu"];
+        def list = ['bg', 'cs', 'de', 'es', 'fr', 'gu', 'hi', 'hy', 'id', 'ja', 'ka', 'ko',
+                    'nl', 'pt', 'pt-pt', 'sr', 'sv', 'ta', 'tr', 'zh-hans'];
         for (item in list) {
             println(item);
             withSecrets() {
-                sh("jenkins-jobs/dashboard.sh ${item}");
+                sh("jenkins-jobs/run_translation_stats.sh ${item}");
             }
         }
     } else {
         lock("using-a-lot-of-memory") {
             withSecrets() {
-                sh("jenkins-jobs/dashboard.sh ${locale}");
+                sh("jenkins-jobs/run_translation_stats.sh ${locale}");
             }
         }
     }
