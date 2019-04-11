@@ -4,9 +4,6 @@
 import org.khanacademy.Setup;
 
 new Setup(steps
-
-).addCronSchedule("H/5 * * * *"
-
 ).addStringParam(
         "LOCALE",
         """Set this to a single locale, e.g.,
@@ -28,7 +25,7 @@ def runScript() {
         currentBuild.displayName = ("${currentBuild.displayName} " +
                 "(${locale})" + "(${downloadId})");
 
-        sh("jenkins-jobs/download-file.sh ${locale} ${downloadId}")
+        sh("jenkins-jobs/download-file.sh \"${locale}\" \"${downloadId}\"")
     }
 }
 
