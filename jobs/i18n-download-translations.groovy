@@ -95,15 +95,14 @@ def runScript() {
 
 
 onMaster('3h') {
-   // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-   notify([slack: [channel: '#i18n',
+   notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                    extraText: "@cp-support",
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
+                   when: ['FAILURE', 'UNSTABLE']],
+           email: [to: 'content-platform',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'content-platform',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       def updatedLocales = '';
