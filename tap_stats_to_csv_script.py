@@ -9,14 +9,11 @@ var1 = sys.argv[1]
 print var1
 filename = var1 + "_translations.csv"
 gloname = "fms=*"
-print gloname
-print glob.glob(gloname)
 
 for file in glob.glob(gloname):
     print file
     with open(file, "r") as f:
         data = pickle.loads(zlib.decompress(f.read()))
-        print data
         date = file.split("_")[1]
     for kind in ["article", "scratchpad", "video", "topic",
                  "exercise", "platform"]:
