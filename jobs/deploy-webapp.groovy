@@ -424,49 +424,6 @@ def mergeFromMasterAndInitializeGlobals() {
 }
 
 
-def promptForSetDefault() {
-   withTimeout('5m') {
-      // Send the changelog!
-      withSecrets() {
-         dir("webapp") {
-            // Prints the diff ROLLBACK_TO..GIT_REVISION (i.e. changes since
-            // the currently live version).
-            exec(["deploy/chat_messaging.py", ROLLBACK_TO, GIT_REVISION,
-                  // We omit the deployer username; the next message has an
-                  // at-mention in it already.
-                  "-o", SLACK_CHANNEL]);
-         }
-      }
-      // The CMS endpoints must be handled on the vm module. However,
-      // the rules in dispatch.yaml only match *.khanacademy.org,
-      // so the routing doesn't work in dynamic deploys (which are
-      // accessed through *.appspot.com) before the new version is
-      // set as default (but static-only deploys do work). In dynamic
-      // deploys, we therefore show a link directly to the vm module.
-      // TODO(aasmund): Remove when we have a better vm deployment
-      def maybeVmMessage = (
-         ("dynamic" in SERVICES)
-         ? "Note that if you want to test the CMS or the publish pages " +
-           "(`/devadmin/content` or `/devadmin/publish`), " +
-           "you need to do so on the " +
-           "<https://${NEW_VERSION}-dot-vm-dot-khan-academy.appspot.com|" +
-           "vm module> instead. "
-         : "");
-      _alert(alertMsgs.MANUAL_TEST_THEN_SET_DEFAULT,
-             [deployUrl: DEPLOY_URL,
-              maybeVmMessage: maybeVmMessage,
-              setDefaultUrl: "${env.BUILD_URL}input/",
-              abortUrl: "${env.BUILD_URL}stop",
-              combinedVersion: GIT_TAG,
-              branch: params.REVISION_DESCRIPTION]);
-   }
-
-   // Remind people (normally 30m, 45m, 55m, then timeout at 60m, but see
-   // _PROMPT_TIMES for details).
-   _inputWithPrompts("Set default?", "SetDefault", _PROMPT_TIMES);
-}
-
-
 def _manualSmokeTestCheck(job){
    def msg = ("Usually we can do this step for you, but when sun is down, " +
               "you must manually confirm that your ${job} is done and all tests " +
@@ -494,7 +451,7 @@ def _manualSmokeTestCheck(job){
 def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    withTimeout('60m') {
       def status;
-      while (!(status == "succeeded")) {
+      while (status != "succeeded") {
          status = buildmaster.pingForStatus(jobName,
                                             params.GIT_REVISION)
 
@@ -508,6 +465,13 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
                return;
             }
          }
+
+         // We care about consecutive failures, so if we get a status after
+         // we've previously logged a buildmaster failure, reset to 0.
+         if (status && buildmasterFailures == 1) {
+            buildmasterFailures = 0;
+         }
+
          // For now, we're making smoke tests non-blocking, but
          // if we improve the flakiness of smoke tests in the future
          // this should be changed to only allow the deploy job to
@@ -523,6 +487,55 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    }
 }
 
+
+def _manualPromptCheck(prompt){
+   def msg = "Looks like buildmaster is not responding!\n\n";
+   if (prompt == 'set-default') {
+      msg += ("If you have aleady done `sun: set default` then " +
+              "click Proceed to continue with your deploy. Or, " +
+              "complete your manual testing on  ${DEPLOY_URL} and let " +
+              "us know when you're ready.");
+   } else if (prompt == 'finish-up') {
+      msg += ("If you have aleady done `sun: finish up` then " +
+              "click Proceed to continue with your deploy. Or, " +
+              "double check your monitoring errors and let " +
+              "us know when you're ready.");
+   }
+   input(message: msg, id: "ConfirmSetDefaultPrompt");
+   return;
+}
+
+// TODO(jacqueline): Make this a shared func with verifying smoke tests.
+def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
+   def status;
+   while (status != "confirmed") {
+      status = buildmaster.pingForPromptStatus(prompt,
+                                               params.GIT_REVISION)
+
+      // If sun is down (even after a retry), we ask people to manually
+      // check the result of their smoke tests.
+      if (!status) {
+         if (buildmasterFailures == 0) {
+            buildmasterFailures += 1;
+         } else {
+            _manualPromptCheck(prompt)
+            return;
+         }
+      }
+
+      // We care about consecutive failures, so if we get a status after
+      // we've previously logged a buildmaster failure, reset to 0.
+      if (status && buildmasterFailures == 1) {
+         buildmasterFailures = 0;
+      }
+
+      // Continue pinging every 10 seconds until the prompt is confirmed
+      if (status in ["unacknowledged", "acknowledged"]) {
+        sleep(10);
+      }
+   }
+   return;
+}
 
 def _promoteServices() {  // call from webapp-root
     def cmd = ["deploy/set_default.py"];
@@ -610,6 +623,11 @@ def _monitor() {
             echo("Marking unstable due to monitoring failure: ${e}");
             currentBuild.result = "UNSTABLE";
          }
+         // Once we finish monitoring, we tell buildmaster. We do not
+         // differentiate between finishing with success vs finishing with
+         // failure as that is not a blocker for continuing a deploy.
+         // Notifying buildmaster of completion is used to trigger finish up.
+         buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished");
       }
    }
 }
@@ -635,6 +653,24 @@ def _waitForSetDefaultStart() {
    buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
 }
 
+def _switchDatastoreBigqueryAdapterJar() {
+   // we switch the "$NewDeployVersion.jar" file to
+   // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
+   try {
+      withTimeout("10m") {
+         dir("webapp/dataflow/datastore_bigquery_adapter") {
+            withEnv(["VERSION=${NEW_VERSION}"]) {
+               exec(["./gradlew", "switch_deploy_jar"])
+            }
+         }
+      }
+   } catch (e) {
+      echo("Failed to switch datastore_bigquery_adapter.jar: ${e}");
+      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED,
+             [newVersion: NEW_VERSION]);
+      return;
+   }
+}
 
 def setDefaultAndMonitor() {
    withTimeout('120m') {
@@ -656,34 +692,11 @@ def setDefaultAndMonitor() {
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
+           "switch-datastore-bigquery-adapter-jar":
+               { _switchDatastoreBigqueryAdapterJar(); },
          ]);
    }
 }
-
-
-def promptToFinish() {
-   withTimeout('1m') {
-      def logsUrl = (
-         "https://console.developers.google.com/project/khan-academy/logs" +
-         "?service=appengine.googleapis.com&key1=default&key2=${NEW_VERSION}");
-      def interpolationArgs = [logsUrl: logsUrl,
-                               combinedVersion: GIT_TAG,
-                               finishUrl: "${env.BUILD_URL}input/",
-                               abortUrl: "${env.BUILD_URL}stop",
-                              ];
-      // The build is unstable if monitoring detected problems (or died).
-      if (currentBuild.result == "UNSTABLE") {
-         _alert(alertMsgs.FINISH_WITH_WARNING, interpolationArgs);
-      } else {
-         _alert(alertMsgs.FINISH_WITH_NO_WARNING, interpolationArgs);
-      }
-   }
-
-   // Remind people (normally 30m, 45m, 55m, then timeout at 60m, but see
-   // _PROMPT_TIMES for details).
-   _inputWithPrompts("Finish up?", "Finish", _PROMPT_TIMES);
-}
-
 
 def finishWithSuccess() {
    withTimeout('10m') {
@@ -699,22 +712,6 @@ def finishWithSuccess() {
                         GIT_TAG, params.GIT_REVISION]);
                }
             }
-
-            // When any of our datastore models or dataflow code changes, we
-            // need to rebuild the binary we use to export out datastore models
-            // to bigquery.
-            // We should do this more selectively (i.e. only when specific
-            // relevant files changed), but this is quick (< 30s), so to be
-            // safe as a stopgap measure we just do it all the time.
-            // We do this at finish time because we'd rather hit the edge case
-            // where a schema is slightly out of date, than the case where we
-            // did an export with a rolled-back schema change.
-            // TODO(colin): do this only in response to a SERVICES flag
-            // set by a should_deploy rule, as for "dynamic" and "static" above.
-            dir("dataflow/datastore_bigquery_adapter") {
-                exec(["./gradlew", "build_and_upload_jar"])
-            }
-
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -812,6 +809,15 @@ def finishWithFailure(why) {
                _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
                      [rollbackToAsVersion: rollbackToAsVersion]);
             }
+            // rollback to datastore_bigquery_adapter.$dynamicVersion.jar
+            def dynamicVersion = exec.outputOf(
+               ["deploy/git_tags.py", "--service",
+               "dynamic", ROLLBACK_TO]);
+            dir("dataflow/datastore_bigquery_adapter") {
+               withEnv(["VERSION=${dynamicVersion}"]) {
+                  exec(["./gradlew", "rollback_jar"])
+               }
+            }
          }
       } catch (e) {
          echo("Auto-rollback failed: ${e}");
@@ -852,13 +858,11 @@ onMaster('4h') {
 
       if (SERVICES) {
          try {
-            stage("Prompt 1") {
+            stage("Await first smoke test and set-default confirmation") {
                if (!params.SKIP_TESTS) {
                   verifySmokeTestResults('first-smoke-test');
                }
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting SetDefault');
-               promptForSetDefault();
+               verifyPromptConfirmed("set-default");
             }
          } catch (e) {
             echo("Deploy failed before setting default: ${e}");
@@ -870,13 +874,11 @@ onMaster('4h') {
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
             }
-            stage("Prompt 2") {
-               if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults('second-smoke-test');
-               }
-               buildmaster.notifyWaiting('deploy-webapp', params.GIT_REVISION,
-                                         'waiting Finish');
-               promptToFinish();
+            // Unlike above, we do not need to verify second smoke tests
+            // have finished. Buildmaster does that for us before prompting
+            // a deployer to finish up.
+            stage("Await finish-up confirmation") {
+               verifyPromptConfirmed("finish-up");
             }
          } catch (e) {
             echo("FATAL ERROR promoting and monitoring and prompting: ${e}");

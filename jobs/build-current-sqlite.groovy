@@ -34,6 +34,12 @@ reason to use a different branch is to test changes to the sync process
 that haven't yet been merged to master.""",
     "master"
 
+).addStringParam(
+    "DEV_APPSERVER_ARGS",
+    """Extra arguments that will be provided to dev_appserver.py.  Must be
+    shell-quoted (as necessary).""",
+    ""
+
 ).apply();
 
 
@@ -50,6 +56,7 @@ def runScript() {
    withSecrets() {
       withEnv(
          ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
+          "DEV_APPSERVER_ARGS=${params.DEV_APPSERVER_ARGS}",
           "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
          sh("jenkins-jobs/build_current_sqlite.sh");
       }

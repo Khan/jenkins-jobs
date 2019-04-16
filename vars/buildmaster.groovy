@@ -96,6 +96,15 @@ def notifyDefaultSet(sha1, status) {
    return _makeHttpRequest("commits/set-default-status", "PATCH", params);
 }
 
+def notifyMonitoringStatus(sha1, status) {
+   echo("Marking monitoring status for ${sha1}: ${status}");
+   def params = [
+      git_sha: sha1,
+      status: status,
+   ];
+   return _makeHttpRequest("commits/monitoring-status", "PATCH", params);
+}
+
 def notifyServices(sha1, services) {
    echo("Sending list of services for ${sha1}: ${services}");
    def params = [
@@ -120,9 +129,25 @@ def pingForStatus(job, sha1) {
       echo("Error getting job status: ${e}");
       return
    }
-      
-   if (resp.getStatus() == 200) {
-      return resp.getContent();
+
+   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
+   return
+}
+
+def pingForPromptStatus(prompt, sha1) {
+   echo("Asking buildmaster for the ${prompt} prompt status for ${sha1}.")
+   def params = [
+      git_sha: sha1,
+      prompt: prompt
+   ]
+   try {
+      def resp = _makeHttpRequest("prompt-status", "POST", params)
+      if (resp.getStatus() == 200) {
+         return resp.getContent();
+      }
+   } catch (e) {
+      echo("Error getting job status: ${e}");
+      return
    }
 
    echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");

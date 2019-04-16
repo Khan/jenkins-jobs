@@ -193,7 +193,6 @@ NEW_VERSION = null;
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
 
-
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
    // Arguments to replaceAll().  `all` is the entire regexp match,
@@ -453,6 +452,24 @@ def deployToKotlinRoutes() {
     }
 }
 
+// When any of our datastore models or dataflow code changes, we
+// need to rebuild the binary we use to export out datastore models
+// to bigquery.
+// We should do this more selectively (i.e. only when specific
+// relevant files changed), but this is quick (< 30s), so to be
+// safe as a stopgap measure we just do it all the time.
+// We do this at build time, to build jar file and upload it
+// to "gs://khanalytics/datastore-bigquery-adapter-jar-versions/
+// datastore_bigquery_adapter.$NewDeployVersion.jar"
+// We will swtich the new deploy version to
+// gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
+def deployToDataflowDatastoreBigqueryAdapter() {
+   dir("webapp") {
+      withEnv(["VERSION=${NEW_VERSION}"]) {
+         sh("cd dataflow/datastore_bigquery_adapter && ./gradlew build_and_upload_jar");
+      }
+   }
+}
 
 // This should be called from within a node().
 def deployAndReport() {
@@ -461,6 +478,8 @@ def deployAndReport() {
             "deploy-to-gae": { deployToGAE(); },
             "deploy-to-gcs": { deployToGCS(); },
             "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
+            "deploy-to-dataflow-datastore-bigquery-adapter":
+               { deployToDataflowDatastoreBigqueryAdapter(); },
             "failFast": true,
         );
         _alert(alertMsgs.JUST_DEPLOYED,
@@ -469,6 +488,28 @@ def deployAndReport() {
                 services: SERVICES.join(', '),
                 branches: REVISION_DESCRIPTION]);
     }
+}
+
+
+def sendChangelog() {
+   withTimeout('5m') {
+      // Send the changelog!
+      withSecrets() {
+         dir("webapp") {
+            def currentVersionTag;
+            if (!params.BASE_REVISION) {
+               currentVersionTag = exec.outputOf(
+                  ["deploy/current_version.py", "--git-tag"]);
+            }
+            // Prints the diff BASE_REVISION..GIT_REVISION (i.e. changes since
+            // the currently live version).
+            exec(["deploy/chat_messaging.py",
+                  params.BASE_REVISION ?: currentVersionTag,
+                  params.GIT_REVISION, "-o", params.SLACK_CHANNEL,
+                  "-t", params.SLACK_THREAD]);
+         }
+      }
+   }
 }
 
 
@@ -508,9 +549,14 @@ onWorker('build-worker', '4h') {
 
       try {
          stage("Deploying") {
-            withTimeout('120m') {
+            withTimeout('150m') {
                deployAndReport();
             }
+         }
+         // TODO(jacqueline): This may get spammy. Is there somewhere we can
+         // move this so that it doesn't send for every build?
+         stage("Send changelog") {
+            sendChangelog();
          }
       } catch (e) {
          echo("FATAL ERROR deploying: ${e}");

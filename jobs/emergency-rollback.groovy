@@ -158,6 +158,7 @@ onMaster('1h') {
           build(job: '../deploy/e2e-test',
                 parameters: [
                    string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+                   string(name: 'TEST_TYPE', value: "deploy"),
                 ]);
        } else {
           echo("Would run deploy/e2e-test job on master.");
