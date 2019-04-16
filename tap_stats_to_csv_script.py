@@ -8,16 +8,17 @@ rows = []
 var1 = sys.argv[1]
 print var1
 filename = var1 + "_translations.csv"
-gloname = "fms=*"
+glob_name = "fms=*"
 
-for file in glob.glob(gloname):
+for file in glob.glob(glob_name):
     print file
     with open(file, "r") as f:
         data = pickle.loads(zlib.decompress(f.read()))
         date = file.split("_")[1]
     for kind in ["article", "scratchpad", "video", "topic",
                  "exercise", "platform"]:
-        for node in data["nodes"]["%ss" % kind if kind != "platform" else "platform"].values():
+        section = "%ss" % kind if kind != "platform" else "platform"
+        for node in data["nodes"][section].values():
             rows.append([
                 date, var1, kind, node['slug'],
                 node.get('metadata_translatable_word_count', 0)

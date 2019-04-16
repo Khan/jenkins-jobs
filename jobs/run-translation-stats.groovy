@@ -1,4 +1,4 @@
-// Hackathon project to run a job that pushes
+// Jenkins job that pushes
 // translation stats to bigquery and modeanalytics
 // for translators to keep track of progress
 
@@ -7,7 +7,7 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H/1 * * * *"
+).addCronSchedule("H/6 * * * *"
 
 ).addStringParam(
         "LOCALE",
