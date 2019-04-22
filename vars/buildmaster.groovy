@@ -9,6 +9,45 @@ import groovy.transform.Field;
 
 @Field BUILDMASTER_TOKEN = null;
 
+BUILDMASTER_OUTAGE = [
+   "severity": "error",
+   "simpleMessage": true,
+   "text": _textWrap("""\
+:ohnoes: Jenkins is unable to reach buildmaster right now while trying to do:
+%(step)s. the response status is %(status). Ping <!subteam^S41PPSJ21> to
+check the buildmaster https://buildmaster.khanacademy.org/ping.
+Perhaps buildmaster is down.
+""")];
+
+SLACK_CHANNEL = "#infrastructure-devops";
+CHAT_SENDER =  'Mr Monkey';
+EMOJI = ':monkey_face:';
+
+
+def _interpolateString(def s, def interpolationArgs) {
+   // Arguments to replaceAll().  `all` is the entire regexp match,
+   // `keyword` is the part that matches our one parenthetical group.
+   def interpolate = { all, keyword -> interpolationArgs[keyword]; };
+   def interpolationPattern = "%\\(([^)]*)\\)s";
+   return s.replaceAll(interpolationPattern, interpolate);
+}
+
+def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
+   def msg = _interpolateString(
+      "@dev-support: ${rawMsg}", interpolationArgs);
+
+   // ping "#infrastructure-devops" channel when buildmaster is down
+   def args = ["jenkins-jobs/alertlib/alert.py",
+               "--slack=${SLACK_CHANNEL}",
+               "--chat-sender=${CHAT_SENDER}",
+               "--icon-emoji=${EMOJI}",
+               "--slack-simple-message"];
+
+   // Secrets required to talk to slack.
+   withSecrets.ifAvailable() {
+      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+   }
+}
 
 def initializeBuildmasterToken() {
    if (!BUILDMASTER_TOKEN) {
@@ -46,6 +85,27 @@ def _makeHttpRequest(resource, httpMode, params) {
    }
 }
 
+// an wrapper to call _makeHttpRequest and check response status
+// if buildmaster is down, alert loudly and ping @dev-support
+def _talkToBuildMaster(resource, httpMode, params) {
+   try {
+      def resp = _makeHttpRequest(resource, httpMode, params)
+      if (resp.getStatus() == 200) {
+         return resp.getContent();
+      }
+   } catch (e) {
+      echo("Error getting job status: ${e}");
+      return
+   }
+
+   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
+   _sendSimpleInterpolatedMessage(
+      BUILDMASTER_OUTAGE,
+      [step: "${resource} + ${httpMode}",
+      status: "${resp.getStatus()}"]);
+   return
+}
+
 def notifyStatus(job, result, sha1) {
    def params = [
       git_sha: sha1,
@@ -53,7 +113,7 @@ def notifyStatus(job, result, sha1) {
       result: result,
       id: env.BUILD_NUMBER as Integer,
    ];
-   return _makeHttpRequest("commits", "PATCH", params);
+   return _talkToBuildMaster("commits", "PATCH", params);
 }
 
 def notifyMergeResult(commitId, result, sha1, gae_version_name) {
@@ -64,7 +124,7 @@ def notifyMergeResult(commitId, result, sha1, gae_version_name) {
       git_sha: sha1,
       gae_version_name: gae_version_name
    ];
-   return _makeHttpRequest("commits/merge", "PATCH", params);
+   return _talkToBuildMaster("commits/merge", "PATCH", params);
 }
 
 def notifyWaiting(job, sha1, result) {
@@ -74,7 +134,7 @@ def notifyWaiting(job, sha1, result) {
       job: job,
       result: result,
    ];
-   return _makeHttpRequest("commits/waiting", "POST", params);
+   return _talkToBuildMaster("commits/waiting", "POST", params);
 }
 
 def notifyId(job, sha1) {
@@ -84,7 +144,7 @@ def notifyId(job, sha1) {
       job: job,
       id: env.BUILD_NUMBER as Integer,
    ];
-   return _makeHttpRequest("commits", "PATCH", params);
+   return _talkToBuildMaster("commits", "PATCH", params);
 }
 
 // status is one of "started" or "finished".
@@ -94,7 +154,7 @@ def notifyDefaultSet(sha1, status) {
       git_sha: sha1,
       status: status,
    ];
-   return _makeHttpRequest("commits/set-default-status", "PATCH", params);
+   return _talkToBuildMaster("commits/set-default-status", "PATCH", params);
 }
 
 def notifyMonitoringStatus(sha1, status) {
@@ -103,7 +163,7 @@ def notifyMonitoringStatus(sha1, status) {
       git_sha: sha1,
       status: status,
    ];
-   return _makeHttpRequest("commits/monitoring-status", "PATCH", params);
+   return _talkToBuildMaster("commits/monitoring-status", "PATCH", params);
 }
 
 def notifyServices(sha1, services) {
@@ -112,7 +172,7 @@ def notifyServices(sha1, services) {
       git_sha: sha1,
       services: services,
    ];
-   return _makeHttpRequest("commits/services", "PATCH", params);
+   return _talkToBuildMaster("commits/services", "PATCH", params);
 }
 
 def pingForStatus(job, sha1) {
@@ -121,18 +181,7 @@ def pingForStatus(job, sha1) {
       git_sha: sha1,
       job: job
    ]
-   try {
-      def resp = _makeHttpRequest("job-status", "POST", params)
-      if (resp.getStatus() == 200) {
-         return resp.getContent();
-      }
-   } catch (e) {
-      echo("Error getting job status: ${e}");
-      return
-   }
-
-   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
-   return
+   return _talkToBuildMaster("job-status", "POST", params);
 }
 
 def pingForPromptStatus(prompt, sha1) {
@@ -141,16 +190,5 @@ def pingForPromptStatus(prompt, sha1) {
       git_sha: sha1,
       prompt: prompt
    ]
-   try {
-      def resp = _makeHttpRequest("prompt-status", "POST", params)
-      if (resp.getStatus() == 200) {
-         return resp.getContent();
-      }
-   } catch (e) {
-      echo("Error getting job status: ${e}");
-      return
-   }
-
-   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
-   return
+   return _talkToBuildMaster("prompt-status", "POST", params);
 }

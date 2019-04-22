@@ -13,6 +13,7 @@ def call(options=null, Closure body) {
             echo("${msgStart} Non-retriable error.");
             throw e;
          } else {
+            sleep(1);   // wait 1 sec to retry again
             echo("${msgStart} Retrying.");
          }
       }
