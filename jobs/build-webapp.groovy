@@ -347,8 +347,11 @@ def mergeFromMasterAndInitializeGlobals() {
             if (params.BASE_REVISION) {
                urlVersion = BASE_REVISION_VERSION;
             } else {
-               urlVersion = exec.outputOf(
-                  ["deploy/current_version.py", "--service", "dynamic"]);
+               def urlVersions = exec.outputOf(["deploy/current_version.py",
+                                                "--service", "dynamic"]
+                                               ).split("\n").sort();
+               // If there are multiple current versions, we grab the latest.
+               urlVersion = urlVersions[-1];
             }
          }
          DEPLOY_URL = "https://${urlVersion}-dot-khan-academy.appspot.com";
@@ -459,13 +462,14 @@ def deployToKotlinRoutes() {
 // relevant files changed), but this is quick (< 30s), so to be
 // safe as a stopgap measure we just do it all the time.
 // We do this at build time, to build jar file and upload it
-// to gs://khanalytics/datastore_bigquery_adapter.jar.$NewDeployVersion.
+// to "gs://khanalytics/datastore-bigquery-adapter-jar-versions/
+// datastore_bigquery_adapter.$NewDeployVersion.jar"
 // We will swtich the new deploy version to
 // gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
 def deployToDataflowDatastoreBigqueryAdapter() {
-   dir("webapp/dataflow/datastore_bigquery_adapter") {
+   dir("webapp") {
       withEnv(["VERSION=${NEW_VERSION}"]) {
-         exec(["./gradlew", "build_and_upload_jar"])
+         sh("cd dataflow/datastore_bigquery_adapter && ./gradlew build_and_upload_jar");
       }
    }
 }
@@ -490,9 +494,15 @@ def sendChangelog() {
       // Send the changelog!
       withSecrets() {
          dir("webapp") {
+            def currentVersionTag;
+            if (!params.BASE_REVISION) {
+               currentVersionTag = exec.outputOf(
+                  ["deploy/current_version.py", "--git-tag"]);
+            }
             // Prints the diff BASE_REVISION..GIT_REVISION (i.e. changes since
             // the currently live version).
-            exec(["deploy/chat_messaging.py", params.BASE_REVISION,
+            exec(["deploy/chat_messaging.py",
+                  params.BASE_REVISION ?: currentVersionTag,
                   params.GIT_REVISION, "-o", params.SLACK_CHANNEL,
                   "-t", params.SLACK_THREAD]);
          }
@@ -523,7 +533,7 @@ onWorker('build-worker', '4h') {
 
       try {
          stage("Deploying") {
-            withTimeout('120m') {
+            withTimeout('150m') {
                deployAndReport();
             }
          }

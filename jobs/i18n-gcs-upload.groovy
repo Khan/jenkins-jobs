@@ -106,15 +106,17 @@ def resetRepo() {
 
 
 onMaster('23h') {
-   // TODO(csilvers): update the slack message with the updated locales.
-   notify([slack: [channel: '#i18n',
+   notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
+                   extraText: "@cp-support",
+                   when: ['FAILURE', 'UNSTABLE']],
+           email: [to: 'content-platform',
+                   when: ['FAILURE', 'UNSTABLE']],
+           aggregator: [initiative: 'content-platform',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      // Make sure LOCALES was specified -- it's an error not to list a
+   // Make sure LOCALES was specified -- it's an error not to list a
       // locale to update!
       if (!params.LOCALES) {
          error("You must specify at least one locale to upload!");

@@ -50,7 +50,8 @@ def notifyStatus(job, result, sha1) {
    def params = [
       git_sha: sha1,
       job: job,
-      result: result
+      result: result,
+      id: env.BUILD_NUMBER as Integer,
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }
@@ -94,6 +95,15 @@ def notifyDefaultSet(sha1, status) {
       status: status,
    ];
    return _makeHttpRequest("commits/set-default-status", "PATCH", params);
+}
+
+def notifyMonitoringStatus(sha1, status) {
+   echo("Marking monitoring status for ${sha1}: ${status}");
+   def params = [
+      git_sha: sha1,
+      status: status,
+   ];
+   return _makeHttpRequest("commits/monitoring-status", "PATCH", params);
 }
 
 def notifyServices(sha1, services) {
