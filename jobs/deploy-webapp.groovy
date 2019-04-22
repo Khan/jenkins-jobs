@@ -461,6 +461,9 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
             if (buildmasterFailures == 0) {
                buildmasterFailures += 1;
             } else {
+               _alert(alertMsgs.BUILDMASTER_OUTAGE,
+                      [step: "${jobName} is complete",
+                       logsUrl: env.BUILD_URL])
                _manualSmokeTestCheck(jobName)
                return;
             }
@@ -518,6 +521,9 @@ def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
          if (buildmasterFailures == 0) {
             buildmasterFailures += 1;
          } else {
+            _alert(alertMsgs.BUILDMASTER_OUTAGE,
+                   [step: "${prompt} prompt is confirmed",
+                    logsUrl: env.BUILD_URL])
             _manualPromptCheck(prompt)
             return;
          }
