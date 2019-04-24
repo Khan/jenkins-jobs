@@ -852,21 +852,20 @@ onMaster('4h') {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
       }
+      try {
+         stage("Await first smoke test and set-default confirmation") {
+            if (!params.SKIP_TESTS) {
+               verifySmokeTestResults('first-smoke-test');
+            }
+            verifyPromptConfirmed("set-default");
+         }
+      } catch (e) {
+         echo("Deploy failed before setting default: ${e}");
+         finishWithFailureNoRollback(e.toString())
+         throw e;
+      }
 
       if (SERVICES) {
-         try {
-            stage("Await first smoke test and set-default confirmation") {
-               if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults('first-smoke-test');
-               }
-               verifyPromptConfirmed("set-default");
-            }
-         } catch (e) {
-            echo("Deploy failed before setting default: ${e}");
-            finishWithFailureNoRollback(e.toString())
-            throw e;
-         }
-
          try {
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
