@@ -373,9 +373,10 @@ def call(options, Closure body) {
       parallel(
          "_watchdog": {
             try {
-               timestamps {
-                  waitUntil({ abortState.complete || abortState.aborted });
-               }
+               // TODO(benkraft): Re-enable the timestamps block around
+               // waitUntil once this issue gets fixed:
+               //    https://issues.jenkins-ci.org/browse/JENKINS-57163
+               waitUntil({ abortState.complete || abortState.aborted });
             } catch (e) {
                if (!abortState.complete) {
                   abortState.aborted = true;
