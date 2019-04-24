@@ -85,7 +85,8 @@ def _makeHttpRequestAndAlert(resource, httpMode, params, buildmasterFailures=0) 
       echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
       _sendSimpleInterpolatedMessage(
          alertMsgs.BUILDMASTER_OUTAGE,
-         [step: "${resource} + ${httpMode}"]);
+         [step: "${resource} + ${httpMode}",
+          logsUrl: env.BUILD_URL]);
    }
    return
 }

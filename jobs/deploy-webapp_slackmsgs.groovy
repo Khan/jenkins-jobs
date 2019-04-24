@@ -287,7 +287,7 @@ BUILDMASTER_OUTAGE = [
 :ohnoes: Jenkins is unable to reach buildmaster right now while trying to verify
 that %(step)s. You'll want to check the <%(logsUrl)s|jenkins logs> directly to
 tell Jenkins to proceed.
-Perhaps buildmaster is down. Ping <!subteam^S41PPSJ21> to look into it.
+Perhaps buildmaster is down. <!subteam^S41PPSJ21> will look into it.
 """)];
 
 return this;
