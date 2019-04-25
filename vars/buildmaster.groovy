@@ -8,7 +8,9 @@ import groovy.transform.Field;
 
 
 @Field BUILDMASTER_TOKEN = null;
+@Field SENDSLACKCOUNT= 0;
 
+SEND_ALLOW_NUMBER = 3
 SLACK_CHANNEL = "#infrastructure-devops";
 CHAT_SENDER =  'Mr Monkey';
 EMOJI = ':monkey_face:';
@@ -48,7 +50,7 @@ def initializeBuildmasterToken() {
 
 // Make an API request to the buildmaster
 // `params` is expected to be a map
-def _makeHttpRequestAndAlert(resource, httpMode, params, buildmasterFailures=0) {
+def _makeHttpRequestAndAlert(resource, httpMode, params) {
    initializeBuildmasterToken();
    try {
       // We retry if the buildmaster fails.
@@ -64,7 +66,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params, buildmasterFailures=0) 
             httpMode: httpMode,
             requestBody: new JsonBuilder(params).toString(),
             url: "https://buildmaster.khanacademy.org/${resource}");
-         buildmasterFailures = 0;
+         SENDSLACKCOUNT = 0;
          return response;
       }
    } catch (e) {
@@ -78,9 +80,9 @@ def _makeHttpRequestAndAlert(resource, httpMode, params, buildmasterFailures=0) 
 
    // If the buildmaster is down, we will alert loudly three times in
    // devops channel, but don't want to send too much noise.
-   if (buildmasterFailures < 3) {
+   if (SENDSLACKCOUNT < SEND_ALLOW_NUMBER) {
       alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
-      buildmasterFailures += 1;
+      SENDSLACKCOUNT += 1;
 
       echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
       _sendSimpleInterpolatedMessage(
