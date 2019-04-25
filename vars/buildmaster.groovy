@@ -50,7 +50,8 @@ def notifyStatus(job, result, sha1) {
    def params = [
       git_sha: sha1,
       job: job,
-      result: result
+      result: result,
+      id: env.BUILD_NUMBER as Integer,
    ];
    return _makeHttpRequest("commits", "PATCH", params);
 }

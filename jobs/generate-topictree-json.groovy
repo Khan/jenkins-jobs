@@ -8,6 +8,14 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+).addStringParam(
+    "GIT_REVISION",
+    """The name of a webapp branch to use when running generate topictree 
+	json script. Most of the time master (the default) is the correct choice.
+	The main reason to use a different branch is to test changes to the sync 
+	process that haven't yet been merged to master.""",
+    "master"
+
 ).addCronSchedule("H H * * *"
 
 ).apply();

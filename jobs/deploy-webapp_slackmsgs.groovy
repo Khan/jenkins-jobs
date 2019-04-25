@@ -259,6 +259,7 @@ FAILED_WITH_ROLLBACK = [
 Rolled back to %(rollbackToAsVersion)s.
 """)];
 
+
 DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED = [
    "severity": "error",
    // the <!subteam> thing is "@dev-support".
@@ -278,5 +279,14 @@ SUCCESS = [
 Time for a happy dance!
 """)];
 
+
+BUILDMASTER_OUTAGE = [
+   "severity": "error",
+   "simpleMessage": true,
+   "text": _textWrap("""\
+:ohnoes: Jenkins is unable to reach buildmaster right now while trying to verify
+that %(step)s. You'll want to check the <%(logsUrl)s|jenkins logs> directly to
+tell Jenkins to proceed. cc <!subteam^S41PPSJ21>
+""")];
 
 return this;

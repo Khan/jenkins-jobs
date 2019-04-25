@@ -461,6 +461,9 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
             if (buildmasterFailures == 0) {
                buildmasterFailures += 1;
             } else {
+               _alert(alertMsgs.BUILDMASTER_OUTAGE,
+                      [step: "${jobName} is complete",
+                       logsUrl: env.BUILD_URL])
                _manualSmokeTestCheck(jobName)
                return;
             }
@@ -518,6 +521,9 @@ def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
          if (buildmasterFailures == 0) {
             buildmasterFailures += 1;
          } else {
+            _alert(alertMsgs.BUILDMASTER_OUTAGE,
+                   [step: "${prompt} prompt is confirmed",
+                    logsUrl: env.BUILD_URL])
             _manualPromptCheck(prompt)
             return;
          }
@@ -809,15 +815,6 @@ def finishWithFailure(why) {
                _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
                      [rollbackToAsVersion: rollbackToAsVersion]);
             }
-            // rollback to datastore_bigquery_adapter.$dynamicVersion.jar
-            def dynamicVersion = exec.outputOf(
-               ["deploy/git_tags.py", "--service",
-               "dynamic", ROLLBACK_TO]);
-            dir("dataflow/datastore_bigquery_adapter") {
-               withEnv(["VERSION=${dynamicVersion}"]) {
-                  exec(["./gradlew", "rollback_jar"])
-               }
-            }
          }
       } catch (e) {
          echo("Auto-rollback failed: ${e}");
@@ -855,21 +852,20 @@ onMaster('4h') {
       stage("Merging in master") {
          mergeFromMasterAndInitializeGlobals();
       }
+      try {
+         stage("Await first smoke test and set-default confirmation") {
+            if (!params.SKIP_TESTS) {
+               verifySmokeTestResults('first-smoke-test');
+            }
+            verifyPromptConfirmed("set-default");
+         }
+      } catch (e) {
+         echo("Deploy failed before setting default: ${e}");
+         finishWithFailureNoRollback(e.toString())
+         throw e;
+      }
 
       if (SERVICES) {
-         try {
-            stage("Await first smoke test and set-default confirmation") {
-               if (!params.SKIP_TESTS) {
-                  verifySmokeTestResults('first-smoke-test');
-               }
-               verifyPromptConfirmed("set-default");
-            }
-         } catch (e) {
-            echo("Deploy failed before setting default: ${e}");
-            finishWithFailureNoRollback(e.toString())
-            throw e;
-         }
-
          try {
             stage("Promoting and monitoring") {
                setDefaultAndMonitor();
