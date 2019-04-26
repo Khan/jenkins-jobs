@@ -12,14 +12,17 @@ new Setup(steps
     "GIT_REVISION",
     """The name of a webapp branch to use when running generate topictree 
 	json script. Most of the time master (the default) is the correct choice.
-	The main reason to use a different branch is to test changes to the sync 
-	process that haven't yet been merged to master.""",
+	The main reason to use a different branch is to test changes to the  
+	generate topictree json process that haven't yet been merged to master.""",
     "master"
 
+).addStringParam(
+        "LOCALE",
+	    """The locale for which to run this job for.""",
+	    ""
 ).addCronSchedule("H H * * *"
 
 ).apply();
-
 
 def runScript() {
     kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
@@ -30,9 +33,25 @@ def runScript() {
         sh("make deps");
     }
 
-    lock("using-a-lot-of-memory") {
-        withSecrets() {
-            sh("jenkins-jobs/run-topictree-gen.sh");
+    def inLocale = params.LOCALE;
+    if (!inLocale) {
+        // Run for all locales that are test or better.
+		def locales = ['bg', 'bn', 'cs', 'da', 'de', 'es', 'fr', 'gu', 'hi', 'hy',
+					   'id', 'it', 'ja', 'ka', 'ko', 'mn', 'nb', 'nl', 'pl', 'pt', 'pt-pt',
+					   'sr', 'sv', 'ta', 'tr', 'zh-hans'];
+        for (locale in locales) {
+            println("Invoking script to generate topictree json for locale: ${locale}");
+			lock("using-a-lot-of-memory") {
+				withSecrets() {
+					sh("jenkins-jobs/run-topictree-gen.sh ${locale}");
+				}
+			}
+        }
+    } else {
+        lock("using-a-lot-of-memory") {
+            withSecrets() {
+                sh("jenkins-jobs/run-topictree-gen.sh ${inLocale}");
+            }
         }
     }
 }

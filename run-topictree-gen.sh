@@ -6,4 +6,4 @@
 
 cd webapp
 
-tools/devshell.py --prod --script tools/generate_topictree_json.py
+tools/devshell.py --prod --script tools/generate_topictree_json.py $1
