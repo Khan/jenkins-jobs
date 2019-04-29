@@ -17,9 +17,10 @@ import org.khanacademy.Setup;
 new Setup(steps
 
 ).addStringParam(
-   "GIT_REVISION",
-   "A commit-ish to check out to update the data file at.",
-   "master"
+   "GIT_BRANCH",
+   """The branch on which to work; we check it out, merge master, and then push
+the updated data-file to it.""",
+   "automated-commits"
 
 ).addStringParam(
    "SLACK_CHANNEL",
@@ -33,8 +34,9 @@ new Setup(steps
 
 
 def runScript() {
-   // Set up deps
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_REVISION);
+   // We do our work in the automated-commits branch (first pulling in master).
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_BRANCH);
+   kaGit.safeMergeFromMaster("webapp", params.GIT_BRANCH);
 
    dir("webapp") {
       sh("make clean_pyc");    // in case some .py files went away
@@ -47,12 +49,6 @@ def runScript() {
 
 
 def publishResults() {
-   // Get ready to overwrite a file in our repo.  We do this in the
-   // 'automated-commits' branch.
-   kaGit.safePullInBranch("webapp", "automated-commits");
-   // ...which we want to make sure is up-to-date with master.
-   kaGit.safeMergeFromMaster("webapp", "automated-commits");
-
    dir("webapp") {
       sh("git add dev/ownership_data.json");
       // Also publish to GCS, for usage from scripts.
