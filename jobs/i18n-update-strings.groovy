@@ -85,5 +85,5 @@ def tryUpdateStrings() {
 try {
   tryUpdateStrings();
 } catch(e) {
-  tryUpdateStrings();
+  println("i18n-update-strings job failed");
 }
