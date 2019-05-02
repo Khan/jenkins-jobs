@@ -13,4 +13,4 @@ cd webapp
 make deps
 make current.sqlite
 
-tools/devshell.py --prod --script tools/run_translation_analytics.py "$locale"
+tools/devshell.py --prod --script tools/run_translation_analytics.py "$1"
