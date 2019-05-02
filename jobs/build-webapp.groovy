@@ -61,6 +61,16 @@ new Setup(steps
     ""
 
 ).addStringParam(
+    "COPY_FROM_REVISION",
+    """<p>Use this revision when copying static or dynamic version names.</p>
+
+    <p>For the most part, this will be the same as BASE_REVISION, because
+    most revisions will typically have a valid dynamic and static version to
+    reference. However, in the case that the BASE_REVISION was a tools-only
+    deploy, this will be the most recent non-tools-only revision.</p>""",
+    ""
+
+).addStringParam(
     "SERVICES",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
@@ -183,9 +193,9 @@ SERVICES = null;
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
-// The version-name corresponding to BASE_REVISION
-// (only set if BASE_REVISION is set).
-BASE_REVISION_VERSION = null;
+// The version-name corresponding to COPY_FROM_REVISION_VERSION
+// (only set if COPY_FROM_REVISION is set).
+COPY_FROM_REVISION_VERSION = null;
 
 // The new version number (for whichever services will be deployed).
 NEW_VERSION = null;
@@ -300,12 +310,15 @@ def mergeFromMasterAndInitializeGlobals() {
          // building: for promotion the only correct thing to do is to diff
          // against the currently live version, and the consequences of doing
          // something else are greater, so we prohibit the dangerous thing.
-         // We also BASE_REVISION_VERSION, for later.
          if (params.BASE_REVISION) {
-            BASE_REVISION_VERSION = exec.outputOf(
-               ["make", "gae_version_name",
-                "VERSION_NAME_GIT_REVISION=${params.BASE_REVISION}"]);
             shouldDeployArgs += ["--from-commit", params.BASE_REVISION]
+         }
+
+         // We also set the COPY_FROM_REVISION_VERSION, for later.
+         if (params.COPY_FROM_REVISION) {
+            COPY_FROM_REVISION_VERSION = exec.outputOf(
+               ["make", "gae_version_name",
+                "VERSION_NAME_GIT_REVISION=${params.COPY_FROM_REVISION}"]);
          }
 
          if (params.SERVICES == "auto") {
@@ -339,13 +352,13 @@ def mergeFromMasterAndInitializeGlobals() {
          // we use these URLs for testing even for static versions.  But, if we
          // have a tools-only version, there is no such version anywhere on app
          // engine, and the URL won't work, so we fall back to the base
-         // revision (i.e. either BASE_REVISION_VERSION or the live default).
+         // revision (i.e. either COPY_FROM_REVISION_VERSION or the live default).
          // Either way, we use an appspot URL, for consistency and to make sure
          // the appspot URL cases in e2e-test get tested.
          def urlVersion = NEW_VERSION;
          if (!SERVICES) {
-            if (params.BASE_REVISION) {
-               urlVersion = BASE_REVISION_VERSION;
+            if (COPY_FROM_REVISION_VERSION) {
+               urlVersion = COPY_FROM_REVISION_VERSION;
             } else {
                def urlVersions = exec.outputOf(["deploy/current_version.py",
                                                 "--service", "dynamic"]
@@ -403,11 +416,8 @@ def deployToGCS() {
                // Same as for deploy_to_gae, we suppress the changelog for now.
                "--suppress-changelog"];
    if (!("static" in SERVICES)) {
-      if (params.BASE_REVISION) {
-         // Copy from the specified version.  Note that this may not be a
-         // "real" static version (if BASE_REVISION was also a python-only
-         // deploy) but we can copy it just fine either way.
-         args += ["--copy-from=${BASE_REVISION_VERSION}"];
+      if (COPY_FROM_REVISION_VERSION) {
+         args += ["--copy-from=${COPY_FROM_REVISION_VERSION}"];
       } else {
          args += ["--copy-from=default"];
       }
