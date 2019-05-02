@@ -8,12 +8,10 @@ import groovy.transform.Field;
 
 
 @Field BUILDMASTER_TOKEN = null;
-@Field SEND_SLACK_COUNT= 0;
+@Field SEND_SLACK_COUNT = 0;
+@Field MAX_SLACK_MSGS = 3;
 
-MAX_SLACK_MSGS = 3
-SLACK_CHANNEL = "#infrastructure-devops";
-CHAT_SENDER =  'Mr Monkey';
-EMOJI = ':monkey_face:';
+alertMsgs = null;
 
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
@@ -25,6 +23,10 @@ def _interpolateString(def s, def interpolationArgs) {
 }
 
 def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
+   def SLACK_CHANNEL = "#infrastructure-devops";
+   def CHAT_SENDER = 'Mr Monkey';
+   def EMOJI = ':monkey_face:';
+
    def msg = _interpolateString(
       "${rawMsg}", interpolationArgs);
 
@@ -74,23 +76,22 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
       // it's not being caught properly.
       // httpRequest throws exceptions when buildmaster responds with status
       // code >=400
-      notify.fail("Error notifying buildmaster:\n" + e.getMessage());
-      return
-   }
 
-   // If the buildmaster is down, we will alert loudly to
-   // #infrastructure-devops channel, but don't want to send too much noise.
-   if (SEND_SLACK_COUNT < MAX_SLACK_MSGS) {
-      alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
-      SEND_SLACK_COUNT += 1;
+      kaGit.checkoutJenkinsTools();
+      // If the buildmaster is down, we will alert loudly to
+      // #infrastructure-devops channel, but don't want to send too much noise.
+      if (SEND_SLACK_COUNT < MAX_SLACK_MSGS) {
+         alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
+         SEND_SLACK_COUNT += 1;
 
-      echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
-      _sendSimpleInterpolatedMessage(
-         alertMsgs.BUILDMASTER_OUTAGE,
-         [step: "${resource} + ${httpMode}",
-          logsUrl: env.BUILD_URL]);
+         echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
+         _sendSimpleInterpolatedMessage(
+            alertMsgs.BUILDMASTER_OUTAGE,
+            [step: "${resource} + ${httpMode}",
+            logsUrl: env.BUILD_URL]);
+      }
+      return;
    }
-   return
 }
 
 def notifyStatus(job, result, sha1) {
