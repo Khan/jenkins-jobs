@@ -10,7 +10,6 @@ import org.khanacademy.Setup;
 //import vars.withSecrets
 
 new Setup(steps
-).addCronSchedule("H/1 * * * *"
 ).addStringParam("LOCALE",
         "Locale to run TAP on",
         ""
