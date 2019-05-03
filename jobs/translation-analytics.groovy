@@ -18,7 +18,7 @@ new Setup(steps
 
 
 def runScript() {
-    kaGit.safeSyncToOrigin(repoToClone="git@github.com:Khan/webapp", commit="tap", force=true);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "tap", [], true);
 
     dir("webapp") {
         sh("make clean_pyc");    // in case some .py files went away
