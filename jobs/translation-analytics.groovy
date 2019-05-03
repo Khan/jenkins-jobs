@@ -32,7 +32,7 @@ def runScript() {
     }
 }
 
-onMaster('3h') {
+onMaster('1h') {
     notify([slack: [channel: '#cp-eng',
                     when: ['FAILURE', 'UNSTABLE']],
             aggregator: [initiative: 'content-platform',
