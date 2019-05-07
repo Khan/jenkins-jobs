@@ -6,6 +6,9 @@
 #
 # For this script to work, secrets.py must be on the PYTHONPATH.
 
+# Fail the job on error
+set -e
+
 # remove any existing database
 rm -f current.sqlite
 
