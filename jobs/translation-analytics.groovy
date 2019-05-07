@@ -31,7 +31,7 @@ def runScript() {
     }
 }
 
-onMaster('1h') {
+onMaster('4h') {
     notify([slack: [channel: '#cp-eng',
                     when: ['FAILURE', 'UNSTABLE']],
             aggregator: [initiative: 'content-platform',
