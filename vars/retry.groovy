@@ -1,6 +1,7 @@
 def call(options=null, Closure body) {
    options = options ?: [:];
    def retryCount = options.retryCount ?: 3;
+   def sleepTime = options.sleepTime ?: 10;
    for (def i = 0; i <= retryCount; i++) {
       try {
          return body();
@@ -13,6 +14,7 @@ def call(options=null, Closure body) {
             echo("${msgStart} Non-retriable error.");
             throw e;
          } else {
+            sleep(sleepTime);   // wait 10 sec to retry again by default
             echo("${msgStart} Retrying.");
          }
       }
