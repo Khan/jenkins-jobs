@@ -171,7 +171,8 @@ def pingForStatus(job, sha1) {
       git_sha: sha1,
       job: job
    ]
-   return _makeHttpRequestAndAlert("job-status", "POST", params);
+   def resp = _makeHttpRequestAndAlert("job-status", "POST", params);
+   return resp.getContent();
 }
 
 def pingForPromptStatus(prompt, sha1) {
@@ -180,5 +181,6 @@ def pingForPromptStatus(prompt, sha1) {
       git_sha: sha1,
       prompt: prompt
    ]
-   return _makeHttpRequestAndAlert("prompt-status", "POST", params);
+   def resp = _makeHttpRequestAndAlert("prompt-status", "POST", params);
+   return resp.getContent();
 }
