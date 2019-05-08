@@ -18,7 +18,6 @@ new Setup(steps
 
 // We do a lot of e2e-test runs, and QA would like to be able to see details
 // for a bit longer.
-// TODO(benkraft): Keep more failures and fewer successes.
 ).resetNumBuildsToKeep(
    250,
 

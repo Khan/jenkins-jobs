@@ -24,6 +24,7 @@ class Setup implements Serializable {
    def steps;
 
    // How many log files to keep around for this job.
+   // TODO(benkraft): Allow keeping more failures and fewer successes.
    def numBuildsToKeep;
    // If true, we only allow one instance of this job to run at a time.
    def disableConcurrentBuilds;

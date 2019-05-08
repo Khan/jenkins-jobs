@@ -24,6 +24,11 @@ new Setup(steps
 
 ).allowConcurrentBuilds(
 
+// We do a *ton* of webapp-test runs, often >100 each day.  Make sure we don't
+// clean them too quickly.
+).resetNumBuildsToKeep(
+   500,
+
 ).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring
