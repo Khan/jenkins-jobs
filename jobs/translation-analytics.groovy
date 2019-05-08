@@ -42,7 +42,7 @@ def runTapForLocaleOnly() {
 def runTapForLocaleAndEn() {
     withSecrets() {
         sh("echo runTapForLocaleAndEn ${params.LOCALE} ");
-        sh("jenkins-jobs/tap-run.sh en ${params.LOCALE} False");
+        sh("jenkins-jobs/tap-run.sh ${params.LOCALE} en False");
     }
 }
 def runTapForLocaleAndStagedContent() {
@@ -62,13 +62,13 @@ onMaster('4h') {
         }
         stage("Parallel processing the TAP runs") {
             parallel(
-                    "firstTap": {
+                    "LocaleFMS": {
                         runTapForLocaleOnly();
                     },
-                    "secondTap": {
+                    "EnglishFMS": {
                         runTapForLocaleAndEn();
                     },
-                    "thirdTap": {
+                    "LocaleStaged": {
                         runTapForLocaleAndStagedContent();
                     }
             )
