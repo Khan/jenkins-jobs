@@ -61,21 +61,17 @@ onMaster('4h') {
             runScript();
         }
         stage("Parallel processing the TAP runs") {
-            steps {
-                parallel(
-                        "firstTap": {
-                            runTapForLocaleOnly();
-                        },
-                        "secondTap": {
-                            runTapForLocaleAndEn();
-                        },
-                        "thirdTap": {
-                            runTapForLocaleAndStagedContent();
-                        }
-                )
-            }
+            parallel(
+                    "firstTap": {
+                        runTapForLocaleOnly();
+                    },
+                    "secondTap": {
+                        runTapForLocaleAndEn();
+                    },
+                    "thirdTap": {
+                        runTapForLocaleAndStagedContent();
+                    }
+            )
         }
     }
 }
-
-
