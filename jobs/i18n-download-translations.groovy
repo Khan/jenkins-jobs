@@ -127,12 +127,11 @@ onMaster('3h') {
                      string(name: 'LOCALES', value: updatedLocales),
                   ])
 
-            for (locale in updatedLocales) {
-               build(job: 'translation-analytics',
-                       parameters: [
-                               string(name: 'LOCALE', value: locale),
-                       ])
-            }
+
+            build(job: 'translation-analytics',
+                  parameters: [
+                     string(name: 'LOCALE', value: updatedLocales),
+                  ])
          }
       }
    }
