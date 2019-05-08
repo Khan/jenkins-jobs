@@ -73,5 +73,6 @@ onMaster('4h') {
                     }
             )
         }
+        currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALE})";
     }
 }

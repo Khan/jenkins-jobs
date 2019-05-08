@@ -126,6 +126,13 @@ onMaster('3h') {
                   parameters: [
                      string(name: 'LOCALES', value: updatedLocales),
                   ])
+
+            for (locale in updatedLocales) {
+               build(job: 'translation-analytics',
+                       parameters: [
+                               string(name: 'LOCALE', value: locale),
+                       ])
+            }
          }
       }
    }
