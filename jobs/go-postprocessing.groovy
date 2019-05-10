@@ -10,8 +10,8 @@ new Setup(steps
 \"fr\".""",
         ""
 ).addStringParam(
-        "DOWNLOADID",
-        """Set this to a download ID  that
+        "ARCHIVEID",
+        """Set this to an archive ID  that
 need to be downloaded.""",
         ""
 ).apply();
@@ -20,12 +20,12 @@ need to be downloaded.""",
 def runScript() {
     withTimeout('1h') {
         def locale = params.LOCALE;
-        def downloadId = params.DOWNLOADID
+        def archiveId = params.ARCHIVEID
 
         currentBuild.displayName = ("${currentBuild.displayName} " +
-                "(${locale})" + "(${downloadId})");
+                "(${locale})" + "(${archiveId})");
 
-        sh("jenkins-jobs/download-file.sh \"${locale}\" \"${downloadId}\"")
+        sh("jenkins-jobs/download-file.sh \"${locale}\" \"${archiveId}\"")
     }
 }
 
