@@ -136,7 +136,7 @@ onMaster('23h') {
          stage("Running TAP") {
             build(job: 'translation-analytics',
                   parameters: [
-                      string(name: 'LOCALE', value: ${params.LOCALES}),
+                      string(name: 'LOCALE', value: params.LOCALES),
                   ])
          }
       } finally {
