@@ -7,14 +7,10 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H/6 * * * *"
-
-).addStringParam(
-        "LOCALE",
+).addStringParam("LOCALE",
         "Locale to run stats on",
         ""
 ).apply();
-
 
 def runScript() {
     def locale = params.LOCALE;
