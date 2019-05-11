@@ -8,7 +8,40 @@ import groovy.transform.Field;
 
 
 @Field BUILDMASTER_TOKEN = null;
+@Field SEND_SLACK_COUNT = 0;
+@Field MAX_SLACK_MSGS = 3;
 
+alertMsgs = null;
+
+@NonCPS     // for replaceAll()
+def _interpolateString(def s, def interpolationArgs) {
+   // Arguments to replaceAll().  `all` is the entire regexp match,
+   // `keyword` is the part that matches our one parenthetical group.
+   def interpolate = { all, keyword -> interpolationArgs[keyword]; };
+   def interpolationPattern = "%\\(([^)]*)\\)s";
+   return s.replaceAll(interpolationPattern, interpolate);
+}
+
+def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
+   def SLACK_CHANNEL = "#infrastructure-devops";
+   def CHAT_SENDER = 'Mr Monkey';
+   def EMOJI = ':monkey_face:';
+
+   def msg = _interpolateString(
+      "${rawMsg}", interpolationArgs);
+
+   // ping "#infrastructure-devops" channel when buildmaster is down
+   def args = ["jenkins-jobs/alertlib/alert.py",
+               "--slack=${SLACK_CHANNEL}",
+               "--chat-sender=${CHAT_SENDER}",
+               "--icon-emoji=${EMOJI}",
+               "--slack-simple-message"];
+
+   // Secrets required to talk to slack.
+   withSecrets() {
+      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+   }
+}
 
 def initializeBuildmasterToken() {
    if (!BUILDMASTER_TOKEN) {
@@ -19,7 +52,7 @@ def initializeBuildmasterToken() {
 
 // Make an API request to the buildmaster
 // `params` is expected to be a map
-def _makeHttpRequest(resource, httpMode, params) {
+def _makeHttpRequestAndAlert(resource, httpMode, params) {
    initializeBuildmasterToken();
    try {
       // We retry if the buildmaster fails.
@@ -35,6 +68,7 @@ def _makeHttpRequest(resource, httpMode, params) {
             httpMode: httpMode,
             requestBody: new JsonBuilder(params).toString(),
             url: "https://buildmaster.khanacademy.org/${resource}");
+         SEND_SLACK_COUNT = 0;
          return response;
       }
    } catch (e) {
@@ -42,7 +76,23 @@ def _makeHttpRequest(resource, httpMode, params) {
       // it's not being caught properly.
       // httpRequest throws exceptions when buildmaster responds with status
       // code >=400
-      notify.fail("Error notifying buildmaster:\n" + e.getMessage());
+
+      // checkout jenkins-jobs folder in current workspace
+      // in order to load other groovy file.
+      kaGit.checkoutJenkinsTools();
+      // If the buildmaster is down, we will alert loudly to
+      // #infrastructure-devops channel, but don't want to send too much noise.
+      if (SEND_SLACK_COUNT < MAX_SLACK_MSGS) {
+         alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
+         SEND_SLACK_COUNT += 1;
+
+         echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
+         _sendSimpleInterpolatedMessage(
+            alertMsgs.BUILDMASTER_OUTAGE,
+            [step: "${resource} + ${httpMode}",
+            logsUrl: env.BUILD_URL]);
+      }
+      return;
    }
 }
 
@@ -53,7 +103,7 @@ def notifyStatus(job, result, sha1) {
       result: result,
       id: env.BUILD_NUMBER as Integer,
    ];
-   return _makeHttpRequest("commits", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits", "PATCH", params);
 }
 
 def notifyMergeResult(commitId, result, sha1, gae_version_name) {
@@ -64,7 +114,7 @@ def notifyMergeResult(commitId, result, sha1, gae_version_name) {
       git_sha: sha1,
       gae_version_name: gae_version_name
    ];
-   return _makeHttpRequest("commits/merge", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits/merge", "PATCH", params);
 }
 
 def notifyWaiting(job, sha1, result) {
@@ -74,7 +124,7 @@ def notifyWaiting(job, sha1, result) {
       job: job,
       result: result,
    ];
-   return _makeHttpRequest("commits/waiting", "POST", params);
+   return _makeHttpRequestAndAlert("commits/waiting", "POST", params);
 }
 
 def notifyId(job, sha1) {
@@ -84,7 +134,7 @@ def notifyId(job, sha1) {
       job: job,
       id: env.BUILD_NUMBER as Integer,
    ];
-   return _makeHttpRequest("commits", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits", "PATCH", params);
 }
 
 // status is one of "started" or "finished".
@@ -94,7 +144,7 @@ def notifyDefaultSet(sha1, status) {
       git_sha: sha1,
       status: status,
    ];
-   return _makeHttpRequest("commits/set-default-status", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits/set-default-status", "PATCH", params);
 }
 
 def notifyMonitoringStatus(sha1, status) {
@@ -103,7 +153,7 @@ def notifyMonitoringStatus(sha1, status) {
       git_sha: sha1,
       status: status,
    ];
-   return _makeHttpRequest("commits/monitoring-status", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits/monitoring-status", "PATCH", params);
 }
 
 def notifyServices(sha1, services) {
@@ -112,7 +162,7 @@ def notifyServices(sha1, services) {
       git_sha: sha1,
       services: services,
    ];
-   return _makeHttpRequest("commits/services", "PATCH", params);
+   return _makeHttpRequestAndAlert("commits/services", "PATCH", params);
 }
 
 def pingForStatus(job, sha1) {
@@ -121,18 +171,7 @@ def pingForStatus(job, sha1) {
       git_sha: sha1,
       job: job
    ]
-   try {
-      def resp = _makeHttpRequest("job-status", "POST", params)
-      if (resp.getStatus() == 200) {
-         return resp.getContent();
-      }
-   } catch (e) {
-      echo("Error getting job status: ${e}");
-      return
-   }
-
-   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
-   return
+   return _makeHttpRequestAndAlert("job-status", "POST", params);
 }
 
 def pingForPromptStatus(prompt, sha1) {
@@ -141,16 +180,5 @@ def pingForPromptStatus(prompt, sha1) {
       git_sha: sha1,
       prompt: prompt
    ]
-   try {
-      def resp = _makeHttpRequest("prompt-status", "POST", params)
-      if (resp.getStatus() == 200) {
-         return resp.getContent();
-      }
-   } catch (e) {
-      echo("Error getting job status: ${e}");
-      return
-   }
-
-   echo("Got ${resp.getStatus()}, perhaps buildmaster is down.");
-   return
+   return _makeHttpRequestAndAlert("prompt-status", "POST", params);
 }
