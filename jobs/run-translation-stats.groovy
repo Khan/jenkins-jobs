@@ -11,6 +11,8 @@ new Setup(steps
 
 ).addStringParam(
         "LOCALE",
+        "Locale to run stats on",
+        ""
 ).apply();
 
 
