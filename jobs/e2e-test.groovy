@@ -377,17 +377,6 @@ def analyzeResults() {
          notify.fail(msg, "UNSTABLE");
       }
 
-      // If our test-reporter supports --rerun-command, use it!
-      // TODO(benkraft): Remove after D50488 is deployed, definitely
-      // by 15 December 2018.
-      def supportsRerunCommand;
-      dir("webapp") {
-         supportsRerunCommand = (
-            exec.outputOf(["tools/test_pickle_util.py",
-                           "summarize-to-slack", "--help"])
-            .contains("--rerun-command"));
-      }
-
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
             sh("tools/test_pickle_util.py merge " +
@@ -404,20 +393,18 @@ def analyzeResults() {
                // both the URL and the REVISION_DESCRIPTION.
                "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
                "--expected-tests-file", "genfiles/test-splits.txt",
-               "--cc-always", "#qa-log"];
-            if (params.SLACK_THREAD) {
-               summarize_args += ["--slack-thread", params.SLACK_THREAD];
-            }
-            if (supportsRerunCommand) {
+               "--cc-always", "#qa-log",
                // We try to keep the command short and clear.
                // We need only --url and -driver chrome.
                // If using www.khanacademy.org, we abbreviate --url to --prod.
-               summarize_args += [
-                  "--rerun-command",
-                  "tools/runsmoketests.py --driver chrome " + (
+               "--rerun-command",
+               "tools/runsmoketests.py --driver chrome " + (
                      E2E_URL == "https://www.khanacademy.org"
-                        ? "--prod"
-                        : "--url ${exec.shellEscape(E2E_URL)}")];
+                     ? "--prod"
+                     : "--url ${exec.shellEscape(E2E_URL)}"),
+            ];
+            if (params.SLACK_THREAD) {
+               summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
             exec(summarize_args);
             // Let notify() know not to send any messages to slack,
