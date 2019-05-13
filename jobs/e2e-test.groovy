@@ -34,9 +34,17 @@ new Setup(steps
   <li> <b>deploy</b>: run only those tests that are important to run at
         deploy-time (as identified by the `@run_on_every_deploy`
         decorator)</li>
+  <li> <b>custom</b>: run a specified list of tests, defined in
+        TESTS_TO_RUN </li>
 </ul>
 """,
-   ["all", "deploy"]
+   ["all", "deploy", "custom"]
+
+).addStringParam(
+   "TESTS_TO_RUN",
+   """A space-separated list of tests to run. Only relevant if we've selected
+   TEST_TYPE=custom above.""",
+   ""
 
 ).addStringParam(
    "SLACK_CHANNEL",
@@ -207,6 +215,10 @@ def _determineTests() {
    } else if (params.TEST_TYPE == "deploy") {
       sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
          "--deploy-tests-only > genfiles/test-splits.txt");
+   } else if (params.TEST_TYPE == "custom") {
+       def tests = shellEscapeList(params.TESTS_TO_RUN.split());
+       sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
+          "${tests} > genfiles/test-splits.txt");
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
