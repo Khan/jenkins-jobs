@@ -377,17 +377,6 @@ def analyzeResults() {
          notify.fail(msg);
       }
 
-      // If our test-reporter supports --rerun-command, use it!
-      // TODO(benkraft): When everyone's branches are new enough to support it,
-      // definitely by February 2019, remove this conditional.
-      def supportsRerunCommand;
-      dir("webapp") {
-         supportsRerunCommand = (
-            exec.outputOf(["tools/test_pickle_util.py",
-                           "summarize-to-slack", "--help"])
-            .contains("--rerun-command"));
-      }
-
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
             sh("tools/test_pickle_util.py merge " +
@@ -395,6 +384,15 @@ def analyzeResults() {
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
+            // We try to keep the command short and clear.
+            // max-size is the only option we need locally, and only
+            // if it is not "medium".
+            maxSizeParam = "";
+            if (params.MAX_SIZE != "medium") {
+               maxSizeParam = (
+                  " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
+            }
+            rerunCommand = "tools/runtests.py${maxSizeParam}"
             summarize_args = [
                "tools/test_pickle_util.py", "summarize-to-slack",
                "genfiles/test-results.pickle", params.SLACK_CHANNEL,
@@ -403,21 +401,11 @@ def analyzeResults() {
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--label", REVISION_DESCRIPTION,
-               "--expected-tests-file", "genfiles/test_splits.txt"];
+               "--expected-tests-file", "genfiles/test_splits.txt",
+               "--rerun-command", rerunCommand,
+            ];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
-            }
-            if (supportsRerunCommand) {
-               // We try to keep the command short and clear.
-               // max-size is the only option we need locally, and only
-               // if it is not "medium".
-               maxSizeParam = "";
-               if (params.MAX_SIZE != "medium") {
-                  maxSizeParam = (
-                     " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
-               }
-               summarize_args += [
-                  "--rerun-command", "tools/runtests.py${maxSizeParam}"];
             }
             exec(summarize_args);
             // Let notify() know not to send any messages to slack,
