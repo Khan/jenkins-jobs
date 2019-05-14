@@ -282,7 +282,7 @@ clean_ka_static() {
     # This prints files in 'candidates that are *not* in files_to_keep.
     LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
         | tr '\012' '\0' \
-        | xargs -0r gsutil rm
+        | xargs -0r gsutil -m rm
 }
 
 
