@@ -117,16 +117,6 @@ def notifyMergeResult(commitId, result, sha1, gae_version_name) {
    return _makeHttpRequestAndAlert("commits/merge", "PATCH", params);
 }
 
-def notifyWaiting(job, sha1, result) {
-   echo("Setting for ${sha1}: ${result}");
-   def params = [
-      git_sha: sha1,
-      job: job,
-      result: result,
-   ];
-   return _makeHttpRequestAndAlert("commits/waiting", "POST", params);
-}
-
 def notifyId(job, sha1) {
    echo("Phoning home to log job ID #${env.BUILD_NUMBER} for ${sha1} ${job}");
    def params = [

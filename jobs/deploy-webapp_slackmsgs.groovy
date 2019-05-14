@@ -92,42 +92,6 @@ I've just uploaded <%(deployUrl)s|%(version)s>
 ];
 
 
-MANUAL_TEST_THEN_SET_DEFAULT = [
-   "severity": "info",
-   "text": _textWrap("""\
-%(deployUrl)s (branch %(branch)s) is uploaded to appengine!
-Do some manual testing on it, perhaps via
-`tools/manual_webapp_testing.py %(deployUrl)s`.
-%(maybeVmMessage)sThen, either:
-\n- set it as default: type `sun: set default` or visit %(setDefaultUrl)s
-\n- abort the deploy: type `sun: abort` or visit %(abortUrl)s
-"""),
-   "attachments": [
-      [
-         "pretext": _textWrap("""\
-<%(deployUrl)s|%(combinedVersion)s> (branch `%(branch)s`)
-is uploaded to App Engine!
-
-Do some manual testing, perhaps via
-`tools/manual_webapp_testing.py %(deployUrl)s`, while I run the
-end-to-end tests (check `sun: status` for details).
-%(maybeVmMessage)sThen, either:"""),
-         "fields": [
-            [
-               "title": "all looks good :rocket:",
-               "value": (":speech_balloon: `sun: set default` " +
-                         "(or <%(setDefaultUrl)s|use jenkins directly>)"),
-               "short": true,
-            ],
-            _abortField,
-         ],
-         "color": "good",
-         "mrkdwn_in": ["pretext", "text", "fields"],
-      ],
-   ],
-];
-
-
 _settingDefaultText = _textWrap("""\
 I'm setting default to `%(combinedVersion)s`, and monitoring the logs.
 If you notice a problem before monitoring finishes, you can cancel the
@@ -149,16 +113,6 @@ SETTING_DEFAULT = [
 ];
 
 
-STILL_WAITING = [
-   "severity": "warning",
-   "simpleMessage": true,
-   "text": _textWrap("""\
-Are you ready to %(action)s?
-Waited %(minutesSoFar)s minutes so far.
-Will wait %(minutesRemaining)s minutes more, then abort.
-"""),
-];
-
 VERSION_NOT_CHANGED = [
    "severity": "warning",
    "simpleMessage": true,
@@ -169,67 +123,6 @@ you'll need to start the
 <https://jenkins.khanacademy.org/job/deploy/job/e2e-test/build|smoke tests>
 yourself, or abort.
 """),
-];
-
-FINISH_WITH_WARNING = [
-   "severity": "warning",
-   "text": _textWrap("""\
-:ohnoes: Monitoring detected errors for the new default
-(%(combinedVersion)s). Please double-check manually that
-everything is okay at https://www.khanacademy.org and in
-the logs.  Then:
-\n- finish up: type `sun: finish up` or visit %(finishUrl)s
-\n- abort and roll back: type `sun: abort` or visit %(abortUrl)s
-"""),
-   "attachments": [
-      [
-         "pretext": _textWrap("""\
-:ohnoes: Monitoring detected errors for the new default
-(%(combinedVersion)s). Please double-check manually that everything is
-okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the logs>.
-"""),
-         "fields": [
-            ["title": "deploy anyway :yolo:",
-             "value": (":speech_balloon: `sun: finish up` " +
-                       "(or <%(finishUrl)s|use jenkins directly>)"),
-             "short": true,
-            ],
-            _abortField,
-         ],
-         "mrkdwn_in": ["fields", "text", "pretext"],
-      ],
-   ],
-];
-
-
-FINISH_WITH_NO_WARNING = [
-   "severity": "info",
-   "text": _textWrap("""\
-Monitoring passed for the new default (%(combinedVersion)s).
-You can double-check manually that everything is okay at
-https://www.khanacademy.org and in the logs.  Then:
-\n- finish up: type `sun: finish up` or visit %(finishUrl)s
-\n- abort and roll back: type `sun: abort` or visit %(abortUrl)s
-"""),
-   "attachments": [
-      [
-         "pretext": _textWrap("""\
-Monitoring passed for the new default
-(%(combinedVersion)s). You can double-check manually that everything is
-okay on <https://www.khanacademy.org|the site> and in <%(logsUrl)s|the
-logs>.
-"""),
-         "fields": [
-            ["title": "finish up :checkered_flag:",
-             "value": (":speech_balloon: `sun: finish up` " +
-                       "(or <%(finishUrl)s|use jenkins directly>)"),
-             "short": true,
-            ],
-            _abortField,
-         ],
-         "mrkdwn_in": ["fields", "text", "pretext"],
-      ],
-   ],
 ];
 
 

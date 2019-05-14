@@ -196,17 +196,6 @@ NEW_VERSION = null;
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
 
-// Remind people after 30m, 45m, and 55m, then timeout at 60m.
-// Unless you ask for longer!  Then we give you 6 hours, pinging
-// every hour for the most part.
-// TODO(benkraft, INFRA-2228): Make this more configurable, especially after
-// the fact rather than at queue-time.
-_PROMPT_TIMES = (
-   params.WAIT_LONGER
-      // We still ping you every hour, just to make sure.
-      ? [60, 120, 180, 240, 300, 330, 345, 355, 360]
-      : [30, 45, 55, 60]);
-
 
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
@@ -261,43 +250,6 @@ def _alert(def slackArgs, def interpolationArgs) {
    }
    withSecrets() {     // to talk to slack
       sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
-   }
-}
-
-
-def _inputWithPrompts(message, id, warningsInMinutes) {
-   // We prompt (to remind people to do the input), at
-   // warningsInMinutes[0..-1].  At the last warningsInMinutes we abort.
-   for (def i = 0; i < warningsInMinutes.size(); i++) {
-      def sleepTime = (warningsInMinutes[i] -
-                       (i > 0 ? warningsInMinutes[i - 1] : 0));
-      try {
-         withTimeout("${sleepTime}m") {
-            input(message: message, id: id);
-         }
-         return;      // we only get here if they clicked "ok" on the input
-      } catch (e) {
-         sleep(1);   // give the watchdog a chance to notice an abort
-         if (currentBuild.result == "ABORTED") {
-            // Means that we aborted while running this, which the
-            // watchdog (in vars/notify.groovy) noticed.  We want to
-            // continue with the abort process.
-            throw e;
-         } else if (i == warningsInMinutes.size() - 1) {
-            // Means we're at the last warningsInMinutes.  We're done warning.
-            throw e;
-         } else {
-            // Means we reached the next timeout, so say we're waiting.
-            withTimeout('1m') {
-               _alert(alertMsgs.STILL_WAITING,
-                      [action: message,
-                       minutesSoFar: warningsInMinutes[i],
-                       minutesRemaining: (warningsInMinutes[-1] -
-                                          warningsInMinutes[i])]);
-            }
-            // Now we'll continue with the `while` loop, and wait some more.
-         }
-      }
    }
 }
 
