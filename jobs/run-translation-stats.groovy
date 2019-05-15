@@ -7,8 +7,10 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addStringParam("LOCALE",
-        "Locale to run stats on",
+).addStringParam(
+        "LOCALE",
+        """Set this to a single locale, e.g.,
+\"fr\".""",
         ""
 ).apply();
 
@@ -27,10 +29,8 @@ def runScript() {
             }
         }
     } else {
-        lock("using-a-lot-of-memory") {
-            withSecrets() {
-                sh("jenkins-jobs/run_translation_stats.sh ${locale}");
-            }
+        withSecrets() {
+            sh("jenkins-jobs/run_translation_stats.sh ${locale}");
         }
     }
 }
