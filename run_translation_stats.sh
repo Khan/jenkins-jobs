@@ -12,6 +12,11 @@ echo $locale
 file="$1_tap_data.txt"
 echo $file
 
+cd webapp
+make python_deps
+
+cd ..
+
 # Extract file names and copy the Tap data
 gsutil cp gs://tap-data/fms=$1__locale=$1__use_staged_content=1 "fms="$1
 

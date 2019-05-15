@@ -17,6 +17,11 @@ new Setup(steps
 def runScript() {
     def locale = params.LOCALE;
 
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+    dir("webapp") {
+        sh("make deps")
+    }
+
     if (!locale) {
         // Meaning this is a scheduled job that needs to run on all locales
         // This could be copied from across AUTOMATICALLY_UPDATED_LOCALES
