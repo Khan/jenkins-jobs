@@ -16,7 +16,7 @@ echo $file
 gsutil cp gs://tap-data/fms=$1__locale=$1__use_staged_content=1 "fms="$1
 
 # Convert the FMS TAP data to CSV
-python tap_stats_to_csv_script.py "$1"
+python jenkins-jobs/tap_stats_to_csv_script.py "$1"
 filename="$1_translations.csv"
 echo $filename
 
@@ -26,3 +26,4 @@ bq --project_id='khanacademy.org:deductive-jet-827' load --source_format=CSV tra
 # Remove all the files that are no longer needed
 rm -rf $filename $file
 rm -rf *fms=*
+
