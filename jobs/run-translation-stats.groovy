@@ -24,14 +24,11 @@ def runScript() {
                     'nl', 'pt', 'pt-pt', 'sr', 'sv', 'ta', 'tr', 'zh-hans'];
         for (item in list) {
             println(item);
-            withSecrets() {
-                sh("jenkins-jobs/run_translation_stats.sh ${item}");
-            }
+            sh("jenkins-jobs/run_translation_stats.sh ${item}");
+
         }
     } else {
-        withSecrets() {
-            sh("jenkins-jobs/run_translation_stats.sh ${locale}");
-        }
+        sh("jenkins-jobs/run_translation_stats.sh ${locale}");
     }
 }
 
