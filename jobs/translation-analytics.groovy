@@ -9,6 +9,16 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withSecrets
 
+// A list of locales that we run LTT update for, which means that
+// fully-translated revisions on the English tree will be imported into the
+// locale's stage. This is currently opt-in for each locale.
+// TODO(tom) Do we need a parameter to force updating a locale that isn't on the
+// list?
+AUTOMATICALLY_UPDATED_LOCALES = [
+    'bg', 'cs', 'de', 'es', 'fr', 'gu', 'hi', 'hy', 'id', 'ja', 'ka', 'ko',
+    'nl', 'pt', 'pt-pt', 'sr', 'sv', 'ta', 'tr', 'zh-hans', 'lol'
+]
+
 new Setup(steps
 ).addStringParam("LOCALE",
         "Locale to run TAP on",
@@ -45,6 +55,12 @@ def runTapForLocaleAndEn() {
         sh("jenkins-jobs/tap-run.sh ${params.LOCALE} en False");
     }
 }
+def runLTTUpdate() {
+    withSecrets() {
+        sh("echo runLTTUpdate ${params.LOCALE}");
+        sh("jenkins-jobs/ltt-update.sh ${params.LOCALE}");
+    }
+}
 def runTapForLocaleAndStagedContent() {
     withSecrets() {
         sh("echo runTapForLocaleAndStagedContent ${params.LOCALE}");
@@ -57,22 +73,32 @@ onMaster('4h') {
                          when   : ['FAILURE', 'UNSTABLE']],
             aggregator: [initiative: 'content-platform',
                          when      : ['FAILURE', 'UNSTABLE']]]) {
-        stage("Running script") {
+
+        currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALE})";
+
+        stage("Initial setup") {
             runScript();
         }
-        stage("Parallel processing the TAP runs") {
+        stage("Published TAP") {
             parallel(
                     "LocaleFMS": {
                         runTapForLocaleOnly();
                     },
                     "EnglishFMS": {
                         runTapForLocaleAndEn();
-                    },
-                    "LocaleStaged": {
-                        runTapForLocaleAndStagedContent();
                     }
             )
         }
-        currentBuild.displayName = "${currentBuild.displayName} (${params.LOCALE})";
+        if (AUTOMATICALLY_UPDATED_LOCALES.contains(params.LOCALE)) {
+            // LTT update depends on the locale/English TAP and is in turn
+            // writes to the locale's stage, therefore we have to run the stage
+            // TAP after this task runs.
+            stage("LTT Update") {
+                runLTTUpdate()
+            }
+        }
+        stage("Stage TAP") {
+            runTapForLocaleAndStagedContent();
+        }
     }
 }
