@@ -12,13 +12,17 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H/5 * * * *"
+).addStringParam(
+    "LOCALE",
+    """Set this to the name of a locale to process, e.g., \"fr\". By default,
+    the job will automatically select the locale most in need of an
+    update.""",
+    ""
 
 ).addStringParam(
-    "LOCALES",
-    """Set this to a whitespace-separate list of locales process, e.g.,
-\"fr es pt\". By default, the job will automatically select the locales
-most in need of an update.""",
+    "ARCHIVEID",
+    """The archive file to download. Currently unused, but putting in while
+    we test triggering this build from crowdin-go.""",
     ""
 
 ).apply();
@@ -58,7 +62,7 @@ def runScript() {
          // update-translations.
          sh("rm -f updated_locales.txt")
 
-         def overrideLangs = params.LOCALES;
+         def overrideLangs = params.LOCALE;
 
          if (!overrideLangs) {
             withSecrets() {   // secrets are needed to talk to crowdin
