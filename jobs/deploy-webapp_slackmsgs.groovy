@@ -170,7 +170,8 @@ SUCCESS = [
    "text": _textWrap("""\
 :party_dino: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) succeeded!
 Time for a happy dance!
-""")];
+*Reminder:* Keep everyone in the loop by sharing your change in <#C2RFQGYKU>
+""")]; // link to #release-notes
 
 
 BUILDMASTER_OUTAGE = [
