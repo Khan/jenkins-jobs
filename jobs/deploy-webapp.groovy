@@ -806,7 +806,7 @@ onMaster('4h') {
       }
       try {
          stage("Await first smoke test and set-default confirmation") {
-            if (!params.SKIP_TESTS) {
+            if (!params.SKIP_TESTS && SERVICES) {
                verifySmokeTestResults('first-smoke-test');
             }
             verifyPromptConfirmed("set-default");
