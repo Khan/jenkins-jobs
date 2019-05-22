@@ -101,13 +101,14 @@ if [ -n "$DOWNLOAD_TRANSLATIONS" ]; then
    
     # xargs -n1 takes a string and puts each word on its own line.
     for lang in `echo "$list_of_langs" | xargs -n1`; do
-        echo "Downloading translations and stats for $lang from the Crowdin/GCS Sync service & making combined pofile."
+        echo "Downloading translations and stats for $lang from the Crowdin Go service & making combined pofile."
         deploy/download_i18n.py -v -s "$DATA_DIR"/download_from_crowdin/ \
             --lint_log_file "$DATA_DIR"/download_from_crowdin/"$lang"_lint.pickle \
             --use_temps_for_linting \
             --crowdin-data-filename="$DATA_DIR"/crowdin_data.pickle \
             --send-lint-reports \
             --use-sync-service \
+            --use-crowdin-locale \
             $lang
     done
 

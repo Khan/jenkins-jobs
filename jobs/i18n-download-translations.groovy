@@ -62,14 +62,14 @@ def runScript() {
          // update-translations.
          sh("rm -f updated_locales.txt")
 
-         def overrideLangs = params.LOCALE;
+         def overrideLang = params.LOCALE;
 
-         if (!overrideLangs) {
+         if (!overrideLang) {
             withSecrets() {   // secrets are needed to talk to crowdin
                dir("webapp") {
                   // If not passed in as a param, get the single
                   // highest priority lang.
-                  overrideLangs = exec.outputOf([
+                  overrideLang = exec.outputOf([
                     "deploy/order_download_i18n.py",
                     "--verbose"]).split("\n")[0];
                }
@@ -77,7 +77,7 @@ def runScript() {
          }
 
          currentBuild.displayName = ("${currentBuild.displayName} " +
-                                     "(${overrideLangs})");
+                                     "(${overrideLang})");
 
          // TODO(csilvers): see if we can break up this script into
          // pieces, so we can put using-a-lot-of-memory only around
@@ -86,7 +86,7 @@ def runScript() {
             withSecrets() {
                withEnv(["DOWNLOAD_TRANSLATIONS=1",
                         "NUM_LANGS_TO_DOWNLOAD=1",
-                        "OVERRIDE_LANGS=${overrideLangs}"]) {
+                        "OVERRIDE_LANGS=${overrideLang}"]) {
                   sh("jenkins-jobs/update-translations.sh")
                }
             }
