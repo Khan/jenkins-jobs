@@ -33,13 +33,6 @@ Otherwise, this is left to the deployer to do manually.""",
 TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
     true
 
-).addBooleanParam(
-    "SKIP_TESTS",
-    """Do not run tests before deploying.
-TODO(jlfwong): Make this actually skip tests by modifying
-https://github.com/Khan/react-render-server/blob/master/deploy.sh""",
-    false
-
 ).addChoiceParam(
     "CLEAN",
     """\

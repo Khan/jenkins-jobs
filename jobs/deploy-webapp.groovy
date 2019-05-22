@@ -147,13 +147,6 @@ Defaults to GIT_REVISION.""",
     for more information.""",
     "6"
 
-).addBooleanParam(
-    "SKIP_TESTS",
-    """If set to true, proceed to deploying this branch even if tests have not
-    yet completed, or have failed. Only use this with a very good reason, such
-    as a site outage.""",
-    false
-
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -806,7 +799,7 @@ onMaster('4h') {
       }
       try {
          stage("Await first smoke test and set-default confirmation") {
-            if (!params.SKIP_TESTS && SERVICES) {
+            if (SERVICES) {
                verifySmokeTestResults('first-smoke-test');
             }
             verifyPromptConfirmed("set-default");

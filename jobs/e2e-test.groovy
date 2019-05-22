@@ -146,6 +146,13 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
 
+).addStringParam(
+   "SKIP_TESTS",
+   """Space-separated list of tests to be skipped by the test runner.
+   Tests should be the full path - e.g.
+   web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
+   ""
+
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -209,16 +216,20 @@ def _determineTests() {
    // copy the file from here to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
+   def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
+                           "--just-split " +
+                           "-j${NUM_SPLITS} ");
+   if (params.SKIP_TESTS) {
+      runSmokeTestsCmd += "--skip-tests ${shellEscape(params.SKIP_TESTS)} ";
+   }
+
    if (params.TEST_TYPE == "all") {
-      sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
-         "> genfiles/test-splits.txt");
+      sh("${runSmokeTestsCmd} > genfiles/test-splits.txt");
    } else if (params.TEST_TYPE == "deploy") {
-      sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
-         "--deploy-tests-only > genfiles/test-splits.txt");
+      sh("${runSmokeTestsCmd} --deploy-tests-only > genfiles/test-splits.txt");
    } else if (params.TEST_TYPE == "custom") {
        def tests = shellEscapeList(params.TESTS_TO_RUN.split());
-       sh("tools/runsmoketests.py -n --just-split -j${NUM_SPLITS} " +
-          "${tests} > genfiles/test-splits.txt");
+       sh("${runSmokeTestsCmd} ${tests} > genfiles/test-splits.txt");
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
