@@ -12,4 +12,4 @@ cd webapp
 
 export USE_PROD_FILES=1
 
-tools/devshell.py --prod --log_level INFO --script tools/run_translation_analytics.py --locale "$1" --content_locale "$2" --use_staged_content "$3"
+tools/devshell.py --prod --log_level INFO --script tools/run_translation_analytics.py --locale "$1" --content_locale "$2" --use_staged_content "$3" --cache_dir "../cache"
