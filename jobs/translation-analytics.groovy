@@ -89,11 +89,11 @@ onMaster('4h') {
                     }
             )
         }
-        if (AUTOMATICALLY_UPDATED_LOCALES.contains(params.LOCALE)) {
-            // LTT update depends on the locale/English TAP and is in turn
-            // writes to the locale's stage, therefore we have to run the stage
-            // TAP after this task runs.
-            stage("LTT Update") {
+        // LTT update depends on the locale/English TAP and is in turn
+        // writes to the locale's stage, therefore we have to run the stage
+        // TAP after this task runs.
+        stage("LTT Update") {
+            if (AUTOMATICALLY_UPDATED_LOCALES.contains(params.LOCALE)) {
                 runLTTUpdate()
             }
         }
