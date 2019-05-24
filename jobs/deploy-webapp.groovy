@@ -634,7 +634,8 @@ def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
              [combinedVersion: GIT_TAG,
-              abortUrl: "${env.BUILD_URL}stop"]);
+              abortUrl: "${env.BUILD_URL}stop",
+              logsUrl: "https://console.cloud.google.com/logs/viewer?project=khan-academy&resource=gae_app"]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the
