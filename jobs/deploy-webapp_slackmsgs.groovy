@@ -93,7 +93,7 @@ I've just uploaded <%(deployUrl)s|%(version)s>
 
 
 _settingDefaultText = _textWrap("""\
-I'm setting default to `%(combinedVersion)s`, and monitoring the logs.
+I'm setting default to `%(combinedVersion)s`, and monitoring <%(logsUrl)s|the logs>.
 If you notice a problem before monitoring finishes, you can cancel the
 deploy.
 """);
