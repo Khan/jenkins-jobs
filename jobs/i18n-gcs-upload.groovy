@@ -133,11 +133,13 @@ onMaster('23h') {
          stage("Running upload script") {
             runScript();
          }
-         stage("Running TAP") {
-            build(job: 'translation-analytics',
-                  parameters: [
-                      string(name: 'LOCALE', value: params.LOCALES),
-                  ])
+         if (params.LOCALES != 'en-pt') {
+            stage("Running TAP") {
+               build(job: 'translation-analytics',
+                       parameters: [
+                               string(name: 'LOCALE', value: params.LOCALES),
+                       ])
+            }
          }
       } finally {
          // Just to be nice -- it's not essential -- let's reset the repo
