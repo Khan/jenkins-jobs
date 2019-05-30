@@ -751,16 +751,18 @@ def finishWithFailure(why) {
          _alert(alertMsgs.ROLLING_BACK,
                [rollbackToAsVersion: rollbackToAsVersion,
                 gitTag: GIT_TAG]);
-         dir("webapp") {
-            exec(["deploy/rollback.py",
-                  "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
-            // If the version we rolled back *to* is marked bad, warn
-            // about that.
-            def existingTag = exec.outputOf(["git", "tag", "-l",
-                                             "${ROLLBACK_TO}-bad"]);
-            if (existingTag) {
-               _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
-                     [rollbackToAsVersion: rollbackToAsVersion]);
+         withSecrets() {
+            dir("webapp") {
+               exec(["deploy/rollback.py",
+                     "--bad=${GIT_TAG}", "--good=${ROLLBACK_TO}"]);
+               // If the version we rolled back *to* is marked bad, warn
+               // about that.
+               def existingTag = exec.outputOf(["git", "tag", "-l",
+                                                "${ROLLBACK_TO}-bad"]);
+               if (existingTag) {
+                  _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
+                        [rollbackToAsVersion: rollbackToAsVersion]);
+               }
             }
          }
       } catch (e) {
