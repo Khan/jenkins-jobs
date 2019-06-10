@@ -74,6 +74,11 @@ def doSetup() {
            sh("make python_deps");
         }
     }
+    notify.sendToSlack([slackOptions: [channel: '#1s-and-0s-deploys',
+                                      sender: 'Mr Monkey',
+                                      emoji: ':monkey_face:',
+                                      extraText: "Setup and priming are now done. "
+                                                 "Starting to rollback now! :drumroll:"]]);
 }
 
 
@@ -103,6 +108,11 @@ def verifyValidTag(tag) {
                   "Check versions that exist on GAE using: " +
                   "`${args}`");
    }
+   notify.sendToSlack([slackOptions: [channel: '#1s-and-0s-deploys',
+                                      sender: 'Mr Monkey',
+                                      emoji: ':monkey_face:',
+                                      extraText: "Rolling back to version ${gae_version}!"
+                                                 "Please verify that this is the correct version."]]);
    return true;
 }
 
@@ -133,6 +143,11 @@ def doRollback() {
          }
       }
    }
+   notify.sendToSlack([slackOptions: [channel: '#1s-and-0s-deploys',
+                                      sender: 'Mr Monkey',
+                                      emoji: ':monkey_face:',
+                                      extraText: ":penguin_dance: Rollback is now complete!"
+                                                 "I'll run the e2e tests now to finish the job!"]]);
 }
 
 
@@ -151,17 +166,16 @@ onMaster('1h') {
        stage("rollback") {
            doRollback();
        }
-
-       // Let's kick off the e2e tests again to make sure everything is
-       // working ok.
-       if (!params.DRY_RUN) {
-          build(job: '../deploy/e2e-test',
-                parameters: [
-                   string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
-                   string(name: 'TEST_TYPE', value: "deploy"),
-                ]);
-       } else {
-          echo("Would run deploy/e2e-test job on master.");
-       }
+   }
+   // Let's kick off the e2e tests again to make sure everything is
+   // working ok.
+   if (!params.DRY_RUN) {
+      build(job: '../deploy/e2e-test',
+            parameters: [
+               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+               string(name: 'TEST_TYPE', value: "deploy"),
+            ]);
+   } else {
+      echo("Would run deploy/e2e-test job on master.");
    }
 }
