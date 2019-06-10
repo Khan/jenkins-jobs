@@ -64,6 +64,24 @@ if (params.DRY_RUN) {
 }
 
 
+// We purposefully hard-code this so people can't do sekret deploys. :-)
+SLACK_CHANNEL = "#1s-and-0s-deploys";
+
+
+def _alert(def msg) {
+   args = ["jenkins-jobs/alertlib/alert.py",
+           "--slack=${SLACK_CHANNEL}",
+           "--chat-sender=Mr Monkey",
+           "--icon-emoji=:monkey_face:",
+           "--slack-simple-message",
+          ];
+
+   withSecrets() {     // to talk to slack
+      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+   }
+}
+
+
 // TODO(csilvers): maybe use another workspace to save time syncing?
 // But decrypting secrets is a problem then.
 def doSetup() {
@@ -74,6 +92,7 @@ def doSetup() {
            sh("make python_deps");
         }
     }
+    _alert("Setup and priming are now done. Starting to rollback now! :drumroll:");
 }
 
 
@@ -103,6 +122,7 @@ def verifyValidTag(tag) {
                   "Check versions that exist on GAE using: " +
                   "`${args}`");
    }
+   _alert("Rolling back to version ${gae_version}! Please verify that this is the correct version.");
    return true;
 }
 
@@ -133,6 +153,7 @@ def doRollback() {
          }
       }
    }
+   _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
 }
 
 
@@ -151,17 +172,16 @@ onMaster('1h') {
        stage("rollback") {
            doRollback();
        }
-
-       // Let's kick off the e2e tests again to make sure everything is
-       // working ok.
-       if (!params.DRY_RUN) {
-          build(job: '../deploy/e2e-test',
-                parameters: [
-                   string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
-                   string(name: 'TEST_TYPE', value: "deploy"),
-                ]);
-       } else {
-          echo("Would run deploy/e2e-test job on master.");
-       }
+   }
+   // Let's kick off the e2e tests again to make sure everything is
+   // working ok.
+   if (!params.DRY_RUN) {
+      build(job: '../deploy/e2e-test',
+            parameters: [
+               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+               string(name: 'TEST_TYPE', value: "deploy"),
+            ]);
+   } else {
+      echo("Would run deploy/e2e-test job on master.");
    }
 }
