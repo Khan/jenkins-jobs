@@ -499,7 +499,10 @@ def deployAndReport() {
                [deployUrl: DEPLOY_URL,
                 version: NEW_VERSION,
                 services: SERVICES.join(', '),
-                branches: REVISION_DESCRIPTION]);
+                branches: REVISION_DESCRIPTION,
+                logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
+                          "project=khan-academy&resource=gae_app%2F" +
+                          "version_id%2F" + NEW_VERSION)]);
     }
 }
 

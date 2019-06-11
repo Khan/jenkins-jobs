@@ -88,7 +88,7 @@ JUST_DEPLOYED = [
     "simpleMessage": true,
     "text": _textWrap("""\
 I've just uploaded <%(deployUrl)s|%(version)s>
-(containing `%(branches)s`) to %(services)s."""),
+(containing `%(branches)s`) to %(services)s. <%(logsUrl)s|See logs>."""),
 ];
 
 
