@@ -42,16 +42,16 @@ def runScript() {
     }
 }
 
-def runTapForLocaleOnly() {
+def runTapForEnglishPublish() {
     withSecrets() {
-        sh("echo runTapForLocaleOnly ${params.LOCALE}");
+        sh("echo runTapForEnglishPublish ${params.LOCALE}");
         sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} False");
     }
 }
 
-def runTapForLocaleAndEn() {
+def runTapForLocalePublish() {
     withSecrets() {
-        sh("echo runTapForLocaleAndEn ${params.LOCALE} ");
+        sh("echo runTapForLocalePublish ${params.LOCALE} ");
         sh("jenkins-jobs/tap-run.sh ${params.LOCALE} en False");
     }
 }
@@ -61,9 +61,9 @@ def runLTTUpdate() {
         sh("jenkins-jobs/ltt-update.sh ${params.LOCALE}");
     }
 }
-def runTapForLocaleAndStagedContent() {
+def runTapForLocaleStage() {
     withSecrets() {
-        sh("echo runTapForLocaleAndStagedContent ${params.LOCALE}");
+        sh("echo runTapForLocaleStage ${params.LOCALE}");
         sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} True");
     }
 }
@@ -79,18 +79,20 @@ onMaster('4h') {
         stage("Initial setup") {
             runScript();
         }
-        stage("Published TAP") {
-            parallel(
-                    "LocaleFMS": {
-                        runTapForLocaleOnly();
-                    },
-                    "EnglishFMS": {
-                        runTapForLocaleAndEn();
-                    }
-            )
+
+        // The first two stages could be run in parallel, but we're hitting
+        // timeouts in each stage, so we're hoping that running just one
+        // at a time will make each stage finish in time.
+        // TODO(aasmund): Make them parallel again once we have sped them up
+        stage("Published TAP for EN") {
+            runTapForLocalePublish();
         }
-        // LTT update depends on the locale/English TAP and is in turn
-        // writes to the locale's stage, therefore we have to run the stage
+        stage("Published TAP for locale") {
+            runTapForEnglishPublish();
+        }
+
+        // LTT update depends on the locale/English TAP and might in turn
+        // write to the locale's stage; therefore we have to run the stage
         // TAP after this task runs.
         stage("LTT Update") {
             if (AUTOMATICALLY_UPDATED_LOCALES.contains(params.LOCALE)) {
@@ -98,7 +100,7 @@ onMaster('4h') {
             }
         }
         stage("Stage TAP") {
-            runTapForLocaleAndStagedContent();
+            runTapForLocaleStage();
         }
     }
 }
