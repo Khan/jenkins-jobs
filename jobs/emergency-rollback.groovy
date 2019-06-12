@@ -64,7 +64,7 @@ if (params.DRY_RUN) {
 }
 
 
-// We purposefully hard-code this so people can't do sekret deploys. :-)
+// We purposefully hard-code this so people can't do secret deploys. :-)
 SLACK_CHANNEL = "#1s-and-0s-deploys";
 
 
@@ -75,9 +75,10 @@ def _alert(def msg) {
            "--icon-emoji=:monkey_face:",
            "--slack-simple-message",
           ];
-
-   withSecrets() {     // to talk to slack
-      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+   if (params.DRY_RUN) {
+      withSecrets() {     // to talk to slack
+         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+      }
    }
 }
 
@@ -92,7 +93,6 @@ def doSetup() {
            sh("make python_deps");
         }
     }
-    _alert("Setup and priming are now done. Starting to rollback now! :drumroll:");
 }
 
 
@@ -122,7 +122,7 @@ def verifyValidTag(tag) {
                   "Check versions that exist on GAE using: " +
                   "`${args}`");
    }
-   _alert("Rolling back to version ${gae_version}! Please verify that this is the correct version.");
+   _alert("Confrimed that ${gae_version} is a valid version!");
    return true;
 }
 
@@ -143,7 +143,9 @@ def doRollback() {
                cmd += ["--bad=${params.BAD_VERSION}"];
             }
             try {
+               _alert("Setup and priming are now done. Starting to roll back now! :drumroll:");
                exec(cmd);
+               _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
             } catch(e) {
                notify.fail("Rollback failed: ${e}.\nTo try running again " +
                            "manually, see the <https://docs.google.com/document/" +
@@ -153,7 +155,6 @@ def doRollback() {
          }
       }
    }
-   _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
 }
 
 
