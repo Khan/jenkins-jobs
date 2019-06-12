@@ -158,7 +158,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 
-// We purposefully hard-code this so people can't do sekret deploys. :-)
+// We purposefully hard-code this so people can't do secret deploys. :-)
 SLACK_CHANNEL = "#1s-and-0s-deploys";
 
 // The `@<name>` we ping on slack as we go through the deploy.
