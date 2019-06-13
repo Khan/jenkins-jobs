@@ -275,43 +275,23 @@ def deploy() {
          "failFast": true,
       );
 
-      // The CMS endpoints must be handled on the vm module. However,
-      // the rules in dispatch.yaml only match *.khanacademy.org,
-      // so the routing doesn't work in dynamic ZNDs; therefore, we show
-      // a link directly to the vm module if it is deployed
-      // or a suggestion to deploy the vm module if it is not.  For
-      // static-only ZNDs, the routing work correctly, so we omit this
-      // message.
-      def vmIsDeployed = params.MODULES.split(",").contains("vm");
-      def vmMessage;
-      if (!params.DEPLOYING_DYNAMIC) {
-         // static-only deploy; no VM message needed
-         vmMessage = "";
-      } else if (params.MODULES.split(",").contains("vm")) {
-         vmMessage = (
-            " Note that if you want to test the CMS or the publish pages " +
-            "(`/devadmin/content` or `/devadmin/publish`), you need to do " +
-            "so on the <${deployedUrl("vm")}|vm module> instead.");
-      } else {
-         vmMessage = (
-            " Note that if you want to test the CMS or the publish pages " +
-            "(`/devadmin/content` or `/devadmin/publish`), " +
-            "you need to <${env.BUILD_URL}/rebuild|redeploy this ZND> " +
-            "and add `vm` to the `MODULES` parameter in Jenkins.");
-      }
       def services = []
-      if (DEPLOYING_STATIC) {
+      if (params.DEPLOYING_STATIC) {
          services += ["static"];
-      } else {
+      }
+      if (params.DEPLOYING_DYNAMIC) {
          services += ["dynamic (modules: ${params.MODULES})"];
       }
 
       _sendSimpleInterpolatedMessage(
-         alertMsgs.JUST_DEPLOYED.text + vmMessage,
+         alertMsgs.JUST_DEPLOYED.text,
          [deployUrl: deployedUrl(""),
           version: VERSION,
           branches: params.GIT_REVISION,
-          services: services.join(', ') ?: 'nothing (?!)']);
+          services: services.join(', ') ?: 'nothing (?!)',
+          logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
+                    "project=khan-academy&resource=gae_app%2F" +
+                    "version_id%2F" + VERSION)]);
 
       // If the phab_revision param exists than this znd-deploy must have
       // originated from the Herald Build Plan 6 and we can expect that the
