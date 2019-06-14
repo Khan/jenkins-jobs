@@ -101,7 +101,7 @@ if [ "$SKIP_TO_STAGE" -le 1 ] && [[ -z "$SKIP_PROD_UPLOAD" ]]; then
     echo "Completed upload to prod"
 
     echo "Starting devshell script to update freshness info"
-    "$tools/devshell.py" --prod --script tools/run_mark_captions_sync.py
+    "$tools/devshell.py" --prod --script "$tools/run_mark_captions_sync.py"
     echo "Freshness info updated"
     
     cat "$stats_file"
