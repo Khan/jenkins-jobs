@@ -58,5 +58,11 @@ onMaster('23h') {
       stage("Syncing captions") {
          runScript();
       }
+
+
+      stage("Uploading to gcs") {
+         build(job: 'i18n-gcs-upload',
+                 parameters: [
+                         string(name: 'LOCALES', value: updatedLocales),])
    }
 }
