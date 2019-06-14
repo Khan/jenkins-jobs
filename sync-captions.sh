@@ -100,8 +100,10 @@ if [ "$SKIP_TO_STAGE" -le 1 ] && [[ -z "$SKIP_PROD_UPLOAD" ]]; then
         --all-fancaptions-file="$all_fancaptions_file";
     echo "Completed upload to prod"
 
-    "$tools/devshell.py --prod --script tools/run_mark_captions_sync.py"
-
+    echo "Starting devshell script to update freshness info"
+    "$tools/devshell.py" --prod --script tools/run_mark_captions_sync.py
+    echo "Freshness info updated"
+    
     cat "$stats_file"
 else
     echo "WARNING: NOT UPLOADING UPDATED CAPTIONS TO PRODUCTION" >&2
