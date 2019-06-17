@@ -131,27 +131,27 @@ def verifyValidTag(tag) {
 def doRollback() {
    withTimeout('30m') {
       withSecrets() {
-         dir("webapp") {
-            cmd = ["deploy/rollback.py"];
-            if (params.DRY_RUN) {
-               cmd += ["-n"];
-            }
-
-            if (params.ROLLBACK_TO && verifyValidTag(params.ROLLBACK_TO)) {
-               cmd += ["--good=${params.ROLLBACK_TO}"];
-            }
-            if (params.BAD_VERSION && verifyValidTag(params.BAD_VERSION)) {
-               cmd += ["--bad=${params.BAD_VERSION}"];
-            }
-            try {
+         cmd = ["deploy/rollback.py"];
+         if (params.DRY_RUN) {
+            cmd += ["-n"];
+         }
+         
+         if (params.ROLLBACK_TO && verifyValidTag(params.ROLLBACK_TO)) {
+            cmd += ["--good=${params.ROLLBACK_TO}"];
+         }
+         if (params.BAD_VERSION && verifyValidTag(params.BAD_VERSION)) {
+            cmd += ["--bad=${params.BAD_VERSION}"];
+         }
+         try {
+            dir("webapp") {
                exec(cmd);
-               _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
-            } catch(e) {
-               notify.fail("Rollback failed: ${e}.\nTo try running again " +
-                           "manually, see the <https://docs.google.com/document/" +
-                           "d/1sdN7_fNIDkTkLp16ztubklf57bgXqeGAhsL4DrGjP7s|" +
-                           "emergency rollback checklist>.");
             }
+            _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
+         } catch(e) {
+            notify.fail("Rollback failed: ${e}.\nTo try running again " +
+                        "manually, see the <https://docs.google.com/document/" +
+                        "d/1sdN7_fNIDkTkLp16ztubklf57bgXqeGAhsL4DrGjP7s|" +
+                        "emergency rollback checklist>.");
          }
       }
    }
