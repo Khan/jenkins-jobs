@@ -14,16 +14,6 @@ import org.khanacademy.Setup;
 new Setup(steps
 
 ).addCronSchedule("H 3 * * 3,6"
-
-).addStringParam(
-    "SKIP_TO_STAGE",
-    """Skip some stages of the sync.
-<ul>
-  <li>Stage 0 = Download from YouTube.</li>
-  <li>Stage 1 = Upload to production.</li>
-</ul>""",
-    ""
-
 ).apply();
 
 
@@ -35,24 +25,23 @@ def runScript() {
       sh("make python_deps");
    }
 
-   withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
-      withSecrets() {   // We need sleep-secret to post transcripts to prod
-         sh("jenkins-jobs/sync-captions.sh");
-      }
+
+
+   withSecrets() {   // We need sleep-secret to post transcripts to prod
+      sh("jenkins-jobs/sync-captions.sh");
    }
+
 }
 
 
 onMaster('23h') {
    // TODO(joshuan): once this fails less than once a week, move to #cp-eng, tag @cp-support, and remove @joshua
-   notify([slack: [channel: '#i18n',
+   notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@joshua",
+                   extraText: "@cp-support",
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
+           aggregator: [initiative: 'content-platform',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Syncing captions") {

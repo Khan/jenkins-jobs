@@ -25,7 +25,6 @@ IFS=$'\n\t'
 # Set defaults for optional environment variables
 SKIP_DROPBOX_SYNC=${SKIP_DROPBOX_SYNC:-}
 SKIP_PROD_UPLOAD=${SKIP_PROD_UPLOAD:-}
-SKIP_TO_STAGE=${SKIP_TO_STAGE:=0}
 
 ( cd webapp && make python_deps )
 
@@ -57,33 +56,34 @@ if [[ -z "$SKIP_DROPBOX_SYNC" ]]; then
     jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
 fi
 
-echo "Starting at stage: $SKIP_TO_STAGE"
-
 version_data="$DATA_DIR/captions/version_data.json"
 
-all_fancaptions_file="$DATA_DIR/all_fancaptions.json"
+all_fancaptions_file="$DATA_DIR/captions/all_fancaptions.json"
 
+# tools/khantube.py needs a fresh file for each run.
+# The old all_fancaptions.json can be used to debug mismatches
+# in uploaded or deleted captions/transcripts if need be, between
+# 2 subsequent job runs.
+rm -f "$all_fancaptions_file"
+
+touch "$all_fancaptions_file"
 
 # --- The actual work:
 cd "$DATA_DIR"
 
-if [ "$SKIP_TO_STAGE" -le 0 ]; then
-    echo "Downloading captions from Youtube FanCaptions"
+echo "Downloading captions from Youtube FanCaptions"
 
-    stats_file=/var/tmp/khantube_stats.txt
-    "$tools/khantube.py" "$published" \
-        --youtube-ids-file="$video_list_path" \
-        --data-file="$version_data" \
-        --stats-file="$stats_file" \
-        --all-fancaptions-file="$all_fancaptions_file";
+stats_file=/var/tmp/khantube_stats.txt
+"$tools/khantube.py" "$published" \
+    --youtube-ids-file="$video_list_path" \
+    --data-file="$version_data" \
+    --stats-file="$stats_file" \
+    --all-fancaptions-file="$all_fancaptions_file";
 
-    echo "Competed upload to youtube"
-    cat "$stats_file"
-else
-    echo "WARNING: NOT FETCHING UPDATED YOUTUBE FANCAPTIONS" >&2
-fi
+echo "Competed upload to youtube"
+cat "$stats_file"
 
-if [ "$SKIP_TO_STAGE" -le 1 ] && [[ -z "$SKIP_PROD_UPLOAD" ]]; then
+if [[ -z "$SKIP_PROD_UPLOAD" ]]; then
     mkdir -p "$published_prod"
     stats_file=/var/tmp/upload_to_prod_stats.txt
     "$tools/upload_captions_to_production.py" \
