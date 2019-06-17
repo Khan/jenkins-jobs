@@ -220,7 +220,7 @@ def _determineTests() {
                            "--just-split " +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
-      runSmokeTestsCmd += "--skip-tests ${shellEscape(params.SKIP_TESTS)} ";
+      runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
    }
 
    if (params.TEST_TYPE == "all") {
@@ -228,7 +228,7 @@ def _determineTests() {
    } else if (params.TEST_TYPE == "deploy") {
       sh("${runSmokeTestsCmd} --deploy-tests-only > genfiles/test-splits.txt");
    } else if (params.TEST_TYPE == "custom") {
-       def tests = shellEscapeList(params.TESTS_TO_RUN.split());
+       def tests = exec.shellEscapeList(params.TESTS_TO_RUN.split());
        sh("${runSmokeTestsCmd} ${tests} > genfiles/test-splits.txt");
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
