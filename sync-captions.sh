@@ -61,14 +61,7 @@ echo "Starting at stage: $SKIP_TO_STAGE"
 
 version_data="$DATA_DIR/captions/version_data.json"
 
-all_fancaptions_file=$(mktemp)
-function cleanup {
-    echo "Cleaning up..."
-    # Delete our temporary file, no matter how we exit.
-    rm -f "$all_fancaptions_file"
-}
-trap cleanup EXIT
-
+all_fancaptions_file="$DATA_DIR/all_fancaptions.json"
 
 
 # --- The actual work:
