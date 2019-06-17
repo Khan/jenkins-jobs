@@ -75,10 +75,8 @@ def _alert(def msg) {
            "--icon-emoji=:monkey_face:",
            "--slack-simple-message",
           ];
-   if (params.DRY_RUN) {
-      withSecrets() {     // to talk to slack
-         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
-      }
+   withSecrets() {     // to talk to slack
+      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
    }
 }
 
