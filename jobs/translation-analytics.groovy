@@ -5,6 +5,7 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.retry
 //import vars.kaGit
 //import vars.notify
 //import vars.withSecrets
@@ -48,28 +49,36 @@ def runScript() {
 }
 
 def runTapForEnglishPublish() {
-    withSecrets() {
-        sh("echo runTapForEnglishPublish ${params.LOCALE}");
-        sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} False");
+    retry {
+        withSecrets() {
+            sh("echo runTapForEnglishPublish ${params.LOCALE}");
+            sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} False");
+        }
     }
 }
 
 def runTapForLocalePublish() {
-    withSecrets() {
-        sh("echo runTapForLocalePublish ${params.LOCALE} ");
-        sh("jenkins-jobs/tap-run.sh ${params.LOCALE} en False");
+    retry {
+        withSecrets() {
+            sh("echo runTapForLocalePublish ${params.LOCALE} ");
+            sh("jenkins-jobs/tap-run.sh ${params.LOCALE} en False");
+        }
     }
 }
 def runLTTUpdate() {
-    withSecrets() {
-        sh("echo runLTTUpdate ${params.LOCALE}");
-        sh("jenkins-jobs/ltt-update.sh ${params.LOCALE}");
+    retry {
+        withSecrets() {
+            sh("echo runLTTUpdate ${params.LOCALE}");
+            sh("jenkins-jobs/ltt-update.sh ${params.LOCALE}");
+        }
     }
 }
 def runTapForLocaleStage() {
-    withSecrets() {
-        sh("echo runTapForLocaleStage ${params.LOCALE}");
-        sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} True");
+    retry {
+        withSecrets() {
+            sh("echo runTapForLocaleStage ${params.LOCALE}");
+            sh("jenkins-jobs/tap-run.sh ${params.LOCALE} ${params.LOCALE} True");
+        }
     }
 }
 
