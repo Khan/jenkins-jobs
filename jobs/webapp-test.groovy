@@ -37,13 +37,6 @@ by `+` ('br1+br2+br3').  In that case we will merge the branches together --
 dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
-).addStringParam(
-   "BASE_REVISION",
-   """A past git commit on which tests passed.  We only run tests that could
-possibly have broken since then, per tests_for.py.  By default, we just use
-origin/master, but the buildmaster will specify a better value when it can.""",
-   "origin/master"
-
 ).addChoiceParam(
    "TEST_TYPE",
    """\
@@ -53,11 +46,9 @@ origin/master, but the buildmaster will specify a better value when it can.""",
         only' (as identified by the
         `only_run_when_explicitly_specified_on_runtests_commandline`
         decorator)</li>
-  <li> <b>relevant</b>: run only those tests that are affected by
-         files that have changed between master and GIT_REVISION.</li>
 </ul>
 """,
-   ["all", "all_non_manual", "relevant"]
+   ["all", "all_non_manual"]
 
 ).addChoiceParam(
    "MAX_SIZE",
@@ -247,10 +238,6 @@ def _determineTests() {
          " > genfiles/test_splits.txt");
    } else if (params.TEST_TYPE == "all_non_manual") {
       sh("${runtestsCmd} .  > genfiles/test_splits.txt");
-   } else if (params.TEST_TYPE == "relevant") {
-      sh("tools/tests_for.py -i ${exec.shellEscape(params.BASE_REVISION)} " +
-         " | ${runtestsCmd} -" +
-         " > genfiles/test_splits.txt");
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
