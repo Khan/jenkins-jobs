@@ -334,6 +334,10 @@ def mergeFromMasterAndInitializeGlobals() {
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
 
+         // Test coverage in webapp/deploy/git_tags_test.py DeployTagsTest
+         // mimics the git tag workflow used here. If any changes are made to
+         // the steps below, make the same changes there as well so we are
+         // testing the way our deploy git tagging works.
          def currentVersionTag = exec.outputOf(
             ["deploy/current_version.py", "--git-tag"]);
          def currentVersionParts = exec.outputOf(
@@ -343,25 +347,28 @@ def mergeFromMasterAndInitializeGlobals() {
          // that was active when the deploy started.  That's now!
          ROLLBACK_TO = currentVersionTag;
 
-         // The new version will be like the old version, except replacing each
-         // service in SERVICES with NEW_VERSION.
+         // We build the new version using NEW_VERSION for any services
+         // in SERVICES, or the existing version if not in SERVICES.
          def newVersionParts = [];
+         for (def i = 0; i < SERVICES.size(); i++) {
+            newVersionParts += ["${SERVICES[i]}=${NEW_VERSION}"]
+         }
          for (def i = 0; i < currentVersionParts.size(); i++) {
             def serviceAndVersion = currentVersionParts[i];
             if (serviceAndVersion) {
                def service = serviceAndVersion.split("=")[0];
-               if (service in SERVICES) {
+               // We deploy a "copied" static version anytime we deploy
+               // dynamic.
+               // TODO(benkraft): Handle this in a less bespoke way.
+               if (service == "static" && !(service in SERVICES)
+                     && 'dynamic' in SERVICES) {
                   newVersionParts += ["${service}=${NEW_VERSION}"];
-               } else if (service == "static" && "dynamic" in SERVICES) {
-                  // We deploy a "copied" static version anytime we deploy
-                  // dynamic.
-                  // TODO(benkraft): Handle this in a less bespoke way.
-                  newVersionParts += ["${service}=${NEW_VERSION}"];
-               } else {
+               } else if (!(service in SERVICES)) {
                   newVersionParts += [serviceAndVersion];
                }
             }
          }
+
          // Now combine those into a git tag.
          GIT_TAG = exec.outputOf(["deploy/git_tags.py"] + newVersionParts);
       }

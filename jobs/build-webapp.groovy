@@ -82,6 +82,8 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin_routes/. </li>
+  <li> <b>content-editing</b> DO NOT USE (still in testing):
+       webapp's services/content_editing/. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -186,7 +188,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 DEPLOYER_USERNAME = null;
 
 // The list of services to which to deploy: currently a subset of
-// ["dynamic", "static"].
+// ["dynamic", "static", "kotlin-routes", "content-editing"].
 SERVICES = null;
 
 // The "permalink" url used to access code deployed.
@@ -446,23 +448,45 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployToKotlinRoutes() {
-    if (!("kotlin-routes" in SERVICES)) {
-        return;
-    }
+   if (!("kotlin-routes" in SERVICES)) {
+      return;
+   }
 
-    withSecrets() {     // TODO(benkraft): do we actually need secrets?
-        dir("webapp") {
-            // HACK: If we sh() in a directory d, jenkins creates a sibling
-            // directory d@tmp.  If d is a subdirectory of webapp, this
-            // confuses deploy_to_gae.py's local changes check.  So instead
-            // we have the shell do the cd.
-            // TODO(colin): can we now run this from webapp root and avoid the
-            // cd?
-            withEnv(["VERSION=${NEW_VERSION}"]) {
-                sh("cd services/kotlin_routes && ./gradlew appengineDeploy");
-            }
-        }
-    }
+   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+      dir("webapp") {
+         // HACK: If we sh() in a directory d, jenkins creates a sibling
+         // directory d@tmp.  If d is a subdirectory of webapp, this
+         // confuses deploy_to_gae.py's local changes check.  So instead
+         // we have the shell do the cd.
+         // TODO(colin): can we now run this from webapp root and avoid the
+         // cd?
+         withEnv(["VERSION=${NEW_VERSION}"]) {
+            sh("cd services/kotlin_routes && ./gradlew appengineDeploy");
+         }
+      }
+   }
+}
+
+
+// This should be called from within a node().
+def deployToContentEditing() {
+   if (!("content-editing" in SERVICES)) {
+      return;
+   }
+
+   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+      dir("webapp") {
+         // HACK: If we sh() in a directory d, jenkins creates a sibling
+         // directory d@tmp.  If d is a subdirectory of webapp, this
+         // confuses deploy_to_gae.py's local changes check.  So instead
+         // we have the shell do the cd.
+         // TODO(colin): can we now run this from webapp root and avoid the
+         // cd?
+         withEnv(["VERSION=${NEW_VERSION}"]) {
+            sh("cd services/content_editing && ./gradlew deploy");
+         }
+      }
+   }
 }
 
 // When any of our datastore models or dataflow code changes, we
@@ -486,24 +510,25 @@ def deployToDataflowDatastoreBigqueryAdapter() {
 
 // This should be called from within a node().
 def deployAndReport() {
-    if (SERVICES) {
-        parallel(
-            "deploy-to-gae": { deployToGAE(); },
-            "deploy-to-gcs": { deployToGCS(); },
-            "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
-            "deploy-to-dataflow-datastore-bigquery-adapter":
-               { deployToDataflowDatastoreBigqueryAdapter(); },
-            "failFast": true,
-        );
-        _alert(alertMsgs.JUST_DEPLOYED,
-               [deployUrl: DEPLOY_URL,
-                version: NEW_VERSION,
-                services: SERVICES.join(', '),
-                branches: REVISION_DESCRIPTION,
-                logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
-                          "project=khan-academy&resource=gae_app%2F" +
-                          "version_id%2F" + NEW_VERSION)]);
-    }
+   if (SERVICES) {
+      parallel(
+         "deploy-to-gae": { deployToGAE(); },
+         "deploy-to-gcs": { deployToGCS(); },
+         "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
+         "deploy-to-content-editing": { deployToContentEditing(); },
+         "deploy-to-dataflow-datastore-bigquery-adapter":
+            { deployToDataflowDatastoreBigqueryAdapter(); },
+         "failFast": true,
+      );
+      _alert(alertMsgs.JUST_DEPLOYED,
+             [deployUrl: DEPLOY_URL,
+              version: NEW_VERSION,
+              services: SERVICES.join(', '),
+              branches: REVISION_DESCRIPTION,
+              logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
+                        "project=khan-academy&resource=gae_app%2F" +
+                        "version_id%2F" + NEW_VERSION)]);
+   }
 }
 
 
