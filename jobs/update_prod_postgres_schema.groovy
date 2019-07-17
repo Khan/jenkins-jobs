@@ -6,6 +6,7 @@
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.kaGit
+//import vars.onMaster
 //import vars.notify
 //import vars.withTimeout
 //import vars.withSecrets
