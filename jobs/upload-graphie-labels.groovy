@@ -13,16 +13,13 @@ import org.khanacademy.Setup;
 
 
 new Setup(steps
-// TODO(Kai): tempoary disable cron schedule
-// until figure out the OOM issue of Jenkins server
-// ).addCronSchedule("H H(2-4) * * *"
-
+).addCronSchedule("H H(2-4) * * *"
 ).apply();
 
 
 def updateRepo() {
-   withTimeout('1h') {
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+   withTimeout('8h') {
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "graphie-new-sec");
 
       // We do our work in the 'automated-commits' branch.
       kaGit.safePullInBranch("webapp", "automated-commits");
@@ -35,19 +32,19 @@ def updateRepo() {
 
       dir("webapp") {
          sh("make clean_pyc");    // in case some .py files went away
-         sh("make python_deps");
+         sh("make deps");
       }
    }
 }
 
 
 def buildLabels() {
-   withTimeout('16h') {
+   withTimeout('8h') {
       dir("webapp") {
          def languages = exec.outputOf(["intl/locale_main.py",
                                         "locales_for_packages",
                                         "--exclude-english"]).split("\n");
-         for (def i = 0; i < languages.size(); i++) {
+         for (def i = 0; i < 3; i++) {
             echo("Translating graphie labels for ${languages[i]}.");
             exec(["build/kake/build_prod_main.py", "i18n_graphie_labels",
                   "--language=${languages[i]}"]);
@@ -68,7 +65,7 @@ def uploadLabels() {
 }
 
 
-onMaster('23h') {
+onMaster('8h') {
    notify([slack: [channel: '#cp-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
