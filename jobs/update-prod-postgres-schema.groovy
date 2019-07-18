@@ -20,6 +20,9 @@ def runUpdate() {
    withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need postgres db secrets
+         dir("webapp") {
+            sh("make deps");
+         }
          dir("webapp/coaches/reports") {
             sh("make migrate_prod")
          }
