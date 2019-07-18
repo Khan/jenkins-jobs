@@ -44,7 +44,7 @@ def buildLabels() {
          def languages = exec.outputOf(["intl/locale_main.py",
                                         "locales_for_packages",
                                         "--exclude-english"]).split("\n");
-         for (def i = 0; i < 3; i++) {
+         for (def i = 0; i < languages.size(); i++) {
             echo("Translating graphie labels for ${languages[i]}.");
             exec(["build/kake/build_prod_main.py", "i18n_graphie_labels",
                   "--language=${languages[i]}"]);
