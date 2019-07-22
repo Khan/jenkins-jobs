@@ -1,5 +1,5 @@
-// Update the production postgres db with the most recent migrations from
-// master
+// Update the production postgres db to rollback the most recently-applied
+// migration
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
