@@ -24,7 +24,7 @@ def runUpdate() {
             sh("make deps");
          }
          dir("webapp/coaches/reports") {
-            sh("make migrate_prod")
+            sh("alembic --name prod upgrade head")
          }
       }
    }
