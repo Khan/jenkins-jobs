@@ -82,8 +82,7 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin_routes/. </li>
-  <li> <b>content-editing</b> DO NOT USE (still in testing):
-       webapp's services/content_editing/. </li>
+  <li> <b>content-editing</b>: webapp's services/content_editing/. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
