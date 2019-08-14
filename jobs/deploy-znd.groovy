@@ -28,6 +28,7 @@ possible: a commit-sha1 to deploy. Basically, this is passed to
 ).addStringParam(
     "VERSION",
     """<b>REQUIRED</b>. The name of the this release on appengine.
+This must consist of only lowercase letters, numbers, and hyphens.
 The "znd-", date, and your username will be automatically prepended,
 so don't include those.  <i>Due to DNS limitations, please keep this
 extremely short, especially if your username is long and/or you are
