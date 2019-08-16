@@ -19,7 +19,7 @@ new Setup(steps
 
 def updateRepo() {
    withTimeout('8h') {
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "graphie-new-sec");
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // We do our work in the 'automated-commits' branch.
       kaGit.safePullInBranch("webapp", "automated-commits");

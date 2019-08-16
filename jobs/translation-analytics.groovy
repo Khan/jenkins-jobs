@@ -28,7 +28,7 @@ new Setup(steps
 
 
 def runScript() {
-    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "tap", [], true);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", [], true);
 
     dir("webapp") {
         // remove any existing database
@@ -45,6 +45,7 @@ def runScript() {
         // cause devshell to hit the one hour timeout), so we just build
         // the files manually to start with.
         sh("build/kake/build_prod_main.py template_strings");
+
     }
 }
 
