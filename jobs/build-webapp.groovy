@@ -445,49 +445,6 @@ def deployToGCS() {
 }
 
 
-// This should be called from within a node().
-def deployToKotlinRoutes() {
-   if (!("kotlin-routes" in SERVICES)) {
-      return;
-   }
-
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp") {
-         // HACK: If we sh() in a directory d, jenkins creates a sibling
-         // directory d@tmp.  If d is a subdirectory of webapp, this
-         // confuses deploy_to_gae.py's local changes check.  So instead
-         // we have the shell do the cd.
-         // TODO(colin): can we now run this from webapp root and avoid the
-         // cd?
-         withEnv(["VERSION=${NEW_VERSION}"]) {
-            sh("cd services/kotlin-routes && ./gradlew appengineDeploy");
-         }
-      }
-   }
-}
-
-
-// This should be called from within a node().
-def deployToContentEditing() {
-   if (!("content-editing" in SERVICES)) {
-      return;
-   }
-
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp") {
-         // HACK: If we sh() in a directory d, jenkins creates a sibling
-         // directory d@tmp.  If d is a subdirectory of webapp, this
-         // confuses deploy_to_gae.py's local changes check.  So instead
-         // we have the shell do the cd.
-         // TODO(colin): can we now run this from webapp root and avoid the
-         // cd?
-         withEnv(["VERSION=${NEW_VERSION}"]) {
-            sh("cd services/content-editing && ./gradlew deploy");
-         }
-      }
-   }
-}
-
 // When any of our datastore models or dataflow code changes, we
 // need to rebuild the binary we use to export out datastore models
 // to bigquery.
@@ -507,18 +464,35 @@ def deployToDataflowDatastoreBigqueryAdapter() {
    }
 }
 
+
+// This should be called from within a node().
+def deployToService(service) {
+   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+      dir("webapp") {
+         exec(["make", "-C", "services/${service}", "deploy",
+               "DEPLOY_VERSION=${NEW_VERSION}"]);
+      }
+   }
+}
+
+
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
-      parallel(
-         "deploy-to-gae": { deployToGAE(); },
-         "deploy-to-gcs": { deployToGCS(); },
-         "deploy-to-kotlin-routes": { deployToKotlinRoutes(); },
-         "deploy-to-content-editing": { deployToContentEditing(); },
-         "deploy-to-dataflow-datastore-bigquery-adapter":
-            { deployToDataflowDatastoreBigqueryAdapter(); },
-         "failFast": true,
-      );
+      def jobs = ["deploy-to-gae": { deployToGAE(); },
+                  "deploy-to-gcs": { deployToGCS(); },
+                  "deploy-to-dataflow-datastore-bigquery-adapter":
+                     { deployToDataflowDatastoreBigqueryAdapter(); },
+                  "failFast": true];
+      for (service in SERVICES) {
+         // These two services are a bit more complex and are handled
+         // specially in deployToGAE and deployToGCS.
+         if (!(service in ['dynamic', 'static'])) {
+            jobs["deploy-to-${service}"] = { deployToService(service); };
+         }
+      }
+      parallel(jobs);
+
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,
               version: NEW_VERSION,
