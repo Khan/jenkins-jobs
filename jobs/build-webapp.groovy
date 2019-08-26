@@ -460,7 +460,9 @@ def deployToKotlinRoutes() {
          // TODO(colin): can we now run this from webapp root and avoid the
          // cd?
          withEnv(["VERSION=${NEW_VERSION}"]) {
-            sh("cd services/kotlin_routes && ./gradlew appengineDeploy");
+            // TODO(csilvers): remove the `if` and only do the kotlin-routes
+            // version, once I've deployed; definitely after 1 Sept 2019.
+            sh("if [ -d services/kotlin_routes ]; then cd services/kotlin_routes && ./gradlew appengineDeploy; else cd services/kotlin-routes && ./gradlew appengineDeploy; fi");
          }
       }
    }
@@ -482,7 +484,7 @@ def deployToContentEditing() {
          // TODO(colin): can we now run this from webapp root and avoid the
          // cd?
          withEnv(["VERSION=${NEW_VERSION}"]) {
-            sh("cd services/content_editing && ./gradlew deploy");
+            sh("if [ -d services/content_editing ]; then cd services/content_editing && ./gradlew deploy; else cd services/content-editing && ./gradlew deploy; fi");
          }
       }
    }
