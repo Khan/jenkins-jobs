@@ -81,8 +81,8 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 <ul>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
-  <li> <b>kotlin-routes</b>: webapp's services/kotlin_routes/. </li>
-  <li> <b>content-editing</b>: webapp's services/content_editing/. </li>
+  <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
+  <li> <b>content-editing</b>: webapp's services/content-editing/. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -460,9 +460,7 @@ def deployToKotlinRoutes() {
          // TODO(colin): can we now run this from webapp root and avoid the
          // cd?
          withEnv(["VERSION=${NEW_VERSION}"]) {
-            // TODO(csilvers): remove the `if` and only do the kotlin-routes
-            // version, once I've deployed; definitely after 1 Sept 2019.
-            sh("if [ -d services/kotlin_routes ]; then cd services/kotlin_routes && ./gradlew appengineDeploy; else cd services/kotlin-routes && ./gradlew appengineDeploy; fi");
+            sh("cd services/kotlin-routes && ./gradlew appengineDeploy");
          }
       }
    }
@@ -484,7 +482,7 @@ def deployToContentEditing() {
          // TODO(colin): can we now run this from webapp root and avoid the
          // cd?
          withEnv(["VERSION=${NEW_VERSION}"]) {
-            sh("if [ -d services/content_editing ]; then cd services/content_editing && ./gradlew deploy; else cd services/content-editing && ./gradlew deploy; fi");
+            sh("cd services/content-editing && ./gradlew deploy");
          }
       }
    }

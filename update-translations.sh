@@ -135,7 +135,7 @@ if [ -n "$UPDATE_STRINGS" ]; then
     # find_graphie_images_in_items.js caches items here, so we create the directory
     # for it.
     mkdir -p genfiles/assessment_items
-    dev/tools/run_js_in_node.js content_editing/tools/find_graphie_images_in_items.js
+    dev/tools/run_js_in_node.js content-editing/tools/find_graphie_images_in_items.js
 
     echo "Creating a new, up-to-date all.pot."
     # Both handlebars.babel and shared_jinja.babel look for popular_urls in /tmp,

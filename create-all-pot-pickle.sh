@@ -39,7 +39,7 @@ echo "Ending extracting sync snapshot at $(date +%H:%M:%S)"
 # for it.
 echo "Starting updating the list of graphie images at $(date +%H:%M:%S)"
 mkdir -p genfiles/assessment_items
-dev/tools/run_js_in_node.js content_editing/tools/find_graphie_images_in_items.js
+dev/tools/run_js_in_node.js content-editing/tools/find_graphie_images_in_items.js
 echo "Ending updating the list of graphie images at $(date +%H%M)"
 
 echo "Starting to create a new, up-to-date all.pot at $(date +%H:%M:%S)"
