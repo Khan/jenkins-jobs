@@ -492,8 +492,8 @@ def deployAndReport() {
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
             // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
-            def service = service;
-            jobs["deploy-to-${service}"] = { deployToService(service); };
+            def serviceAgain = service;
+            jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
          }
       }
       parallel(jobs);
