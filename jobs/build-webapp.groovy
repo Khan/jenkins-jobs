@@ -488,6 +488,11 @@ def deployAndReport() {
          // These two services are a bit more complex and are handled
          // specially in deployToGAE and deployToGCS.
          if (!(service in ['dynamic', 'static'])) {
+            // We need to define a new variable so that we don't pass the loop
+            // variable into the closure: it may have changed before the
+            // closure executes.  See for example
+            // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
+            def service = service;
             jobs["deploy-to-${service}"] = { deployToService(service); };
          }
       }
