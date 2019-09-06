@@ -154,6 +154,12 @@ GIT_SHA1S = null;
 // Set to true once we have stashed the list of tests for the workers to run.
 HAVE_STASHED_TESTS = false;
 
+// If we're running the large or huge tests, we need a bit more
+// memory, because some of those tests seem to use a lot of memory.
+// So we have a special worker type.
+WORKER_TYPE = params.MAX_SIZE in ["large", "huge"]
+    ? 'big-test-worker' : 'ka-test-ec2';
+
 
 def getGitSha1s() {
    // resolveCommitish returns the sha of a commit.  If
@@ -271,7 +277,7 @@ def doTestOnWorker(workerNum) {
    // or two just in case; when running huge tests, the one that gets
    // make_test_db_test can take 2+ hours so we give it lots of time.
    def workerTimeout = params.MAX_SIZE == 'huge' ? '4h' : '2h';
-   onWorker('ka-test-ec2', workerTimeout) {     // timeout
+   onWorker(WORKER_TYPE, workerTimeout) {     // timeout
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
@@ -410,7 +416,7 @@ def analyzeResults() {
 }
 
 
-onWorker('ka-test-ec2', '5h') {     // timeout
+onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
