@@ -65,6 +65,7 @@ def syncRepos() {
             // We want the last release that's successfully been tagged.
             // This can differ from the current release when a deploy
             // is going on (after deploying to GAE and before finishing).
+            // TODO(csilvers): add a `-n1` flag to git_tags.py.
             gitTag = exec.outputOf(["deploy/git_tags.py"]).split("\n")[-1];
          }
       }
