@@ -170,6 +170,12 @@ PRETTY_DEPLOYER_USERNAME = null;
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
 
+// A dict holding the active version-string for each version after
+// this deploy finishes.  This is equal to (some representation of)
+// GIT_REVISION for any services we are currently deploying, and the
+// existing current-version string for all other services.
+VERSION_DICT = [:];
+
 // The list of services to which to deploy: currently a subset of
 // ["dynamic", "static"].
 SERVICES = null;
@@ -351,19 +357,23 @@ def mergeFromMasterAndInitializeGlobals() {
          // in SERVICES, or the existing version if not in SERVICES.
          def newVersionParts = [];
          for (def i = 0; i < SERVICES.size(); i++) {
-            newVersionParts += ["${SERVICES[i]}=${NEW_VERSION}"]
+            VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
+            newVersionParts += ["${SERVICES[i]}=${NEW_VERSION}"];
          }
          for (def i = 0; i < currentVersionParts.size(); i++) {
             def serviceAndVersion = currentVersionParts[i];
             if (serviceAndVersion) {
                def service = serviceAndVersion.split("=")[0];
+               def oldVersion = serviceAndVersion.split("=")[1];
                // We deploy a "copied" static version anytime we deploy
                // dynamic.
                // TODO(benkraft): Handle this in a less bespoke way.
                if (service == "static" && !(service in SERVICES)
                      && 'dynamic' in SERVICES) {
+                  VERSION_DICT[service] = NEW_VERSION;
                   newVersionParts += ["${service}=${NEW_VERSION}"];
                } else if (!(service in SERVICES)) {
+                  VERSION_DICT[service] = oldVersion;
                   newVersionParts += [serviceAndVersion];
                }
             }
@@ -666,9 +676,15 @@ def finishWithSuccess() {
             if (SERVICES) {
                def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
                if (!existingTag) {
+                  // It's important we use toPrettyString for our
+                  // json to make parsing this easier.  In particular,
+                  // we know the end of the dict comes when we see
+                  // `^\S` (that is, the next unindented line).
                   exec(["git", "tag", "-m",
                         "Deployed to appengine from branch " +
-                        "${REVISION_DESCRIPTION}",
+                        "${REVISION_DESCRIPTION}\n\n" +
+                        "v1 version dict: " +
+                        "${new JsonBuilder(VERSION_DICT).toPrettyString()}",
                         GIT_TAG, params.GIT_REVISION]);
                }
             }
