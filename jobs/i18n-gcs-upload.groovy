@@ -66,7 +66,7 @@ def syncRepos() {
             // This can differ from the current release when a deploy
             // is going on (after deploying to GAE and before finishing).
             // TODO(csilvers): add a `-n1` flag to git_tags.py.
-            gitTag = exec.outputOf(["deploy/git_tags.py"]).split("\n")[-1];
+            gitTag = exec.outputOf(["deploy/git_tags.py"]).split("\n").max();
          }
       }
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", gitTag);
