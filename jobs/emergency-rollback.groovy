@@ -109,12 +109,13 @@ def verifyValidTag(tag) {
                   "dynamic version. To see all potential tags, " +
                   "use `git tag -l 'gae-*'.");
    }
-   def dynamic = tag.split('-')[1..3].join('-');
+   def dynamic = exec.outputOf(["deploy/git_tags.py", "--service=dynamic",
+                                tag]);
    // Check that the dynamic version in fact exists on GAE
-   def args = ("gcloud app versions list --project khan-academy " +
-               "--service default");
-   def gae_version = sh(script: args + " --filter='version.name:${dynamic}'",
-                        returnStdout: true).trim();
+   def args = ["gcloud", "app", "versions", "list",
+               "--project=khan-academy", "--service=default",
+               "--filter=version.name:${dynamic}"];
+   def gae_version = exec.outputOf(args);
    // when a version is not found, gcloud returns "Listed 0 items."
    if (!gae_version.contains(dynamic)) {
       notify.fail("Version gae-${dynamic} not found. " +
@@ -133,7 +134,7 @@ def doRollback() {
          if (params.DRY_RUN) {
             cmd += ["-n"];
          }
-         
+
          if (params.ROLLBACK_TO && verifyValidTag(params.ROLLBACK_TO)) {
             cmd += ["--good=${params.ROLLBACK_TO}"];
          }
