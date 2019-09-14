@@ -169,6 +169,7 @@ PRETTY_DEPLOYER_USERNAME = null;
 
 // The tag we will use to tag this deploy.
 GIT_TAG = null;
+V3_GIT_TAG = null;   // The tag we're going to start using one day
 
 // A dict holding the active version-string for each version after
 // this deploy finishes.  This is equal to (some representation of)
@@ -188,7 +189,8 @@ ROLLBACK_TO = null;
 // (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
 DEPLOY_URL = null;
 
-// The new service-version for any services we are deploying.
+// The deploy-version.  This will be the new service-version for any
+// services we are deploying.
 NEW_VERSION = null;
 
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
@@ -380,6 +382,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          // Now combine those into a git tag.
          GIT_TAG = exec.outputOf(["deploy/git_tags.py"] + newVersionParts);
+         V3_GIT_TAG = "gae-${NEW_VERSION}";
       }
    }
 }
@@ -672,13 +675,26 @@ def finishWithSuccess() {
       try {
          dir("webapp") {
             // Create the git tag (if we actually deployed something somewhere).
+            def existingTag = exec.outputOf(["git", "tag", "-l", V3_GIT_TAG]);
+            if (!existingTag) {
+               // It's important we use toPrettyString for our
+               // json to make parsing this easier.  In particular,
+               // we know the end of the dict comes when we see
+               // `^\S` (that is, the next unindented line).
+               exec(["git", "tag", "-m",
+                     "Deployed by ${PRETTY_DEPLOYER_USERNAME} " +
+                     "from branch ${REVISION_DESCRIPTION}\n\n" +
+                     "These services were deployed: ${SERVICES}\n\n" +
+                     "v1 version dict: " +
+                     "${new JsonBuilder(VERSION_DICT).toPrettyString()}",
+                     V3_GIT_TAG, params.GIT_REVISION]);
+            }
+
+            // TODO(csilvers): stop publishing this v2 tag after
+            // webapp supports v3 tags, probably after 1 Oct 2019.
             if (SERVICES) {
-               def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
+               existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
                if (!existingTag) {
-                  // It's important we use toPrettyString for our
-                  // json to make parsing this easier.  In particular,
-                  // we know the end of the dict comes when we see
-                  // `^\S` (that is, the next unindented line).
                   exec(["git", "tag", "-m",
                         "Deployed to appengine from branch " +
                         "${REVISION_DESCRIPTION}\n\n" +
