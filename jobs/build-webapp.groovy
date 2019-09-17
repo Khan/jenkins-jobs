@@ -477,17 +477,34 @@ def deployToService(service) {
 
 
 // This should be called from within a node().
+// HACK: This is a workaround to manage a bug in our current deploy system,
+// where running gradlew in two services in parallel causes a conflict in
+// the cache dir (See INFRA-3594 for full details). Here we're careful to
+// build kotlin services in series. Once this bug is resolved, we can remove
+// this, and let kotlin services default to the shared deployToService again.
+def deployToKotlinServices() {
+   for (service in SERVICES) {
+      if (service in ['content-editing', 'kotlin-routes']) {
+         deployToService(service);
+      }
+   }
+}
+
+
+// This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
       def jobs = ["deploy-to-gae": { deployToGAE(); },
                   "deploy-to-gcs": { deployToGCS(); },
+                  "deploy-to-kotlin-services": { deployToKotlinServices(); },
                   "deploy-to-dataflow-datastore-bigquery-adapter":
                      { deployToDataflowDatastoreBigqueryAdapter(); },
                   "failFast": true];
       for (service in SERVICES) {
          // These two services are a bit more complex and are handled
          // specially in deployToGAE and deployToGCS.
-         if (!(service in ['dynamic', 'static'])) {
+         if (!(service in [
+               'dynamic', 'static', 'content-editing', 'kotlin-routes'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
