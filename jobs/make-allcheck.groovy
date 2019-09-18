@@ -39,7 +39,6 @@ def runAllTests() {
     build(job: '../deploy/webapp-test',
           parameters: [
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-             string(name: 'TEST_TYPE', value: "all"),
              string(name: 'MAX_SIZE', value: "huge"),
              booleanParam(name: 'FAILFAST', value: params.FAILFAST),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),

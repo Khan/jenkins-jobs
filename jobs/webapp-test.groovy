@@ -38,17 +38,16 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
 ).addChoiceParam(
-   "TEST_TYPE",
-   """\
-<ul>
-  <li> <b>all</b>: run all tests</li>
-  <li> <b>all_non_manual</b>: run all tests, excluding ones that are 'manual
-        only' (as identified by the
-        `only_run_when_explicitly_specified_on_runtests_commandline`
-        decorator)</li>
-</ul>
+   "BASE_GIT_REVISION",
+   """If set, only run tests that could be affected by files that
+were changed in the commits between BASE_GIT_REVISION..GIT_REVISION.
+This can be used at deploy-time (with BASE_GIT_REVISION == the revision
+of the current live deploy), and to hook into phabricator (where
+BASE_GIT_REVISION is where `arc land` would land the diff being tested).
+If the empty string, run *all* tests.  Note that regardless of this value,
+the list of tests to run is limited by MAX_SIZE.
 """,
-   ["all", "all_non_manual"]
+   "",
 
 ).addChoiceParam(
    "MAX_SIZE",
@@ -221,32 +220,42 @@ def _setupWebapp() {
 def _determineTests() {
    def tests;
 
-   // Only add the `--test-file-glob` param if differs from the default
-   // TODO(dhruv): remove this check once enough folks have merged master to
-   // get the new --test-file-glob param. Definitely by 2018/09/01.
-   def testFileGlobFlag = ""
-   if (params.TEST_FILE_GLOB != "*_test.py") {
-     testFileGlobFlag = "--test-file-glob=${exec.shellEscape(params.TEST_FILE_GLOB)} "
-   }
-
    // This command expands directory arguments, and also filters out
    // tests that are not the right size.  Finally, it figures out splits.
-   def runtestsCmd = ("tools/runtests.py " +
-                      "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-                      testFileGlobFlag +
-                      "--jobs=${NUM_WORKER_MACHINES} " +
-                      "--timing-db=genfiles/test-info.db " +
-                      "--dry-run --just-split");
+   def runtestsCmd = ["tools/runtests.py",
+                      "--max-size=${params.MAX_SIZE}",
+                      "--test-file-glob=${params.TEST_FILE_GLOB}",
+                      "--jobs=${NUM_WORKER_MACHINES}",
+                      "--timing-db=genfiles/test-info.db",
+                      "--dry-run",
+                      "--just-split"];
 
-   if (params.TEST_TYPE == "all") {
-      // We have to specify these explicitly because they are @manual_only.
-      sh("${runtestsCmd} . testing.js_test testing.lint_test dev.flow_test " +
-         " > genfiles/test_splits.txt");
-   } else if (params.TEST_TYPE == "all_non_manual") {
-      sh("${runtestsCmd} .  > genfiles/test_splits.txt");
+   // TODO(csilvers): get rid of the `if` check, and just always add the
+   // flag, once all branches have merged in the new flag, definitely
+   // after 1 Dec 2019.
+   def runtestsHelp = exec.outputOf(["tools/runtests.py", "--help"]);
+   if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
+      // By overriding @skip_by_default, we can run "forwarding" tests
+      // like lint_test.py, that normal users would run via `make lint`.
+      runtestsCmd += ["--override-skip-by-default"];
    } else {
-      error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
+      // We have to specify all the tests to run explicitly.
+      runtestsCmd += [".", "testing.js_test", "testing.lint_test",
+                      "dev.flow_test"];
    }
+
+   if (params.BASE_GIT_REVISION) {
+      // Only run the tests that are affected by files that were
+      // changed between BASE_GIT_REVISION and GIT_REVISION.
+      def testsToRun = exec.outputOf(
+         ["deploy/should_run_tests.py",
+          "--from-commit=${params.BASE_GIT_REVISION}",
+          "--to-commit=${params.GIT_REVISION}"
+         ]).split("\n");
+      runtestsCmd += testsToRun;
+   }
+
+   sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
 
    dir("genfiles") {
       // Make sure to clean out any stray old splits files.  (This probably
@@ -291,8 +300,17 @@ def doTestOnWorker(workerNum) {
       unstash("splits");
 
       try {
+         // TODO(csilvers): remove this block and just always include
+         // --override-skip-by-default after 1 Dec 2020.
+         def runtestsHelp = exec.outputOf(["tools/runtests.py", "--help"]);
+         def skipFlag = "";
+         if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
+            skipFlag = "--override-skip-by-default ";
+         }
+
          sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
+            skipFlag +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +
             "--quiet --jobs=1 " +
