@@ -340,6 +340,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
          DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
+         GIT_TAG = "gae-${NEW_VERSION}";
 
          // Test coverage in webapp/deploy/git_tags_test.py DeployTagsTest
          // mimics the git tag workflow used here. If any changes are made to
@@ -348,41 +349,29 @@ def mergeFromMasterAndInitializeGlobals() {
          def currentVersionTag = exec.outputOf(
             ["deploy/current_version.py", "--git-tag"]);
          def currentVersionParts = exec.outputOf(
-            ["deploy/git_tags.py", currentVersionTag]).split("\n");
+            ["deploy/git_tags.py", "--parse", currentVersionTag]).split("\n");
 
          // If this deploy fails, we want to roll back to the version
          // that was active when the deploy started.  That's now!
          ROLLBACK_TO = currentVersionTag;
 
-         // We build the new version using NEW_VERSION for any services
-         // in SERVICES, or the existing version if not in SERVICES.
-         def newVersionParts = [];
-         for (def i = 0; i < SERVICES.size(); i++) {
-            VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
-            newVersionParts += ["${SERVICES[i]}=${NEW_VERSION}"];
-         }
+         // Construct a dict from service to version, using NEW_VERSION
+         // for any service in SERVICES.  We'll emit this in the git tag.
          for (def i = 0; i < currentVersionParts.size(); i++) {
             def serviceAndVersion = currentVersionParts[i];
             if (serviceAndVersion) {
                def service = serviceAndVersion.split("=")[0];
                def oldVersion = serviceAndVersion.split("=")[1];
-               // We deploy a "copied" static version anytime we deploy
-               // dynamic.
-               // TODO(benkraft): Handle this in a less bespoke way.
-               if (service == "static" && !(service in SERVICES)
-                     && 'dynamic' in SERVICES) {
-                  VERSION_DICT[service] = NEW_VERSION;
-                  newVersionParts += ["${service}=${NEW_VERSION}"];
-               } else if (!(service in SERVICES)) {
-                  VERSION_DICT[service] = oldVersion;
-                  newVersionParts += [serviceAndVersion];
-               }
+               VERSION_DICT[service] = oldVersion;
             }
          }
-
-         // Now combine those into a git tag.
-         GIT_TAG = exec.outputOf(["deploy/git_tags.py"] + newVersionParts);
-         V3_GIT_TAG = "gae-${NEW_VERSION}";
+         for (def i = 0; i < SERVICES.size(); i++) {
+            VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
+         }
+         // We deploy a "copied" static version anytime we deploy dynamic.
+         if ("dynamic" in SERVICES) {
+            VERSION_DICT["static"] = NEW_VERSION;
+         }
       }
    }
 }
@@ -675,7 +664,7 @@ def finishWithSuccess() {
       try {
          dir("webapp") {
             // Create the git tag (if we actually deployed something somewhere).
-            def existingTag = exec.outputOf(["git", "tag", "-l", V3_GIT_TAG]);
+            def existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
             if (!existingTag) {
                // It's important we use toPrettyString for our
                // json to make parsing this easier.  In particular,
@@ -687,22 +676,9 @@ def finishWithSuccess() {
                      "These services were deployed: ${SERVICES}\n\n" +
                      "v1 version dict: " +
                      "${new JsonBuilder(VERSION_DICT).toPrettyString()}",
-                     V3_GIT_TAG, params.GIT_REVISION]);
+                     GIT_TAG, params.GIT_REVISION]);
             }
 
-            // TODO(csilvers): stop publishing this v2 tag after
-            // webapp supports v3 tags, probably after 1 Oct 2019.
-            if (SERVICES) {
-               existingTag = exec.outputOf(["git", "tag", "-l", GIT_TAG]);
-               if (!existingTag) {
-                  exec(["git", "tag", "-m",
-                        "Deployed to appengine from branch " +
-                        "${REVISION_DESCRIPTION}\n\n" +
-                        "v1 version dict: " +
-                        "${new JsonBuilder(VERSION_DICT).toPrettyString()}",
-                        GIT_TAG, params.GIT_REVISION]);
-               }
-            }
             // Set our local version of master to be the same as the
             // origin master.  This is needed in cases when a previous
             // deploy set the local (jenkins) master to commit X, but
@@ -764,10 +740,10 @@ def finishWithFailureNoRollback(why) {
    }
 
     _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
-          [version: GIT_TAG,
-           branch: REVISION_DESCRIPTION,
-           services: SERVICES.join(', '),
-           why: why]);
+           [version: GIT_TAG,
+            branch: REVISION_DESCRIPTION,
+            services: SERVICES.join(', '),
+            why: why]);
     env.SENT_TO_SLACK = '1';
 }
 
@@ -787,8 +763,8 @@ def finishWithFailure(why) {
    withTimeout('40m') {
       try {
          _alert(alertMsgs.ROLLING_BACK,
-               [rollbackToAsVersion: rollbackToAsVersion,
-                gitTag: GIT_TAG]);
+                [rollbackToAsVersion: rollbackToAsVersion,
+                 gitTag: GIT_TAG]);
          withSecrets() {
             dir("webapp") {
                // We don't provide the --bad tagname here because that
@@ -801,23 +777,23 @@ def finishWithFailure(why) {
                                                 "${ROLLBACK_TO}-bad"]);
                if (existingTag) {
                   _alert(alertMsgs.ROLLED_BACK_TO_BAD_VERSION,
-                        [rollbackToAsVersion: rollbackToAsVersion]);
+                         [rollbackToAsVersion: rollbackToAsVersion]);
                }
             }
          }
       } catch (e) {
          echo("Auto-rollback failed: ${e}");
          _alert(alertMsgs.ROLLBACK_FAILED,
-               [rollbackToAsVersion: rollbackToAsVersion,
-                gitTag: GIT_TAG,
-                rollbackTo: ROLLBACK_TO]);
+                [rollbackToAsVersion: rollbackToAsVersion,
+                 gitTag: GIT_TAG,
+                 rollbackTo: ROLLBACK_TO]);
       }
 
       _alert(alertMsgs.FAILED_WITH_ROLLBACK,
-            [combinedVersion: GIT_TAG,
-             branch: REVISION_DESCRIPTION,
-             rollbackToAsVersion: rollbackToAsVersion,
-             why: why]);
+             [combinedVersion: GIT_TAG,
+              branch: REVISION_DESCRIPTION,
+              rollbackToAsVersion: rollbackToAsVersion,
+              why: why]);
       env.SENT_TO_SLACK = '1';
    }
 }

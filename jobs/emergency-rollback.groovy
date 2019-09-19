@@ -111,7 +111,7 @@ def verifyValidTag(tag) {
    }
    dir("webapp") {
       def dynamic = exec.outputOf(["deploy/git_tags.py", "--service=dynamic",
-                                  tag]);
+                                   "--parse", tag]);
    }
    // Check that the dynamic version in fact exists on GAE
    def args = ["gcloud", "app", "versions", "list",
