@@ -302,7 +302,8 @@ def doTestOnWorker(workerNum) {
       try {
          // TODO(csilvers): remove this block and just always include
          // --override-skip-by-default after 1 Dec 2020.
-         def runtestsHelp = exec.outputOf(["tools/runtests.py", "--help"]);
+         def runtestsHelp = exec.outputOf(
+            ["webapp/tools/runtests.py", "--help"]);
          def skipFlag = "";
          if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
             skipFlag = "--override-skip-by-default ";
