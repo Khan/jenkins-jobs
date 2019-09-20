@@ -311,6 +311,7 @@ def doTestOnWorker(workerNum) {
 
          sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
+            "--test-file-glob=${params.TEST_FILE_GLOB} " +
             skipFlag +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +
