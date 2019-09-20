@@ -29,29 +29,13 @@ def runScript() {
             params.GIT_REVISION);
 
     dir("webapp") {
-        sh("make clean_pyc");    // in case some .py files went away
+        sh("make clean_pyc");
         sh("make deps");
     }
 
-    def inLocale = params.LOCALE;
-    if (!inLocale) {
-        // Run for all locales that are test or better.
-		def locales = ['bg', 'bn', 'cs', 'da', 'de', 'es', 'fr', 'gu', 'hi', 'hy',
-					   'id', 'it', 'ja', 'ka', 'ko', 'mn', 'nb', 'nl', 'pl', 'pt', 'pt-pt',
-					   'sr', 'sv', 'ta', 'tr', 'zh-hans'];
-        for (locale in locales) {
-            println("Invoking script to generate topictree json for locale: ${locale}");
-			lock("using-a-lot-of-memory") {
-				withSecrets() {
-					sh("jenkins-jobs/run-topictree-gen.sh ${locale}");
-				}
-			}
-        }
-    } else {
-        lock("using-a-lot-of-memory") {
-            withSecrets() {
-                sh("jenkins-jobs/run-topictree-gen.sh ${inLocale}");
-            }
+    lock("using-a-lot-of-memory") {
+        withSecrets() {
+            sh("jenkins-jobs/run-topictree-gen.sh ${params.LOCALE}");
         }
     }
 }
