@@ -69,11 +69,14 @@ def _buildTagFile(repo) {
 // true iff the current job had previously synced the given repo to
 // the given commit using safeSyncToOrigin.
 def wasSyncedTo(repo, commit, syncFn) {
+   if (!fileExists(_buildTagFile(repo))) {
+      return false;
+   }
    try {
       actual = readFile(_buildTagFile(repo));
       return actual == "${syncFn} ${commit} ${env.BUILD_TAG}";
    } catch (e) {
-      return false;     // build_tag file doesn't exist.
+      return false;     // build_tag file was just deleted.
    }
 }
 
