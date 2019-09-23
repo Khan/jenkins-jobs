@@ -37,7 +37,7 @@ by `+` ('br1+br2+br3').  In that case we will merge the branches together --
 dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
-).addChoiceParam(
+).addStringParam(
    "BASE_GIT_REVISION",
    """If set, only run tests that could be affected by files that
 were changed in the commits between BASE_GIT_REVISION..GIT_REVISION.
