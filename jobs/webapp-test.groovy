@@ -38,12 +38,12 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
    "master"
 
 ).addStringParam(
-   "BASE_GIT_REVISION",
+   "BASE_REVISION",
    """If set, only run tests that could be affected by files that
-were changed in the commits between BASE_GIT_REVISION..GIT_REVISION.
-This can be used at deploy-time (with BASE_GIT_REVISION == the revision
+were changed in the commits between BASE_REVISION..GIT_REVISION.
+This can be used at deploy-time (with BASE_REVISION == the revision
 of the current live deploy), and to hook into phabricator (where
-BASE_GIT_REVISION is where `arc land` would land the diff being tested).
+BASE_REVISION is where `arc land` would land the diff being tested).
 If the empty string, run *all* tests.  Note that regardless of this value,
 the list of tests to run is limited by MAX_SIZE.
 """,
@@ -244,12 +244,12 @@ def _determineTests() {
                       "dev.flow_test"];
    }
 
-   if (params.BASE_GIT_REVISION) {
+   if (params.BASE_REVISION) {
       // Only run the tests that are affected by files that were
-      // changed between BASE_GIT_REVISION and GIT_REVISION.
+      // changed between BASE_REVISION and GIT_REVISION.
       def testsToRun = exec.outputOf(
          ["deploy/should_run_tests.py",
-          "--from-commit=${params.BASE_GIT_REVISION}",
+          "--from-commit=${params.BASE_REVISION}",
           "--to-commit=${params.GIT_REVISION}"
          ]).split("\n");
       runtestsCmd += testsToRun;
