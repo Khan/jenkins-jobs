@@ -16,8 +16,8 @@ import org.khanacademy.Setup;
 // TODO(tom) Do we need a parameter to force updating a locale that isn't on the
 // list?
 AUTOMATICALLY_UPDATED_LOCALES = [
-    'bg', 'cs', 'de', 'es', 'fr', 'gu', 'hi', 'hy', 'id', 'ja', 'ka', 'ko',
-    'nl', 'pt', 'pt-pt', 'sr', 'sv', 'ta', 'tr', 'zh-hans', 'lol'
+    'de', 'fr', 'gu', 'hi', 'hy', 'id', 'ja', 'ka',
+    'nl', 'sr', 'sv', 'ta', 'tr', 'lol'
 ]
 
 new Setup(steps
