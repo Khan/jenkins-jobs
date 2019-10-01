@@ -767,10 +767,12 @@ def finishWithFailure(why) {
                  gitTag: GIT_TAG]);
          withSecrets() {
             dir("webapp") {
-               // We don't provide the --bad tagname here because that
-               // hasn't been created yet for this deploy. It's only created
-               // when we end a deploy with finishWithSuccess.
-               exec(["deploy/rollback.py", "--good=${ROLLBACK_TO}"]);
+               // We use --bad-dict instead of --bad here because
+               // there's no git tag yet for the bad version:
+               // it's only created when we end a deploy with
+               // finishWithSuccess.
+               exec(["deploy/rollback.py", "--good=${ROLLBACK_TO}",
+                     "--bad-dict=${new JsonBuilder(VERSION_DICT).toString()}"]);
                // If the version we rolled back *to* is marked bad, warn
                // about that.
                def existingTag = exec.outputOf(["git", "tag", "-l",
