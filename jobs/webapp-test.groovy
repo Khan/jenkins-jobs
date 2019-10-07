@@ -255,6 +255,9 @@ def _determineTests() {
           "--to-commit=${params.GIT_REVISION}"
          ]).split("\n");
       runtestsCmd += testsToRun;
+      echo("Running ${testsToRun.size()} tests");
+   } else {
+      echo("Running all tests");
    }
 
    sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
