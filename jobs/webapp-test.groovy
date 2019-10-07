@@ -49,7 +49,7 @@ being tested.
 
 If the empty string, run *all* tests.  Note that regardless of this
 value, the list of tests to run is limited by MAX_SIZE.""",
-   "origin/master",
+   "",
 
 ).addChoiceParam(
    "MAX_SIZE",
