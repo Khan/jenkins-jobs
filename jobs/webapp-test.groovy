@@ -39,15 +39,17 @@ dying if there's a merge conflict -- and run tests on the resulting code.""",
 
 ).addStringParam(
    "BASE_REVISION",
-   """If set, only run tests that could be affected by files that
-were changed in the commits between BASE_REVISION..GIT_REVISION.
-This can be used at deploy-time (with BASE_REVISION == the revision
-of the current live deploy), and to hook into phabricator (where
-BASE_REVISION is where `arc land` would land the diff being tested).
-If the empty string, run *all* tests.  Note that regardless of this value,
-the list of tests to run is limited by MAX_SIZE.
-""",
-   "",
+   """Only run tests that could be affected by files that were changed in
+the commits between BASE_REVISION..GIT_REVISION.  It's always safe to
+have BASE_REVISION == origin/master, since we keep the invariant that
+all tests pass on master.  But in some cases we can do better: at
+deploy-time it can be the revision of the current live deploy, and for
+phabricator diffs it can be the commit `arc land` would land the diff
+being tested.
+
+If the empty string, run *all* tests.  Note that regardless of this
+value, the list of tests to run is limited by MAX_SIZE.""",
+   "origin/master",
 
 ).addChoiceParam(
    "MAX_SIZE",

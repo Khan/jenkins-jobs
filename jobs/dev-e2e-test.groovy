@@ -57,6 +57,7 @@ onMaster('5h') {
       build(job: '../deploy/webapp-test',
             parameters: [
                string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+               string(name: 'BASE_REVISION', value: ""),
                string(name: 'JOB_DISPLAY_NAME', value: "dev-e2e-test"),
                string(name: 'MAX_SIZE', value: "huge"),
                string(name: 'TEST_FILE_GLOB', value: "*_e2etest.py"),
