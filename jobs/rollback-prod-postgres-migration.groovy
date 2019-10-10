@@ -32,7 +32,7 @@ def runUpdate() {
 
 
 onMaster('1h') {
-   notify([slack: [channel: '#reports-eng',
+   notify([slack: [channel: '#khan-district-eng',
                    sender: 'Migration Mouse',
                    emoji: ':mouse:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
