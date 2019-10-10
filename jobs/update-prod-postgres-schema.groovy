@@ -21,7 +21,7 @@ def runUpdate() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need postgres db secrets
          dir("webapp") {
-            sh("make deps");
+            sh("make python_deps");
          }
          dir("webapp/coaches/reports") {
             sh("alembic --name prod upgrade head")
