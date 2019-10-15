@@ -314,7 +314,10 @@ def doTestOnWorker(workerNum) {
             skipFlag = "--override-skip-by-default ";
          }
 
-         sh("cd webapp; ../jenkins-jobs/timeout_output.py -v 55m " +
+         sh("cd webapp; " +
+            // Say what machine we're on, to help with debugging
+            "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname; " +
+            "../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
             "--test-file-glob=${params.TEST_FILE_GLOB} " +
             skipFlag +
