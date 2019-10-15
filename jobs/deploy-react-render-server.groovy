@@ -13,6 +13,15 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+).addStringParam(
+    "GIT_REVISION",
+    """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also
+possible: a commit-sha1 to deploy. Basically, this is passed to
+<code>git checkout GIT_REVISION</code>.
+If you intend to set default in production do not forget to check
+<code>SET_DEFAULT</code>.""",
+    "master"
+
 ).addBooleanParam(
     "FLEX_DEPLOY",
     """If set, deploy to an Appengine Flex instance instead of
@@ -23,9 +32,9 @@ details.""",
 
 ).addBooleanParam(
     "SET_DEFAULT",
-    """If set (the default), set the new version as default.
+    """If set, set the new version as default.
 Otherwise, this is left to the deployer to do manually.""",
-    true
+    false
 
 ).addBooleanParam(
     "PRIME",
@@ -49,7 +58,7 @@ TODO(jlfwong): Prime by loading most recent corelibs/shared/etc into cache""",
 def installDeps() {
    withTimeout('15m') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/react-render-server",
-                             "master");
+                             params.GIT_REVISION);
 
       dir("react-render-server") {
          clean(params.CLEAN);
