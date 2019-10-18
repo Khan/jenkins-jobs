@@ -56,9 +56,6 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     tools/devshell.py --host localhost:9085 \
         --script dev/dev_appserver/run_sync.py \
         "../$snapshot_bucket" "$locale_name"
-    # TODO(amos): re-enable when the worker can handle this
-    # tools/devshell.py --host localhost:9085 \
-    #     --script tools/update_translation_analytics_data.py "$locale_name"
     sleep 10
 
     # stop dev server
