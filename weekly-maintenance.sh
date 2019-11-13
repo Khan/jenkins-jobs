@@ -342,6 +342,14 @@ pngcrush() {
 }
 
 
+clean_package_files() {
+    # Note: this can't be combined with the subshell below; we need to
+    # make sure it terminates *before* the pipe starts.
+    ( cd webapp; go mod tidy; git add 'go.*' )
+    jenkins-jobs/safe_git.sh commit_and_push webapp -a -m "Automatic cleanup of language package files"
+}
+
+
 # Introspection, shell-script style!
 ALL_JOBS=`grep -o '^[a-zA-Z0-9_]*()' "$0" | tr -d '()'`
 
