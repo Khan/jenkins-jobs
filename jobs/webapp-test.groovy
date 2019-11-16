@@ -413,7 +413,7 @@ def analyzeResults() {
                maxSizeParam = (
                   " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
             }
-            rerunCommand = "tools/runtests.py${maxSizeParam}"
+            rerunCommand = "tools/runtests.py${maxSizeParam} --override-skip-by-default"
             summarize_args = [
                "tools/test_pickle_util.py", "summarize-to-slack",
                "genfiles/test-results.pickle", params.SLACK_CHANNEL,
