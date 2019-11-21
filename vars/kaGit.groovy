@@ -31,6 +31,7 @@ def checkoutJenkinsTools() {
       //    changelog: false, poll: false);
       // The built-in 'git' step is not great: it doesn't do
       // submodules, and it messes up the tracking with the remote.
+      sh("echo $HOSTANME");
       sh("git remote set-url origin https://github.com/Khan/jenkins-jobs.git");
       sh("git pull");
       sh("git submodule update --init --recursive");
