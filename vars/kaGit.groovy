@@ -34,6 +34,7 @@ def checkoutJenkinsTools() {
       retry {
          sh("curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; ");
          sh("git remote set-url origin https://github.com/Khan/jenkins-jobs.git");
+         sh("sudo tcpdump -i any  -w /tmp/tcpdump.pcap &");
          sh("git pull");
          sh("git submodule update --init --recursive");
          sh("git branch --set-upstream-to origin/master master");
