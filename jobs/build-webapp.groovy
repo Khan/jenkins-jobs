@@ -470,6 +470,7 @@ def deployToService(service) {
    withSecrets() {     // TODO(benkraft): do we actually need secrets?
       dir("webapp") {
          exec(["make", "-C", "services/${service}", "deploy",
+               "ALREADY_RAN_TESTS=1",
                "DEPLOY_VERSION=${NEW_VERSION}"]);
       }
    }
