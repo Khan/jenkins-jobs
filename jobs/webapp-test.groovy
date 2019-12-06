@@ -230,21 +230,9 @@ def _determineTests() {
                       "--jobs=${NUM_WORKER_MACHINES}",
                       "--timing-db=genfiles/test-info.db",
                       "--dry-run",
-                      "--just-split"];
-
-   // TODO(csilvers): get rid of the `if` check, and just always add the
-   // flag, once all branches have merged in the new flag, definitely
-   // after 1 Dec 2019.
-   def runtestsHelp = exec.outputOf(["tools/runtests.py", "--help"]);
-   if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
-      // By overriding @skip_by_default, we can run "forwarding" tests
-      // like lint_test.py, that normal users would run via `make lint`.
-      runtestsCmd += ["--override-skip-by-default"];
-   } else {
-      // We have to specify all the tests to run explicitly.
-      runtestsCmd += [".", "testing.js_test", "testing.lint_test",
-                      "dev.flow_test"];
-   }
+                      "--just-split",
+                      "--override-skip-by-default",
+                     ];
 
    if (params.BASE_REVISION) {
       // Only run the tests that are affected by files that were
@@ -305,22 +293,13 @@ def doTestOnWorker(workerNum) {
       unstash("splits");
 
       try {
-         // TODO(csilvers): remove this block and just always include
-         // --override-skip-by-default after 1 Dec 2020.
-         def runtestsHelp = exec.outputOf(
-            ["webapp/tools/runtests.py", "--help"]);
-         def skipFlag = "";
-         if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
-            skipFlag = "--override-skip-by-default ";
-         }
-
          sh("cd webapp; " +
             // Say what machine we're on, to help with debugging
             "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
             "../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
             "--test-file-glob=${params.TEST_FILE_GLOB} " +
-            skipFlag +
+            "--override-skip-by-default " +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +
             "--quiet --jobs=1 " +
