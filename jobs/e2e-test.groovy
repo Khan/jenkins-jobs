@@ -218,6 +218,7 @@ def _determineTests() {
 
    def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
                            "--just-split " +
+                           "--url=${E2E_URL}" +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
       runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
