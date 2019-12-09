@@ -216,8 +216,11 @@ def _determineTests() {
    // copy the file from here to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
+   // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
+   // the same config in both places.
    def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
                            "--just-split " +
+                           "--url=${E2E_URL}" +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
       runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
@@ -246,6 +249,8 @@ def _determineTests() {
 }
 
 def _runOneTest(splitId) {
+   // TODO(dhruv): share these flags with `determineTests` to ensure we're
+   // using the same config in both places.
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
                "--url=${E2E_URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",

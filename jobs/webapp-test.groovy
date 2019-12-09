@@ -224,6 +224,8 @@ def _determineTests() {
 
    // This command expands directory arguments, and also filters out
    // tests that are not the right size.  Finally, it figures out splits.
+   // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
+   // the same config in both places.
    def runtestsCmd = ["tools/runtests.py",
                       "--max-size=${params.MAX_SIZE}",
                       "--test-file-glob=${params.TEST_FILE_GLOB}",
@@ -292,6 +294,8 @@ def doTestOnWorker(workerNum) {
       sh("rm -f test-results.*.pickle");
       unstash("splits");
 
+     // TODO(dhruv): share these flags with `_determineTests` to ensure we're
+     // using the same config in both places.
       try {
          sh("cd webapp; " +
             // Say what machine we're on, to help with debugging
