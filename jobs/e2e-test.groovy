@@ -220,7 +220,7 @@ def _determineTests() {
    // the same config in both places.
    def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
                            "--just-split " +
-                           "--url=${E2E_URL}" +
+                           "--url=${E2E_URL} " +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
       runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
