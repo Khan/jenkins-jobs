@@ -122,7 +122,7 @@ def verifyValidTag(tag) {
                   "Check versions that exist on GAE using: " +
                   "`${args}`");
    }
-   _alert("Confirmed that ${gae_version} is a valid version!");
+   _alert("Confirmed that ${dynamic} is a valid version!");
    return true;
 }
 
