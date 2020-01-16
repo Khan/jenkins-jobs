@@ -465,6 +465,23 @@ def deployToDataflowDatastoreBigqueryAdapter() {
 }
 
 
+// When we deploy a change to a service, it may change the overall federated
+// graphql schema. We store this overall schema in a version labeled json file
+// stored on GCS.
+//
+// We only _really_ need to do this if the schema changed, so we could skip it
+// for static deploys or for service deploys that don't change the schema, but
+// uploading the schema here takes less than a second, so it doesn't hurt to
+// just do it always.
+def deployToGatewayConfig() {
+   dir("webapp") {
+      withEnv(["VERSION=${NEW_VERSION}"]) {
+         exec(["make", "deploy-graphql-gateway-config"])
+      }
+   }
+}
+
+
 // This should be called from within a node().
 def deployToService(service) {
    withSecrets() {     // TODO(benkraft): do we actually need secrets?
@@ -500,6 +517,7 @@ def deployAndReport() {
                   "deploy-to-kotlin-services": { deployToKotlinServices(); },
                   "deploy-to-dataflow-datastore-bigquery-adapter":
                      { deployToDataflowDatastoreBigqueryAdapter(); },
+                  "deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "failFast": true];
       for (service in SERVICES) {
          // These two services are a bit more complex and are handled
