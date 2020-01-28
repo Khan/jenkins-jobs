@@ -1,6 +1,8 @@
 // The pipeline job for e2e tests.
 
 @Library("kautils")
+// Standard Math classes we use.
+import java.lang.Math;
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
@@ -238,12 +240,13 @@ def _determineTests() {
    }
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
-      if (allSplits.size() != NUM_WORKER_MACHINES) {
-         echo("Got ${allSplits.size()} splits instead of " +
+      def num_worker_machine_needed = Math.ceil(allSplits.size()/JOBS_PER_WORKER)
+      if (num_worker_machine_needed != NUM_WORKER_MACHINES) {
+         echo("Got ${num_worker_machine_needed} worker number instead of " +
               "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
          // Make it so we only try to run tests on this many workers,
          // since we don't have work for the other workers to do!
-         NUM_WORKER_MACHINES = allSplits.size();
+         NUM_WORKER_MACHINES = num_worker_machine_needed;
       }
       for (def i = 0; i < allSplits.size(); i++) {
          writeFile(file: "test-splits.${i}.txt",
