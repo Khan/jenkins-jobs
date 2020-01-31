@@ -172,6 +172,13 @@ GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
 
 // Set the number of tests split for the workers to run.
+// NUM_SPLITS is the number of total split capacity. If we
+// have 10 workers, each worker runs 4 jobs, so the total capacity
+// is 40. but sometime, we don't need that full capacity to run.
+// For instance, if we run the recent failing 1 smoke test only,
+// The NUM_TEST_SPLITS will be 1. It only require the first job to run
+// on first worker. The other three jobs on the first worker, and
+// rest of 9 workers will do nothing.
 NUM_TEST_SPLITS = -1;
 
 // Set to true once master has run setup, so graphql/android tests can begin.
@@ -214,9 +221,10 @@ def _setupWebapp() {
 
 def _determineTests() {
    // Figure out how to split up the tests.  We run 4 jobs on
-   // each of 4 workers.  We put this in the location where the
-   // 'copy to slave' plugin expects it (e2e-test-<worker> will
-   // copy the file from here to each worker machine).
+   // each of 10 workers.  so the total splits capacity is 40.
+   // We put this in the location where the 'copy to slave' plugin
+   // expects it (e2e-test-<worker> will copy the file from here
+   // to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
    // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
@@ -339,10 +347,8 @@ def doTestOnWorker(workerNum) {
          // runsmoketests.py should normally produce these files
          // even when it returns a failure rc (due to some test
          // or other failing).
-         if (firstSplit <= lastSplit) {
-             stash(includes: "test-results.*.pickle",
-               name: "results ${workerNum}");
-         }
+         stash(includes: "test-results.*.pickle",
+         name: "results ${workerNum}");
       }
    }
 }
