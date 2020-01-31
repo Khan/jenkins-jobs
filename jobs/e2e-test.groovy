@@ -171,10 +171,11 @@ JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
 
+// Set the number of tests split for the workers to run.
+NUM_TEST_SPLITS = -1;
+
 // Set to true once master has run setup, so graphql/android tests can begin.
 HAVE_RUN_SETUP = false;
-// Set to true once we have stashed the list of tests for the workers to run.
-HAVE_STASHED_TESTS = false;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
@@ -240,27 +241,24 @@ def _determineTests() {
    }
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
-      def num_worker_machine_needed = Math.ceil(allSplits.size()/JOBS_PER_WORKER)
-      if (num_worker_machine_needed != NUM_WORKER_MACHINES) {
-         echo("Got ${num_worker_machine_needed} worker number instead of " +
-              "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
-         // Make it so we only try to run tests on this many workers,
-         // since we don't have work for the other workers to do!
-         NUM_WORKER_MACHINES = num_worker_machine_needed;
-      }
       for (def i = 0; i < allSplits.size(); i++) {
          writeFile(file: "test-splits.${i}.txt",
                    text: allSplits[i]);
       }
       stash(includes: "test-splits.*.txt", name: "splits");
-      // Now tell the test workers to get to work!
-      HAVE_STASHED_TESTS = true;
+      // Now set the number of test splits
+      NUM_TEST_SPLITS = allSplits.size();
    }
 }
 
 def _runOneTest(splitId) {
    // TODO(dhruv): share these flags with `determineTests` to ensure we're
    // using the same config in both places.
+   if (!fileExists("../test-splits.${splitId}.txt")) {
+      // if not test-split file in worker, do nothing
+      return;
+   }
+
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
                "--url=${E2E_URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
@@ -308,13 +306,13 @@ def doTestOnWorker(workerNum) {
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
-      waitUntil({ HAVE_STASHED_TESTS });
+      waitUntil({ NUM_TEST_SPLITS >= 0 });
 
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
       unstash("splits");
       def firstSplit = workerNum * JOBS_PER_WORKER;
-      def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+      def lastSplit = Math.min(firstSplit + JOBS_PER_WORKER, NUM_TEST_SPLITS) - 1;
 
       def parallelTests = ["failFast": params.FAILFAST];
       for (def j = firstSplit; j <= lastSplit; j++) {
@@ -341,8 +339,10 @@ def doTestOnWorker(workerNum) {
          // runsmoketests.py should normally produce these files
          // even when it returns a failure rc (due to some test
          // or other failing).
-         stash(includes: "test-results.*.pickle",
+         if (firstSplit <= lastSplit) {
+             stash(includes: "test-results.*.pickle",
                name: "results ${workerNum}");
+         }
       }
    }
 }
@@ -402,7 +402,7 @@ def analyzeResults() {
       }
 
       def numPickleFileErrors = 0;
-      for (def i = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; i++) {
+      for (def i = 0; i <  NUM_TEST_SPLITS; i++) {
          if (!fileExists("test-results.${i}.pickle")) {
             numPickleFileErrors++;
          }
