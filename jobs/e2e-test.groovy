@@ -347,17 +347,8 @@ def doTestOnWorker(workerNum) {
          // runsmoketests.py should normally produce these files
          // even when it returns a failure rc (due to some test
          // or other failing).
-         // If there is no test results in one worker, create a dummy
-         // result to stash, and will ignore it after unstash.
-         def exitCode = sh script: 'ls test-results.*.pickle', returnStatus: true
-         if (exitCode == 0) {
-            stash(includes: "test-results.*.pickle",
-            name: "results ${workerNum}");
-         }else {
-            sh("touch dummy-${workerNum}.txt");
-            stash(includes: "dummy-${workerNum}.txt",
-            name: "results ${workerNum}");
-         }
+         stash(includes: "test-results.*.pickle",
+         name: "results ${workerNum}", allowEmpty: true);
       }
    }
 }
