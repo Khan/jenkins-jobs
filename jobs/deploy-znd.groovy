@@ -136,6 +136,22 @@ def determineVersion() {
 
    def date = new Date().format("yyMMdd");
    VERSION = "znd-${date}-${_currentUser()}-${params.VERSION}";
+
+   // DNS has a limit of 63 bytes per hostname-component.  This
+   // version can yield hostname-components like
+   // `$VERSION-dot-<service>-dot-khan-academy`, so we need to
+   // make sure that that is always <64 chars.  The biggest
+   // service-name we have is `activation-reporting`.
+   //
+   // Note that the issue we're trying to protect against is your znd
+   // making an inter-service call to another service.  So even if
+   // you're not deploying activation-reporting yourself, your code
+   // may want to talk to the activation-reporting service, and we
+   // need to make sure that when it does the hostname isn't too long.
+   if ("${VERSION}-dot-activation-reporting-dot-khan-academy".length() > 63) {
+      notify.fail("Your version-name is too long for DNS! " +
+                  "Pick a shorter VERSION");
+   }
 }
 
 
