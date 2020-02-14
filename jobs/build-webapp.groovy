@@ -83,6 +83,7 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
   <li> <b>content-editing</b>: webapp's services/content-editing/. </li>
+  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -187,7 +188,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 DEPLOYER_USERNAME = null;
 
 // The list of services to which to deploy: currently a subset of
-// ["dynamic", "static", "kotlin-routes", "content-editing"].
+// ["dynamic", "static", "kotlin-routes", "content-editing", "course-editing"].
 SERVICES = null;
 
 // The "permalink" url used to access code deployed.
@@ -502,7 +503,7 @@ def deployToService(service) {
 // this, and let kotlin services default to the shared deployToService again.
 def deployToKotlinServices() {
    for (service in SERVICES) {
-      if (service in ['content-editing', 'kotlin-routes']) {
+      if (service in ['content-editing', 'course-editing', 'kotlin-routes']) {
          deployToService(service);
       }
    }
@@ -523,7 +524,8 @@ def deployAndReport() {
          // These two services are a bit more complex and are handled
          // specially in deployToGAE and deployToGCS.
          if (!(service in [
-               'dynamic', 'static', 'content-editing', 'kotlin-routes'])) {
+               'dynamic', 'static', 'content-editing', 'course-editing',
+               'kotlin-routes'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
