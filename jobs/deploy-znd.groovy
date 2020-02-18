@@ -125,7 +125,7 @@ def _currentUser() {
       // TODO(benkraft): Something more principled.  These days, we could
       // probably remove the (date and) user entirely, and store that data in
       // the buildmaster.
-      return env.BUILD_USER_ID.split("@")[0][:8];
+      return env.BUILD_USER_ID.split("@")[0][0..<8];
    }
 }
 
