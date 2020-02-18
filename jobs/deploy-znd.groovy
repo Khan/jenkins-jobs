@@ -120,7 +120,12 @@ EMOJI = ':monkey_face:';
 def _currentUser() {
    wrap([$class: 'BuildUser']) {
       // It seems like BUILD_USER_ID is typically an email address.
-      return env.BUILD_USER_ID.split("@")[0];
+      // We take the first 8 characters -- that makes sure you have at least
+      // one left for the version name (see determineVersion below).
+      // TODO(benkraft): Something more principled.  These days, we could
+      // probably remove the (date and) user entirely, and store that data in
+      // the buildmaster.
+      return env.BUILD_USER_ID.split("@")[0][:8];
    }
 }
 
