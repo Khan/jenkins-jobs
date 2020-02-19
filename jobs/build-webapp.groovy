@@ -187,8 +187,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
 
-// The list of services to which to deploy: currently a subset of
-// ["dynamic", "static", "kotlin-routes", "content-editing", "course-editing"].
+// The list of services to which to deploy.
 SERVICES = null;
 
 // The "permalink" url used to access code deployed.
