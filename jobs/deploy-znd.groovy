@@ -35,6 +35,22 @@ extremely short, especially if your username is long and/or you are
 deploying non-default modules!</i>""",
     ""
 
+).addStringParam(
+    "SERVICES",
+    """<p>A comma-separated list of services we wish to deploy (see below for
+options), or the special value "auto", which says to choose the services to
+deploy automatically based on what files have changed.  For example, you might
+specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+
+<p>Here are the services:</p>
+<ul>
+  <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
+  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
+  <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
+  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
+</ul> """,
+    "dynamic,static"
+
 ).addBooleanParam(
     "SKIP_I18N",
     "If set, do not build translated versions of the webapp content.",
@@ -42,21 +58,6 @@ deploying non-default modules!</i>""",
 
 // TODO(benkraft): Modify this script to think in terms of services,
 // like build-webapp does, if we ever have znds for other services.
-).addBooleanParam(
-    "DEPLOYING_STATIC",
-    """If set, deploy the static content at GIT_REVISION (js files, etc) to
-GCS. Otherwise, this deploy will re-use the static content that is
-currently live on the site.""",
-    true
-
-).addBooleanParam(
-    "DEPLOYING_DYNAMIC",
-    """If set, deploy the dynamic content at GIT_REVISION (py files, etc) to
-GAE. Otherwise, this deploy will only deploy static content to GCS and
-<code>MODULES</code> will be ignored.  If you uncheck this, you can
-access your znd static content at
-<code>https://static-&lt;version&gt;.khanacademy.org</code>""",
-    true
 
 ).addStringParam(
     "MODULES",
@@ -238,6 +239,32 @@ def deployToGCS() {
    }
 }
 
+// This should be called from within a node().
+def deployToService(service) {
+   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+      dir("webapp") {
+         exec(["make", "-C", "services/${service}", "deploy",
+               "ALREADY_RAN_TESTS=1",
+               "DEPLOY_VERSION=${NEW_VERSION}"]);
+      }
+   }
+}
+
+
+// This should be called from within a node().
+// HACK: This is a workaround to manage a bug in our current deploy system,
+// where running gradlew in two services in parallel causes a conflict in
+// the cache dir (See INFRA-3594 for full details). Here we're careful to
+// build kotlin services in series. Once this bug is resolved, we can remove
+// this, and let kotlin services default to the shared deployToService again.
+def deployToKotlinServices() {
+   for (service in SERVICES) {
+      if (service in ['course-editing', 'kotlin-routes']) {
+         deployToService(service);
+      }
+   }
+}
+
 // TODO(colin): these messaging functions are mostly duplicated from
 // deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
 // an alertlib (or perhaps just slack messaging) wrapper, since similar
@@ -296,19 +323,54 @@ def deploy() {
          sh("make deps");
       }
 
-      parallel(
-         "deploy-to-gae": { deployToGAE(); },
-         "deploy-to-gcs": { deployToGCS(); },
-         "failFast": true,
-      );
+      def shouldDeployArgs = ["deploy/should_deploy.py"];
+      def services = [];
 
-      def services = []
-      if (params.DEPLOYING_STATIC) {
-         services += ["static"];
+      if (params.SERVICES == "auto") {
+            try {
+               SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
+            } catch(e) {
+               notify.fail("Automatic detection of what to deploy failed. " +
+                           "You can likely work around this by setting " +
+                           "SERVICES on your deploy; see " +
+                           "${env.BUILD_URL}rebuild for documentation, and " +
+                           "`sun: help flags` for how to set it.  If you " +
+                           "aren't sure, ask dev-support for help!");
+            }
+         } else {
+            SERVICES = params.SERVICES.split(",");
       }
-      if (params.DEPLOYING_DYNAMIC) {
-         services += ["dynamic (modules: ${params.MODULES})"];
+      def jobs = [];
+
+      for (service in SERVICES) {
+         switch (service) {
+            case "dynamic":
+               jobs["deploy-to-gae"] = { deployToGAE(); };
+               break;
+
+            case "static":
+               jobs["deploy-to-gcs"] = { deployToGCS(); };
+               break;
+
+            case ( "kotlin-routes" || "course-editing" ):
+               jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
+               break;
+
+            // These two services are a bit more complex and are handled
+            // specially in deployToGAE and deployToGCS.
+            default:
+               // We need to define a new variable so that we don't pass the loop
+               // variable into the closure: it may have changed before the
+               // closure executes.  See for example
+               // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
+               def serviceAgain = service;
+               jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
+               break;
+         }
       }
+
+      parallel(jobs);
+
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
