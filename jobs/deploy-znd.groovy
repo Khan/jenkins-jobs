@@ -94,6 +94,11 @@ znd, consider setting this to false since they are more expensive instances.""",
     true
 
 ).addStringParam(
+   "SLACK_CHANNEL",
+   "The slack channel to which to send failure alerts.",
+   "#1s-and-0s-deploys"
+
+).addStringParam(
     "PHAB_REVISION",
     """The Phabricator revision ID for this build. This field should only be
 defined if the znd-deploy originates from the Phabricator Herald Build Plan 6.
@@ -113,7 +118,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 VERSION = null;
 
 // This is hard-coded.
-SLACK_CHANNEL = "#1s-and-0s-deploys";
 CHAT_SENDER =  'Mr Monkey';
 EMOJI = ':monkey_face:';
 
@@ -190,7 +194,7 @@ def deployToGAE() {
                "--version=${VERSION}",
                "--modules=${params.MODULES}",
                "--no-browser", "--no-up",
-               "--slack-channel=${SLACK_CHANNEL}",
+               "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
    args += params.PRIME ? [] : ["--no-priming"];
@@ -222,7 +226,7 @@ def deployToGCS() {
    if (params.DEPLOYING_DYNAMIC) {
       args += ["--slack-channel=", "--deployer-username="];
    } else {
-      args += ["--slack-channel=${SLACK_CHANNEL}",
+      args += ["--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
    }
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
@@ -284,7 +288,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
         "${_currentUser()}: ${rawMsg}", interpolationArgs);
 
     def args = ["jenkins-jobs/alertlib/alert.py",
-                "--slack=${SLACK_CHANNEL}",
+                "--slack=${params.SLACK_CHANNEL}",
                 "--chat-sender=${CHAT_SENDER}",
                 "--icon-emoji=${EMOJI}",
                 "--slack-simple-message"];
@@ -395,7 +399,7 @@ def deploy() {
 // We use a separate worker type, identical to build-worker, so znds don't make
 // a mess of our build caches for the main deploy.
 onWorker('znd-worker', '3h') {
-   notify([slack: [channel: SLACK_CHANNEL,
+   notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: CHAT_SENDER,
                    emoji: EMOJI,
                    // We don't need to notify on success because deploy.sh does.
