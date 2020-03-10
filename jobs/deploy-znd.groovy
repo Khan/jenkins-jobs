@@ -325,25 +325,26 @@ def deploy() {
       dir("webapp") {
          clean(params.CLEAN);
          sh("make deps");
+
+         def shouldDeployArgs = ["deploy/should_deploy.py"];
+         def services = [];
+
+         if (params.SERVICES == "auto") {
+               try {
+                  SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
+               } catch(e) {
+                  notify.fail("Automatic detection of what to deploy failed. " +
+                              "You can likely work around this by setting " +
+                              "SERVICES on your deploy; see " +
+                              "${env.BUILD_URL}rebuild for documentation, and " +
+                              "`sun: help flags` for how to set it.  If you " +
+                              "aren't sure, ask dev-support for help!");
+               }
+            } else {
+               SERVICES = params.SERVICES.split(",");
+         }
       }
 
-      def shouldDeployArgs = ["deploy/should_deploy.py"];
-      def services = [];
-
-      if (params.SERVICES == "auto") {
-            try {
-               SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
-            } catch(e) {
-               notify.fail("Automatic detection of what to deploy failed. " +
-                           "You can likely work around this by setting " +
-                           "SERVICES on your deploy; see " +
-                           "${env.BUILD_URL}rebuild for documentation, and " +
-                           "`sun: help flags` for how to set it.  If you " +
-                           "aren't sure, ask dev-support for help!");
-            }
-         } else {
-            SERVICES = params.SERVICES.split(",");
-      }
       def jobs = [];
 
       for (service in SERVICES) {
