@@ -117,6 +117,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // The full exact version-name we will use.
 VERSION = null;
 
+// The list of services to which to deploy.
+SERVICES = null;
+
 // This is hard-coded.
 CHAT_SENDER =  'Mr Monkey';
 EMOJI = ':monkey_face:';
@@ -187,7 +190,7 @@ def deployedUrl(def module) {
 
 // This should be called from within a node().
 def deployToGAE() {
-   if (!params.DEPLOYING_DYNAMIC) {
+   if ("dynamic" not in SERVICES) {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
@@ -219,11 +222,11 @@ def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", VERSION];
-   if (!params.DEPLOYING_STATIC) {
+   if ("static" not in SERVICES)
       args += ["--copy-from=default"];
    }
    // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
-   if (params.DEPLOYING_DYNAMIC) {
+   if ("dynamic" in SERVICES) {
       args += ["--slack-channel=", "--deployer-username="];
    } else {
       args += ["--slack-channel=${params.SLACK_CHANNEL}",
@@ -249,7 +252,7 @@ def deployToService(service) {
       dir("webapp") {
          exec(["make", "-C", "services/${service}", "deploy",
                "ALREADY_RAN_TESTS=1",
-               "DEPLOY_VERSION=${NEW_VERSION}"]);
+               "DEPLOY_VERSION=${{VERSION}}"]);
       }
    }
 }
@@ -327,7 +330,6 @@ def deploy() {
          sh("make deps");
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
-         def services = [];
 
          if (params.SERVICES == "auto") {
                try {
@@ -345,20 +347,24 @@ def deploy() {
          }
       }
 
-      def jobs = [];
+      echo("Znd Deploying to the following services: ${SERVICES.join(', ')}");
+      def jobs = [:]
 
       for (service in SERVICES) {
          switch (service) {
             case "dynamic":
                jobs["deploy-to-gae"] = { deployToGAE(); };
+               println("dynamic");
                break;
 
             case "static":
                jobs["deploy-to-gcs"] = { deployToGCS(); };
+               println("static");
                break;
 
             case ( "kotlin-routes" || "course-editing" ):
                jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
+               println("kotlin-routes");
                break;
 
             // These two services are a bit more complex and are handled
@@ -370,9 +376,13 @@ def deploy() {
                // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
                def serviceAgain = service;
                jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
+               println("default");
                break;
          }
       }
+      jobs = ["failFast": true];
+      println("debug 3: start the job");
+
 
       parallel(jobs);
 
@@ -382,7 +392,7 @@ def deploy() {
          [deployUrl: deployedUrl(""),
           version: VERSION,
           branches: params.GIT_REVISION,
-          services: services.join(', ') ?: 'nothing (?!)',
+          services: SERVICES.join(', ') ?: 'nothing (?!)',
           logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
                     "project=khan-academy&resource=gae_app%2F" +
                     "version_id%2F" + VERSION)]);
