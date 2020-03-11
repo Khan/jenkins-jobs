@@ -42,12 +42,13 @@ options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed.  For example, you might
 specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 
-<p>Here are the services:</p>
+<p>Here are some services:</p>
 <ul>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
   <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
+  <li> <b>donations</b>: webapp's services/donations/. </li>
 </ul> """,
     "dynamic,static"
 
