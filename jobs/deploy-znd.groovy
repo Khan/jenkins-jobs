@@ -190,7 +190,7 @@ def deployedUrl(def module) {
 
 // This should be called from within a node().
 def deployToGAE() {
-   if ("dynamic" not in SERVICES) {
+   if (!("dynamic" in SERVICES)) {
       return;
    }
    def args = ["deploy/deploy_to_gae.py",
@@ -222,7 +222,7 @@ def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
    def args = ["deploy/deploy_to_gcs.py", VERSION];
-   if ("static" not in SERVICES)
+   if (!("static" in SERVICES)) {
       args += ["--copy-from=default"];
    }
    // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
