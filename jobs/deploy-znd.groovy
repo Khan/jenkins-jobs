@@ -354,17 +354,14 @@ def deploy() {
          switch (service) {
             case "dynamic":
                jobs["deploy-to-gae"] = { deployToGAE(); };
-               println("dynamic");
                break;
 
             case "static":
                jobs["deploy-to-gcs"] = { deployToGCS(); };
-               println("static");
                break;
 
             case ( "kotlin-routes" || "course-editing" ):
                jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
-               println("kotlin-routes");
                break;
 
             // These two services are a bit more complex and are handled
@@ -376,16 +373,12 @@ def deploy() {
                // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
                def serviceAgain = service;
                jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
-               println("default");
                break;
          }
       }
-      jobs = ["failFast": true];
-      println("debug 3: start the job");
-
+      jobs["failFast"] = true;
 
       parallel(jobs);
-
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
