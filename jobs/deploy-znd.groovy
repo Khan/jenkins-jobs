@@ -333,18 +333,17 @@ def deploy() {
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
          if (params.SERVICES == "auto") {
-               try {
-                  SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
-               } catch(e) {
-                  notify.fail("Automatic detection of what to deploy failed. " +
-                              "You can likely work around this by setting " +
-                              "SERVICES on your deploy; see " +
-                              "${env.BUILD_URL}rebuild for documentation, and " +
-                              "`sun: help flags` for how to set it.  If you " +
-                              "aren't sure, ask dev-support for help!");
-               }
-            } else {
-               SERVICES = params.SERVICES.split(",");
+            try {
+               SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
+            } catch(e) {
+               notify.fail("Automatic detection of what to deploy failed. " +
+                           "You can likely work around this by setting " +
+                           "SERVICES on your deploy by a comma-separated " +
+                           "list of services. For instance: " +
+                           "'dynamic,static,donations,kotlin-routes'");
+            }
+         } else {
+            SERVICES = params.SERVICES.split(",");
          }
       }
 
@@ -361,12 +360,12 @@ def deploy() {
                jobs["deploy-to-gcs"] = { deployToGCS(); };
                break;
 
+            // These two services are a bit more complex and are handled
+            // specially in deployToGAE and deployToGCS.
             case ( "kotlin-routes" || "course-editing" ):
                jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
                break;
 
-            // These two services are a bit more complex and are handled
-            // specially in deployToGAE and deployToGCS.
             default:
                // We need to define a new variable so that we don't pass the loop
                // variable into the closure: it may have changed before the
