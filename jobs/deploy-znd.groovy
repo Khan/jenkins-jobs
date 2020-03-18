@@ -179,7 +179,7 @@ def determineVersion() {
 // ignored for static-only deploys as those respect dispatch.yaml rules as
 // normal.
 def deployedUrl(def module) {
-   if (!params.DEPLOYING_DYNAMIC) {
+   if (!("dynamic" in SERVICES)) {
       return "https://static-${VERSION}.khanacademy.org";
    } else if (module) {
       return ("https://${VERSION}-dot-${module}-dot-khan-academy.appspot.com");
