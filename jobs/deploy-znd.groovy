@@ -175,13 +175,10 @@ def determineVersion() {
 
 
 // The URL for this znd.  Optionally, for dynamic deploys, a module may be
-// passed (e.g. "vm"), which will be included in the URL; the argument is
-// ignored for static-only deploys as those respect dispatch.yaml rules as
-// normal.
+// passed (e.g. "vm"), which will be included in the URL; Otherwise
+// the url will be version-dot-khan-academy.appspot.com
 def deployedUrl(def module) {
-   if (!params.DEPLOYING_DYNAMIC) {
-      return "https://static-${VERSION}.khanacademy.org";
-   } else if (module) {
+   if (module) {
       return ("https://${VERSION}-dot-${module}-dot-khan-academy.appspot.com");
    } else {
       return "https://${VERSION}-dot-khan-academy.appspot.com";
