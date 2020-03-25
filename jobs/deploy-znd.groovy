@@ -132,7 +132,7 @@ def _currentUser() {
       def username = env.BUILD_USER_ID.split("@")[0]
       if (username.size() > 8) {
          // We take the first 8 characters -- that makes sure you have at least
-         // one left for the version name (see determineVersion below).
+         // five left for the version name (see determineVersion below).
          // TODO(benkraft): Something more principled.  These days, we could
          // probably remove the (date and) user entirely, and store that data
          // in the buildmaster.
@@ -160,14 +160,14 @@ def determineVersion() {
    // version can yield hostname-components like
    // `$VERSION-dot-<service>-dot-khan-academy`, so we need to
    // make sure that that is always <64 chars.  The biggest
-   // service-name we have is `activation-reporting`.
+   // service-name we have is `progress-reports`.
    //
    // Note that the issue we're trying to protect against is your znd
    // making an inter-service call to another service.  So even if
-   // you're not deploying activation-reporting yourself, your code
-   // may want to talk to the activation-reporting service, and we
+   // you're not deploying progress-reports yourself, your code
+   // may want to talk to the progress-reports service, and we
    // need to make sure that when it does the hostname isn't too long.
-   if ("${VERSION}-dot-activation-reporting-dot-khan-academy".length() > 63) {
+   if ("${VERSION}-dot-progress-reports-dot-khan-academy".length() > 63) {
       notify.fail("Your version-name is too long for DNS! " +
                   "Pick a shorter VERSION");
    }
