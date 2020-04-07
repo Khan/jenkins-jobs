@@ -1,4 +1,4 @@
-// Groovy script to deploy to react-render-dot-khanacademy.appspot.com
+// Groovy script to deploy to react-render-dot-khan-academy.appspot.com
 // from master on https://github.com/Khan/react-render-server.
 
 @Library("kautils")
