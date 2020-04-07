@@ -1,4 +1,4 @@
-// Groovy script to deploy a znd to khan-academy.appspot.com.
+// Groovy script to deploy a znd to khanacademy.org
 //
 // A 'znd' is a non-default deploy -- a deploy of webapp that is
 // never intended to be made the default for users.  It can be used
@@ -170,18 +170,6 @@ def determineVersion() {
    if ("${VERSION}-dot-progress-reports-dot-khan-academy".length() > 63) {
       notify.fail("Your version-name is too long for DNS! " +
                   "Pick a shorter VERSION");
-   }
-}
-
-
-// The URL for this znd.  Optionally, for dynamic deploys, a module may be
-// passed (e.g. "vm"), which will be included in the URL; Otherwise
-// the url will be version-dot-khan-academy.appspot.com
-def deployedUrl(def module) {
-   if (module) {
-      return ("https://${VERSION}-dot-${module}-dot-khan-academy.appspot.com");
-   } else {
-      return "https://${VERSION}-dot-khan-academy.appspot.com";
    }
 }
 
@@ -379,7 +367,7 @@ def deploy() {
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
-         [deployUrl: deployedUrl(""),
+         [deployUrl: "https://prod-${VERSION}.khanacademy.org",
           version: VERSION,
           branches: params.GIT_REVISION,
           services: SERVICES.join(', ') ?: 'nothing (?!)',

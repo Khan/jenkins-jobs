@@ -186,7 +186,7 @@ SERVICES = null;
 ROLLBACK_TO = null;
 
 // The "permalink" url used to access code deployed.
-// (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
+// (That is, prod-version.khanacademy.org, not www.khanacademy.org).
 DEPLOY_URL = null;
 
 // The deploy-version.  This will be the new service-version for any
@@ -339,7 +339,7 @@ def mergeFromMasterAndInitializeGlobals() {
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-         DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
+         DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
          GIT_TAG = "gae-${NEW_VERSION}";
 
          // Test coverage in webapp/deploy/git_tags_test.py DeployTagsTest
