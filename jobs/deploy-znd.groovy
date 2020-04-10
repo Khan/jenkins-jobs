@@ -270,6 +270,22 @@ def deployToKotlinServices() {
    }
 }
 
+// When we deploy a change to a service, it may change the overall federated
+// graphql schema. We store this overall schema in a version labeled json file
+// stored on GCS.
+//
+// We only _really_ need to do this if the schema changed, so we could skip it
+// for static deploys or for service deploys that don't change the schema, but
+// uploading the schema here takes less than a second, so it doesn't hurt to
+// just do it always.
+def deployToGatewayConfig() {
+   dir("webapp") {
+       exec(["make", "-C", "services/graphql-gateway",
+             "deploy-gateway-config",
+             "DEPLOY_VERSION=${VERSION}"]);
+   }
+}
+
 // TODO(colin): these messaging functions are mostly duplicated from
 // deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
 // an alertlib (or perhaps just slack messaging) wrapper, since similar
@@ -373,6 +389,7 @@ def deploy() {
                break;
          }
       }
+      jobs["deploy-to-gateway-config"] = { deployToGatewayConfig(); };
       jobs["failFast"] = true;
 
       parallel(jobs);
