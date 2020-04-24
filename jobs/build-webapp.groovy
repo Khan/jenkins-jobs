@@ -190,7 +190,7 @@ DEPLOYER_USERNAME = null;
 SERVICES = null;
 
 // The "permalink" url used to access code deployed.
-// (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
+// (That is, prod-version.khanacademy.org, not www.khanacademy.org).
 DEPLOY_URL = null;
 
 // The version-name corresponding to COPY_FROM_REVISION_VERSION
@@ -348,13 +348,14 @@ def mergeFromMasterAndInitializeGlobals() {
                                    SERVICES.join(', ') ?: "tools-only");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-         // Normally, the deploy url will be the new version's appspot URL --
-         // we use these URLs for testing even for static versions.  But, if we
-         // have a tools-only version, there is no such version anywhere on app
-         // engine, and the URL won't work, so we fall back to the base
-         // revision (i.e. either COPY_FROM_REVISION_VERSION or the live default).
-         // Either way, we use an appspot URL, for consistency and to make sure
-         // the appspot URL cases in e2e-test get tested.
+         // Normally, the deploy url will be the new version's
+         // prod-VERSION.khanacademy.org URL -- we use these URLs for testing
+         // even for static versions.  But, if we have a tools-only version,
+         // there is no such version anywhere on app engine, and the URL won't
+         // work, so we fall back to the base revision (i.e. either
+         // COPY_FROM_REVISION_VERSION or the live default).  Either way, we
+         // use a prod-VERSION URL, for consistency and to make sure the
+         // prod-VERSION URL cases in e2e-test get tested.
          def urlVersion = NEW_VERSION;
          if (!SERVICES) {
             if (COPY_FROM_REVISION_VERSION) {
@@ -367,7 +368,7 @@ def mergeFromMasterAndInitializeGlobals() {
                urlVersion = urlVersions[-1];
             }
          }
-         DEPLOY_URL = "https://${urlVersion}-dot-khan-academy.appspot.com";
+         DEPLOY_URL = "https://prod-${urlVersion}.khanacademy.org";
       }
    }
 }
