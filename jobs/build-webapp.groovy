@@ -400,7 +400,6 @@ def deployToGAE() {
          // every file it's compiling, and that can easily be
          // thousands of files.  4096 is as much as linux allows.
          // We also use python -u to get maximally unbuffered output.
-         // TODO(csilvers): do we need secrets for this part?
          sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
@@ -409,30 +408,23 @@ def deployToGAE() {
 
 // This should be called from within a node().
 def deployToGCS() {
-   // We always "deploy" to gcs, even if it's not in SERVICES, though
-   // if it's not then the gcs-deploy is very simple.
+   if (!("static" in SERVICES)) {
+      return;
+   }
    def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
                // Same as for deploy_to_gae, we suppress the changelog for now.
-               "--suppress-changelog"];
-   if (!("static" in SERVICES)) {
-      if (COPY_FROM_REVISION_VERSION) {
-         args += ["--copy-from=${COPY_FROM_REVISION_VERSION}"];
-      } else {
-         args += ["--copy-from=default"];
-      }
-   } else {
-       // Since we're deploying new static code, we should upload the updated
-       // sourcemap files to our error reporting system
-       args += ["--upload-sourcemaps"]
-   }
+               "--suppress-changelog",
+               // Since we're deploying new static code, we should upload the
+               // updated sourcemap files to our error reporting system
+               "--upload-sourcemaps"];
 
    args += params.SLACK_THREAD ? [
       "--slack-thread=${params.SLACK_THREAD}"] : [];
    args += params.FORCE ? ["--force"] : [];
 
-   withSecrets() {     // TODO(csilvers): do we actually need secrets?
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
@@ -484,7 +476,7 @@ def deployToGatewayConfig() {
 
 // This should be called from within a node().
 def deployToService(service) {
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+   withSecrets() {     // TODO(benkraft): do we actually need Python secrets?
       dir("webapp") {
          exec(["make", "-C", "services/${service}", "deploy",
                "ALREADY_RAN_TESTS=1",
