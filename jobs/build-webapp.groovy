@@ -61,16 +61,6 @@ new Setup(steps
     ""
 
 ).addStringParam(
-    "COPY_FROM_REVISION",
-    """<p>Use this revision when copying static or dynamic version names.</p>
-
-    <p>For the most part, this will be the same as BASE_REVISION, because
-    most revisions will typically have a valid dynamic and static version to
-    reference. However, in the case that the BASE_REVISION was a tools-only
-    deploy, this will be the most recent non-tools-only revision.</p>""",
-    ""
-
-).addStringParam(
     "SERVICES",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
@@ -193,10 +183,6 @@ SERVICES = null;
 // (That is, prod-version.khanacademy.org, not www.khanacademy.org).
 DEPLOY_URL = null;
 
-// The version-name corresponding to COPY_FROM_REVISION_VERSION
-// (only set if COPY_FROM_REVISION is set).
-COPY_FROM_REVISION_VERSION = null;
-
 // The new version number (for whichever services will be deployed).
 NEW_VERSION = null;
 
@@ -314,13 +300,6 @@ def mergeFromMasterAndInitializeGlobals() {
             shouldDeployArgs += ["--from-commit", params.BASE_REVISION]
          }
 
-         // We also set the COPY_FROM_REVISION_VERSION, for later.
-         if (params.COPY_FROM_REVISION) {
-            COPY_FROM_REVISION_VERSION = exec.outputOf(
-               ["make", "gae_version_name",
-                "VERSION_NAME_GIT_REVISION=${params.COPY_FROM_REVISION}"]);
-         }
-
          if (params.SERVICES == "auto") {
             try {
                SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
@@ -348,27 +327,15 @@ def mergeFromMasterAndInitializeGlobals() {
                                    SERVICES.join(', ') ?: "tools-only");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-         // Normally, the deploy url will be the new version's
-         // prod-VERSION.khanacademy.org URL -- we use these URLs for testing
-         // even for static versions.  But, if we have a tools-only version,
-         // there is no such version anywhere on app engine, and the URL won't
-         // work, so we fall back to the base revision (i.e. either
-         // COPY_FROM_REVISION_VERSION or the live default).  Either way, we
-         // use a prod-VERSION URL, for consistency and to make sure the
+         // We use prod-VERSION.khanacademy.org no matter which services were
+         // deployed -- each service implements "requested or default"
+         // semantics (described further in ADR-296) such that this will do
+         // what we want even if that version does not exist.  In fact, for
+         // tools-only deploys, this version won't exist on any service, so it
+         // will just go to all the default versions.  But we still use the
+         // prod-VERSION URL, for consistency and to make sure the
          // prod-VERSION URL cases in e2e-test get tested.
-         def urlVersion = NEW_VERSION;
-         if (!SERVICES) {
-            if (COPY_FROM_REVISION_VERSION) {
-               urlVersion = COPY_FROM_REVISION_VERSION;
-            } else {
-               def urlVersions = exec.outputOf(["deploy/current_version.py",
-                                                "--service", "dynamic"]
-                                               ).split("\n").sort();
-               // If there are multiple current versions, we grab the latest.
-               urlVersion = urlVersions[-1];
-            }
-         }
-         DEPLOY_URL = "https://prod-${urlVersion}.khanacademy.org";
+         DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
       }
    }
 }
@@ -400,7 +367,6 @@ def deployToGAE() {
          // every file it's compiling, and that can easily be
          // thousands of files.  4096 is as much as linux allows.
          // We also use python -u to get maximally unbuffered output.
-         // TODO(csilvers): do we need secrets for this part?
          sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
@@ -409,30 +375,23 @@ def deployToGAE() {
 
 // This should be called from within a node().
 def deployToGCS() {
-   // We always "deploy" to gcs, even if it's not in SERVICES, though
-   // if it's not then the gcs-deploy is very simple.
+   if (!("static" in SERVICES)) {
+      return;
+   }
    def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
                // Same as for deploy_to_gae, we suppress the changelog for now.
-               "--suppress-changelog"];
-   if (!("static" in SERVICES)) {
-      if (COPY_FROM_REVISION_VERSION) {
-         args += ["--copy-from=${COPY_FROM_REVISION_VERSION}"];
-      } else {
-         args += ["--copy-from=default"];
-      }
-   } else {
-       // Since we're deploying new static code, we should upload the updated
-       // sourcemap files to our error reporting system
-       args += ["--upload-sourcemaps"]
-   }
+               "--suppress-changelog",
+               // Since we're deploying new static code, we should upload the
+               // updated sourcemap files to our error reporting system
+               "--upload-sourcemaps"];
 
    args += params.SLACK_THREAD ? [
       "--slack-thread=${params.SLACK_THREAD}"] : [];
    args += params.FORCE ? ["--force"] : [];
 
-   withSecrets() {     // TODO(csilvers): do we actually need secrets?
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
@@ -484,7 +443,7 @@ def deployToGatewayConfig() {
 
 // This should be called from within a node().
 def deployToService(service) {
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
+   withSecrets() {     // TODO(benkraft): do we actually need Python secrets?
       dir("webapp") {
          exec(["make", "-C", "services/${service}", "deploy",
                "ALREADY_RAN_TESTS=1",
