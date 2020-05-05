@@ -329,7 +329,7 @@ def deploy() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make deps");
+         sh("make -B deps");  // force a remake of all deps all the time
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 

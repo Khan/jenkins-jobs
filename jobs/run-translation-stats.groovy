@@ -19,7 +19,7 @@ def runScript() {
 
     kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
     dir("webapp") {
-        sh("make deps")
+       sh("make -B deps");  // force a remake of all deps all the time
     }
 
     if (!locale) {
