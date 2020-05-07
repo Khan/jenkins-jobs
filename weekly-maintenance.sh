@@ -343,10 +343,24 @@ pngcrush() {
 
 
 clean_package_files() {
-    # Note: this can't be combined with the subshell below; we need to
-    # make sure it terminates *before* the pipe starts.
     ( cd webapp; go mod tidy; git add 'go.*' )
     jenkins-jobs/safe_git.sh commit_and_push webapp -a -m "Automatic cleanup of language package files"
+}
+
+
+update_caniuse() {
+    # The nodejs "caniuse" library starts complaining if it's more
+    # than a few months out of date.  To avoid that, let's auto-update
+    # it every week!  I follow the instructions at
+    #    https://github.com/facebook/create-react-app/issues/6708#issuecomment-488392836
+    (
+        cd webapp
+        # This deletes everything from the first "caniuse-lite" line
+        # to the following blank line, from yarn.lock.
+        sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
+        yarn upgrade caniuse-lite browserlist
+    )
+    jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" yarn.lock
 }
 
 
