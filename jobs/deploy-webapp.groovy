@@ -368,10 +368,6 @@ def mergeFromMasterAndInitializeGlobals() {
          for (def i = 0; i < SERVICES.size(); i++) {
             VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
          }
-         // We deploy a "copied" static version anytime we deploy dynamic.
-         if ("dynamic" in SERVICES) {
-            VERSION_DICT["static"] = NEW_VERSION;
-         }
       }
    }
 }
