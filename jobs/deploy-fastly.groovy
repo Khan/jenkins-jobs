@@ -77,7 +77,11 @@ def installDeps() {
 def deploy() {
    withTimeout('15m') {
       dir("webapp/services/fastly-khanacademy") {
-         sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+         // `make deploy` uses vt100 escape codes to color its diffs,
+         // let's make sure they show up properly.
+         ansiColor('xterm') {
+            sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+         }
       }
    }
 }
@@ -100,13 +104,20 @@ onMaster('30m') {
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      if (params.GIT_REVISION == "") {
+         notify.fail("Must specify a GIT_REVISION");
+      }
+
       stage("Installing deps") {
          installDeps();
       }
+
       stage("Deploying") {
          deploy();
       }
+
       input("Diff looks good?");
+
       stage("Setting default") {
          setDefault();
       }
