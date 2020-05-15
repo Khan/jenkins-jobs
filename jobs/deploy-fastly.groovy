@@ -116,6 +116,7 @@ onMaster('30m') {
          deploy();
       }
 
+      echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
       input("Diff looks good?");
 
       stage("Setting default") {
