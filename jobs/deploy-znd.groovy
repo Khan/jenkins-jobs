@@ -20,9 +20,7 @@ new Setup(steps
 
 ).addStringParam(
     "GIT_REVISION",
-    """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also
-possible: a commit-sha1 to deploy. Basically, this is passed to
-<code>git checkout GIT_REVISION</code>.""",
+    """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also possible: a commit-sha1 to deploy, or a tag like phabricator/diff/<id> (using the latest ID from the diff's "history" tab). Basically, this is passed to <code>git checkout GIT_REVISION</code>.""",
     ""
 
 ).addStringParam(
