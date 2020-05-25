@@ -96,7 +96,7 @@ def runTests() {
         _setupKhanalytics();
         _withPy3Venv() {
             dir("khanalytics-private/khanalytics") {
-                sh("../../khan-linter/bin/ka-lint --blacklist=yes");
+                sh("../../khan-linter/bin/ka-lint --blacklist=yes .");
                 dir("core/monitor/src") {
                     // TODO(colin): this should be `make flow` but that assumes
                     // flow is installed globally. Fix.
