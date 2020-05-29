@@ -75,6 +75,19 @@ def installDeps() {
 }
 
 
+// When deploying normal webapp services we merge in master to make sure
+// the latest code is running.  We should probably do that here too but
+// it's a lot of machinery, so instead we just enforce we're *at* master.
+def ensureUpToDate() {
+    dir("webapp") {
+        def master = exec.outputOf(["git", "rev-parse", "origin/master"]);
+        def base = exec.outputOf(["git", "merge-base", "origin/master", "HEAD"]);
+        if (master != base) {
+            fail("You must merge master into your branch before deploying it")
+        }
+    }
+}
+
 def deploy() {
    withTimeout('15m') {
       dir("webapp/services/fastly-khanacademy") {
@@ -114,6 +127,9 @@ onMaster('30m') {
       }
 
       stage("Deploying") {
+         if (params.TARGET == "prod") {
+            ensureUpToDate();
+         }
          deploy();
       }
 
