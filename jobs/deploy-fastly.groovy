@@ -31,10 +31,15 @@ new Setup(steps
 
 ).addStringParam(
     "GIT_REVISION",
-    """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also possible:
-a commit-sha1 to deploy, or a tag like phabricator/diff/<id> (using the latest ID
-from the diff's "history" tab or <code>revisionid-to-diffid.sh D#####</code>).
-Basically, this is passed to <code>git checkout GIT_REVISION</code>.""",
+    """<b>REQUIRED</b>. Usually: the name of a branch or commit to deploy.  If
+deploying to prod, <b>this must be ahead of master</b>: use the commit from
+your build (e.g. if the version is yymmdd-hhmm-ssssssssssss just use the
+ssssssssssss).
+
+Deploying to test, you can use any branch/commit.  Also possible: atag like
+phabricator/diff/<id> (using the latest ID from the diff's "history" tab or
+<code>revisionid-to-diffid.sh D#####</code>).  Basically, this is passed to
+<code>git checkout GIT_REVISION</code>.""",
     ""
 
 ).addChoiceParam(
