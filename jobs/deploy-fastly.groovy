@@ -83,7 +83,7 @@ def ensureUpToDate() {
         def master = exec.outputOf(["git", "rev-parse", "origin/master"]);
         def base = exec.outputOf(["git", "merge-base", "origin/master", "HEAD"]);
         if (master != base) {
-            fail("You must merge master into your branch before deploying it")
+            notify.fail("You must merge master into your branch before deploying it")
         }
     }
 }
