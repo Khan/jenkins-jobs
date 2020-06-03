@@ -19,7 +19,9 @@ new Setup(steps
 
 ).addStringParam(
     "ARCHIVEID",
-    """The archive file to download from GCS (LOCALE-ARCHIVEID.pofiles.tar.gz).""",
+    """The archive file to download from GCS.  The file downloaded will be:
+       https://console.cloud.google.com/storage/browser/ka_translations_archive/<LOCALE>/<LOCALE>-<ARCHIVEID>.pofiles.tar.gz
+    """,
     ""
 
 ).apply();
