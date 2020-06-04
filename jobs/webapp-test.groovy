@@ -88,11 +88,7 @@ API.""", ""
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
-   """How many worker machines to use.  This will function best
-when it's equal to the <code>Instance Cap</code> value for
-the <code>ka-test worker</code> ec2 setup at
-<a href=\"/configure\">the Jenkins configure page</a>.  You'll need
-to click on 'advanced' to see the instance cap.""",
+   """How many worker machines to use.""",
    onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addStringParam(
@@ -206,7 +202,7 @@ def _setupWebapp() {
 
    dir("webapp") {
       clean(params.CLEAN);
-      sh("make deps");
+      sh("make -B deps");  // force a remake of all deps all the time
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
    // so make sure we sync that to the latest version.
@@ -224,27 +220,17 @@ def _determineTests() {
 
    // This command expands directory arguments, and also filters out
    // tests that are not the right size.  Finally, it figures out splits.
+   // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
+   // the same config in both places.
    def runtestsCmd = ["tools/runtests.py",
                       "--max-size=${params.MAX_SIZE}",
                       "--test-file-glob=${params.TEST_FILE_GLOB}",
                       "--jobs=${NUM_WORKER_MACHINES}",
                       "--timing-db=genfiles/test-info.db",
                       "--dry-run",
-                      "--just-split"];
-
-   // TODO(csilvers): get rid of the `if` check, and just always add the
-   // flag, once all branches have merged in the new flag, definitely
-   // after 1 Dec 2019.
-   def runtestsHelp = exec.outputOf(["tools/runtests.py", "--help"]);
-   if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
-      // By overriding @skip_by_default, we can run "forwarding" tests
-      // like lint_test.py, that normal users would run via `make lint`.
-      runtestsCmd += ["--override-skip-by-default"];
-   } else {
-      // We have to specify all the tests to run explicitly.
-      runtestsCmd += [".", "testing.js_test", "testing.lint_test",
-                      "dev.flow_test"];
-   }
+                      "--just-split",
+                      "--override-skip-by-default",
+                     ];
 
    if (params.BASE_REVISION) {
       // Only run the tests that are affected by files that were
@@ -304,23 +290,16 @@ def doTestOnWorker(workerNum) {
       sh("rm -f test-results.*.pickle");
       unstash("splits");
 
+     // TODO(dhruv): share these flags with `_determineTests` to ensure we're
+     // using the same config in both places.
       try {
-         // TODO(csilvers): remove this block and just always include
-         // --override-skip-by-default after 1 Dec 2020.
-         def runtestsHelp = exec.outputOf(
-            ["webapp/tools/runtests.py", "--help"]);
-         def skipFlag = "";
-         if (runtestsHelp.indexOf("--override-skip-by-default") != -1) {
-            skipFlag = "--override-skip-by-default ";
-         }
-
          sh("cd webapp; " +
             // Say what machine we're on, to help with debugging
             "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
             "../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py " +
             "--test-file-glob=${params.TEST_FILE_GLOB} " +
-            skipFlag +
+            "--override-skip-by-default " +
             "--pickle " +
             "--pickle-file=../test-results.${workerNum}.pickle " +
             "--quiet --jobs=1 " +
@@ -413,7 +392,7 @@ def analyzeResults() {
                maxSizeParam = (
                   " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
             }
-            rerunCommand = "tools/runtests.py${maxSizeParam}"
+            rerunCommand = "tools/runtests.py${maxSizeParam} --override-skip-by-default"
             summarize_args = [
                "tools/test_pickle_util.py", "summarize-to-slack",
                "genfiles/test-results.pickle", params.SLACK_CHANNEL,

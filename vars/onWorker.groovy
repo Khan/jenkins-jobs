@@ -7,7 +7,7 @@
 // This no longer needs to be consistent across jobs, but
 // most jobs using the ka-test-ec2 workers use it by default.
 def defaultNumTestWorkerMachines() {
-   return 10;
+   return 20;
 }
 
 // label is the label of the node.  It should be one of the worker labels

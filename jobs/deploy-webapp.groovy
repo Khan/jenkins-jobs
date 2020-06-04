@@ -186,7 +186,7 @@ SERVICES = null;
 ROLLBACK_TO = null;
 
 // The "permalink" url used to access code deployed.
-// (That is, version-dot-khan-academy.appspot.com, not www.khanacademy.org).
+// (That is, prod-version.khanacademy.org, not www.khanacademy.org).
 DEPLOY_URL = null;
 
 // The deploy-version.  This will be the new service-version for any
@@ -304,7 +304,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make deps");
+         sh("make -B deps");  // force a remake of all deps all the time
 
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
@@ -339,7 +339,7 @@ def mergeFromMasterAndInitializeGlobals() {
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-         DEPLOY_URL = "https://${NEW_VERSION}-dot-khan-academy.appspot.com";
+         DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
          GIT_TAG = "gae-${NEW_VERSION}";
 
          // Test coverage in webapp/deploy/git_tags_test.py DeployTagsTest
@@ -367,10 +367,6 @@ def mergeFromMasterAndInitializeGlobals() {
          }
          for (def i = 0; i < SERVICES.size(); i++) {
             VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
-         }
-         // We deploy a "copied" static version anytime we deploy dynamic.
-         if ("dynamic" in SERVICES) {
-            VERSION_DICT["static"] = NEW_VERSION;
          }
       }
    }
@@ -498,12 +494,6 @@ def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
 
 def _promoteServices() {  // call from webapp-root
     def cmd = ["deploy/set_default.py"];
-
-    // If we're not deploying a new version of static content, the Sentry
-    // version number should not be updated
-    if (!('static' in SERVICES)) {
-        cmd += ["--keep-error-version"];
-    }
 
     cmd += ["--previous-tag-name=${ROLLBACK_TO}",
              "--slack-channel=${SLACK_CHANNEL}",

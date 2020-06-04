@@ -56,15 +56,6 @@ def runSmokeTests() {
           ]);
 }
 
-def runDevE2eTests() {
-    build(job: '../deploy/dev-e2e-test',
-          parameters: [
-             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
-             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
-          ]);
-}
-
 onMaster('5h') {
    // We want to notify that make-allcheck started, but don't need to
    // notify how it did because the sub-jobs will each notify
@@ -87,7 +78,6 @@ onMaster('5h') {
       parallel([
          "webapp-test": { runAllTests(); },
          "smoke-tests": { runSmokeTests(); },
-         "dev-e2e-tests": { runDevE2eTests(); },
       ])
    }
 }

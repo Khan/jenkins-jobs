@@ -33,9 +33,6 @@ to such a commit-hash.""",
 have already passed at this GIT_REVISION.""",
    false
 
-).addCronSchedule(
-   '0 5,8,11,14,17,20 * * 1-5'        // Run every three hours during workdays
-
 ).apply();
 
 currentBuild.displayName = ("${currentBuild.displayName} " +

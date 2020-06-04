@@ -1,6 +1,8 @@
 // The pipeline job for e2e tests.
 
 @Library("kautils")
+// Standard Math classes we use.
+import java.lang.Math;
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
@@ -60,11 +62,7 @@ API.""", ""
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
-   """How many worker machines to use.  This will function best
-when it's equal to the <code>Instance Cap</code> value for
-the <code>ka-test worker</code> ec2 setup at
-<a href=\"/configure\">the Jenkins configure page</a>.  You'll need
-to click on 'advanced' to see the instance cap.""",
+   """How many worker machines to use.""",
    onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addStringParam(
@@ -169,10 +167,18 @@ JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 IS_ONE_GIT_SHA = null;
 
+// Set the number of tests split for the workers to run.
+// NUM_SPLITS is the number of total split capacity. If we
+// have 10 workers, each worker runs 4 jobs, so the total capacity
+// is 40. but sometime, we don't need that full capacity to run.
+// For instance, if we run the recent failing 1 smoke test only,
+// The NUM_TEST_SPLITS will be 1. It only require the first job to run
+// on first worker. The other three jobs on the first worker, and
+// rest of 9 workers will do nothing.
+NUM_TEST_SPLITS = -1;
+
 // Set to true once master has run setup, so graphql/android tests can begin.
 HAVE_RUN_SETUP = false;
-// Set to true once we have stashed the list of tests for the workers to run.
-HAVE_STASHED_TESTS = false;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
@@ -197,7 +203,7 @@ def _setupWebapp() {
       sh("make clean_pyc");
       // We need to "make deps" and not just "python_deps" because a11y e2e
       // tests rely on jQuery and accessibility tool files from npm modules.
-      sh("make deps");
+      sh("make -B deps");  // force a remake of all deps all the time
       if (params.DEV_SERVER) {
          // Running with a dev server requires current.sqlite, so we download
          // the latest one.
@@ -211,13 +217,17 @@ def _setupWebapp() {
 
 def _determineTests() {
    // Figure out how to split up the tests.  We run 4 jobs on
-   // each of 4 workers.  We put this in the location where the
-   // 'copy to slave' plugin expects it (e2e-test-<worker> will
-   // copy the file from here to each worker machine).
+   // each of 10 workers.  so the total splits capacity is 40.
+   // We put this in the location where the 'copy to slave' plugin
+   // expects it (e2e-test-<worker> will copy the file from here
+   // to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
+   // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
+   // the same config in both places.
    def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
                            "--just-split " +
+                           "--url=${E2E_URL} " +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
       runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
@@ -240,12 +250,19 @@ def _determineTests() {
                    text: allSplits[i]);
       }
       stash(includes: "test-splits.*.txt", name: "splits");
-      // Now tell the test workers to get to work!
-      HAVE_STASHED_TESTS = true;
+      // Now set the number of test splits
+      NUM_TEST_SPLITS = allSplits.size();
    }
 }
 
 def _runOneTest(splitId) {
+   // TODO(dhruv): share these flags with `determineTests` to ensure we're
+   // using the same config in both places.
+   if (!fileExists("../test-splits.${splitId}.txt")) {
+      // if not test-split file in worker, do nothing
+      return;
+   }
+
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
                "--url=${E2E_URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
@@ -293,13 +310,13 @@ def doTestOnWorker(workerNum) {
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
-      waitUntil({ HAVE_STASHED_TESTS });
+      waitUntil({ NUM_TEST_SPLITS >= 0 });
 
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
       unstash("splits");
       def firstSplit = workerNum * JOBS_PER_WORKER;
-      def lastSplit = firstSplit + JOBS_PER_WORKER - 1;
+      def lastSplit = Math.min(firstSplit + JOBS_PER_WORKER, NUM_TEST_SPLITS) - 1;
 
       def parallelTests = ["failFast": params.FAILFAST];
       for (def j = firstSplit; j <= lastSplit; j++) {
@@ -327,7 +344,8 @@ def doTestOnWorker(workerNum) {
          // even when it returns a failure rc (due to some test
          // or other failing).
          stash(includes: "test-results.*.pickle",
-               name: "results ${workerNum}");
+               name: "results ${workerNum}",
+               allowEmpty: true);
       }
    }
 }
@@ -387,7 +405,7 @@ def analyzeResults() {
       }
 
       def numPickleFileErrors = 0;
-      for (def i = 0; i < NUM_WORKER_MACHINES * JOBS_PER_WORKER; i++) {
+      for (def i = 0; i <  NUM_TEST_SPLITS; i++) {
          if (!fileExists("test-results.${i}.pickle")) {
             numPickleFileErrors++;
          }

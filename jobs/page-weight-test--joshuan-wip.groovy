@@ -69,7 +69,7 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
    dir("webapp") {
       sh("make clean_pyc");
-      sh("make deps");
+      sh("make -B deps");  // force a remake of all deps all the time
 
       // Update current.sqlite if not present, or once per week
       sh("""\
