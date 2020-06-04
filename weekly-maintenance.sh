@@ -201,28 +201,19 @@ clean_ka_translations() {
 
 
 clean_ka_static() {
-    # First we find the manifest files for the last week.  (Plus we
-    # always keep the last 3.)  We'll keep any file listed in there.
+    # First we ask Fastly for the list of live static versions.
+    # (Buildmaster is responsible for pruning that list.)
+    active_versions=`webapp/deploy/list_static_versions.py`
 
-    # We also keep the manifest files for any version still on appengine.
-    # (This output emits a bunch more information (the service, the
-    # percentage of traffic, etc.), but it's ok to have extra stuff.)
-    active_versions=`gcloud app versions list --project khan-academy`
-
-    week_ago_time_t=`date -d "-7 days" +%s`
-    manifests_seen=0
     files_to_keep=`mktemp -d`/files_to_keep
     # The 'ls -l' output looks like this:
     #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
     gsutil ls -l 'gs://ka-static/_manifest.*.json' | grep _manifest | sort -k2r | while read line; do
-        date=`echo "$line" | awk '{print $2}'`
-        time_t=`date -d "$date" +%s`
         # (Since we create the manifest-files, we know they don't
         # have spaces in their name.)
         manifest=`echo "$line" | awk '{print $3}'`
         manifest_version=`echo "$manifest" | cut -d. -f2`  # _manifest.<v>.json
-        if [ "$time_t" -gt "$week_ago_time_t" -o $manifests_seen -lt 3 ] \
-            || echo "$active_versions" | grep -q "$manifest_version"; then
+        if echo "$active_versions" | grep -q "$manifest_version"; then
             # This gets the keys (which is the url) to each dict-entry
             # in the manifest file.  The manifest file might be
             # uploaded compressed, so I use `zcat -f` to uncompress it
@@ -238,7 +229,6 @@ clean_ka_static() {
             # at least the latter special case.
             echo "$manifest" >> "$files_to_keep"
             echo "/genfiles/manifests/toc-webpack-manifest-$manifest_version.json" >> "$files_to_keep"
-            manifests_seen=`expr $manifests_seen + 1`
         fi
     done
 
