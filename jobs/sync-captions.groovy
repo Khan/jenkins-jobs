@@ -28,7 +28,7 @@ new Setup(steps
 
 
 def runScript() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "jobs-work");
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "json-ce-change");
    dir("webapp") {
       // now install the other deps
       sh("make clean_pyc");    // in case some .py files went away
@@ -36,7 +36,7 @@ def runScript() {
    }
 
    withEnv(["SKIP_TO_STAGE=${params.SKIP_TO_STAGE}"]) {
-      withSecrets() {   // We need sleep-secret to post transcripts to prod
+      withSecrets() {
          sh("jenkins-jobs/sync-captions.sh");
       }
    }
