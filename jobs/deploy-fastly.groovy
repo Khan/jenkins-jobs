@@ -65,6 +65,10 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 ).apply();
 
 
+currentBuild.displayName = ("${currentBuild.displayName} " +
+                            "(${params.TARGET})");
+
+
 def installDeps() {
    withTimeout('15m') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
