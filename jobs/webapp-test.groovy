@@ -18,6 +18,7 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 //import vars.onWorker
 //import vars.withSecrets
+//import vars.tracing
 
 
 new Setup(steps
@@ -194,28 +195,37 @@ def initializeGlobals() {
 }
 
 
-def _setupWebapp() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1S[0]);
+def _setupWebapp(spanctx) {
+   tracing.withSpan(spanctx, "sync") {
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1S[0]);
+   }
    for (def i = 1; i < GIT_SHA1S.size(); i++) {
-      kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
+      tracing.withSpan(spanctx, "merge") {
+         it.arg("sha1", GIT_SHA1S[i]);
+         kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
+      }
    }
 
    dir("webapp") {
       clean(params.CLEAN);
-      sh("make -B deps");  // force a remake of all deps all the time
+      tracing.withSpan(spanctx, "make") {
+         sh("make -B deps");  // force a remake of all deps all the time
+      }
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
    // so make sure we sync that to the latest version.
    // TODO(csilvers): make safeSyncToOrigin clone into `.`, not workspace-root?
-   kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
-   sh("rm -rf devtools/khan-linter");
-   sh("cp -r khan-linter devtools/");
+   tracing.withSpan(spanctx, "linter") {
+      kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
+      sh("rm -rf devtools/khan-linter");
+      sh("cp -r khan-linter devtools/");
+   };
 }
 
 
 // Figures out what tests to run based on TEST_TYPE and writes them to
 // a file in workspace-root.  Should be called in the webapp dir.
-def _determineTests() {
+def _determineTests(spanctx) {
    def tests;
 
    // This command expands directory arguments, and also filters out
@@ -235,18 +245,22 @@ def _determineTests() {
    if (params.BASE_REVISION) {
       // Only run the tests that are affected by files that were
       // changed between BASE_REVISION and GIT_REVISION.
-      def testsToRun = exec.outputOf(
-         ["deploy/should_run_tests.py",
-          "--from-commit=${params.BASE_REVISION}",
-          "--to-commit=${params.GIT_REVISION}"
-         ]).split("\n") as List;
-      runtestsCmd += testsToRun;
-      echo("Running ${testsToRun.size()} tests");
+      tracing.withSpan(spanctx, "should_run_tests") { def span ->
+         def testsToRun = exec.outputOf(
+            ["deploy/should_run_tests.py",
+             "--from-commit=${params.BASE_REVISION}",
+             "--to-commit=${params.GIT_REVISION}"
+            ]).split("\n") as List;
+         runtestsCmd += testsToRun;
+         echo("Running ${testsToRun.size()} tests");
+      };
    } else {
       echo("Running all tests");
    }
 
-   sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
+   tracing.withSpan(spanctx, "runtests_py") { def span ->
+      sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
+   };
 
    dir("genfiles") {
       // Make sure to clean out any stray old splits files.  (This probably
@@ -265,48 +279,87 @@ def _determineTests() {
          writeFile(file: "test_splits.${i}.txt",
                    text: allSplits[i]);
       }
-      stash(includes: "test_splits.*.txt", name: "splits");
-      // Now tell the test workers to get to work!
-      HAVE_STASHED_TESTS = true;
+
+      tracing.withSpan(spanctx, "stash") { def span ->
+         span.arg("stash", "test_splits.*.txt");
+         stash(includes: "test_splits.*.txt", name: "splits");
+         // Now tell the test workers to get to work!
+         HAVE_STASHED_TESTS = true;
+      };
    }
 }
 
 
-def doTestOnWorker(workerNum) {
+def doTestOnWorker(spanctx, workerNum) {
    // Normally each worker should take 20-30m so we give them an hour
    // or two just in case; when running huge tests, the one that gets
    // make_test_db_test can take 2+ hours so we give it lots of time.
    def workerTimeout = params.MAX_SIZE == 'huge' ? '4h' : '2h';
+
+   // Creating a span here allows us to track how much time we spend waiting for a worker to be
+   // available
+   tracing.withSpan(spanctx, "test") {
+   def topspan = it;
+   topspan.arg("worker_type", WORKER_TYPE);
+   topspan.arg("timeout", workerTimeout);
+   topspan.arg("worker_num", workerNum);
+
+   def waitspan = topspan.child("wait_for_worker");
+   echo waitspan.formatStart();
+
    onWorker(WORKER_TYPE, workerTimeout) {     // timeout
+      // Once we get a node allocated, put it on the topspan
+      topspan.arg("node", env.NODE_NAME);
+
+      // Close the "waiting" span since we have a node allocated
+      echo waitspan.formatEnd();
+
       // We can sync webapp right away, before we know what tests we'll be
       // running.
-      _setupWebapp();
+      tracing.withSpan(topspan, "syncrepo") { def span ->
+         _setupWebapp(span);
+      };
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
-      waitUntil({ HAVE_STASHED_TESTS });
+      tracing.withSpan(topspan, "wait") { def span ->
+         span.arg("wait_for", "stashed tests");
+         waitUntil({ HAVE_STASHED_TESTS });
+      }
 
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
-      unstash("splits");
 
-     // TODO(dhruv): share these flags with `_determineTests` to ensure we're
-     // using the same config in both places.
+      tracing.withSpan(topspan, "unstash") { def span ->
+         span.arg("unstash", "splits");
+         unstash("splits");
+      }
+
+      // TODO(dhruv): share these flags with `_determineTests` to ensure we're
+      // using the same config in both places.
       try {
-         sh("cd webapp; " +
-            // Say what machine we're on, to help with debugging
-            "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
-            "../jenkins-jobs/timeout_output.py -v 55m " +
-            "tools/runtests.py " +
-            "--test-file-glob=${params.TEST_FILE_GLOB} " +
-            "--override-skip-by-default " +
-            "--pickle " +
-            "--pickle-file=../test-results.${workerNum}.pickle " +
-            "--quiet --jobs=1 " +
-            "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-            "--retries=${params.NUM_RETRIES.toInteger()} " +
-            (params.FAILFAST ? "--failfast " : "") +
-            "- < ../test_splits.${workerNum}.txt");
+         tracing.withSpan(topspan, "runtests_py") { def span ->
+            def numtests = sh(
+               script: "wc -l test_splits.${workerNum}.txt | cut -d' ' -f1",
+               returnStdout: true
+            ).trim();
+            span.arg("num_tests", numtests);
+
+            sh("cd webapp; " +
+               // Say what machine we're on, to help with debugging
+               "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
+               "../jenkins-jobs/timeout_output.py -v 55m " +
+               "tools/runtests.py " +
+               "--test-file-glob=${params.TEST_FILE_GLOB} " +
+               "--override-skip-by-default " +
+               "--pickle " +
+               "--pickle-file=../test-results.${workerNum}.pickle " +
+               "--quiet --jobs=1 " +
+               "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
+               "--retries=${params.NUM_RETRIES.toInteger()} " +
+               (params.FAILFAST ? "--failfast " : "") +
+               "- < ../test_splits.${workerNum}.txt");
+         };
       } finally {
          // Now let the next stage see all the results.
          // runtests.py should normally produce these files
@@ -315,19 +368,26 @@ def doTestOnWorker(workerNum) {
          stash(includes: "test-results.*.pickle",
                name: "results ${workerNum}");
       }
-   }
+   }} // onWorker -> topspan
 }
 
 
-def determineSplitsAndRunTests() {
+def determineSplitsAndRunTests(spanctx) {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
       "determine-splits": {
-         withTimeout('20m') {
-            _setupWebapp();
-            dir("webapp") {
-               _determineTests();
+         tracing.withSpan(spanctx, "split") { def splitspan ->
+            withTimeout('20m') {
+               tracing.withSpan(splitspan, "syncrepo") { def span ->
+                  _setupWebapp(span);
+               }
+
+               dir("webapp") {
+                  tracing.withSpan(splitspan, "dosplit") { def span ->
+                     _determineTests(span);
+                  }
+               }
             }
          }
       }
@@ -337,7 +397,7 @@ def determineSplitsAndRunTests() {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["test-${workerNum}"] = {
-         doTestOnWorker(workerNum);
+         doTestOnWorker(spanctx, workerNum);
       };
    }
 
@@ -422,30 +482,43 @@ def analyzeResults() {
    }
 }
 
+tracing.withSpan(null, "build") { def spanctx ->
+def waitspan = spanctx.child("wait_for_worker");
+echo waitspan.formatStart();
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
+                     thread: params.SLACK_THREAD,
+                     sender: 'Testing Turtle',
+                     emoji: ':turtle:',
+                     when: ['FAILURE', 'UNSTABLE']],
+            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: 'webapp-test']]) {
-      initializeGlobals();
+                                 'FAILURE', 'ABORTED', 'UNSTABLE']],
+            buildmaster: [sha: params.GIT_REVISION,
+                           what: 'webapp-test']]) {
+
+      spanctx.arg("node", env.NODE_NAME);
+      echo waitspan.formatEnd();
+
+      tracing.withSpan(spanctx, "globals") {
+         initializeGlobals();
+      };
 
       try {
-         stage("Determining splits & running tests") {
-            determineSplitsAndRunTests();
-         }
+         tracing.withSpan(spanctx, "run") { def span ->
+            stage("Determining splits & running tests") {
+               determineSplitsAndRunTests(span);
+            }
+         };
       } finally {
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
-         stage("Analyzing results") {
-            analyzeResults();
-         }
+         tracing.withSpan(spanctx, "analyze") { def span ->
+            stage("Analyzing results") {
+               analyzeResults();
+            }
+         };
       }
-   }
-}
+   } // notify
+}}} // onWorker -> span
