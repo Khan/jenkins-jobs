@@ -50,11 +50,11 @@ class Span implements Serializable {
       return bytes.encodeHex().toString();
    }
 
-   String formatStart() {
+   String startline() {
       return "SPAN-START:${this._format()}";
    }
 
-   String formatEnd() {
+   String endline() {
       return "SPAN-END:${this._format()}";
    }
 
@@ -84,16 +84,23 @@ class Span implements Serializable {
    }
 }
 
-// Primary entrypoint to the tracing library. Callers will generally create a span by using
+// Primary entrypoint to the tracing library.
+// Callers will generally create a span by using
 // `tracing.withSpan(parent, name) { /* body */ }`
 // If this is the root span, you can specify `null` for the parent.
-// Note that your closure (the /* body */) above will receive the span as the first argument. Due
-// to groovy scoping rules within closures, you cannot define a variable inside of a closure that
-// shadows the name of a variable within the outer scope.
-// This comes to play (quite often!) when you have nested spans. The *natural* way to do that is by
-// using the name `span` as the closure parameter, but you cannot. Pick a different name, or use
-// the magic name `it`, which every closure has by default as the first argument.
-def withSpan(Span ctx = null, String name, Closure body) {
+//
+// Note that your closure (the /* body */) above will receive the span as the
+// first argument. Due to groovy scoping rules within closures, you cannot
+// define a variable inside of a closure that shadows the name of a variable
+// within the outer scope. This comes to play (quite often!) when you have
+// nested spans. The *natural* way to do that is by using the name `span` as
+// the closure parameter, but you cannot. Pick a different name, or use the
+// magic name `it`, which every closure has by default as the first argument.
+//
+// When creating your span, you can supply an initial set of arguments by
+// adding additional named parameters, which are all collected into the `args`
+// Map, eg: `tracing.withSpan(null, name, foo: "bar", baz: 42) { /* body */ }`
+def withSpan(Map kwargs, Span ctx = null, String name, Closure body) {
    if(ctx == null) {
       ctx = new Span("");
       // Reset the ID of the fake parent context to ensure it gets rooted to the top of the span
@@ -103,14 +110,20 @@ def withSpan(Span ctx = null, String name, Closure body) {
 
    Span span = ctx.child(name);
 
+   // If any additional named paramters are supplied, let's assign those as our
+   // initial set of arguments
+   for(def k in kwargs) {
+      span.arg(k, kwargs[k]);
+   }
+
    // We can't `echo` within the Span class above, not sure why. I think it's because echo is
    // a pipeline step? So we instead let it format the start/end strings and then we echo it here
    // instead.
-   echo span.formatStart();
+   echo span.startline();
    try {
       body(span);
    } finally {
       // TODO(avidal): Catch exceptions and decorate the span and then re-raise?
-      echo span.formatEnd();
+      echo span.endline();
    }
 }
