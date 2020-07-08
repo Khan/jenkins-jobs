@@ -195,13 +195,13 @@ def initializeGlobals() {
 }
 
 
-def _setupWebapp(spanctx) {
-   tracing.withSpan(spanctx, "sync") {
+def _setupWebapp(parentSpan) {
+   tracing.withSpan(parentSpan, "sync") {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1S[0]);
    }
 
    for (def i = 1; i < GIT_SHA1S.size(); i++) {
-      tracing.withSpan(spanctx, "merge", sha1: GIT_SHA1S[i]) {
+      tracing.withSpan(parentSpan, "merge", sha1: GIT_SHA1S[i]) {
          kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
       }
    }
@@ -290,7 +290,7 @@ def _determineTests(spanctx) {
 }
 
 
-def doTestOnWorker(parent, workerNum) {
+def doTestOnWorker(parentSpan, workerNum) {
    // Normally each worker should take 20-30m so we give them an hour
    // or two just in case; when running huge tests, the one that gets
    // make_test_db_test can take 2+ hours so we give it lots of time.
@@ -302,37 +302,37 @@ def doTestOnWorker(parent, workerNum) {
    // span tree. Ideally, we could reuse the name `span`, but that breaks
    // Groovy closure scoping rules, so we need to pick a new name at each
    // level.
-   tracing.withSpan(parent, "test") { def topspan ->
+   tracing.withSpan(parentSpan, "test") { def topSpan ->
 
-      def waitspan = topspan.child("wait_for_worker");
-      echo waitspan.startline();
+      def waitSpan = topSpan.child("wait_for_worker");
+      echo waitSpan.startline();
 
       onWorker(WORKER_TYPE, workerTimeout) {     // timeout
          // Once we get a node allocated, put it on the topspan
-         topspan.arg("node", env.NODE_NAME);
+         topSpan.arg("node", env.NODE_NAME);
 
          // Close the "waiting" span since we have a node allocated
          // Note that we don't use this in a .withSpan closure so that we can
          // close it ourselves once the worker is ready, allowing us to
          // accurately measure how long we wait for workers
-         echo waitspan.endline();
+         echo waitSpan.endline();
 
          // We can sync webapp right away, before we know what tests we'll be
          // running.
-         tracing.withSpan(topspan, "syncrepo") { def span ->
+         tracing.withSpan(topSpan, "syncrepo") { def span ->
             _setupWebapp(span);
          }
 
          // We continue to hold the worker while waiting, so we can make sure
          // to get the same one, and start right away, once ready.
-         tracing.withSpan(topspan, "wait", wait_for: "stashed tests") {
+         tracing.withSpan(topSpan, "wait", wait_for: "stashed tests") {
             waitUntil({ HAVE_STASHED_TESTS });
          }
 
          // Out with the old, in with the new!
          sh("rm -f test-results.*.pickle");
 
-         tracing.withSpan(topspan, "unstash", unstash: "splits") {
+         tracing.withSpan(topSpan, "unstash", unstash: "splits") {
             unstash("splits");
          }
 
@@ -344,7 +344,7 @@ def doTestOnWorker(parent, workerNum) {
                returnStdout: true
             ).trim();
 
-            tracing.withSpan(topspan, "runtests_py", num_tests: numtests) {
+            tracing.withSpan(topSpan, "runtests_py", num_tests: numtests) {
                sh("cd webapp; " +
                   // Say what machine we're on, to help with debugging
                   "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
@@ -369,23 +369,23 @@ def doTestOnWorker(parent, workerNum) {
                   name: "results ${workerNum}");
          }
       } // onWorker
-   } // topspan
+   } // topSpan
 }
 
 
-def determineSplitsAndRunTests(parent) {
+def determineSplitsAndRunTests(parentSpan) {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
       "determine-splits": {
-         tracing.withSpan(parent, "split") { def splitspan ->
+         tracing.withSpan(parentSpan, "split") { def splitSpan ->
             withTimeout('20m') {
-               tracing.withSpan(splitspan, "syncrepo") { def span ->
+               tracing.withSpan(splitSpan, "syncrepo") { def span ->
                   _setupWebapp(span);
                }
 
                dir("webapp") {
-                  tracing.withSpan(splitspan, "dosplit") { def span ->
+                  tracing.withSpan(splitSpan, "dosplit") { def span ->
                      _determineTests(span);
                   }
                }
@@ -398,7 +398,7 @@ def determineSplitsAndRunTests(parent) {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["test-${workerNum}"] = {
-         doTestOnWorker(parent, workerNum);
+         doTestOnWorker(parentSpan, workerNum);
       };
    }
 
@@ -483,9 +483,9 @@ def analyzeResults() {
    }
 }
 
-tracing.withSpan(null, "build") { def rootspan ->
-   def waitspan = rootspan.child("wait_for_worker");
-   echo waitspan.startline();
+tracing.withSpan(null, "build") { def rootSpan ->
+   def waitSpan = rootSpan.child("wait_for_worker");
+   echo waitSpan.startline();
 
    onWorker(WORKER_TYPE, '5h') {
       notify([slack: [channel: params.SLACK_CHANNEL,
@@ -499,15 +499,15 @@ tracing.withSpan(null, "build") { def rootspan ->
                buildmaster: [sha: params.GIT_REVISION,
                               what: 'webapp-test']]) {
 
-         rootspan.arg("node", env.NODE_NAME);
-         echo waitspan.endline();
+         rootSpan.arg("node", env.NODE_NAME);
+         echo waitSpan.endline();
 
-         tracing.withSpan(rootspan, "globals") {
+         tracing.withSpan(rootSpan, "globals") {
             initializeGlobals();
          }
 
          try {
-            tracing.withSpan(rootspan, "run") { def span ->
+            tracing.withSpan(rootSpan, "run") { def span ->
                stage("Determining splits & running tests") {
                   determineSplitsAndRunTests(span);
                }
@@ -515,7 +515,7 @@ tracing.withSpan(null, "build") { def rootspan ->
          } finally {
             // We want to analyze results even if -- especially if --
             // there were failures; hence we're in the `finally`.
-            tracing.withSpan(rootspan, "analyze") {
+            tracing.withSpan(rootSpan, "analyze") {
                stage("Analyzing results") {
                   analyzeResults();
                }
@@ -523,4 +523,4 @@ tracing.withSpan(null, "build") { def rootspan ->
          }
       } // notify
    } // onWorker
-} // rootspan
+} // rootSpan
