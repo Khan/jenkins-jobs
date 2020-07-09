@@ -201,14 +201,14 @@ def _setupWebapp(parentSpan) {
    }
 
    for (def i = 1; i < GIT_SHA1S.size(); i++) {
-      tracing.withSpan(parentSpan, "merge", sha1: GIT_SHA1S[i]) {
+      tracing.withSpan(parentSpan, "merge", [sha1: GIT_SHA1S[i]]) {
          kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
       }
    }
 
    dir("webapp") {
       clean(params.CLEAN);
-      tracing.withSpan(spanctx, "make") {
+      tracing.withSpan(parentSpan, "make") {
          sh("make -B deps");  // force a remake of all deps all the time
       }
    }
@@ -216,7 +216,7 @@ def _setupWebapp(parentSpan) {
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
    // so make sure we sync that to the latest version.
    // TODO(csilvers): make safeSyncToOrigin clone into `.`, not workspace-root?
-   tracing.withSpan(spanctx, "linter") {
+   tracing.withSpan(parentSpan, "linter") {
       kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
       sh("rm -rf devtools/khan-linter");
       sh("cp -r khan-linter devtools/");
@@ -226,7 +226,7 @@ def _setupWebapp(parentSpan) {
 
 // Figures out what tests to run based on TEST_TYPE and writes them to
 // a file in workspace-root.  Should be called in the webapp dir.
-def _determineTests(spanctx) {
+def _determineTests(parentSpan) {
    def tests;
 
    // This command expands directory arguments, and also filters out
@@ -246,7 +246,7 @@ def _determineTests(spanctx) {
    if (params.BASE_REVISION) {
       // Only run the tests that are affected by files that were
       // changed between BASE_REVISION and GIT_REVISION.
-      tracing.withSpan(spanctx, "should_run_tests") {
+      tracing.withSpan(parentSpan, "should_run_tests") {
          def testsToRun = exec.outputOf(
             ["deploy/should_run_tests.py",
              "--from-commit=${params.BASE_REVISION}",
@@ -259,7 +259,7 @@ def _determineTests(spanctx) {
       echo("Running all tests");
    }
 
-   tracing.withSpan(spanctx, "runtests_py") {
+   tracing.withSpan(parentSpan, "runtests_py") {
       sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
    }
 
@@ -281,7 +281,7 @@ def _determineTests(spanctx) {
                    text: allSplits[i]);
       }
 
-      tracing.withSpan(spanctx, "stash", stash: "test_splits.*.txt") {
+      tracing.withSpan(parentSpan, "stash", [stash: "test_splits.*.txt"]) {
          stash(includes: "test_splits.*.txt", name: "splits");
          // Now tell the test workers to get to work!
          HAVE_STASHED_TESTS = true;
@@ -325,14 +325,14 @@ def doTestOnWorker(parentSpan, workerNum) {
 
          // We continue to hold the worker while waiting, so we can make sure
          // to get the same one, and start right away, once ready.
-         tracing.withSpan(topSpan, "wait", wait_for: "stashed tests") {
+         tracing.withSpan(topSpan, "wait", [wait_for: "stashed tests"]) {
             waitUntil({ HAVE_STASHED_TESTS });
          }
 
          // Out with the old, in with the new!
          sh("rm -f test-results.*.pickle");
 
-         tracing.withSpan(topSpan, "unstash", unstash: "splits") {
+         tracing.withSpan(topSpan, "unstash", [unstash: "splits"]) {
             unstash("splits");
          }
 
@@ -344,7 +344,7 @@ def doTestOnWorker(parentSpan, workerNum) {
                returnStdout: true
             ).trim();
 
-            tracing.withSpan(topSpan, "runtests_py", num_tests: numtests) {
+            tracing.withSpan(topSpan, "runtests_py", [num_tests: numtests]) {
                sh("cd webapp; " +
                   // Say what machine we're on, to help with debugging
                   "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
@@ -489,15 +489,15 @@ tracing.withSpan(null, "build") { def rootSpan ->
 
    onWorker(WORKER_TYPE, '5h') {
       notify([slack: [channel: params.SLACK_CHANNEL,
-                        thread: params.SLACK_THREAD,
-                        sender: 'Testing Turtle',
-                        emoji: ':turtle:',
-                        when: ['FAILURE', 'UNSTABLE']],
-               aggregator: [initiative: 'infrastructure',
+                      thread: params.SLACK_THREAD,
+                      sender: 'Testing Turtle',
+                      emoji: ':turtle:',
+                      when: ['FAILURE', 'UNSTABLE']],
+              aggregator: [initiative: 'infrastructure',
                            when: ['SUCCESS', 'BACK TO NORMAL',
-                                    'FAILURE', 'ABORTED', 'UNSTABLE']],
-               buildmaster: [sha: params.GIT_REVISION,
-                              what: 'webapp-test']]) {
+                                  'FAILURE', 'ABORTED', 'UNSTABLE']],
+              buildmaster: [sha: params.GIT_REVISION,
+                            what: 'webapp-test']]) {
 
          rootSpan.arg("node", env.NODE_NAME);
          echo waitSpan.endline();

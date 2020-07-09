@@ -90,7 +90,7 @@ class Span implements Serializable {
 
 // Primary entrypoint to the tracing library.
 // Callers will generally create a span by using
-// `tracing.withSpan(parent, name) { /* body */ }`
+// `tracing.withSpan(parentSpan, name) { /* body */ }`
 // If this is the root span, you can specify `null` for the parent.
 //
 // Note that your closure (the /* body */) above will receive the span as the
@@ -102,9 +102,9 @@ class Span implements Serializable {
 // magic name `it`, which every closure has by default as the first argument.
 //
 // When creating your span, you can supply an initial set of arguments by
-// adding additional named parameters, which are all collected into the `args`
-// Map, eg: `tracing.withSpan(null, name, foo: "bar", baz: 42) { /* body */ }`
-def withSpan(Map kwargs, Span ctx = null, String name, Closure body) {
+// adding an optional map as your third argument, for example:
+// `tracing.withSpan(null, name, [foo: "bar", baz: 42]) { /* body */ }`
+def withSpan(Span ctx, String name, Map args = null, Closure body) {
    if (ctx == null) {
       ctx = new Span("");
       // Reset the ID of the fake parent context to ensure it gets rooted to
@@ -116,8 +116,8 @@ def withSpan(Map kwargs, Span ctx = null, String name, Closure body) {
 
    // If any additional named paramters are supplied, let's assign those as our
    // initial set of arguments
-   for (def k in kwargs) {
-      span.arg(k, kwargs[k]);
+   for (def entry in args) {
+      span.arg(entry.key, entry.value);
    }
 
    // We can't `echo` within the Span class above, not sure why. I think it's
