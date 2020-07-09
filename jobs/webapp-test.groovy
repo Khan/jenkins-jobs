@@ -6,7 +6,7 @@
 // This job can either run all tests, or a subset thereof, depending on
 // how parameters are specified.
 
-@Library("kautils@avidal-tracing")
+@Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
