@@ -134,6 +134,9 @@ inherent flakiness.""",
 may want to set this if you only want to run a subset of tests based on their
 file name, but most callers should be happy with the default.""",
    "*_test.py"
+).addStringParam(
+   "BUILD_PHID",
+   """If this was started via phabricator, the PHID associated with this build.""",
 ).apply()
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
