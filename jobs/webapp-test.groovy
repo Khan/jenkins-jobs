@@ -209,7 +209,7 @@ def _setupWebapp(parentSpan) {
    dir("webapp") {
       clean(params.CLEAN);
       tracing.withSpan(parentSpan, "make") {
-         sh("make -B deps");  // force a remake of all deps all the time
+         sh("make deps");  // force a remake of all deps all the time
       }
    }
 
