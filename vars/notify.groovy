@@ -395,7 +395,7 @@ def call(options, Closure body) {
          sendToBuildmaster(options.buildmaster, "BUILD START");
       }
       if (options.phabricator) {
-         sendToPhabricator(options.phabriactor, "BUILD START");
+         sendToPhabricator(options.phabricator, "BUILD START");
       }
 
       // We do this `parallel` to catch when the job has been aborted.
@@ -477,7 +477,7 @@ def call(options, Closure body) {
          sendToAggregator(options.aggregator, status, failureText);
       }
       if (options.phabricator && _shouldReport(status, options.phabricator.when)) {
-         sendToPhabricator(options.phabricator, status, failureText);
+         sendToPhabricator(options.phabricator, status);
       }
    }
 }
