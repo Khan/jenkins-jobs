@@ -8,6 +8,7 @@
 //import vars.exec
 //import vars.onMaster
 //import vars.withSecrets
+//import vars.phabricator
 
 
 // Used to set status to FAILURE and emit the failure reason to slack/email.
@@ -337,6 +338,32 @@ def sendToBuildmaster(buildmasterOptions, status) {
    }
 }
 
+// Supported options:
+// buildPhid(required): The PHID provided by phabricator to identify a specific
+//     build triggered from harbormaster. Generally passed into jobs as
+//     params.BUILD_PHID. If an empty string, we won't notify anyone.
+def sendToPhabricator(phabricatorOptions, status) {
+   if (phabricatorOptions.buildPhid == "") {
+      return
+   }
+   def phabStatus;
+   if (status == 'BUILD START') {
+      phabStatus = "work"
+   } else if (status == 'SUCCESS') {
+      phabStatus = "pass";
+   } else if (status == 'BACK TO NORMAL') {
+      phabStatus = "pass";
+   } else if (status == 'ABORTED') {
+      phabStatus = "fail";
+   } else if (status == 'UNSTABLE'){
+      phabStatus = "pass";
+   } else {
+      phabStatus = "fail";
+   }
+
+   phabricator.submitHarbormasterMsg(params.BUILD_PHID, phabStatus)
+}
+
 
 def fail(def msg, def statusToSet="FAILURE") {
    throw new FailedBuild(msg, statusToSet);
@@ -366,6 +393,9 @@ def call(options, Closure body) {
       }
       if (options.buildmaster) {
          sendToBuildmaster(options.buildmaster, "BUILD START");
+      }
+      if (options.phabricator) {
+         sendToPhabricator(options.phabriactor, "BUILD START");
       }
 
       // We do this `parallel` to catch when the job has been aborted.
@@ -445,6 +475,9 @@ def call(options, Closure body) {
       }
       if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
          sendToAggregator(options.aggregator, status, failureText);
+      }
+      if (options.phabricator && _shouldReport(status, options.phabricator.when)) {
+         sendToPhabriactor(options.phabricator, status, failureText);
       }
    }
 }

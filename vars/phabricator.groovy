@@ -1,13 +1,14 @@
 // Utility module for interfacing with phabricator
 
-def submitPhabricatorHarbormasterMsg(buildPhid, type) {
+def submitHarbormasterMsg(buildPhid, type) {
    // type can be "pass", "fail", or "work"
    // See https://phabricator.khanacademy.org/conduit/method/harbormaster.sendmessage/
    if (buildPhid == "") {
       return
    }
    
-
+   // TODO(dhruv): rename this secret since it's used for more than just
+   // page-weight now
    def conduitToken = readFile(
       "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
 

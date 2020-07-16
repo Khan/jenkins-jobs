@@ -437,11 +437,11 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: 'webapp-test']]) {
+                         what: 'webapp-test']],
+           phabricator: [buildPhid: params.BUILD_PHID,
+                        when: ['SUCCESS', 'BACK TO NORMAL',
+                               'FAILURE', 'ABORTED', 'UNSTABLE']]){
       initializeGlobals();
-      // TODO(dhruv): move this into notify if other jobs want to talk to
-      // phabricator
-      submitPhabricatorHarborMasterMsg(params.BUILD_PHID, "work")
 
       try {
          stage("Determining splits & running tests") {
