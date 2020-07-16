@@ -13,6 +13,7 @@ import java.net.URLEncoder;
 //import vars.kaGit
 //import vars.onWorker
 //import vars.withSecrets
+//import vars.phabricator
 
 
 new Setup(steps
@@ -115,27 +116,6 @@ def _submitPhabricatorComment(comment) {
    assert response.status == 200;
 }
 
-def _submitPhabricatorHarbormasterMsg(type) {
-   // type can be "pass", "fail", or "work"
-   // See https://phabricator.khanacademy.org/conduit/method/harbormaster.sendmessage/
-
-   def conduitToken = readFile(
-      "${env.HOME}/page-weight-phabricator-conduit-token.secret").trim();
-
-   def message = groovy.json.JsonOutput.toJson([
-      "__conduit__": [
-         "token": conduitToken,
-      ],
-      "buildTargetPHID": params.BUILD_PHID,
-      "type": type,
-   ])
-
-   def body = "params=${java.net.URLEncoder.encode(message)}"
-
-   def response = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
-
-   assert response.status == 200;
-}
 
 def _computePageWeightDelta() {
    // This will be killed when the job ends -- see https://wiki.jenkins.io/display/JENKINS/ProcessTreeKiller
@@ -153,7 +133,7 @@ def _computePageWeightDelta() {
 
    if (params.BUILD_PHID != "") {
        _submitPhabricatorComment(pageWeightDeltaInfo);
-       _submitPhabricatorHarbormasterMsg("pass");
+       submitPhabricatorHarbormasterMsg(params.BUILD_PHID, "pass");
    }
 }
 

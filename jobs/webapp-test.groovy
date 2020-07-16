@@ -6,7 +6,7 @@
 // This job can either run all tests, or a subset thereof, depending on
 // how parameters are specified.
 
-@Library("kautils")
+@Library("kautils@dhruv-phab")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
@@ -15,6 +15,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.phabricator
 //import vars.withTimeout
 //import vars.onWorker
 //import vars.withSecrets
@@ -438,6 +439,9 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: 'webapp-test']]) {
       initializeGlobals();
+      // TODO(dhruv): move this into notify if other jobs want to talk to
+      // phabricator
+      submitPhabricatorHarborMasterMsg(params.BUILD_PHID, "work")
 
       try {
          stage("Determining splits & running tests") {
