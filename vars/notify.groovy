@@ -477,7 +477,7 @@ def call(options, Closure body) {
          sendToAggregator(options.aggregator, status, failureText);
       }
       if (options.phabricator && _shouldReport(status, options.phabricator.when)) {
-         sendToPhabriactor(options.phabricator, status, failureText);
+         sendToPhabricator(options.phabricator, status, failureText);
       }
    }
 }
