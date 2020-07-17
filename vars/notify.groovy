@@ -349,7 +349,7 @@ def sendToPhabricator(phabricatorOptions, status) {
    def phabStatus;
    if (status == 'BUILD START') {
       phabStatus = "work"
-      phabricator.linkHarbormasterToJenkins(buildPhid, env.BUILD_URL)
+      phabricator.linkHarbormasterToJenkins(phabricatorOptions.buildPhid, env.BUILD_URL)
    } else if (status == 'SUCCESS') {
       phabStatus = "pass";
    } else if (status == 'BACK TO NORMAL') {

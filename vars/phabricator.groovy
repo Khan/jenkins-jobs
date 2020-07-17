@@ -24,7 +24,7 @@ def submitHarbormasterMsg(buildPhid, type) {
 
    def body = "api.token=${PHABRICATOR_TOKEN}&buildTargetPHID=${buildPhid}&type=${type}"
 
-   def response = httpRequest httpMode: 'POST', contentType: "APPLICATION_FORM", requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
+   def response = httpRequest consoleLogResponse: true, httpMode: 'POST', contentType: "APPLICATION_FORM", requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.sendmessage"
 
    assert response.status == 200;
 }
@@ -34,6 +34,8 @@ def linkHarbormasterToJenkins(buildPhid, buildUrl) {
       return
    }
 
+   initializeToken()
+
    def message = "View on Jenkins"
 
    def body = "api.token=${PHABRICATOR_TOKEN}&buildTargetPHID=${buildPhid}"+
@@ -42,7 +44,7 @@ def linkHarbormasterToJenkins(buildPhid, buildUrl) {
               "&artifactData[ui.external]=1" +
               "&artifactData[uri]=${java.net.URLEncoder.encode(buildUrl)}"
 
-   def response = httpRequest httpMode: 'POST', contentType: "APPLICATION_FORM", requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.createartifact"
+   def response = httpRequest consoleLogResponse: true, httpMode: 'POST', contentType: "APPLICATION_FORM", requestBody: body, url: "https://phabricator.khanacademy.org/api/harbormaster.createartifact"
 
    assert response.status == 200;
 }
