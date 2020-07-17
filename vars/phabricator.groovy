@@ -1,4 +1,5 @@
 // Utility module for interfacing with phabricator
+import groovy.transform.Field;
 
 import java.net.URLEncoder;
 

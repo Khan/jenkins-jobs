@@ -54,6 +54,8 @@ def initializeBuildmasterToken() {
 // `params` is expected to be a map
 def _makeHttpRequestAndAlert(resource, httpMode, params) {
    initializeBuildmasterToken();
+   // STOPSHIP(dhruv): disabling for testing
+   return
    try {
       // We retry if the buildmaster fails.
       // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
