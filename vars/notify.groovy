@@ -342,14 +342,18 @@ def sendToBuildmaster(buildmasterOptions, status) {
 // buildPhid(required): The PHID provided by phabricator to identify a specific
 //     build triggered from harbormaster. Generally passed into jobs as
 //     params.BUILD_PHID. If an empty string, we won't notify anyone.
-def sendToPhabricator(phabricatorOptions, status) {
+// revisionId(required): The differential revision id that we want to comment on.
+//     Generally passed into jobs as params.REVISION_ID. If an empty string, we
+//     won't send a comment.
+def sendToPhabricator(phabricatorOptions, status, extraText="") {
    if (phabricatorOptions.buildPhid == "") {
       return
    }
    def phabStatus;
    if (status == 'BUILD START') {
       phabStatus = "work"
-      phabricator.linkHarbormasterToJenkins(phabricatorOptions.buildPhid, env.BUILD_URL)
+      phabricator.linkHarbormasterToJenkins(
+          phabricatorOptions.buildPhid, env.BUILD_URL)
    } else if (status == 'SUCCESS') {
       phabStatus = "pass";
    } else if (status == 'BACK TO NORMAL') {
@@ -362,7 +366,12 @@ def sendToPhabricator(phabricatorOptions, status) {
       phabStatus = "fail";
    }
 
-   phabricator.submitHarbormasterMsg(params.BUILD_PHID, phabStatus)
+   phabricator.submitHarbormasterMsg(phabricatorOptions.buildPhid, phabStatus)
+   if(phabricatorOptions.revisionId != "" && 
+        "phabStatus" == "fail" && !env.SENT_TO_PHABRICATOR) {
+        // submit comment to phab revision here, since the harbormaster update
+        // won't alert a dev except at landing time.
+   }
 }
 
 
@@ -478,7 +487,7 @@ def call(options, Closure body) {
          sendToAggregator(options.aggregator, status, failureText);
       }
       if (options.phabricator && _shouldReport(status, options.phabricator.when)) {
-         sendToPhabricator(options.phabricator, status);
+         sendToPhabricator(options.phabricator, status, failureText);
       }
    }
 }

@@ -416,9 +416,12 @@ def analyzeResults() {
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
 
-            sh("rm -rf genfiles/test-reports");
+            //sh("rm -rf genfiles/test-reports");
             sh("tools/test_pickle_util.py to-junit " +
                "genfiles/test-results.pickle genfiles/test-reports");
+            // TODO parse out the results that pickle_util wrote to junit somehow
+            // TODO If this was a phabricator build, send a comment with the build results here
+
          }
       }
 
