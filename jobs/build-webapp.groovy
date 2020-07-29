@@ -557,11 +557,11 @@ onWorker('build-worker', '4h') {
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                         'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      stage("Merging in master") {
-         mergeFromMasterAndInitializeGlobals();
-      }
 
       try {
+         stage("Merging in master") {
+            mergeFromMasterAndInitializeGlobals();
+         }
          stage("Deploying") {
             withTimeout('150m') {
                deployAndReport();

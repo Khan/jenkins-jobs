@@ -97,7 +97,8 @@ znd, consider setting this to false since they are more expensive instances.""",
 
 ).addStringParam(
    "SLACK_CHANNEL",
-   "The slack channel to which to send failure alerts.",
+   """The slack channel to which to send failure alerts.  Set to
+@yourusername to send a Slack DM (from Slackbot).""",
    "#1s-and-0s-deploys"
 
 ).addStringParam(

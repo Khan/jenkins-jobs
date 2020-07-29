@@ -806,9 +806,16 @@ onMaster('4h') {
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                         'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      stage("Merging in master") {
-         mergeFromMasterAndInitializeGlobals();
+      try {
+         stage("Merging in master") {
+            mergeFromMasterAndInitializeGlobals();
+         }
+      } catch (e) {
+            echo("FATAL ERROR merging in master: ${e}");
+            finishWithFailure(e.toString());
+            throw e;
       }
+
       try {
          stage("Await first smoke test and set-default confirmation") {
             if (SERVICES) {

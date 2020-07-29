@@ -108,7 +108,7 @@ _destructive_checkout() {
         _alert error "'$1' is not a valid git revision"
         exit 1
     fi
-    timeout 1m git clean -ffd
+    timeout 2m git clean -ffd
     # When we are cleaning out a submodule, *and* that submodule
     # disappeared as part of this `git checkout -f`, *and* that
     # submodule had a .gitignored file in it (such as a .pyc file)
