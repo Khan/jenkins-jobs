@@ -28,7 +28,7 @@ new Setup(steps
 
 
 def runScript() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "json-ce-change");
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
    dir("webapp") {
       // now install the other deps
       sh("make clean_pyc");    // in case some .py files went away
