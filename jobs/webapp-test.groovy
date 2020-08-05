@@ -202,7 +202,7 @@ def _setupWebapp() {
 
    dir("webapp") {
       clean(params.CLEAN);
-      sh("make -B deps");  // force a remake of all deps all the time
+      sh("make fix_deps");  // force a remake of all deps all the time
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
    // so make sure we sync that to the latest version.

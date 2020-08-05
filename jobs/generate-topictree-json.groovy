@@ -30,7 +30,7 @@ def runScript() {
 
     dir("webapp") {
         sh("make clean_pyc");
-        sh("make -B deps");  // force a remake of all deps all the time
+        sh("make fix_deps");  // force a remake of all deps all the time
     }
 
     lock("using-a-lot-of-memory") {
