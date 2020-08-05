@@ -21,7 +21,7 @@ def runUpdate() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       withSecrets() {      // we need postgres db secrets
          dir("webapp") {
-            sh("make -B deps");  // force a remake of all deps all the time
+            sh("make fix_deps");  // force a remake of all deps all the time
          }
          dir("webapp/coaches/reports") {
             sh("alembic --name prod downgrade -1")

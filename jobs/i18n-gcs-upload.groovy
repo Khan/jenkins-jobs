@@ -61,7 +61,7 @@ def syncRepos() {
          dir("webapp") {
             // git_tags.py needs deps, so we install them here.  The script
             // itself will update them again (once we're on the final commit).
-            sh("make -B deps");  // force a remake of all deps all the time
+            sh("make fix_deps");  // force a remake of all deps all the time
             // We want the last release that's successfully been tagged.
             // This can differ from the current release when a deploy
             // is going on (after deploying to GAE and before finishing).

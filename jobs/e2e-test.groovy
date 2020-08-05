@@ -203,7 +203,7 @@ def _setupWebapp() {
       sh("make clean_pyc");
       // We need to "make deps" and not just "python_deps" because a11y e2e
       // tests rely on jQuery and accessibility tool files from npm modules.
-      sh("make -B deps");  // force a remake of all deps all the time
+      sh("make fix_deps");  // force a remake of all deps all the time
       if (params.DEV_SERVER) {
          // Running with a dev server requires current.sqlite, so we download
          // the latest one.

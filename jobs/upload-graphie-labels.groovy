@@ -32,7 +32,7 @@ def updateRepo() {
 
       dir("webapp") {
          sh("make clean_pyc");    // in case some .py files went away
-         sh("make -B deps");  // force a remake of all deps all the time
+         sh("make fix_deps");  // force a remake of all deps all the time
       }
    }
 }
