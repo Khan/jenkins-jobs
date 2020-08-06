@@ -188,6 +188,18 @@ WORKER_TYPE = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+   if (params.TEST_TYPE == "custom") {
+      // If we've specified a list of tests to run, there may be very few;
+      // don't spin up more workers than we need.  This is slightly a lie --
+      // you might have specified a module which contains many test-cases --
+      // but luckily the deploy system, which is the primary user of this
+      // option, doesn't do that.  (And if somehow we do, we'll still run the
+      // tests, just on fewer workers.)
+      def numTests = params.TESTS_TO_RUN.split().size()
+      if (numTests < NUM_WORKER_MACHINES * JOBS_PER_WORKER) {
+         NUM_WORKER_MACHINES = Math.ceil(numTests/JOBS_PER_WORKER).toInteger();
+      }
+   }
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
