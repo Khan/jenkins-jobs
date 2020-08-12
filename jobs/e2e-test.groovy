@@ -85,6 +85,12 @@ and pick the number with the shortest time.  For m3.large,
 the best value is 4.""",
    "4"
 
+).addBooleanParam(
+   "USE_SAUCE",
+   """Use SauceLabs to record a video of any tests that fail.
+This slows down the tests significantly, but is often helpful for debugging.
+Not currently supported when DEV_SERVER is also enabled.""",
+   false
 
 ).addBooleanParam(
    "DEV_SERVER",
@@ -288,7 +294,7 @@ def _runOneTest(splitId) {
       // TODO(benkraft): Figure out how to use sauce with the dev server -- I
       // think sauce has some tool to allow this but I don't know how it works.
       args += ["--with-dev-server"];
-   } else {
+   } else if (params.USE_SAUCE) {
       args += ["--backup-driver=sauce"];
    }
    if (params.FAILFAST) {
