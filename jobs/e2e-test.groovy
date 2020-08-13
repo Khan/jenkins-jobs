@@ -242,11 +242,25 @@ def _determineTests() {
    // to each worker machine).
    def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
 
+   // Try to load the server's test-info db.
+   try {
+      onMaster('1m') {
+         stash(includes: "test-info.db", name: "test-info.db before");
+      }
+      dir("genfiles") {
+         unstash(name: "test-info.db before");
+      }
+   } catch (e) {
+      // Proceed anyway -- we'll just have worse splits.
+      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+   }
+
    // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
    // the same config in both places.
    def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
                            "--just-split " +
                            "--url=${E2E_URL} " +
+                           "--timing-db=genfiles/test-info.db " +
                            "-j${NUM_SPLITS} ");
    if (params.SKIP_TESTS) {
       runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
@@ -444,6 +458,20 @@ def analyzeResults() {
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
+
+            // Try to send the timings back to the server.
+            try {
+               dir("genfiles") {
+                  stash(includes: "test-info.db", name: "test-info.db after");
+               }
+               onMaster('1m') {
+                  unstash(name: "test-info.db after");
+               }
+            } catch (e) {
+               // Oh well; hopefully another job will do better.
+               echo("Unable to push test-db back to server: ${e}");
+            }
+
             summarize_args = [
                "tools/test_pickle_util.py", "summarize-to-slack",
                "genfiles/test-results.pickle", params.SLACK_CHANNEL,
