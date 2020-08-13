@@ -218,6 +218,19 @@ def _setupWebapp() {
 def _determineTests() {
    def tests;
 
+   // Try to load the server's test-info db.
+   try {
+      onMaster('1m') {
+         stash(includes: "test-info.db", name: "test-info.db before");
+      }
+      dir("genfiles") {
+         unstash(name: "test-info.db before");
+      }
+   } catch (e) {
+      // Proceed anyway -- we'll just have worse splits.
+      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+   }
+
    // This command expands directory arguments, and also filters out
    // tests that are not the right size.  Finally, it figures out splits.
    // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
@@ -391,6 +404,20 @@ def analyzeResults() {
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
+
+            // Try to send the timings back to the server.
+            try {
+               dir("genfiles") {
+                  stash(includes: "test-info.db", name: "test-info.db after");
+               }
+               onMaster('1m') {
+                  unstash(name: "test-info.db after");
+               }
+            } catch (e) {
+               // Oh well; hopefully another job will do better.
+               echo("Unable to push test-db back to server: ${e}");
+            }
+
             // We try to keep the command short and clear.
             // max-size is the only option we need locally, and only
             // if it is not "medium".
