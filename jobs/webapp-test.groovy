@@ -286,6 +286,13 @@ def doTestOnWorker(workerNum) {
       // get the same one, and start right away, once ready.
       waitUntil({ HAVE_STASHED_TESTS });
 
+      // It may be we turned out not to need this worker, because there were so
+      // few tests to run.  (NUM_WORKER_MACHINES will in that case get reset in
+      // _determineTests above.)
+      if (workerNum >= NUM_WORKER_MACHINES) {
+         return;
+      }
+
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
       unstash("splits");
