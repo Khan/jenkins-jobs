@@ -251,7 +251,8 @@ def _determineTests() {
          unstash(name: "test-info.db before");
       }
    } catch (e) {
-      // Proceed anyway -- we'll just have worse splits.
+      // Proceed anyway -- perhaps the file doesn't exist yet.
+      // Ah well; we'll just have worse splits.
       echo("Unable to restore test-db from server, expect poor splitting: ${e}");
    }
 
