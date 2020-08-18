@@ -404,26 +404,6 @@ def deployToGCS() {
 }
 
 
-// When any of our datastore models or dataflow code changes, we
-// need to rebuild the binary we use to export out datastore models
-// to bigquery.
-// We should do this more selectively (i.e. only when specific
-// relevant files changed), but this is quick (< 30s), so to be
-// safe as a stopgap measure we just do it all the time.
-// We do this at build time, to build jar file and upload it
-// to "gs://khanalytics/datastore-bigquery-adapter-jar-versions/
-// datastore_bigquery_adapter.$NewDeployVersion.jar"
-// We will swtich the new deploy version to
-// gs://khanalytics/datastore_bigquery_adapter.jar in "finishWithSuccess" step.
-def deployToDataflowDatastoreBigqueryAdapter() {
-   dir("webapp") {
-      withEnv(["VERSION=${NEW_VERSION}"]) {
-         sh("cd dataflow/datastore_bigquery_adapter && ./gradlew build_and_upload_jar");
-      }
-   }
-}
-
-
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -474,8 +454,6 @@ def deployAndReport() {
       def jobs = ["deploy-to-gae": { deployToGAE(); },
                   "deploy-to-gcs": { deployToGCS(); },
                   "deploy-to-kotlin-services": { deployToKotlinServices(); },
-                  "deploy-to-dataflow-datastore-bigquery-adapter":
-                     { deployToDataflowDatastoreBigqueryAdapter(); },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "failFast": true];
       for (service in SERVICES) {
