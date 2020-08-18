@@ -53,12 +53,13 @@ def initializeBuildmasterToken() {
 // Make an API request to the buildmaster
 // `params` is expected to be a map
 def _makeHttpRequestAndAlert(resource, httpMode, params) {
+   def response;
    initializeBuildmasterToken();
    try {
       // We retry if the buildmaster fails.
       // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
       retry {
-         def response = httpRequest(
+         response = httpRequest(
             acceptType: "APPLICATION_JSON",
             contentType: "APPLICATION_JSON",
             customHeaders: [[name: 'X-Buildmaster-Token',
