@@ -53,13 +53,12 @@ def initializeBuildmasterToken() {
 // Make an API request to the buildmaster
 // `params` is expected to be a map
 def _makeHttpRequestAndAlert(resource, httpMode, params) {
-   def response;
    initializeBuildmasterToken();
    try {
       // We retry if the buildmaster fails.
       // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
       retry {
-         response = httpRequest(
+         def response = httpRequest(
             acceptType: "APPLICATION_JSON",
             contentType: "APPLICATION_JSON",
             customHeaders: [[name: 'X-Buildmaster-Token',
@@ -87,7 +86,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
          alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
          SEND_SLACK_COUNT += 1;
 
-         echo("Got ${response.getStatus()}, perhaps buildmaster is down.");
+         echo("Failed 3 times, perhaps buildmaster is down.");
          _sendSimpleInterpolatedMessage(
             alertMsgs.BUILDMASTER_OUTAGE,
             [step: "${resource} + ${httpMode}",
