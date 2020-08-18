@@ -602,25 +602,6 @@ def _waitForSetDefaultStart() {
    buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
 }
 
-def _switchDatastoreBigqueryAdapterJar() {
-   // we switch the "$NewDeployVersion.jar" file to
-   // gs://khanalytics/datastore_bigquery_adapter.jar to make it live
-   try {
-      withTimeout("10m") {
-         dir("webapp/dataflow/datastore_bigquery_adapter") {
-            withEnv(["VERSION=${NEW_VERSION}"]) {
-               exec(["./gradlew", "switch_deploy_jar"])
-            }
-         }
-      }
-   } catch (e) {
-      echo("Failed to switch datastore_bigquery_adapter.jar: ${e}");
-      _alert(alertMsgs.DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED,
-             [newVersion: NEW_VERSION]);
-      return;
-   }
-}
-
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
@@ -643,8 +624,6 @@ def setDefaultAndMonitor() {
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
            "wait-and-start-tests": { _waitForSetDefaultStart(); },
-           "switch-datastore-bigquery-adapter-jar":
-               { _switchDatastoreBigqueryAdapterJar(); },
          ]);
    }
 }

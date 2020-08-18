@@ -153,17 +153,6 @@ Rolled back to %(rollbackToAsVersion)s.
 """)];
 
 
-DATASTORE_BIGQUERY_ADAPTER_JAR_NOT_SWITCHED = [
-   "severity": "error",
-   // the <!subteam> thing is "@dev-support".
-   "text": _textWrap("""\
-:ohnoes: Switch from datastore_bigquery_adapter.`%(newVersion)`.jar failed.
-<!subteam^S41PPSJ21> needs to look at why switching the version from
-gs://khanalytics/datastore-bigquery-adapter-jar-versions/ to
-gs://khanalytics/datastore_bigquery_adapter.jar, failed.
-""")];
-
-
 SUCCESS = [
    "severity": "info",
    "simpleMessage": true,
