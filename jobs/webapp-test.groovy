@@ -216,72 +216,82 @@ def _setupWebapp() {
 // Figures out what tests to run based on TEST_TYPE and writes them to
 // a file in workspace-root.  Should be called in the webapp dir.
 def _determineTests() {
-   def tests;
-
-   // Try to load the server's test-info db.
    try {
-      onMaster('1m') {
-         stash(includes: "test-info.db", name: "test-info.db before");
+      def tests;
+
+      // Try to load the server's test-info db.
+      try {
+         onMaster('1m') {
+            stash(includes: "test-info.db", name: "test-info.db before");
+         }
+         dir("genfiles") {
+            unstash(name: "test-info.db before");
+         }
+      } catch (e) {
+         // Proceed anyway -- perhaps the file doesn't exist yet.
+         // Ah well; we'll just have worse splits.
+         echo("Unable to restore test-db from server, expect poor splitting: ${e}");
       }
+
+      // This command expands directory arguments, and also filters out
+      // tests that are not the right size.  Finally, it figures out splits.
+      // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
+      // the same config in both places.
+      def runtestsCmd = ["tools/runtests.py",
+                         "--max-size=${params.MAX_SIZE}",
+                         "--test-file-glob=${params.TEST_FILE_GLOB}",
+                         "--jobs=${NUM_WORKER_MACHINES}",
+                         "--timing-db=genfiles/test-info.db",
+                         "--dry-run",
+                         "--just-split",
+                         "--override-skip-by-default",
+                        ];
+
+      if (params.BASE_REVISION) {
+         // Only run the tests that are affected by files that were
+         // changed between BASE_REVISION and GIT_REVISION.
+         def testsToRun = exec.outputOf(
+            ["deploy/should_run_tests.py",
+             "--from-commit=${params.BASE_REVISION}",
+             "--to-commit=${params.GIT_REVISION}"
+            ]).split("\n") as List;
+         runtestsCmd += testsToRun;
+         echo("Running ${testsToRun.size()} tests");
+      } else {
+         echo("Running all tests");
+      }
+
+      sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
+
       dir("genfiles") {
-         unstash(name: "test-info.db before");
+         // Make sure to clean out any stray old splits files.  (This probably
+         // only matters if we changed the number of workers, but it never hurts.)
+         sh("rm -f test_splits.*.txt");
+
+         def allSplits = readFile("test_splits.txt").split("\n\n");
+         if (allSplits.size() != NUM_WORKER_MACHINES) {
+            echo("Got ${allSplits.size()} splits instead of " +
+                 "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
+            // Make it so we only try to run tests on this many workers,
+            // since we don't have work for the other workers to do!
+            NUM_WORKER_MACHINES = allSplits.size();
+         }
+         for (def i = 0; i < allSplits.size(); i++) {
+            writeFile(file: "test_splits.${i}.txt",
+                      text: allSplits[i]);
+         }
+         stash(includes: "test_splits.*.txt", name: "splits");
+         // Now tell the test workers to get to work!
+         HAVE_STASHED_TESTS = true;
       }
    } catch (e) {
-      // Proceed anyway -- perhaps the file doesn't exist yet.
-      // Ah well; we'll just have worse splits.
-      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
-   }
-
-   // This command expands directory arguments, and also filters out
-   // tests that are not the right size.  Finally, it figures out splits.
-   // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
-   // the same config in both places.
-   def runtestsCmd = ["tools/runtests.py",
-                      "--max-size=${params.MAX_SIZE}",
-                      "--test-file-glob=${params.TEST_FILE_GLOB}",
-                      "--jobs=${NUM_WORKER_MACHINES}",
-                      "--timing-db=genfiles/test-info.db",
-                      "--dry-run",
-                      "--just-split",
-                      "--override-skip-by-default",
-                     ];
-
-   if (params.BASE_REVISION) {
-      // Only run the tests that are affected by files that were
-      // changed between BASE_REVISION and GIT_REVISION.
-      def testsToRun = exec.outputOf(
-         ["deploy/should_run_tests.py",
-          "--from-commit=${params.BASE_REVISION}",
-          "--to-commit=${params.GIT_REVISION}"
-         ]).split("\n") as List;
-      runtestsCmd += testsToRun;
-      echo("Running ${testsToRun.size()} tests");
-   } else {
-      echo("Running all tests");
-   }
-
-   sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
-
-   dir("genfiles") {
-      // Make sure to clean out any stray old splits files.  (This probably
-      // only matters if we changed the number of workers, but it never hurts.)
-      sh("rm -f test_splits.*.txt");
-
-      def allSplits = readFile("test_splits.txt").split("\n\n");
-      if (allSplits.size() != NUM_WORKER_MACHINES) {
-         echo("Got ${allSplits.size()} splits instead of " +
-              "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
-         // Make it so we only try to run tests on this many workers,
-         // since we don't have work for the other workers to do!
-         NUM_WORKER_MACHINES = allSplits.size();
-      }
-      for (def i = 0; i < allSplits.size(); i++) {
-         writeFile(file: "test_splits.${i}.txt",
-                   text: allSplits[i]);
-      }
-      stash(includes: "test_splits.*.txt", name: "splits");
-      // Now tell the test workers to get to work!
+      // The workers are waiting on us to finish building deps; if we crash
+      // they'll wait forever.  So say we're done, and set the number of
+      // workers we need to zero, so they all exit quietly (our error will
+      // suffice to fail the job).
+      NUM_WORKER_MACHINES = 0;
       HAVE_STASHED_TESTS = true;
+      throw e;
    }
 }
 
