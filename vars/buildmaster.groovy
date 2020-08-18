@@ -162,7 +162,7 @@ def pingForStatus(job, sha1) {
       job: job
    ]
    def resp = _makeHttpRequestAndAlert("job-status", "POST", params);
-   return resp.getContent();
+   return resp ? resp.getContent() : null;
 }
 
 def pingForPromptStatus(prompt, sha1) {
@@ -172,5 +172,5 @@ def pingForPromptStatus(prompt, sha1) {
       prompt: prompt
    ]
    def resp = _makeHttpRequestAndAlert("prompt-status", "POST", params);
-   return resp.getContent();
+   return resp ? resp.getContent() : null;
 }
