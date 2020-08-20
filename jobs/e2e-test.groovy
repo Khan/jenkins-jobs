@@ -181,7 +181,7 @@ IS_ONE_GIT_SHA = null;
 // The NUM_TEST_SPLITS will be 1. It only require the first job to run
 // on first worker. The other three jobs on the first worker, and
 // rest of 9 workers will do nothing.
-NUM_TEST_SPLITS = -1;
+NUM_TEST_SPLITS = 0;
 
 // Set to true once master has run setup, so graphql/android tests can begin.
 HAVE_RUN_SETUP = false;
