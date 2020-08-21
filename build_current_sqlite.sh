@@ -30,6 +30,7 @@ rm -rf webapp/genfiles/content_prefill
 cd webapp
 make deps
 
+is_first_run=1
 for snapshot_bucket in $SNAPSHOT_NAMES; do
     # start dev server serving locally on port 9085
     # write logs to genfiles/appserver.log
@@ -55,6 +56,7 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
     tools/devshell.py --host localhost:9085 \
         --script dev/dev_appserver/run_sync.py \
+        ${is_first_run:+"--add-users"} \
         "../$snapshot_bucket" "$locale_name"
     sleep 10
 
@@ -73,6 +75,7 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     # wait some extra time to make sure everything has actually shut down and
     # fully written current.sqlite to disk
     sleep 30
+    is_first_run=
 done
 
 cd ..
