@@ -191,6 +191,11 @@ HAVE_RUN_SETUP = false;
 // worker type.
 WORKER_TYPE = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
 
+// Returns unix timestamp, in milliseconds.
+def _unixMillis() {
+   return (new Date()).getTime();
+}
+
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
@@ -341,7 +346,10 @@ def _runOneTest(splitId) {
 }
 
 def doTestOnWorker(workerNum) {
+   def startTime = _unixMillis();
    onWorker(WORKER_TYPE, '1h') {     // timeout
+      def workerStartedTime = _unixMillis();
+
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
@@ -349,6 +357,8 @@ def doTestOnWorker(workerNum) {
       // (if we are assigned to do so).
       // TODO(benkraft): Only run this if we get it from the splits?
       kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
+
+      def depsBuiltTime = _unixMillis();
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
@@ -371,6 +381,11 @@ def doTestOnWorker(workerNum) {
          def split = j;
          parallelTests["job-$split"] = { _runOneTest(split); };
       }
+
+      def setupDoneTime = _unixMillis();
+      echo("Setup time: worker startup ${workerStartedTime - startTime} ms, " +
+         "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
+         "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
 
       try {
          // This is apparently needed to avoid hanging with
