@@ -426,7 +426,14 @@ def determineSplitsAndRunTests() {
       "failFast": params.FAILFAST,
       "determine-splits": {
          withTimeout('10m') {
-            _setupWebapp();
+            try {
+               _setupWebapp();
+            } catch (e) {
+               // Make sure workers don't wait for us (see also parallel catch
+               // inside _determineTests()).
+               NUM_TEST_SPLITS = -1;
+               throw e;
+            }
             // Tell the android/graphql tests they can go.
             HAVE_RUN_SETUP = true;
             dir("webapp") {
