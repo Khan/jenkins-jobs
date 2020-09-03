@@ -220,9 +220,7 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
       sh("make clean_pyc");
-      // We need to "make deps" and not just "python_deps" because a11y e2e
-      // tests rely on jQuery and accessibility tool files from npm modules.
-      sh("make fix_deps");  // force a remake of all deps all the time
+      sh("make python_deps");
       if (params.DEV_SERVER) {
          // Running with a dev server requires current.sqlite, so we download
          // the latest one.
