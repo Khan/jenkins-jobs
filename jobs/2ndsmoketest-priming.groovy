@@ -85,13 +85,11 @@ def _setupWebapp() {
 
 
 def prime() {
-   onWorker('ka-2ndsmoketest-ec2', '1h') {     // timeout
-      _setupWebapp();
-      // We also need to sync mobile, so we can run the mobile integration test
-      // (if we are assigned to do so).
-      // TODO(benkraft): Only run this if we get it from the splits?
-      kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
-   }
+   _setupWebapp();
+   // We also need to sync mobile, so we can run the mobile integration test
+   // (if we are assigned to do so).
+   // TODO(benkraft): Only run this if we get it from the splits?
+   kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
 }
 
 def primeWorkers() {
