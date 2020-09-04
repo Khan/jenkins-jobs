@@ -14,8 +14,9 @@ def defaultNumTestWorkerMachines() {
 // defined under "Cloud" in the global jenkins settings, currently:
 def validWorkerLabels() {
    return [
-      'ka-test-ec2',        // normal test workers, used for webapp-test,
+      "ka-test-ec2",        // normal test workers, used for webapp-test,
                             // e2e-test, and other similar jobs
+      "ka-2ndsmoketest-ec2",        // used for 2nd smoke test (e2e-test)
       "build-worker",       // used for build-webapp
       "znd-worker",         // used for deploy-znd
       "ka-content-sync-ec2",              // used for build-current-sqlite
