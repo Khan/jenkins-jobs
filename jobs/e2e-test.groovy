@@ -38,6 +38,9 @@ new Setup(steps
         decorator)</li>
   <li> <b>custom</b>: run a specified list of tests, defined in
         TESTS_TO_RUN </li>
+  <li> <b>none</b>: do not run any tests, only do the merging and
+       deps-building.  This is useful as a "priming" job if you
+       know you will be able to use this worker again later. </li>
 </ul>
 """,
    ["all", "deploy", "custom"]
@@ -290,6 +293,8 @@ def _determineTests() {
       } else if (params.TEST_TYPE == "custom") {
           def tests = exec.shellEscapeList(params.TESTS_TO_RUN.split());
           sh("${runSmokeTestsCmd} ${tests} > genfiles/test-splits.txt");
+      } else if (params.TEST_TYPE == "none") {
+          return;
       } else {
          error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
       }
@@ -367,6 +372,10 @@ def doTestOnWorker(workerNum) {
       // (if we are assigned to do so).
       // TODO(benkraft): Only run this if we get it from the splits?
       kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
+
+      if (params.TEST_TYPE == "none") {
+        return;  // nothing to test, then nothing more to do!
+      }
 
       def depsBuiltTime = _unixMillis();
 
@@ -579,9 +588,12 @@ onWorker(WORKER_TYPE, '5h') {  // timeout
          }
       } finally {
          // We want to analyze results even if -- especially if -- there
-         // were failures; hence we're in the `finally`.
-         stage("Analyzing results") {
-            analyzeResults();
+         // were failures; hence we're in the `finally`.  But we don't
+         // analyze results if we didn't run any tests!
+         if (params.TEST_TYPE != "none") {
+            stage("Analyzing results") {
+               analyzeResults();
+            }
          }
       }
    }
