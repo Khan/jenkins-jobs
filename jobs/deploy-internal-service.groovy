@@ -22,7 +22,13 @@ new Setup(steps
 ).apply();
 
 def installDeps() {
-   withTimeout('5m') {
+   withTimeout('60m') { // webapp can take quite a while
+      // Unhappily, we need to clone webapp in this workspace so that we have
+      // secrets for reporting to slack.
+      // TODO(benkraft): just clone the secrets instead of webapp when we have
+      // that ability.
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+
       kaGit.safeSyncToOrigin("git@github.com:Khan/internal-services", "master");
       // In theory that's all we need; repos that need more deps will install
       // them themselves.
@@ -32,13 +38,17 @@ def installDeps() {
 def deploy() {
    withTimeout('15m') {
       dir("internal-services/${params.SERVICE}") {
-         // This automatically runs any applicable tests before deploying.
-         sh("make deploy");
+         withEnv([
+            "PATH=${env.PATH}:${env.HOME}/.local/bin",
+            "CLOUDSDK_CORE_ACCOUNT=526011289882-compute@developer.gserviceaccount.com"]) {
+            // This automatically runs any applicable tests before deploying.
+            sh("make deploy");
+         }
       }
    }
 }
 
-onMaster('30m') {
+onMaster('90m') {
    notify([slack: [channel: '#infrastructure-devops',
                    sender: 'Mr Meta Monkey', // we may be deploying Mr. Monkey himself!
                    emoji: ':monkey_face:',
@@ -48,7 +58,7 @@ onMaster('30m') {
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       if (params.SERVICE == "") {
-         fail("SERVICE is required!");
+         notify.fail("SERVICE is required!");
       }
       stage("Installing deps") {
          installDeps();
@@ -58,6 +68,3 @@ onMaster('30m') {
       }
    }
 }
-   
-
-

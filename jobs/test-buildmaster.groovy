@@ -21,7 +21,13 @@ new Setup(steps
 ).apply();
 
 def installDeps() {
-   withTimeout('5m') {
+   withTimeout('60m') { // webapp can take quite a while
+      // Unhappily, we need to clone webapp in this workspace so that we have
+      // secrets for reporting to slack.
+      // TODO(benkraft): just clone the secrets instead of webapp when we have
+      // that ability.
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+
       kaGit.safeSyncToOrigin(
          "git@github.com:Khan/internal-services", params.GIT_REVISION);
       // In theory that's all we need; running `make check` will install the
@@ -32,12 +38,14 @@ def installDeps() {
 def runTests() {
    withTimeout('15m') {
       dir("internal-services/buildmaster/image/buildmaster") {
-         sh("make check");
+         withEnv(["PATH=${env.PATH}:${env.HOME}/.local/bin"]) {
+            sh("make check");
+         }
       }
    }
 }
 
-onMaster('30m') {
+onMaster('90m') {
    notify([slack: [channel: '#infrastructure-devops',
                    sender: 'Mr Meta Monkey', // we are testing Mr. Monkey himself!
                    emoji: ':monkey_face:',
@@ -53,6 +61,3 @@ onMaster('30m') {
       }
    }
 }
-   
-
-
