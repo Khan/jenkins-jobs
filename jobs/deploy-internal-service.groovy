@@ -39,6 +39,12 @@ def deploy() {
    withTimeout('15m') {
       dir("internal-services/${params.SERVICE}") {
          withEnv([
+            // We install pipenv globally (using pip3, which doesn't use the
+            // virtualenv), so we need to add this to the path.
+            // TODO(benkraft): Do this for every job?  It probably doesn't
+            // hurt.
+            // We also use the jenkins service-account, rather than
+            // prod-deploy, because it has the right permissions.
             "PATH=${env.PATH}:${env.HOME}/.local/bin",
             "CLOUDSDK_CORE_ACCOUNT=526011289882-compute@developer.gserviceaccount.com"]) {
             // This automatically runs any applicable tests before deploying.

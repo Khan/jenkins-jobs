@@ -38,6 +38,10 @@ def installDeps() {
 def runTests() {
    withTimeout('15m') {
       dir("internal-services/buildmaster/image/buildmaster") {
+         // We install pipenv globally (using pip3, which doesn't use the
+         // virtualenv), so we need to add this to the path.
+         // TODO(benkraft): Do this for every job?  It probably doesn't
+         // hurt.
          withEnv(["PATH=${env.PATH}:${env.HOME}/.local/bin"]) {
             sh("make check");
          }
