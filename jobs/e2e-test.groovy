@@ -43,7 +43,7 @@ new Setup(steps
        know you will be able to use this worker again later. </li>
 </ul>
 """,
-   ["all", "deploy", "custom"]
+   ["all", "deploy", "custom", "none"]
 
 ).addStringParam(
    "TESTS_TO_RUN",
