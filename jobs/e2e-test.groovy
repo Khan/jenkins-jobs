@@ -567,19 +567,26 @@ def analyzeResults() {
 // We run the test-splitter, reporter, and graphql/android tests on a worker --
 // with all the tests running nowadays running it on the master can overwhelm
 // the master, and we have plenty of workers.
+// When running in "none" ("priming") mode we don't do any notification;
+// priming is best-effort only.
+def notifiers = params.TEST_TYPE == "none" ? [timeout: "1h"] : [
+    slack: [channel: params.SLACK_CHANNEL,
+            thread: params.SLACK_THREAD,
+            sender: 'Testing Turtle',
+            emoji: ':turtle:',
+            when: ['FAILURE', 'UNSTABLE']],
+    aggregator: [initiative: 'infrastructure',
+                 when: ['SUCCESS', 'BACK TO NORMAL',
+                        'FAILURE', 'ABORTED', 'UNSTABLE']],
+    buildmaster: params.TEST_TYPE == "none" ? [] :
+                 [sha: params.GIT_REVISION,
+                  what: (E2E_URL == "https://www.khanacademy.org" ?
+                         'second-smoke-test': 'first-smoke-test')],
+    timeout: "2h",
+]
+
 onWorker(WORKER_TYPE, '5h') {  // timeout
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: (E2E_URL == "https://www.khanacademy.org" ?
-                                'second-smoke-test': 'first-smoke-test')],
-           timeout: "2h"]) {
+   notify(notifiers) {
       initializeGlobals();
 
       try {
