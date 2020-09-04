@@ -35,6 +35,11 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+// We need this so we can run multiple nodes in the 'parallel' step
+// (I think because distributing those nodes to workers is all done
+// on the "main" worker machine and it needs an executor per worker.)
+).allowConcurrentBuilds(
+
 ).addStringParam(
    "GIT_REVISION",
    """A commit-ish to check out.  This only affects the version of the
