@@ -58,12 +58,21 @@ new Setup(steps
    """The slack thread (must be in SLACK_CHANNEL) to which to send failure
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
-API.""", ""
+API.""",
+    ""
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
    """How many worker machines to use.""",
    onWorker.defaultNumTestWorkerMachines().toString()
+
+).addBooleanParam(
+   "USE_2NDSMOKETEST_WORKERS",
+   """If true, use the jenkins workers that are dedicated to running
+the second smoke test (for the currently actively deploy).  Set to
+true when in that situation, but set to false otherwise!  We reserve
+these machines for that purpose to speed up the 2nd smoke test.""",
+   false
 
 ).addStringParam(
    "JOBS_PER_WORKER",
@@ -188,8 +197,11 @@ HAVE_RUN_SETUP = false;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
-// worker type.
-WORKER_TYPE = params.DEV_SERVER ? 'big-test-worker' : 'ka-test-ec2';
+// worker type.  We also have a dedicated set of workers for the
+// second smoke test.
+WORKER_TYPE = (params.DEV_SERVER ? 'big-test-worker' :
+               params.USE_2NDSMOKETEST_WORKERS ? 'ka-2ndsmoketest-ec2' :
+               'ka-test-ec2');
 
 // Returns unix timestamp, in milliseconds.
 def _unixMillis() {
