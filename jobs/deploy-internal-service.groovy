@@ -31,7 +31,7 @@ def installDeps() {
 
 def deploy() {
    withTimeout('15m') {
-      dir("internal-services/${params.SERVICE)}") {
+      dir("internal-services/${params.SERVICE}") {
          // This automatically runs any applicable tests before deploying.
          sh("make deploy");
       }
@@ -47,6 +47,9 @@ onMaster('30m') {
            aggregator: [initiative: 'infrastructure',
                         when: ['SUCCESS', 'BACK TO NORMAL',
                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+      if (params.SERVICE == "") {
+         fail("SERVICE is required!");
+      }
       stage("Installing deps") {
          installDeps();
       }
