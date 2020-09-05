@@ -304,7 +304,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make fix_deps");  // force a remake of all deps all the time
+         sh("make python_deps");  // this script only uses python!
 
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
