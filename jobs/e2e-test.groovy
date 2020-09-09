@@ -146,7 +146,17 @@ Only works when the URL is www.khanacademy.org.""",
 ).addStringParam(
    "EXPECTED_VERSION",
    """Set along with SET_SPLIT_COOKIE if we wish to verify we got the right
-version.  Currently only supported when we are deploying dynamic.""",
+version.  Currently only supported when we are deploying dynamic.
+TODO(csilvers): move this to wait_for_default.py and with
+EXPECTED_VERSION_SERVICES.""",
+   ""
+
+).addStringParam(
+   "EXPECTED_VERSION_SERVICES",
+   """Used with EXPECTED_VERSION.  If set (as a space-separated list),
+we busy-wait until all these services's /_api/version calls return
+EXPECTED_VERSION.
+TODO(csilvers): actually use this!""",
    ""
 
 ).addStringParam(
