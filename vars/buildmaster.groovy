@@ -54,45 +54,47 @@ def initializeBuildmasterToken() {
 // `params` is expected to be a map
 def _makeHttpRequestAndAlert(resource, httpMode, params) {
    initializeBuildmasterToken();
-   try {
-      // We retry if the buildmaster fails.
-      // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
-      retry {
-         def response = httpRequest(
-            acceptType: "APPLICATION_JSON",
-            contentType: "APPLICATION_JSON",
-            customHeaders: [[name: 'X-Buildmaster-Token',
-                             value: BUILDMASTER_TOKEN,
-                             // Replace value with ***** when logging request.
-                             maskValue: true]],
-            httpMode: httpMode,
-            requestBody: new JsonBuilder(params).toString(),
-            url: "https://buildmaster.khanacademy.org/${resource}");
-         SEND_SLACK_COUNT = 0;
-         return response;
-      }
-   } catch (e) {
-      // Ideally, we'd just catch hudson.AbortException, but for some reason
-      // it's not being caught properly.
-      // httpRequest throws exceptions when buildmaster responds with status
-      // code >=400
+   stage("Talking to buildmaster") {
+      try {
+         // We retry if the buildmaster fails.
+         // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
+         retry {
+            def response = httpRequest(
+               acceptType: "APPLICATION_JSON",
+               contentType: "APPLICATION_JSON",
+               customHeaders: [[name: 'X-Buildmaster-Token',
+                                value: BUILDMASTER_TOKEN,
+                                // Replace value with ***** when logging request.
+                                maskValue: true]],
+               httpMode: httpMode,
+               requestBody: new JsonBuilder(params).toString(),
+               url: "https://buildmaster.khanacademy.org/${resource}");
+            SEND_SLACK_COUNT = 0;
+            return response;
+         }
+      } catch (e) {
+         // Ideally, we'd just catch hudson.AbortException, but for some reason
+         // it's not being caught properly.
+         // httpRequest throws exceptions when buildmaster responds with status
+         // code >=400
 
-      // checkout jenkins-jobs folder in current workspace
-      // in order to load other groovy file.
-      kaGit.checkoutJenkinsTools();
-      // If the buildmaster is down, we will alert loudly to
-      // #infrastructure-devops channel, but don't want to send too much noise.
-      if (SEND_SLACK_COUNT < MAX_SLACK_MSGS) {
-         alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
-         SEND_SLACK_COUNT += 1;
+         // checkout jenkins-jobs folder in current workspace
+         // in order to load other groovy file.
+         kaGit.checkoutJenkinsTools();
+         // If the buildmaster is down, we will alert loudly to
+         // #infrastructure-devops channel, but don't want to send too much noise.
+         if (SEND_SLACK_COUNT < MAX_SLACK_MSGS) {
+            alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
+            SEND_SLACK_COUNT += 1;
 
-         echo("Failed 3 times, perhaps buildmaster is down.");
-         _sendSimpleInterpolatedMessage(
-            alertMsgs.BUILDMASTER_OUTAGE,
-            [step: "${resource} + ${httpMode}",
-            logsUrl: env.BUILD_URL]);
+            echo("Failed 3 times, perhaps buildmaster is down.");
+            _sendSimpleInterpolatedMessage(
+               alertMsgs.BUILDMASTER_OUTAGE,
+               [step: "${resource} + ${httpMode}",
+               logsUrl: env.BUILD_URL]);
+         }
+         return;
       }
-      return;
    }
 }
 
