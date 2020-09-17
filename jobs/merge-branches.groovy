@@ -53,9 +53,15 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
   "6"
 
+).addStringParam(
+   "REVISION_DESCRIPTION",
+   """Set by the buildmaster to give a more human-readable description
+of the GIT_REVISION, especially if it is a commit rather than a branch.""",
+   ""
+
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS})";
+currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS}) (${params.REVISION_DESCRIPTION})";
 
 
 def checkArgs() {
