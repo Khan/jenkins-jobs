@@ -136,6 +136,12 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
    ""
 
+).addStringParam(
+   "BUILDMASTER_DEPLOY_ID",
+   """Set by the buildmaster, can be used by scripts to associate jobs
+that are part of the same deploy.  Write-only; not used by this script.""",
+   ""
+
 ).addBooleanParam(
    "SET_SPLIT_COOKIE",
    """Set by deploy-webapp when we are in the middle of migrating traffic;
