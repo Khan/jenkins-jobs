@@ -59,6 +59,12 @@ for more information.""",
 of the GIT_REVISION, especially if it is a commit rather than a branch.""",
    ""
 
+).addStringParam(
+   "BUILDMASTER_ID",
+   """Set by the buildmaster, can be used by scripts to associate jobs
+that are part of the same deploy.  Write-only; not used by this script.""",
+   ""
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS}) (${params.REVISION_DESCRIPTION})";

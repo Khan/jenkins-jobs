@@ -112,6 +112,12 @@ Defaults to GIT_REVISION.""",
    ""
 
 ).addStringParam(
+   "BUILDMASTER_ID",
+   """Set by the buildmaster, can be used by scripts to associate jobs
+that are part of the same deploy.  Write-only; not used by this script.""",
+   ""
+
+).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
