@@ -331,7 +331,7 @@ def deploy() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make fix_deps");  // force a remake of all deps all the time
+         sh("make python_deps");
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
@@ -350,6 +350,17 @@ def deploy() {
          }
       }
 
+      // Make the deps we need based on what we're deploying.  The
+      // python services (default/etc) only need python deps.  The
+      // goliath services build their own deps via their `make deploy`
+      // rules.  That leaves the static service, which needs js deps.
+      if ("static" in SERVICES) {
+          // Ideally we'd just run `make npm_deps`, but we've had trouble,
+          // with that not updating node_modules/ properly, so we run
+          // `make fix_deps` instead to be safe.
+          sh("make fix_deps");
+      }
+
       echo("Znd Deploying to the following services: ${SERVICES.join(', ')}");
       def jobs = [:]
 
@@ -364,7 +375,7 @@ def deploy() {
                break;
 
             // These two services are a bit more complex and are handled
-            // specially in deployToGAE and deployToGCS.
+            // specially.
             case ( "kotlin-routes" || "course-editing" ):
                jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
                break;

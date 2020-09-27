@@ -288,7 +288,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make fix_deps");  // force a remake of all deps all the time
+         sh("make python_deps");
 
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
@@ -326,6 +326,21 @@ def mergeFromMasterAndInitializeGlobals() {
             // nameless service or something.
             SERVICES = [];
          }
+
+         // Now make the deps we need.  We always need python deps
+         // because we ourselves run various python scripts
+         // (e.g. current_version.py, below), but we only need other deps
+         // as needed for the services we're deploying.  The python
+         // services (default/etc) only need python deps.  The goliath
+         // services build their own deps via their `make deploy` rules.
+         // That leaves the static service, which needs js deps.
+         if ("static" in SERVICES) {
+             // Ideally we'd just run `make npm_deps`, but we've had trouble,
+             // with that not updating node_modules/ properly, so we run
+             // `make fix_deps` instead to be safe.
+             sh("make fix_deps");
+         }
+
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          // Phone home to buildmaster about the services we're deploying to
