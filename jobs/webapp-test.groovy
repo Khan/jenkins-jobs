@@ -208,6 +208,9 @@ def _setupWebapp() {
 
    dir("webapp") {
       clean(params.CLEAN);
+      // TOOD(csilvers): we could get away with only running
+      // python_deps, and just jstest_deps if running js tests,
+      // and go deps if running go tests/lints.
       sh("make fix_deps");  // force a remake of all deps all the time
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
