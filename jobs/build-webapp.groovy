@@ -334,7 +334,10 @@ def mergeFromMasterAndInitializeGlobals() {
          // services (default/etc) only need python deps.  The goliath
          // services build their own deps via their `make deploy` rules.
          // That leaves the static service, which needs js deps.
-         if ("static" in SERVICES) {
+         // TODO(csilvers): make it so we don't have to do this for
+         //                 graphql-gateway deploys, right now they call
+         //                 `make genfiles/gateway_config.json` which runs js.
+         if ("static" in SERVICES || "graphql-gatway" in SERVICES) {
              // Ideally we'd just run `make webapp_npm_deps`, but we've
              // had trouble, with that not updating node_modules/
              // properly, so we run `make fix_deps` instead to be safe.
