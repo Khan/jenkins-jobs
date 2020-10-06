@@ -23,7 +23,7 @@ def _interpolateString(def s, def interpolationArgs) {
 }
 
 def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
-   def SLACK_CHANNEL = "#infrastructure-devops";
+   def SLACK_CHANNEL = "#infrastructure-alerts";
    def CHAT_SENDER = 'Mr Monkey';
    def EMOJI = ':monkey_face:';
 

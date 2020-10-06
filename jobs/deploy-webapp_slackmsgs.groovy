@@ -34,6 +34,13 @@
 // The first has `text` plus `simpleMessage`==true.  The second has
 // `text` plus `simpleMessage`==false.  The third has just
 // `attachments`.
+//
+// Slack teams and channels (copy and paste one of these into your message if
+// you need to link/mention):
+//
+// #infrastructure: <#C8Y4Q1E0J>
+// #release-notes: <#C2RFQGYKU>
+// @dev-support: <!subteam^S41PPSJ21>
 
 
 // A very simple whitespace markup language: two+ blank lines -> newline,
@@ -74,7 +81,6 @@ all versions, good and bad.)
 
 ROLLBACK_FAILED = [
    "severity": "critical",
-   // the <!subteam> thing is "@dev-support".
    "text": _textWrap("""\
 :ohnoes: :ohnoes: Auto-rollback failed!
 Roll back to %(rollbackToAsVersion)s manually by running
@@ -128,14 +134,12 @@ yourself, or abort.
 
 FAILED_MERGE_TO_MASTER = [
    "severity": "error",
-   // the <!subteam> thing is "@dev-support".
    "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`)
 succeeded, but we did not successfully merge `%(branch)s` into
-`master`. <!subteam^S41PPSJ21> will need to fix things up, or
+`master`. <#C8Y4Q1E0J> will need to fix things up, or
 see "Advanced Troubleshooting" in the deploy system user guide.
 """)];
-
 
 FAILED_WITHOUT_ROLLBACK = [
    "severity": "error",
@@ -160,7 +164,7 @@ SUCCESS = [
 :party_dino: Deploy of `%(combinedVersion)s` (branch `%(branch)s`) succeeded!
 Time for a happy dance!
 *Reminder:* Keep everyone in the loop by sharing your change in <#C2RFQGYKU>
-""")]; // link to #release-notes
+""")];
 
 
 BUILDMASTER_OUTAGE = [
@@ -170,7 +174,7 @@ BUILDMASTER_OUTAGE = [
 :ohnoes: Jenkins is unable to reach buildmaster right now while trying to verify
 that %(step)s. You'll want to check the <%(logsUrl)s|jenkins logs> directly to
 tell Jenkins to proceed.
-Perhaps buildmaster is down. <!subteam^S41PPSJ21> will look into it.
+Perhaps buildmaster is down. <#C8Y4Q1E0J> should look into it.
 """)];
 
 return this;
