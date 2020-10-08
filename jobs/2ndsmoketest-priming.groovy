@@ -107,7 +107,7 @@ def prime() {
 
 def primeWorkers() {
    def jobs = [
-       "determine-splits": { prime() },
+       "sync-webapp": { prime() },
    ];
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
