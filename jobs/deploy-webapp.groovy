@@ -802,10 +802,12 @@ onMaster('4h') {
       }
 
       try {
-         stage("Await first smoke test and set-default confirmation") {
+         stage("Await first smoke test") {
             if (SERVICES) {
                verifySmokeTestResults('first-smoke-test');
             }
+         }
+         stage("set-default confirmation") {
             verifyPromptConfirmed("set-default");
          }
       } catch (e) {
