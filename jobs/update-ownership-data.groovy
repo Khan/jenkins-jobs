@@ -44,6 +44,9 @@ def runScript() {
 
       // Run the script!
       sh("dev/tools/update_ownership_data.py");
+
+      // Check we didn't break anything.
+      sh("tools/runtests.py dev/consistency_tests/ownership_test.py");
    }
 }
 
