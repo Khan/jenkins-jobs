@@ -338,10 +338,7 @@ def mergeFromMasterAndInitializeGlobals() {
          //                 graphql-gateway deploys, right now they call
          //                 `make genfiles/gateway_config.json` which runs js.
          if ("static" in SERVICES || "graphql-gatway" in SERVICES) {
-             // Ideally we'd just run `make webapp_npm_deps`, but we've
-             // had trouble, with that not updating node_modules/
-             // properly, so we run `make fix_deps` instead to be safe.
-             sh("make fix_deps");
+             sh("make npm_deps");
          }
 
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
