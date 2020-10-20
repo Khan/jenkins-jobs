@@ -259,6 +259,55 @@ def _alert(def slackArgs, def interpolationArgs) {
    }
 }
 
+// This method filters a common 'DEPLOYER_USERNAME' into a series of comma 
+// seperated slack user id's for the purpose of passing into alert.py's 
+// '--slack' argument. For Example:
+// DEPLOYER_USERNAME: <@UMZGEUH09> (cc <@UN5UC0EM6>)
+// becomes: UMZGEUH09,UN5UC0EM6,
+// TODO(dbraley): Add parsing of `@` usernames and `#` channels if needed
+@NonCPS // for pattern & matcher
+def _userIdsFrom(def deployUsernameBlob) {
+   // Regex to specifically grab the ids, which should start with U and be 
+   // some number of capital letters and numbers. Ids can also start with 
+   // W (special users), T (teams), or C (channels).
+    def pattern = /<@([UTWC][0-9A-Z]+)>/
+    def match = (deployUsernameBlob =~ pattern)
+    
+    allUsers = ""
+    
+    for (n in match) {
+        allUsers += "${n[1]},"
+    }
+    
+    return allUsers
+}
+
+// Sends a survey to the deployer and anyone cc'ed to help infrastructure 
+// understand why a deployment was aborted. Also sends it to 
+// #dev-support-stream so we can follow up on 'missed' surveys.
+def _sendAbortedDeploymentSurvey() {
+    def msg = ":robot_hearthands: It looks like you recently aborted a " +
+        "deployment. If there is still work to do for monitorring, please do " +
+        "that *BEFORE* responding to this message. However, when you have a " +
+        "few minutes <#C8Y4Q1E0J> would appreciate if you could fill out this " +
+        "short survey to help us understand what happened. Your response " +
+        "helps us refine the deployment system. " +
+        "<https://docs.google.com/forms/d/e/1FAIpQLSczr-9iOrdI1kaFNCAamoLMJ1cDGehURFpLV-OMcHSLIa3Rkg/viewform?usp=pp_url&entry.1550451339=${BUILD_NUMBER}|click me>"
+
+    def userIds = _userIdsFrom("${DEPLOYER_USERNAME}")
+    userIds += "#dev-support-stream"
+   
+    args = ["jenkins-jobs/alertlib/alert.py",
+        "--slack=${userIds}",
+        "--chat-sender=Mr Monkey",
+        "--icon-emoji=:monkey_face:",
+        "--severity=info",
+        ];
+
+    withSecrets() {     // to talk to slack
+        sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
+    }
+}
 
 def mergeFromMasterAndInitializeGlobals() {
    withTimeout('1h') {    // should_deploy builds files, which can take forever
@@ -710,6 +759,8 @@ def finishWithSuccess() {
 def finishWithFailureNoRollback(why) {
    if (currentBuild.result == "ABORTED") {
       why = "the deploy was manually aborted";   // a prettier error message
+      // Send Aborted Deployment Survey
+      _sendAbortedDeploymentSurvey()
    } else {
       currentBuild.result = "FAILURE";
    }
@@ -726,6 +777,8 @@ def finishWithFailureNoRollback(why) {
 def finishWithFailure(why) {
    if (currentBuild.result == "ABORTED") {
       why = "the deploy was manually aborted";   // a prettier error message
+      // Send Aborted Deployment Survey
+      _sendAbortedDeploymentSurvey()
    } else {
       currentBuild.result = "FAILURE";
    }
