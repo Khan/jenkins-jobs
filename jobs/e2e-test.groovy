@@ -291,7 +291,7 @@ def _determineTests() {
       "--timing-db=genfiles/test-info.db"
    ];
    if (params.SKIP_TESTS) {
-      runSmokeTestsArgs += ["--skip-tests=params.SKIP_TESTS"];
+      runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
    }
 
    if (params.TEST_TYPE == "all") {
@@ -299,7 +299,7 @@ def _determineTests() {
    } else if (params.TEST_TYPE == "deploy") {
       runSmokeTestsArgs += ["--deploy-tests-only"];
    } else if (params.TEST_TYPE == "custom") {
-      runSmokeTestsArgs += params.TESTS_TO_RUN.split();
+      runSmokeTestsArgs.addAll(params.TESTS_TO_RUN.split());
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
