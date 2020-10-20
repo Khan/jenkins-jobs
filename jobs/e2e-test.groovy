@@ -182,6 +182,12 @@ for more information.""",
    web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
    ""
 
+).addBooleanParam(
+   "USE_TEST_SERVER",
+    """If set, use the experimental test client/server architecture.
+    TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
+   false
+
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -207,9 +213,6 @@ IS_ONE_GIT_SHA = null;
 // on first worker. The other three jobs on the first worker, and
 // rest of 9 workers will do nothing.
 NUM_TEST_SPLITS = 0;
-
-// Set to true once master has run setup, so graphql/android tests can begin.
-HAVE_RUN_SETUP = false;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
@@ -288,36 +291,57 @@ def _determineTests() {
          echo("Unable to restore test-db from server, expect poor splitting: ${e}");
       }
 
-      // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
-      // the same config in both places.
-      def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
-                              "--just-split " +
-                              "--url=${E2E_URL} " +
-                              "--timing-db=genfiles/test-info.db " +
-                              "-j${NUM_SPLITS} ");
+      // TODO(dhruv): share these flags with `_runOneTest` to ensure
+      // we're using the same config in both places.
+      def runSmokeTestsArgs = [
+         "--url=${E2E_URL}",
+         "--timing-db=genfiles/test-info.db"
+      ];
       if (params.SKIP_TESTS) {
-         runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
+         runSmokeTestsArgs += ["--skip-tests=params.SKIP_TESTS"];
       }
 
       if (params.TEST_TYPE == "all") {
-         sh("${runSmokeTestsCmd} > genfiles/test-splits.txt");
+         // No more params to add
       } else if (params.TEST_TYPE == "deploy") {
-         sh("${runSmokeTestsCmd} --deploy-tests-only > genfiles/test-splits.txt");
+         runSmokeTestsArgs += ["--deploy-tests-only"];
       } else if (params.TEST_TYPE == "custom") {
-          def tests = exec.shellEscapeList(params.TESTS_TO_RUN.split());
-          sh("${runSmokeTestsCmd} ${tests} > genfiles/test-splits.txt");
+         runSmokeTestsArgs += params.TESTS_TO_RUN.split();
       } else {
          error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
       }
+
+      def server = "";
+      if (params.TEST_SERVER) {
+         // This gets our 10.x.x.x IP address.
+         def ip = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+         server = "http://${ip}:5001";
+      }
+
+      sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
       dir("genfiles") {
          def allSplits = readFile("test-splits.txt").split("\n\n");
          for (def i = 0; i < allSplits.size(); i++) {
+            // In test-server mode, we tell each worker about the server
+            // url to connect to.  In "split" mode, we tell each worker
+            // what test to run.
             writeFile(file: "test-splits.${i}.txt",
-                      text: allSplits[i]);
+                      text: server ?: allSplits[i]);
          }
          stash(includes: "test-splits.*.txt", name: "splits");
-         // Now set the number of test splits
+         // Now set the number of test splits.  This unblocks the test-workers.
+         // Note that in server mode, this unblocks the test-workers before
+         // we start the server!  But that's ok; they know to wait for it.
          NUM_TEST_SPLITS = allSplits.size();
+      }
+
+      if (params.TEST_SERVER) {
+         if (!params.DEV_SERVER) {
+             runSmokeTestsArgs += ["--prod"];
+         }
+         // Start the server.  It will auto-exit when it's done serving
+         // all the tests.
+         sh("testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
       }
    } catch (e) {
       // If we crash, tell the workers to give up, and not wait for us.  (Our
@@ -360,7 +384,6 @@ def _runOneTest(splitId) {
    if (params.EXPECTED_VERSION) {
       args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
-
 
    try {
       sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
@@ -410,8 +433,8 @@ def doTestOnWorker(workerNum) {
 
       def setupDoneTime = _unixMillis();
       echo("Setup time: worker startup ${workerStartedTime - startTime} ms, " +
-         "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
-         "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
+           "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
+           "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
 
       try {
          // This is apparently needed to avoid hanging with
@@ -457,11 +480,10 @@ def determineSplitsAndRunTests() {
             } catch (e) {
                // Make sure workers don't wait for us (see also parallel catch
                // inside _determineTests()).
+               // TODO(csilvers): just combine them!
                NUM_TEST_SPLITS = -1;
                throw e;
             }
-            // Tell the android/graphql tests they can go.
-            HAVE_RUN_SETUP = true;
             dir("webapp") {
                _determineTests();
             }
