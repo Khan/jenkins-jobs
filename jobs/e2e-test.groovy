@@ -182,6 +182,12 @@ for more information.""",
    web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
    ""
 
+).addBooleanParam(
+   "USE_TEST_SERVER",
+    """If set, use the experimental test client/server architecture.
+    TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
+   false
+
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -304,16 +310,37 @@ def _determineTests() {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
 
+   def server = "";
+   if (params.USE_TEST_SERVER) {
+      // This gets our 10.x.x.x IP address.
+      def ip = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+      server = "http://${ip}:5001";
+   }
+
    sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
       for (def i = 0; i < allSplits.size(); i++) {
+         // In test-server mode, we tell each worker about the server
+         // url to connect to.  In "split" mode, we tell each worker
+         // what test to run.
          writeFile(file: "test-splits.${i}.txt",
-                   text: allSplits[i]);
+                   text: server ?: allSplits[i]);
       }
       stash(includes: "test-splits.*.txt", name: "splits");
       // Now set the number of test splits.  This unblocks the test-workers.
+      // Note that in server mode, this unblocks the test-workers before
+      // we start the server!  But that's ok; they know to wait for it.
       NUM_TEST_SPLITS = allSplits.size();
+   }
+
+   if (params.USE_TEST_SERVER) {
+      if (!params.DEV_SERVER) {
+          runSmokeTestsArgs += ["--prod"];
+      }
+      // Start the server.  It will auto-exit when it's done serving
+      // all the tests.
+      sh("testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
    }
 }
 
