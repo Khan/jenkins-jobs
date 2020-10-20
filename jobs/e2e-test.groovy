@@ -208,9 +208,6 @@ IS_ONE_GIT_SHA = null;
 // rest of 9 workers will do nothing.
 NUM_TEST_SPLITS = 0;
 
-// Set to true once master has run setup, so graphql/android tests can begin.
-HAVE_RUN_SETUP = false;
-
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
 // worker type.  We also have a dedicated set of workers for the
@@ -266,65 +263,57 @@ def _setupWebapp() {
 
 
 def _determineTests() {
+   // Figure out how to split up the tests.  We run 4 jobs on
+   // each of 10 workers.  so the total splits capacity is 40.
+   // We put this in the location where the 'copy to slave' plugin
+   // expects it (e2e-test-<worker> will copy the file from here
+   // to each worker machine).
+   def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
+
+   // Try to load the server's test-info db.
    try {
-      // Figure out how to split up the tests.  We run 4 jobs on
-      // each of 10 workers.  so the total splits capacity is 40.
-      // We put this in the location where the 'copy to slave' plugin
-      // expects it (e2e-test-<worker> will copy the file from here
-      // to each worker machine).
-      def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
-
-      // Try to load the server's test-info db.
-      try {
-         onMaster('1m') {
-            stash(includes: "test-info.db", name: "test-info.db before");
-         }
-         dir("genfiles") {
-            unstash(name: "test-info.db before");
-         }
-      } catch (e) {
-         // Proceed anyway -- perhaps the file doesn't exist yet.
-         // Ah well; we'll just have worse splits.
-         echo("Unable to restore test-db from server, expect poor splitting: ${e}");
-      }
-
-      // TODO(dhruv): share these flags with `_runOneTest` to ensure we're using
-      // the same config in both places.
-      def runSmokeTestsCmd = ("tools/runsmoketests.py -n " +
-                              "--just-split " +
-                              "--url=${E2E_URL} " +
-                              "--timing-db=genfiles/test-info.db " +
-                              "-j${NUM_SPLITS} ");
-      if (params.SKIP_TESTS) {
-         runSmokeTestsCmd += "--skip-tests ${exec.shellEscape(params.SKIP_TESTS)} ";
-      }
-
-      if (params.TEST_TYPE == "all") {
-         sh("${runSmokeTestsCmd} > genfiles/test-splits.txt");
-      } else if (params.TEST_TYPE == "deploy") {
-         sh("${runSmokeTestsCmd} --deploy-tests-only > genfiles/test-splits.txt");
-      } else if (params.TEST_TYPE == "custom") {
-          def tests = exec.shellEscapeList(params.TESTS_TO_RUN.split());
-          sh("${runSmokeTestsCmd} ${tests} > genfiles/test-splits.txt");
-      } else {
-         error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
+      onMaster('1m') {
+         stash(includes: "test-info.db", name: "test-info.db before");
       }
       dir("genfiles") {
-         def allSplits = readFile("test-splits.txt").split("\n\n");
-         for (def i = 0; i < allSplits.size(); i++) {
-            writeFile(file: "test-splits.${i}.txt",
-                      text: allSplits[i]);
-         }
-         stash(includes: "test-splits.*.txt", name: "splits");
-         // Now set the number of test splits
-         NUM_TEST_SPLITS = allSplits.size();
+         unstash(name: "test-info.db before");
       }
    } catch (e) {
-      // If we crash, tell the workers to give up, and not wait for us.  (Our
-      // error will suffice to fail the job, and we will otherwise never give
-      // them the ready signal.)
-      NUM_TEST_SPLITS = -1;
-      throw e;
+      // Proceed anyway -- perhaps the file doesn't exist yet.
+      // Ah well; we'll just have worse splits.
+      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+   }
+
+   // TODO(dhruv): share these flags with `_runOneTest` to ensure
+   // we're using the same config in both places.
+   def runSmokeTestsArgs = [
+      "--url=${E2E_URL}",
+      "--timing-db=genfiles/test-info.db"
+   ];
+   if (params.SKIP_TESTS) {
+      runSmokeTestsArgs += ["--skip-tests=params.SKIP_TESTS"];
+   }
+
+   if (params.TEST_TYPE == "all") {
+      // No more params to add
+   } else if (params.TEST_TYPE == "deploy") {
+      runSmokeTestsArgs += ["--deploy-tests-only"];
+   } else if (params.TEST_TYPE == "custom") {
+      runSmokeTestsArgs += params.TESTS_TO_RUN.split();
+   } else {
+      error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
+   }
+
+   sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
+   dir("genfiles") {
+      def allSplits = readFile("test-splits.txt").split("\n\n");
+      for (def i = 0; i < allSplits.size(); i++) {
+         writeFile(file: "test-splits.${i}.txt",
+                   text: allSplits[i]);
+      }
+      stash(includes: "test-splits.*.txt", name: "splits");
+      // Now set the number of test splits.  This unblocks the test-workers.
+      NUM_TEST_SPLITS = allSplits.size();
    }
 }
 
@@ -360,7 +349,6 @@ def _runOneTest(splitId) {
    if (params.EXPECTED_VERSION) {
       args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
-
 
    try {
       sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
@@ -410,8 +398,8 @@ def doTestOnWorker(workerNum) {
 
       def setupDoneTime = _unixMillis();
       echo("Setup time: worker startup ${workerStartedTime - startTime} ms, " +
-         "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
-         "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
+           "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
+           "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
 
       try {
          // This is apparently needed to avoid hanging with
@@ -454,16 +442,15 @@ def determineSplitsAndRunTests() {
          withTimeout('10m') {
             try {
                _setupWebapp();
+               dir("webapp") {
+                  _determineTests();
+               }
             } catch (e) {
-               // Make sure workers don't wait for us (see also parallel catch
-               // inside _determineTests()).
+               // If we crash, tell the workers to give up, and not wait
+               // for us.  (Our error will suffice to fail the job, and
+               // we will otherwise never give them the ready signal.)
                NUM_TEST_SPLITS = -1;
                throw e;
-            }
-            // Tell the android/graphql tests they can go.
-            HAVE_RUN_SETUP = true;
-            dir("webapp") {
-               _determineTests();
             }
          }
       },
