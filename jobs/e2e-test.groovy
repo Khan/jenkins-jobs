@@ -336,8 +336,8 @@ def _determineTests() {
           runSmokeTestsArgs += ["--prod"];
       }
       // Start the server.  It will auto-exit when it's done serving
-      // all the tests.
-      sh("testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
+      // all the tests.  "0.0.0.0" lets other machines connect to us.
+      sh("env HOST=0.0.0.0 testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
    }
 }
 
