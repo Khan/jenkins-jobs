@@ -71,7 +71,18 @@ API.""",
    """If true, use the jenkins workers that are dedicated to running
 the second smoke test (for the currently actively deploy).  Set to
 true when in that situation, but set to false otherwise!  We reserve
-these machines for that purpose to speed up the 2nd smoke test.""",
+these machines for that purpose to speed up the 2nd smoke test.
+TODO(csilvers): remove this deprecated name after buildmaster no longer
+uses it.""",
+   false
+
+).addBooleanParam(
+   "USE_FIRSTINQUEUE_WORKERS",
+   """If true, use the jenkins workers that are set aside for the
+currently active deploy.  Obviously, this should only be set if you
+are, indeed, the currently active deploy.  We reserve these machines
+so the currently active deploy never has to wait for smoketest workers
+to spin up.""",
    false
 
 ).addStringParam(
@@ -219,7 +230,7 @@ NUM_TEST_SPLITS = 0;
 // worker type.  We also have a dedicated set of workers for the
 // second smoke test.
 WORKER_TYPE = (params.DEV_SERVER ? 'big-test-worker' :
-               params.USE_2NDSMOKETEST_WORKERS ? 'ka-2ndsmoketest-ec2' :
+               (params.USE_2NDSMOKETEST_WORKERS || param.USE_FIRSTINQUEUE_WORKERS ? 'ka-2ndsmoketest-ec2' :
                'ka-test-ec2');
 
 // Returns unix timestamp, in milliseconds.
