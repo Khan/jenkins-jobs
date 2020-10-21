@@ -292,10 +292,7 @@ def _determineTests() {
 
    // TODO(dhruv): share these flags with `_runOneTest` to ensure
    // we're using the same config in both places.
-   def runSmokeTestsArgs = [
-      "--url=${E2E_URL}",
-      "--timing-db=genfiles/test-info.db"
-   ];
+   def runSmokeTestsArgs = ["--timing-db=genfiles/test-info.db"];
    if (params.SKIP_TESTS) {
       runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
    }
@@ -317,7 +314,7 @@ def _determineTests() {
       server = "http://${ip}:5001";
    }
 
-   sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
+   sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} --url=${exec.shellEscape(E2E_URL)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
       for (def i = 0; i < allSplits.size(); i++) {
