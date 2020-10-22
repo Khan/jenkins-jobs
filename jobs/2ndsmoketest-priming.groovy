@@ -113,7 +113,7 @@ def primeWorkers() {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["e2e-test-${workerNum}"] = {
-         onWorker('ka-2ndsmoketest-ec2', '1h') {     // timeout
+         onWorker('ka-firstinqueue-ec2', '1h') {     // timeout
             prime();
             NUM_PRIMED_WORKER_MACHINES++;
             // Hold the machine to make sure jenkins actually starts
@@ -129,7 +129,7 @@ def primeWorkers() {
 }
 
 
-onWorker('ka-2ndsmoketest-ec2', '1h') {  // timeout
+onWorker('ka-firstinqueue-ec2', '1h') {  // timeout
    // We don't do any notification; priming is best-effort only.
    notify([timeout: "1h"]) {
       initializeGlobals();

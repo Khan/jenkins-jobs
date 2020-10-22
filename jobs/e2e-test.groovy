@@ -230,7 +230,7 @@ NUM_TEST_SPLITS = 0;
 // worker type.  We also have a dedicated set of workers for the
 // second smoke test.
 WORKER_TYPE = (params.DEV_SERVER ? 'big-test-worker' :
-               (params.USE_2NDSMOKETEST_WORKERS || param.USE_FIRSTINQUEUE_WORKERS ? 'ka-2ndsmoketest-ec2' :
+               (params.USE_2NDSMOKETEST_WORKERS || param.USE_FIRSTINQUEUE_WORKERS ? 'ka-firstinqueue-ec2' :
                'ka-test-ec2');
 
 // Returns unix timestamp, in milliseconds.
