@@ -473,7 +473,7 @@ def determineSplitsAndRunTests() {
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
       "determine-splits": {
-         withTimeout('10m') {
+         withTimeout('1h') {
             try {
                _setupWebapp();
                dir("webapp") {
