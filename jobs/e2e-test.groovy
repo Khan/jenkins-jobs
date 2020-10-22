@@ -184,9 +184,9 @@ for more information.""",
 
 ).addBooleanParam(
    "USE_TEST_SERVER",
-    """If set, use the experimental test client/server architecture.
-    TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
-   false
+   """If set, use the experimental test client/server architecture.
+   TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
+   true
 
 ).apply();
 
