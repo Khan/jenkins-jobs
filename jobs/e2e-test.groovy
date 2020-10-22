@@ -307,11 +307,10 @@ def _determineTests() {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
 
-   def server = "";
+   def serverIP = "";
    if (params.USE_TEST_SERVER) {
       // This gets our 10.x.x.x IP address.
-      def ip = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-      server = "http://${ip}:5001";
+      serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
    }
 
    sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} --url=${exec.shellEscape(E2E_URL)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
@@ -322,7 +321,7 @@ def _determineTests() {
          // url to connect to.  In "split" mode, we tell each worker
          // what test to run.
          writeFile(file: "test-splits.${i}.txt",
-                   text: server ?: allSplits[i]);
+                   text: serverIP ? "http://${serverIP}:5001" : allSplits[i]);
       }
       stash(includes: "test-splits.*.txt", name: "splits");
       // Now set the number of test splits.  This unblocks the test-workers.
@@ -336,8 +335,8 @@ def _determineTests() {
           runSmokeTestsArgs += ["--prod"];
       }
       // Start the server.  It will auto-exit when it's done serving
-      // all the tests.  "0.0.0.0" lets other machines connect to us.
-      sh("env HOST=0.0.0.0 testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
+      // all the tests.  "HOST=..." lets other machines connect to us.
+      sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
    }
 }
 
