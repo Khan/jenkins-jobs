@@ -140,7 +140,15 @@ inherent flakiness.""",
 may want to set this if you only want to run a subset of tests based on their
 file name, but most callers should be happy with the default.""",
    "*_test.py"
+
+).addBooleanParam(
+   "USE_TEST_SERVER",
+   """If set, use the experimental test client/server architecture.
+   TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
+   false
+
 ).apply()
+
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
@@ -162,6 +170,8 @@ HAVE_STASHED_TESTS = false;
 // So we have a special worker type.
 WORKER_TYPE = params.MAX_SIZE in ["large", "huge"]
     ? 'big-test-worker' : 'ka-test-ec2';
+
+WORKER_TIMEOUT = params.MAX_SIZE == 'huge' ? '4h' : '2h';
 
 
 def getGitSha1s() {
@@ -246,14 +256,10 @@ def _determineTests() {
       // tests that are not the right size.  Finally, it figures out splits.
       // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
       // the same config in both places.
-      def runtestsCmd = ["tools/runtests.py",
-                         "--max-size=${params.MAX_SIZE}",
-                         "--test-file-glob=${params.TEST_FILE_GLOB}",
-                         "--jobs=${NUM_WORKER_MACHINES}",
-                         "--timing-db=genfiles/test-info.db",
-                         "--dry-run",
-                         "--just-split",
-                         "--override-skip-by-default",
+      def runtestsArgs = ["--max-size=${params.MAX_SIZE}",
+                          "--test-file-glob=${params.TEST_FILE_GLOB}",
+                          "--timing-db=genfiles/test-info.db",
+                          "--override-skip-by-default",
                         ];
 
       if (params.BASE_REVISION) {
@@ -264,13 +270,19 @@ def _determineTests() {
              "--from-commit=${params.BASE_REVISION}",
              "--to-commit=${params.GIT_REVISION}"
             ]).split("\n") as List;
-         runtestsCmd += testsToRun;
+         runtestsArgs += testsToRun;
          echo("Running ${testsToRun.size()} tests");
       } else {
          echo("Running all tests");
       }
 
-      sh(exec.shellEscapeList(runtestsCmd) + " > genfiles/test_splits.txt");
+      def serverIP = "";
+      if (params.USE_TEST_SERVER) {
+         // This gets our 10.x.x.x IP address.
+         serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+      }
+
+      sh("testing/runtests.py ${exec.shellEscapeList(runtestsArgs)} -n --just-split -j${NUM_WORKER_MACHINES} > genfiles/test_splits.txt");
 
       dir("genfiles") {
          // Make sure to clean out any stray old splits files.  (This probably
@@ -286,12 +298,25 @@ def _determineTests() {
             NUM_WORKER_MACHINES = allSplits.size();
          }
          for (def i = 0; i < allSplits.size(); i++) {
+            // In test-server mode, we tell each worker about the server
+            // url to connect to.  In "split" mode, we tell each worker
+            // what test to run.
             writeFile(file: "test_splits.${i}.txt",
-                      text: allSplits[i]);
+                      text: serverIP ? "http://${serverIP}:5001" : allSplits[i]);
          }
          stash(includes: "test_splits.*.txt", name: "splits");
-         // Now tell the test workers to get to work!
+         // Now set the number of test splits.  This unblocks the test-workers.
+         // Note that in server mode, this unblocks the test-workers before
+         // we start the server!  But that's ok; they know to wait for it.
          HAVE_STASHED_TESTS = true;
+      }
+
+      if (params.USE_TEST_SERVER) {
+         // Start the server.  It will auto-exit when it's done serving
+         // all the tests.  "HOST=..." lets other machines connect to us.
+         // TODO(csilvers): use genfiles/test_splits.txt so we don't have to
+         //                 re-do that work again here.
+         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
       }
    } catch (e) {
       // The workers are waiting on us to finish building deps; if we crash
@@ -309,8 +334,7 @@ def doTestOnWorker(workerNum) {
    // Normally each worker should take 20-30m so we give them an hour
    // or two just in case; when running huge tests, the one that gets
    // make_test_db_test can take 2+ hours so we give it lots of time.
-   def workerTimeout = params.MAX_SIZE == 'huge' ? '4h' : '2h';
-   onWorker(WORKER_TYPE, workerTimeout) {     // timeout
+   onWorker(WORKER_TYPE, WORKER_TIMEOUT) {
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
@@ -330,6 +354,23 @@ def doTestOnWorker(workerNum) {
       sh("rm -f test-results.*.pickle");
       unstash("splits");
 
+     def runtestsArgs = [
+         "--pickle",
+         "--pickle-file=../test-results.${workerNum}.pickle",
+         "--quiet",
+         "--jobs=1",
+         "--retries=${params.NUM_RETRIES.toInteger()}",
+     ];
+     if (params.FAILFAST) {
+         runtestsArgs += ["--failfast"];
+     }
+     if (!params.USE_TEST_SERVER) {
+         runtestsArgs += [
+             "--test-file-glob=${params.TEST_FILE_GLOB}",
+             "--override-skip-by-default",
+             "--max-size=${params.MAX_SIZE}",
+         ];
+     }
      // TODO(dhruv): share these flags with `_determineTests` to ensure we're
      // using the same config in both places.
       try {
@@ -337,15 +378,7 @@ def doTestOnWorker(workerNum) {
             // Say what machine we're on, to help with debugging
             "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
             "../jenkins-jobs/timeout_output.py -v 55m " +
-            "tools/runtests.py " +
-            "--test-file-glob=${params.TEST_FILE_GLOB} " +
-            "--override-skip-by-default " +
-            "--pickle " +
-            "--pickle-file=../test-results.${workerNum}.pickle " +
-            "--quiet --jobs=1 " +
-            "--max-size=${exec.shellEscape(params.MAX_SIZE)} " +
-            "--retries=${params.NUM_RETRIES.toInteger()} " +
-            (params.FAILFAST ? "--failfast " : "") +
+            "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} " +
             "- < ../test_splits.${workerNum}.txt");
       } finally {
          // Now let the next stage see all the results.
@@ -364,7 +397,7 @@ def determineSplitsAndRunTests() {
       // This is a kwarg that tells parallel() what to do when a job fails.
       "failFast": params.FAILFAST,
       "determine-splits": {
-         withTimeout('20m') {
+         withTimeout(WORKER_TIMEOUT) {
             _setupWebapp();
             dir("webapp") {
                _determineTests();
