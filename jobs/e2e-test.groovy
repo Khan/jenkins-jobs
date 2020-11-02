@@ -193,12 +193,6 @@ for more information.""",
    web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
    ""
 
-).addBooleanParam(
-   "USE_TEST_SERVER",
-   """If set, use the experimental test client/server architecture.
-   TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
-   true
-
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -214,15 +208,12 @@ NUM_WORKER_MACHINES = null;
 JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
 
-// Set the number of tests split for the workers to run.
-// NUM_SPLITS is the number of total split capacity. If we
-// have 10 workers, each worker runs 4 jobs, so the total capacity
-// is 40. but sometime, we don't need that full capacity to run.
-// For instance, if we run the recent failing 1 smoke test only,
-// The NUM_TEST_SPLITS will be 1. It only require the first job to run
-// on first worker. The other three jobs on the first worker, and
-// rest of 9 workers will do nothing.
-NUM_TEST_SPLITS = 0;
+// Set the server protocol+host+port as soon as we're ready to start
+// the server.
+TEST_SERVER_URL = null;
+
+// Set when all the tests have been run
+TESTS_ARE_DONE = false;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
@@ -276,14 +267,7 @@ def _setupWebapp() {
 }
 
 
-def _determineTests() {
-   // Figure out how to split up the tests.  We run 4 jobs on
-   // each of 10 workers.  so the total splits capacity is 40.
-   // We put this in the location where the 'copy to slave' plugin
-   // expects it (e2e-test-<worker> will copy the file from here
-   // to each worker machine).
-   def NUM_SPLITS = NUM_WORKER_MACHINES * JOBS_PER_WORKER;
-
+def _startTestServer() {
    // Try to load the server's test-info db.
    try {
       onMaster('1m') {
@@ -298,8 +282,6 @@ def _determineTests() {
       echo("Unable to restore test-db from server, expect poor splitting: ${e}");
    }
 
-   // TODO(dhruv): share these flags with `_runOneTest` to ensure
-   // we're using the same config in both places.
    def runSmokeTestsArgs = ["--timing-db=genfiles/test-info.db"];
    if (params.SKIP_TESTS) {
       runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
@@ -315,44 +297,34 @@ def _determineTests() {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
 
-   def serverIP = "";
-   if (params.USE_TEST_SERVER) {
-      // This gets our 10.x.x.x IP address.
-      serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+   if (!params.DEV_SERVER) {
+       runSmokeTestsArgs += ["--prod"];
    }
 
-   sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} --url=${exec.shellEscape(E2E_URL)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
-   dir("genfiles") {
-      def allSplits = readFile("test-splits.txt").split("\n\n");
-      for (def i = 0; i < allSplits.size(); i++) {
-         // In test-server mode, we tell each worker about the server
-         // url to connect to.  In "split" mode, we tell each worker
-         // what test to run.
-         writeFile(file: "test-splits.${i}.txt",
-                   text: serverIP ? "http://${serverIP}:5001" : allSplits[i]);
-      }
-      stash(includes: "test-splits.*.txt", name: "splits");
-      // Now set the number of test splits.  This unblocks the test-workers.
-      // Note that in server mode, this unblocks the test-workers before
-      // we start the server!  But that's ok; they know to wait for it.
-      NUM_TEST_SPLITS = allSplits.size();
-   }
+   // This gets our 10.x.x.x IP address.
+   def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+   // This unblocks the test-workers to let them know they can connect
+   // to the server.  Note we do this before the server starts up,
+   // since the server is blocking (so we can't do it after), but the
+   // clients know this and will retry when connecting.
+   TEST_SERVER_URL = "http://${serverIP}:5001";
 
-   if (params.USE_TEST_SERVER) {
-      if (!params.DEV_SERVER) {
-          runSmokeTestsArgs += ["--prod"];
-      }
-      // Start the server.  It will auto-exit when it's done serving
-      // all the tests.  "HOST=..." lets other machines connect to us.
-      sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
-   }
+   // Start the server.  Note this blocks.  It will auto-exit when
+   // it's done serving all the tests.  "HOST=..." lets other machines
+   // connect to us.
+   sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
+
+   // It's possible that some of the test-workers won't come online
+   // until after all the tests are run!  We need to let them know
+   // they shouldn't try connecting to the server (since it's not
+   // running anymore, and has no tests to disburse anyway).
+   // TODO(csilvers): figure out a way to cancel the startup of
+   // such workers, perhaps by using failfast=true and catchError().
+   TESTS_ARE_DONE = true;
 }
 
 def _runOneTest(splitId) {
-   // TODO(dhruv): share these flags with `determineTests` to ensure we're
-   // using the same config in both places.
-   if (!fileExists("../test-splits.${splitId}.txt")) {
-      // if not test-split file in worker, do nothing
+   if (TESTS_ARE_DONE) {  // everyone finished before we even started!
       return;
    }
 
@@ -363,7 +335,7 @@ def _runOneTest(splitId) {
                "--xml-dir=genfiles/test-reports",
                "--quiet", "--jobs=1", "--retries=3",
                "--driver=chrome",
-               "-"];
+               TEST_SERVER_URL];
    if (params.DEV_SERVER) {
       // TODO(benkraft): Figure out how to use sauce with the dev server -- I
       // think sauce has some tool to allow this but I don't know how it works.
@@ -382,7 +354,7 @@ def _runOneTest(splitId) {
    }
 
    try {
-      sh(exec.shellEscapeList(args) + " < ../test-splits.${splitId}.txt");
+      exec(args);
    } catch (e) {
       // end-to-end failures are not blocking currently, so if
       // tests fail set the status to UNSTABLE, not FAILURE.
@@ -401,30 +373,26 @@ def doTestOnWorker(workerNum) {
       // We also need to sync mobile, so we can run the mobile integration test
       // (if we are assigned to do so).
       // TODO(benkraft): Only run this if we get it from the splits?
+      // TODO(csilvers): Is this needed anymore?
       kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
-
-      def depsBuiltTime = _unixMillis();
-
-      // We continue to hold the worker while waiting, so we can make sure to
-      // get the same one, and start right away, once ready.
-      waitUntil({ NUM_TEST_SPLITS != 0 });
-
-      // The main worker is telling us to give up.
-      if (NUM_TEST_SPLITS < 0) {
-         return;
-      }
 
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
-      unstash("splits");
-      def firstSplit = workerNum * JOBS_PER_WORKER;
-      def lastSplit = Math.min(firstSplit + JOBS_PER_WORKER, NUM_TEST_SPLITS) - 1;
+
+      def depsBuiltTime = _unixMillis();
+
+      // Wait for the test-server to start up, or to say it's not going to.
+      waitUntil({ TEST_SERVER_URL || TESTS_ARE_DONE });
+
+      // The main worker is telling us to give up.
+      if (TESTS_ARE_DONE) {
+         return;
+      }
 
       def parallelTests = ["failFast": params.FAILFAST];
-      for (def j = firstSplit; j <= lastSplit; j++) {
-         // That restriction in `parallel` again.
-         def split = j;
-         parallelTests["job-$split"] = { _runOneTest(split); };
+      for (def i = 0; i < JOBS_PER_WORKER; i++) {
+         def id = "$workerNum-$i";
+         parallelTests["job-$id"] = { _runOneTest(id); };
       }
 
       def setupDoneTime = _unixMillis();
@@ -457,7 +425,7 @@ def doTestOnWorker(workerNum) {
    }
 }
 
-def determineSplitsAndRunTests() {
+def runTests() {
    def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
                                   "--chat-sender=Testing Turtle",
                                   "--icon-emoji=:turtle:"];
@@ -474,13 +442,13 @@ def determineSplitsAndRunTests() {
             try {
                _setupWebapp();
                dir("webapp") {
-                  _determineTests();
+                  _startTestServer();
                }
             } catch (e) {
                // If we crash, tell the workers to give up, and not wait
                // for us.  (Our error will suffice to fail the job, and
                // we will otherwise never give them the ready signal.)
-               NUM_TEST_SPLITS = -1;
+               TESTS_ARE_DONE = true;
                throw e;
             }
          }
@@ -517,15 +485,17 @@ def analyzeResults() {
          }
       }
 
-      def numPickleFileErrors = 0;
-      for (def i = 0; i <  NUM_TEST_SPLITS; i++) {
-         if (!fileExists("test-results.${i}.pickle")) {
-            numPickleFileErrors++;
+      def foundAPickleFile = false;
+      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+         for (def j = 0; j < JOBS_PER_WORKER; j++) {
+            if (fileExists("test-results.${i}-${j}.pickle")) {
+               foundAPickleFile = true;
+            }
          }
       }
       // Send a special message if all workers fail, because that's not good
       // (and the normal script can't handle it).
-      if (numPickleFileErrors == NUM_WORKER_MACHINES) {
+      if (!foundAPickleFile) {
          def msg = ("All test workers failed!  Check " +
                     "${env.BUILD_URL}consoleFull to see why.)");
          notify.fail(msg, "UNSTABLE");
@@ -609,7 +579,7 @@ onWorker(WORKER_TYPE, '5h') {  // timeout
 
       try {
          stage("Running tests") {
-            determineSplitsAndRunTests();
+            runTests();
          }
       } finally {
          // We want to analyze results even if -- especially if -- there
