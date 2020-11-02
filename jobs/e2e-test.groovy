@@ -213,7 +213,6 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 NUM_WORKER_MACHINES = null;
 JOBS_PER_WORKER = null;
 GIT_SHA1 = null;
-IS_ONE_GIT_SHA = null;
 
 // Set the number of tests split for the workers to run.
 // NUM_SPLITS is the number of total split capacity. If we
@@ -258,8 +257,6 @@ def initializeGlobals() {
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                      params.GIT_REVISION);
-   // Required for buildmaster to accept a notification
-   IS_ONE_GIT_SHA = true;
 }
 
 
