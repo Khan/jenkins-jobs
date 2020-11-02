@@ -221,7 +221,7 @@ def _setupWebapp() {
       // TOOD(csilvers): we could get away with only running
       // python_deps, and just npm_deps if running js tests,
       // and go_deps if running go tests/lints.
-      sh("make npm_deps");
+      sh("make python_deps npm_deps");
    }
    // Webapp's lint tests also look for the linter in ../devtools/khan-linter
    // so make sure we sync that to the latest version.
