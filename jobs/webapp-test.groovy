@@ -145,7 +145,7 @@ file name, but most callers should be happy with the default.""",
    "USE_TEST_SERVER",
    """If set, use the experimental test client/server architecture.
    TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
-   false
+   true
 
 ).apply()
 
