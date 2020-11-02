@@ -193,12 +193,6 @@ for more information.""",
    web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
    ""
 
-).addBooleanParam(
-   "USE_TEST_SERVER",
-   """If set, use the experimental test client/server architecture.
-   TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
-   true
-
 ).apply();
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
@@ -318,19 +312,16 @@ def _determineTests() {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
 
-   def serverIP = "";
-   if (params.USE_TEST_SERVER) {
-      // This gets our 10.x.x.x IP address.
-      serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-   }
+   // This gets our 10.x.x.x IP address.
+   serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
 
    sh("testing/runsmoketests.py ${exec.shellEscapeList(runSmokeTestsArgs)} --url=${exec.shellEscape(E2E_URL)} -n --just-split -j${NUM_SPLITS} > genfiles/test-splits.txt");
    dir("genfiles") {
       def allSplits = readFile("test-splits.txt").split("\n\n");
       for (def i = 0; i < allSplits.size(); i++) {
-         // In test-server mode, we tell each worker about the server
-         // url to connect to.  In "split" mode, we tell each worker
-         // what test to run.
+         // TODO(csilvers): set the server-host in a shared var rather than
+         // a helper file.  And do other cleanups now we are test-server
+         // always.
          writeFile(file: "test-splits.${i}.txt",
                    text: serverIP ? "http://${serverIP}:5001" : allSplits[i]);
       }
@@ -341,14 +332,12 @@ def _determineTests() {
       NUM_TEST_SPLITS = allSplits.size();
    }
 
-   if (params.USE_TEST_SERVER) {
-      if (!params.DEV_SERVER) {
-          runSmokeTestsArgs += ["--prod"];
-      }
-      // Start the server.  It will auto-exit when it's done serving
-      // all the tests.  "HOST=..." lets other machines connect to us.
-      sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
+   if (!params.DEV_SERVER) {
+       runSmokeTestsArgs += ["--prod"];
    }
+   // Start the server.  It will auto-exit when it's done serving
+   // all the tests.  "HOST=..." lets other machines connect to us.
+   sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
 }
 
 def _runOneTest(splitId) {
