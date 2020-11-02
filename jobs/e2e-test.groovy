@@ -124,11 +124,6 @@ E2E test used; it will probably match the tested version's code,
 but it doesn't need to.""",
    "master"
 
-).addBooleanParam(
-   "FAILFAST",
-   "If set, stop running tests after the first failure.",
-   false
-
 ).addStringParam(
    "DEPLOYER_USERNAME",
    """Who asked to run this job, used to ping on slack.
@@ -212,8 +207,12 @@ GIT_SHA1 = null;
 // the server.
 TEST_SERVER_URL = null;
 
-// Set when all the tests have been run
+// Used to make sure we exit our test-running at the right time:
+// either when all tests are done (so server is done, we need clients
+// to be done too), or all test-clients fail (so clients are done, and
+// we need server to be done too).
 TESTS_ARE_DONE = false;
+NUM_WORKER_FAILURES = 0;
 
 // If we're using a dev server, we need a bit more disk space, because
 // current.sqlite and dev server tmpdirs get big.  So we have a special
@@ -319,20 +318,11 @@ def _startTestServer() {
    // connect to us.
    sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
 
-   // It's possible that some of the test-workers won't come online
-   // until after all the tests are run!  We need to let them know
-   // they shouldn't try connecting to the server (since it's not
-   // running anymore, and has no tests to disburse anyway).
-   // TODO(csilvers): figure out a way to cancel the startup of
-   // such workers, perhaps by using failfast=true and catchError().
+   // Failing test-workers wait for this to be set so they all finish together.
    TESTS_ARE_DONE = true;
 }
 
 def _runOneTest(splitId) {
-   if (TESTS_ARE_DONE) {  // everyone finished before we even started!
-      return;
-   }
-
    def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
                "--url=${E2E_URL}",
                "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
@@ -347,9 +337,6 @@ def _runOneTest(splitId) {
       args += ["--with-dev-server"];
    } else if (params.USE_SAUCE) {
       args += ["--backup-driver=sauce"];
-   }
-   if (params.FAILFAST) {
-      args += ["--failfast"];
    }
    if (params.SET_SPLIT_COOKIE) {
       args += ["--set-split-cookie"];
@@ -387,14 +374,9 @@ def doTestOnWorker(workerNum) {
       def depsBuiltTime = _unixMillis();
 
       // Wait for the test-server to start up, or to say it's not going to.
-      waitUntil({ TEST_SERVER_URL || TESTS_ARE_DONE });
+      waitUntil({ TEST_SERVER_URL != null });
 
-      // The main worker is telling us to give up.
-      if (TESTS_ARE_DONE) {
-         return;
-      }
-
-      def parallelTests = ["failFast": params.FAILFAST];
+      def parallelTests = ["failFast": false];
       for (def i = 0; i < JOBS_PER_WORKER; i++) {
          def id = "$workerNum-$i";
          parallelTests["job-$id"] = { _runOneTest(id); };
@@ -430,6 +412,8 @@ def doTestOnWorker(workerNum) {
    }
 }
 
+public class TestsAreDone extends Exception {}
+
 def runTests() {
    def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
                                   "--chat-sender=Testing Turtle",
@@ -441,21 +425,22 @@ def runTests() {
    }
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
-      "failFast": params.FAILFAST,
+      // We abuse it to handle this situation, which there's no other good
+      // way to handle: we have 2 test-workers, and the first one finishes
+      // all the tests while the second one is still being provisioned.
+      // We want to cancel the provisioning and end the job right away,
+      // not wait until the worker is provisioned and then have it be a noop.
+      "failFast": true,
       "determine-splits": {
          withTimeout('1h') {
-            try {
-               _setupWebapp();
-               dir("webapp") {
-                  _startTestServer();
-               }
-            } catch (e) {
-               // If we crash, tell the workers to give up, and not wait
-               // for us.  (Our error will suffice to fail the job, and
-               // we will otherwise never give them the ready signal.)
-               TESTS_ARE_DONE = true;
-               throw e;
+            _setupWebapp();
+            dir("webapp") {
+               _startTestServer();
             }
+            // If we get here, all tests have been run.  Throw a
+            // TestsAreDone "exception" to cause all our workers to
+            // exit if they haven't already.
+            throw new TestsAreDone();
          }
       },
    ];
@@ -464,11 +449,25 @@ def runTests() {
       def workerNum = i;
 
       jobs["e2e-test-${workerNum}"] = {
-         doTestOnWorker(workerNum);
+         try {
+            doTestOnWorker(workerNum);
+         } catch (e) {
+            NUM_WORKER_FAILURES++;
+            // We don't *actually* want to failfast when a worker fails,
+            // so just wait until the server says tests are over,
+            // or until all the clients have failed (since the server
+            // will never get to "all tests run" in that case).
+            waitUntil({ TESTS_ARE_DONE || NUM_WORKER_FAILURES == NUM_WORKER_MACHINES });
+            throw e;
+         }
       };
    }
 
-   parallel(jobs);
+   try {
+      parallel(jobs);
+   } catch (TestsAreDone e) {
+      // Ignore this "error": it's thrown on successful test completion.
+   }
 }
 
 
