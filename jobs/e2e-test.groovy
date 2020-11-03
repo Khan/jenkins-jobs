@@ -304,7 +304,7 @@ def _startTestServer() {
    // This isn't needed until tests are done.
    // TODO(csilvers): integrate it with the normal runtests_server run
    // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)} > genfiles/test-splits.txt")
+   sh("testing/runtests_server.py -n --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)} | grep -v : > genfiles/test-splits.txt")
 
    // This gets our 10.x.x.x IP address.
    def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
