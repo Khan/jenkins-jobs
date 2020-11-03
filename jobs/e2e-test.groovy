@@ -306,9 +306,9 @@ def _determineTests() {
    }
 
    if (params.TEST_TYPE == "all") {
-      // No more params to add
+      runSmokeTestsArgs += ["."];
    } else if (params.TEST_TYPE == "deploy") {
-      runSmokeTestsArgs += ["--deploy-tests-only"];
+      runSmokeTestsArgs += ["--deploy-tests-only", "."];
    } else if (params.TEST_TYPE == "custom") {
       runSmokeTestsArgs.addAll(params.TESTS_TO_RUN.split());
    } else {
