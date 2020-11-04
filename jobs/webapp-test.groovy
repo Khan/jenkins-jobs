@@ -257,7 +257,6 @@ def _determineTests() {
       // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
       // the same config in both places.
       def runtestsArgs = ["--max-size=${params.MAX_SIZE}",
-                          "--test-file-glob=${params.TEST_FILE_GLOB}",
                           "--timing-db=genfiles/test-info.db",
                           "--override-skip-by-default",
                         ];
@@ -280,6 +279,8 @@ def _determineTests() {
       if (params.USE_TEST_SERVER) {
          // This gets our 10.x.x.x IP address.
          serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+      } else {
+         runtestsArgs += ["--test-file-glob=${params.TEST_FILE_GLOB}"];
       }
 
       sh("testing/runtests.py ${exec.shellEscapeList(runtestsArgs)} -n --just-split -j${NUM_WORKER_MACHINES} > genfiles/test_splits.txt");
@@ -316,7 +317,7 @@ def _determineTests() {
          // all the tests.  "HOST=..." lets other machines connect to us.
          // TODO(csilvers): use genfiles/test_splits.txt so we don't have to
          //                 re-do that work again here.
-         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
+         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} .")
       }
    } catch (e) {
       // The workers are waiting on us to finish building deps; if we crash
