@@ -272,6 +272,7 @@ def _determineTests() {
          runtestsArgs += testsToRun;
          echo("Running ${testsToRun.size()} tests");
       } else {
+         runtestsArgs += ["."];
          echo("Running all tests");
       }
 
@@ -317,7 +318,7 @@ def _determineTests() {
          // all the tests.  "HOST=..." lets other machines connect to us.
          // TODO(csilvers): use genfiles/test_splits.txt so we don't have to
          //                 re-do that work again here.
-         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} .")
+         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
       }
    } catch (e) {
       // The workers are waiting on us to finish building deps; if we crash
