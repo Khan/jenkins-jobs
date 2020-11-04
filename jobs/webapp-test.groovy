@@ -377,6 +377,7 @@ def doTestOnWorker(workerNum) {
       try {
          sh("cd webapp; " +
             // Say what machine we're on, to help with debugging
+            "ifconfig; " +
             "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
             "../jenkins-jobs/timeout_output.py -v 55m " +
             "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} " +
