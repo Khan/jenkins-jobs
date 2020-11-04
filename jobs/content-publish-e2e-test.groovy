@@ -63,7 +63,7 @@ manually, but rather by other jobs that call this one.""",
 def getRedisKey() {
    withTimeout('30m') {
       def versionJson = exec.outputOf(
-         ["curl", "-s", "${params.URL}/api/internal/dev/version"]);
+         ["curl", "-s", "${params.URL}/_api/version"]);
       def versionId = sh(
          script: ("echo ${exec.shellEscape(versionJson)} | " +
                   "python -c 'import json, sys;" +
