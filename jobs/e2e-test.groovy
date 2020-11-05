@@ -98,13 +98,7 @@ the best value is 4.""",
 ).addBooleanParam(
    "USE_SAUCE",
    """Use SauceLabs to record a video of any tests that fail.
-This slows down the tests significantly, but is often helpful for debugging.
-Not currently supported when DEV_SERVER is also enabled.""",
-   false
-
-).addBooleanParam(
-   "DEV_SERVER",
-   "If set, run the tests on a dev server (overrides URL).",
+This slows down the tests significantly but is often helpful for debugging.""",
    false
 
 ).addStringParam(
@@ -199,13 +193,9 @@ TEST_SERVER_URL = null;
 TESTS_ARE_DONE = false;
 NUM_WORKER_FAILURES = 0;
 
-// If we're using a dev server, we need a bit more disk space, because
-// current.sqlite and dev server tmpdirs get big.  So we have a special
-// worker type.  We also have a dedicated set of workers for the
-// second smoke test.
-WORKER_TYPE = (params.DEV_SERVER ? 'big-test-worker' :
-               params.USE_FIRSTINQUEUE_WORKERS ? 'ka-firstinqueue-ec2' :
-                'ka-test-ec2');
+// We have a dedicated set of workers for the second smoke test.
+WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
+               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 // Returns unix timestamp, in milliseconds.
 def _unixMillis() {
@@ -240,13 +230,6 @@ def _setupWebapp() {
    dir("webapp") {
       sh("make clean_pyc");
       sh("make python_deps");
-      if (params.DEV_SERVER) {
-         // Running with a dev server requires current.sqlite, so we download
-         // the latest one.
-         // TODO(benkraft): Don't do so if it was done within the last day --
-         // it only gets updated once a day anyway.
-         sh("make current.sqlite");
-      }
    }
 }
 
@@ -266,7 +249,7 @@ def _startTestServer() {
       echo("Unable to restore test-db from server, expect poor splitting: ${e}");
    }
 
-   def runSmokeTestsArgs = ["--timing-db=genfiles/test-info.db"];
+   def runSmokeTestsArgs = ["--prod", "--timing-db=genfiles/test-info.db"];
    if (params.SKIP_TESTS) {
       runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
    }
@@ -279,10 +262,6 @@ def _startTestServer() {
       runSmokeTestsArgs.addAll(params.TESTS_TO_RUN.split());
    } else {
       error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
-   }
-
-   if (!params.DEV_SERVER) {
-       runSmokeTestsArgs += ["--prod"];
    }
 
    // This isn't needed until tests are done.
@@ -317,11 +296,7 @@ def _runOneTest(splitId) {
                "--quiet", "--jobs=1", "--retries=3",
                "--driver=chrome",
                TEST_SERVER_URL];
-   if (params.DEV_SERVER) {
-      // TODO(benkraft): Figure out how to use sauce with the dev server -- I
-      // think sauce has some tool to allow this but I don't know how it works.
-      args += ["--with-dev-server"];
-   } else if (params.USE_SAUCE) {
+   if (params.USE_SAUCE) {
       args += ["--backup-driver=sauce"];
    }
    if (params.SET_SPLIT_COOKIE) {
