@@ -351,6 +351,7 @@ def _runOneTest(splitId) {
    } catch (e) {
       // end-to-end failures are not blocking currently, so if
       // tests fail set the status to UNSTABLE, not FAILURE.
+      echo("Smoketest-executable failed, marking build unstable: ${e}");
       currentBuild.result = "UNSTABLE";
    }
 }
