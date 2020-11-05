@@ -251,6 +251,11 @@ def _determineTests() {
          // Ah well; we'll just have worse splits.
          echo("Unable to restore test-db from server, expect poor splitting: ${e}");
       }
+      // The `dir("genfiles")` creates a genfiles@tmp directory which
+      // confuses lint_test.py (it tries to make a Lint_genfiles__tmp
+      // test-class, which of course doesn't work on the workers).
+      // Let's remove it.
+      sh("rm -rf genfiles@tmp");
 
       // This command expands directory arguments, and also filters out
       // tests that are not the right size.  Finally, it figures out splits.
@@ -312,6 +317,8 @@ def _determineTests() {
          // we start the server!  But that's ok; they know to wait for it.
          HAVE_STASHED_TESTS = true;
       }
+      // Again, clean up after the `dir("genfiles")`.
+      sh("rm -rf genfiles@tmp");
 
       if (params.USE_TEST_SERVER) {
          // Start the server.  It will auto-exit when it's done serving
