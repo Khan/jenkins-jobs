@@ -17,11 +17,6 @@ to such a commit-hash.""",
    "master"
 
 ).addBooleanParam(
-   "FAILFAST",
-   "If set, stop running tests after the first failure.",
-   false
-
-).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
 have already passed at this GIT_REVISION.""",
@@ -41,9 +36,13 @@ def runAllTests() {
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'BASE_REVISION', value: ""),
              string(name: 'MAX_SIZE', value: "huge"),
-             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              booleanParam(name: 'FORCE', value: params.FORCE),
+            // The single test make_test_db_test takes 65 minutes to
+            // run.  All the other tests between them take 399 minutes
+            // to run.  So 7 test-workers is right to have everyone
+            // finish after ~65 minutes.
+            string(name: 'NUM_WORKER_MACHINES', value: "7"),
           ]);
 }
 
@@ -52,7 +51,12 @@ def runSmokeTests() {
           parameters: [
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
+            // It takes about 15 minutes to run all the e2e tests when
+            // using the default of 20 workers.  There's no need for
+            // us to finish way before the unittest-run does, though,
+            // and it takes ~65 minutes.  So let's just run 5 workers
+            // instead, and let it take about an hour.
+            string(name: 'NUM_WORKER_MACHINES', value: "5"),
           ]);
 }
 
