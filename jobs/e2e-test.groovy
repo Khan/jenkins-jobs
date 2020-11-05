@@ -67,16 +67,6 @@ API.""",
    onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addBooleanParam(
-   "USE_2NDSMOKETEST_WORKERS",
-   """If true, use the jenkins workers that are dedicated to running
-the second smoke test (for the currently actively deploy).  Set to
-true when in that situation, but set to false otherwise!  We reserve
-these machines for that purpose to speed up the 2nd smoke test.
-TODO(csilvers): remove this deprecated name after buildmaster no longer
-uses it.""",
-   false
-
-).addBooleanParam(
    "USE_FIRSTINQUEUE_WORKERS",
    """If true, use the jenkins workers that are set aside for the
 currently active deploy.  Obviously, this should only be set if you
