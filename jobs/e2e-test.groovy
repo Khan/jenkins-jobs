@@ -120,11 +120,6 @@ but it doesn't need to.""",
 Typically not set manually, but rather by other jobs that call this one.""",
    ""
 
-).addBooleanParam(
-   "NOTIFY_BUILDMASTER",
-   "If set, notify buildmaster on any notification.",
-   false
-
 ).addStringParam(
    "REVISION_DESCRIPTION",
    """Set by the buildmaster to give a more human-readable description
