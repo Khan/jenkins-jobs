@@ -301,6 +301,7 @@ def _startTestServer() {
    }
 
    // This isn't needed until tests are done.
+   // The `grep -v :` gets rid of the header line, which is not an actual test.
    // TODO(csilvers): integrate it with the normal runtests_server run
    // so we don't have to do it separately.
    sh("testing/runtests_server.py -n --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)} | grep -v : > genfiles/test-splits.txt")
