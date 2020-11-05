@@ -98,13 +98,6 @@ Typically not set manually, but rather by other jobs that call this one.""",
    ""
 
 ).addStringParam(
-   "JOB_DISPLAY_NAME",
-   """Set this string to change how this test run will appear in the jenkins ui
-and when notifying users of test results. This can be useful to distinguish
-callers that override some of the parameters here.""",
-   "webapp-test"
-
-).addStringParam(
    "REVISION_DESCRIPTION",
    """Set by the buildmaster to give a more human-readable description
 of the GIT_REVISION, especially if it is a commit rather than a branch.
@@ -127,20 +120,6 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
 
-).addStringParam(
-   "NUM_RETRIES",
-   """The number of times we should retry a failing test after failure. This
-should always be set to 0 unless we're running end to end tests that have some
-inherent flakiness.""",
-   "0"
-
-).addStringParam(
-   "TEST_FILE_GLOB",
-   """Specify the file glob to use when searching for which tests to run. You
-may want to set this if you only want to run a subset of tests based on their
-file name, but most callers should be happy with the default.""",
-   "*_test.py"
-
 ).addBooleanParam(
    "USE_TEST_SERVER",
    """If set, use the experimental test client/server architecture.
@@ -152,7 +131,7 @@ file name, but most callers should be happy with the default.""",
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
-currentBuild.displayName = ("${params.JOB_DISPLAY_NAME} " +
+currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
 
 
@@ -168,8 +147,8 @@ HAVE_STASHED_TESTS = false;
 // If we're running the large or huge tests, we need a bit more
 // memory, because some of those tests seem to use a lot of memory.
 // So we have a special worker type.
-WORKER_TYPE = params.MAX_SIZE in ["large", "huge"]
-    ? 'big-test-worker' : 'ka-test-ec2';
+WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
+               ? 'big-test-worker' : 'ka-test-ec2');
 
 WORKER_TIMEOUT = params.MAX_SIZE == 'huge' ? '4h' : '2h';
 
@@ -285,8 +264,6 @@ def _determineTests() {
       if (params.USE_TEST_SERVER) {
          // This gets our 10.x.x.x IP address.
          serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-      } else {
-         runtestsArgs += ["--test-file-glob=${params.TEST_FILE_GLOB}"];
       }
 
       sh("testing/runtests.py ${exec.shellEscapeList(runtestsArgs)} -n --just-split -j${NUM_WORKER_MACHINES} > genfiles/test_splits.txt");
@@ -368,7 +345,6 @@ def doTestOnWorker(workerNum) {
          "--pickle-file=../test-results.${workerNum}.pickle",
          "--quiet",
          "--jobs=1",
-         "--retries=${params.NUM_RETRIES.toInteger()}",
      ];
      if (params.FAILFAST) {
          runtestsArgs += ["--failfast"];
