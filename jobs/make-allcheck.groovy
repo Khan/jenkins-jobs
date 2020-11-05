@@ -17,11 +17,6 @@ to such a commit-hash.""",
    "master"
 
 ).addBooleanParam(
-   "FAILFAST",
-   "If set, stop running tests after the first failure.",
-   false
-
-).addBooleanParam(
    "FORCE",
    """If set, run the tests even if the database says that the tests
 have already passed at this GIT_REVISION.""",
@@ -41,9 +36,13 @@ def runAllTests() {
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'BASE_REVISION', value: ""),
              string(name: 'MAX_SIZE', value: "huge"),
-             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              booleanParam(name: 'FORCE', value: params.FORCE),
+            // The single test make_test_db_test takes 55 minutes to
+            // run.  All the other tests between them take 418 minutes
+            // to run.  So 10 test-workers is right to have everyone
+            // finish after ~55 minutes.
+            string(name: 'NUM_WORKER_MACHINES', value: "10"),
           ]);
 }
 
@@ -52,7 +51,6 @@ def runSmokeTests() {
           parameters: [
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-             booleanParam(name: 'FAILFAST', value: params.FAILFAST),
           ]);
 }
 
