@@ -32,9 +32,7 @@ new Setup(steps
 ).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring
-to such a commit-hash.  Can also be a list of branches to deploy separated
-by `+` ('br1+br2+br3').  In that case we will merge the branches together --
-dying if there's a merge conflict -- and run tests on the resulting code.""",
+to such a commit-hash.""",
    "master"
 
 ).addStringParam(
@@ -138,8 +136,8 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-// GIT_SHA1S are the sha1's for every revision specified in GIT_REVISION.
-GIT_SHA1S = null;
+// GIT_SHA1 is the sha1 for GIT_REVISION.
+GIT_SHA1 = null;
 
 // Set to true once we have stashed the list of tests for the workers to run.
 HAVE_STASHED_TESTS = false;
@@ -153,47 +151,17 @@ WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
 WORKER_TIMEOUT = params.MAX_SIZE == 'huge' ? '4h' : '2h';
 
 
-def getGitSha1s() {
-   // resolveCommitish returns the sha of a commit.  If
-   // resolveCommitish(webapp, X) == X, then X must be a sha, and we can
-   // skip the rest of the function.
-   // TODO(benkraft): Stop accepting anything other than a single sha, since
-   // the buildmaster can do that part just fine.
-   def revisionSha1 = null;
-   try {
-      revisionSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                            params.GIT_REVISION);
-   } catch (e) {
-      // Error resolving GIT_REVISION.  It's probably in `br1+br2` format
-   }
-   if (revisionSha1 && revisionSha1 == params.GIT_REVISION) {
-      GIT_SHA1S = [params.GIT_REVISION];
-      return GIT_SHA1S;
-   }
-   GIT_SHA1S = [];
-   def allBranches = params.GIT_REVISION.split(/\+/);
-   for (def i = 0; i < allBranches.size(); i++) {
-      def sha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        allBranches[i].trim());
-      GIT_SHA1S += [sha1];
-   }
-   return GIT_SHA1S;
-}
-
-
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1S = getGitSha1s();
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                     params.GIT_REVISION);
 }
 
 
 def _setupWebapp() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1S[0]);
-   for (def i = 1; i < GIT_SHA1S.size(); i++) {
-      kaGit.safeMergeFromBranch("webapp", "HEAD", GIT_SHA1S[i]);
-   }
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp") {
       clean(params.CLEAN);
@@ -422,15 +390,15 @@ def analyzeResults() {
          }
       }
 
-      def numPickleFileErrors = 0;
+      def foundAPickleFile = false;
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         if (!fileExists("test-results.${i}.pickle")) {
-            numPickleFileErrors++;
+         if (fileExists("test-results.${i}.pickle")) {
+            foundAPickleFile = true;
          }
       }
       // Send a special message if all workers fail, because that's not good
       // (and the normal script can't handle it).
-      if (numPickleFileErrors == NUM_WORKER_MACHINES) {
+      if (!foundAPickleFile) {
          def msg = ("All test workers failed!  Check " +
                     "${env.BUILD_URL}consoleFull to see why.)");
          notify.fail(msg);
