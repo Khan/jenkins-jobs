@@ -85,6 +85,15 @@ API.""", ""
    onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addStringParam(
+   "JOBS_PER_WORKER",
+   """How many tests to run on each worker machine.  In my testing,
+the best value -- the one that minimizes the total test time -- is
+`#cpus + 1`.  This makes sure each CPU is occupied with a test, while
+having a "spare" test for when all the existing tests are doing
+something I/O bound.  `#cpus` is also reasonable.""",
+   "1"
+
+).addStringParam(
    "DEPLOYER_USERNAME",
    """Who asked to run this job, used to ping on slack.
 Typically not set manually, but rather by other jobs that call this one.""",
@@ -125,6 +134,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
+JOBS_PER_WORKER = null;
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 
@@ -150,6 +160,7 @@ WORKER_TIMEOUT = params.MAX_SIZE == 'huge' ? '4h' : '2h';
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -181,8 +192,8 @@ def _startTestServer() {
       }
    } catch (e) {
       // Proceed anyway -- perhaps the file doesn't exist yet.
-      // Ah well; we'll just have worse splits.
-      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+      // Ah well; we'll just serve tests in a slightly sub-optimal order.
+      echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
    }
    // The `dir("genfiles")` creates a genfiles@tmp directory which
    // confuses lint_test.py (it tries to make a Lint_genfiles__tmp
@@ -216,7 +227,7 @@ def _startTestServer() {
    // TODO(csilvers): do this differently once we move to per-language clients.
    // TODO(csilvers): integrate it with the normal runtests_server run
    // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runtestsArgs)} | sed -n '/PYTHON TESTS:/,/^\$/p' | grep -v : > genfiles/test-splits.txt")
+   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runtestsArgs)} | sed -n '/PYTHON TESTS:/,/^\$/p' | grep -v : > genfiles/test-specs.txt")
 
    // This gets our 10.x.x.x IP address.
    def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
@@ -235,6 +246,21 @@ def _startTestServer() {
    TESTS_ARE_DONE = true;
 }
 
+def _runOneTest(splitId) {
+   def runtestsArgs = [
+       "--pickle",
+       "--pickle-file=../test-results.${splitId}.pickle",
+       "--quiet",
+       "--jobs=1",
+       TEST_SERVER_URL];
+
+   sh("cd webapp; " +
+      // Say what machine we're on, to help with debugging
+      "ifconfig; " +
+      "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
+      "../jenkins-jobs/timeout_output.py -v 55m " +
+      "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
+}
 
 def doTestOnWorker(workerNum) {
    // Normally each worker should take 20-30m so we give them an hour
@@ -245,27 +271,21 @@ def doTestOnWorker(workerNum) {
       // running.
       _setupWebapp();
 
+      // Out with the old, in with the new!
+      sh("rm -f test-results.*.pickle");
+
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
       waitUntil({ TEST_SERVER_URL != null });
 
-      // Out with the old, in with the new!
-      sh("rm -f test-results.*.pickle");
-
-      def runtestsArgs = [
-          "--pickle",
-          "--pickle-file=../test-results.${workerNum}.pickle",
-          "--quiet",
-          "--jobs=1",
-          TEST_SERVER_URL];
+      def parallelTests = ["failFast": false];
+      for (def i = 0; i < JOBS_PER_WORKER; i++) {
+         def id = "$workerNum-$i";
+         parallelTests["job-$id"] = { _runOneTest(id); };
+      }
 
       try {
-         sh("cd webapp; " +
-            // Say what machine we're on, to help with debugging
-            "ifconfig; " +
-            "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
-            "../jenkins-jobs/timeout_output.py -v 55m " +
-            "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
+         parallel(parallelTests);
       } finally {
          // Now let the next stage see all the results.
          // runtests.py should normally produce these files
@@ -278,7 +298,6 @@ def doTestOnWorker(workerNum) {
    }
 }
 
-
 public class TestsAreDone extends Exception {}
 
 def runTests() {
@@ -290,7 +309,7 @@ def runTests() {
       // We want to cancel the provisioning and end the job right away,
       // not wait until the worker is provisioned and then have it be a noop.
       "failFast": true,
-      "determine-splits": {
+      "serving-tests": {
          withTimeout(WORKER_TIMEOUT) {
             _setupWebapp();
             dir("webapp") {
@@ -349,8 +368,10 @@ def analyzeResults() {
 
       def foundAPickleFile = false;
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         if (fileExists("test-results.${i}.pickle")) {
-            foundAPickleFile = true;
+         for (def j = 0; j < JOBS_PER_WORKER; j++) {
+            if (fileExists("test-results.${i}-${j}.pickle")) {
+               foundAPickleFile = true;
+            }
          }
       }
       // Send a special message if all workers fail, because that's not good
@@ -399,7 +420,7 @@ def analyzeResults() {
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--label", REVISION_DESCRIPTION,
-               "--expected-tests-file", "genfiles/test-splits.txt",
+               "--expected-tests-file", "genfiles/test-specs.txt",
                "--rerun-command", rerunCommand,
             ];
             if (params.SLACK_THREAD) {
@@ -435,7 +456,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
       initializeGlobals();
 
       try {
-         stage("Determining splits & running tests") {
+         stage("Running tests") {
             runTests();
          }
       } finally {
