@@ -54,11 +54,6 @@ value, the list of tests to run is limited by MAX_SIZE.""",
    """The largest size tests to run, as per tools/runtests.py.""",
    ["medium", "large", "huge", "small", "tiny"]
 
-).addBooleanParam(
-   "FAILFAST",
-   "If set, stop running tests after the first failure.",
-   false
-
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
@@ -118,12 +113,6 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
 
-).addBooleanParam(
-   "USE_TEST_SERVER",
-   """If set, use the experimental test client/server architecture.
-   TODO(csilvers): remove and decide one way or the other by 11/15/2020.""",
-   true
-
 ).apply()
 
 
@@ -139,8 +128,16 @@ NUM_WORKER_MACHINES = null;
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 
-// Set to true once we have stashed the list of tests for the workers to run.
-HAVE_STASHED_TESTS = false;
+// Set the server protocol+host+port as soon as we're ready to start
+// the server.
+TEST_SERVER_URL = null;
+
+// Used to make sure we exit our test-running at the right time:
+// either when all tests are done (so server is done, we need clients
+// to be done too), or all test-clients fail (so clients are done, and
+// we need server to be done too).
+TESTS_ARE_DONE = false;
+NUM_WORKER_FAILURES = 0;
 
 // If we're running the large or huge tests, we need a bit more
 // memory, because some of those tests seem to use a lot of memory.
@@ -173,108 +170,69 @@ def _setupWebapp() {
 }
 
 
-// Figures out what tests to run based on TEST_TYPE and writes them to
-// a file in workspace-root.  Should be called in the webapp dir.
-def _determineTests() {
+def _startTestServer() {
+   // Try to load the server's test-info db.
    try {
-      def tests;
-
-      // Try to load the server's test-info db.
-      try {
-         onMaster('1m') {
-            stash(includes: "test-info.db", name: "test-info.db before");
-         }
-         dir("genfiles") {
-            unstash(name: "test-info.db before");
-         }
-      } catch (e) {
-         // Proceed anyway -- perhaps the file doesn't exist yet.
-         // Ah well; we'll just have worse splits.
-         echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+      onMaster('1m') {
+         stash(includes: "test-info.db", name: "test-info.db before");
       }
-      // The `dir("genfiles")` creates a genfiles@tmp directory which
-      // confuses lint_test.py (it tries to make a Lint_genfiles__tmp
-      // test-class, which of course doesn't work on the workers).
-      // Let's remove it.
-      sh("rm -rf genfiles@tmp");
-
-      // This command expands directory arguments, and also filters out
-      // tests that are not the right size.  Finally, it figures out splits.
-      // TODO(dhruv): share these flags with `doTestOnWorker` to ensure we're using
-      // the same config in both places.
-      def runtestsArgs = ["--max-size=${params.MAX_SIZE}",
-                          "--timing-db=genfiles/test-info.db",
-                          "--override-skip-by-default",
-                        ];
-
-      if (params.BASE_REVISION) {
-         // Only run the tests that are affected by files that were
-         // changed between BASE_REVISION and GIT_REVISION.
-         def testsToRun = exec.outputOf(
-            ["deploy/should_run_tests.py",
-             "--from-commit=${params.BASE_REVISION}",
-             "--to-commit=${params.GIT_REVISION}"
-            ]).split("\n") as List;
-         runtestsArgs += testsToRun;
-         echo("Running ${testsToRun.size()} tests");
-      } else {
-         runtestsArgs += ["."];
-         echo("Running all tests");
-      }
-
-      def serverIP = "";
-      if (params.USE_TEST_SERVER) {
-         // This gets our 10.x.x.x IP address.
-         serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-      }
-
-      sh("testing/runtests.py ${exec.shellEscapeList(runtestsArgs)} -n --just-split -j${NUM_WORKER_MACHINES} > genfiles/test_splits.txt");
-
       dir("genfiles") {
-         // Make sure to clean out any stray old splits files.  (This probably
-         // only matters if we changed the number of workers, but it never hurts.)
-         sh("rm -f test_splits.*.txt");
-
-         def allSplits = readFile("test_splits.txt").split("\n\n");
-         if (allSplits.size() != NUM_WORKER_MACHINES) {
-            echo("Got ${allSplits.size()} splits instead of " +
-                 "${NUM_WORKER_MACHINES}: must not have a lot of tests to run!");
-            // Make it so we only try to run tests on this many workers,
-            // since we don't have work for the other workers to do!
-            NUM_WORKER_MACHINES = allSplits.size();
-         }
-         for (def i = 0; i < allSplits.size(); i++) {
-            // In test-server mode, we tell each worker about the server
-            // url to connect to.  In "split" mode, we tell each worker
-            // what test to run.
-            writeFile(file: "test_splits.${i}.txt",
-                      text: serverIP ? "http://${serverIP}:5001" : allSplits[i]);
-         }
-         stash(includes: "test_splits.*.txt", name: "splits");
-         // Now set the number of test splits.  This unblocks the test-workers.
-         // Note that in server mode, this unblocks the test-workers before
-         // we start the server!  But that's ok; they know to wait for it.
-         HAVE_STASHED_TESTS = true;
-      }
-      // Again, clean up after the `dir("genfiles")`.
-      sh("rm -rf genfiles@tmp");
-
-      if (params.USE_TEST_SERVER) {
-         // Start the server.  It will auto-exit when it's done serving
-         // all the tests.  "HOST=..." lets other machines connect to us.
-         // TODO(csilvers): use genfiles/test_splits.txt so we don't have to
-         //                 re-do that work again here.
-         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
+         unstash(name: "test-info.db before");
       }
    } catch (e) {
-      // The workers are waiting on us to finish building deps; if we crash
-      // they'll wait forever.  So say we're done, and set the number of
-      // workers we need to zero, so they all exit quietly (our error will
-      // suffice to fail the job).
-      NUM_WORKER_MACHINES = 0;
-      HAVE_STASHED_TESTS = true;
-      throw e;
+      // Proceed anyway -- perhaps the file doesn't exist yet.
+      // Ah well; we'll just have worse splits.
+      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
    }
+   // The `dir("genfiles")` creates a genfiles@tmp directory which
+   // confuses lint_test.py (it tries to make a Lint_genfiles__tmp
+   // test-class, which of course doesn't work on the workers).
+   // Let's remove it.
+   sh("rm -rf genfiles@tmp");
+
+   def runtestsArgs = ["--max-size=${params.MAX_SIZE}",
+                       "--override-skip-by-default",
+                       "--timing-db=genfiles/test-info.db",
+                     ];
+
+   if (params.BASE_REVISION) {
+      // Only run the tests that are affected by files that were
+      // changed between BASE_REVISION and GIT_REVISION.
+      def testsToRun = exec.outputOf(
+         ["deploy/should_run_tests.py",
+          "--from-commit=${params.BASE_REVISION}",
+          "--to-commit=${params.GIT_REVISION}"
+         ]).split("\n") as List;
+      runtestsArgs += testsToRun;
+      echo("Running ${testsToRun.size()} tests");
+   } else {
+      runtestsArgs += ["."];
+      echo("Running all tests");
+   }
+
+   // This isn't needed until tests are done.
+   // The `sed` gets rid of all tests except python tests.
+   // The `grep -v :` gets rid of the header line, which is not an actual test.
+   // TODO(csilvers): do this differently once we move to per-language clients.
+   // TODO(csilvers): integrate it with the normal runtests_server run
+   // so we don't have to do it separately.
+   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runtestsArgs)} | sed -n '/PYTHON TESTS:/,/^\$/p' | grep -v : > genfiles/test-splits.txt")
+
+   // This gets our 10.x.x.x IP address.
+   def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+   // This unblocks the test-workers to let them know they can connect
+   // to the server.  Note we do this before the server starts up,
+   // since the server is blocking (so we can't do it after), but the
+   // clients know this and will retry when connecting.
+   TEST_SERVER_URL = "http://${serverIP}:5001";
+
+   // Start the server.  Note this blocks.  It will auto-exit when
+   // it's done serving all the tests.  "HOST=..." lets other machines
+   // connect to us.
+   sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
+
+   // Failing test-workers wait for this to be set so they all finish together.
+   TESTS_ARE_DONE = true;
 }
 
 
@@ -289,80 +247,85 @@ def doTestOnWorker(workerNum) {
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
-      waitUntil({ HAVE_STASHED_TESTS });
-
-      // It may be we turned out not to need this worker, because there were so
-      // few tests to run.  (NUM_WORKER_MACHINES will in that case get reset in
-      // _determineTests above.)
-      if (workerNum >= NUM_WORKER_MACHINES) {
-         return;
-      }
+      waitUntil({ TEST_SERVER_URL != null });
 
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
-      unstash("splits");
 
-     def runtestsArgs = [
-         "--pickle",
-         "--pickle-file=../test-results.${workerNum}.pickle",
-         "--quiet",
-         "--jobs=1",
-     ];
-     if (params.FAILFAST) {
-         runtestsArgs += ["--failfast"];
-     }
-     if (!params.USE_TEST_SERVER) {
-         runtestsArgs += [
-             "--test-file-glob=${params.TEST_FILE_GLOB}",
-             "--override-skip-by-default",
-             "--max-size=${params.MAX_SIZE}",
-         ];
-     }
-     // TODO(dhruv): share these flags with `_determineTests` to ensure we're
-     // using the same config in both places.
+      def runtestsArgs = [
+          "--pickle",
+          "--pickle-file=../test-results.${workerNum}.pickle",
+          "--quiet",
+          "--jobs=1",
+          TEST_SERVER_URL];
+
       try {
          sh("cd webapp; " +
             // Say what machine we're on, to help with debugging
             "ifconfig; " +
             "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
             "../jenkins-jobs/timeout_output.py -v 55m " +
-            "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} " +
-            "- < ../test_splits.${workerNum}.txt");
+            "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
       } finally {
          // Now let the next stage see all the results.
          // runtests.py should normally produce these files
          // even when it returns a failure rc (due to some test
          // or other failing).
          stash(includes: "test-results.*.pickle",
-               name: "results ${workerNum}");
+               name: "results ${workerNum}",
+               allowEmpty: true);
       }
    }
 }
 
 
-def determineSplitsAndRunTests() {
+public class TestsAreDone extends Exception {}
+
+def runTests() {
    def jobs = [
       // This is a kwarg that tells parallel() what to do when a job fails.
-      "failFast": params.FAILFAST,
+      // We abuse it to handle this situation, which there's no other good
+      // way to handle: we have 2 test-workers, and the first one finishes
+      // all the tests while the second one is still being provisioned.
+      // We want to cancel the provisioning and end the job right away,
+      // not wait until the worker is provisioned and then have it be a noop.
+      "failFast": true,
       "determine-splits": {
          withTimeout(WORKER_TIMEOUT) {
             _setupWebapp();
             dir("webapp") {
-               _determineTests();
+               _startTestServer();
             }
+            // If we get here, all tests have been run.  Throw a
+            // TestsAreDone "exception" to cause all our workers to
+            // exit if they haven't already.
+            throw new TestsAreDone();
          }
       }
    ];
-
    for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["test-${workerNum}"] = {
-         doTestOnWorker(workerNum);
+         try {
+            doTestOnWorker(workerNum);
+         } catch(e) {
+            NUM_WORKER_FAILURES++;
+            // We don't *actually* want to failfast when a worker fails,
+            // so just wait until the server says tests are over,
+            // or until all the clients have failed (since the server
+            // will never get to "all tests run" in that case).
+            waitUntil({ TESTS_ARE_DONE || NUM_WORKER_FAILURES == NUM_WORKER_MACHINES });
+            throw e;
+         }
       };
    }
 
-   parallel(jobs);
+   try {
+      parallel(jobs);
+   } catch (TestsAreDone e) {
+      // Ignore this "error": it's thrown on successful test completion.
+   }
 }
 
 
@@ -436,7 +399,7 @@ def analyzeResults() {
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--label", REVISION_DESCRIPTION,
-               "--expected-tests-file", "genfiles/test_splits.txt",
+               "--expected-tests-file", "genfiles/test-splits.txt",
                "--rerun-command", rerunCommand,
             ];
             if (params.SLACK_THREAD) {
@@ -473,7 +436,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
 
       try {
          stage("Determining splits & running tests") {
-            determineSplitsAndRunTests();
+            runTests();
          }
       } finally {
          // We want to analyze results even if -- especially if --
