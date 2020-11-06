@@ -202,12 +202,6 @@ def _setupWebapp() {
       // and go_deps if running go tests/lints.
       sh("make python_deps npm_deps");
    }
-   // Webapp's lint tests also look for the linter in ../devtools/khan-linter
-   // so make sure we sync that to the latest version.
-   // TODO(csilvers): make safeSyncToOrigin clone into `.`, not workspace-root?
-   kaGit.safeSyncToOrigin("git@github.com:Khan/khan-linter", "master");
-   sh("rm -rf devtools/khan-linter");
-   sh("cp -r khan-linter devtools/");
 }
 
 
