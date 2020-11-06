@@ -197,11 +197,6 @@ NUM_WORKER_FAILURES = 0;
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
-// Returns unix timestamp, in milliseconds.
-def _unixMillis() {
-   return (new Date()).getTime();
-}
-
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
@@ -317,10 +312,7 @@ def _runOneTest(splitId) {
 }
 
 def doTestOnWorker(workerNum) {
-   def startTime = _unixMillis();
    onWorker(WORKER_TYPE, '1h') {     // timeout
-      def workerStartedTime = _unixMillis();
-
       // We can sync webapp right away, before we know what tests we'll be
       // running.
       _setupWebapp();
@@ -333,8 +325,6 @@ def doTestOnWorker(workerNum) {
       // Out with the old, in with the new!
       sh("rm -f test-results.*.pickle");
 
-      def depsBuiltTime = _unixMillis();
-
       // Wait for the test-server to start up, or to say it's not going to.
       waitUntil({ TEST_SERVER_URL != null });
 
@@ -343,11 +333,6 @@ def doTestOnWorker(workerNum) {
          def id = "$workerNum-$i";
          parallelTests["job-$id"] = { _runOneTest(id); };
       }
-
-      def setupDoneTime = _unixMillis();
-      echo("Setup time: worker startup ${workerStartedTime - startTime} ms, " +
-           "clone and build deps ${depsBuiltTime - workerStartedTime} ms, " +
-           "wait for splits ${setupDoneTime - depsBuiltTime} ms.");
 
       try {
          // This is apparently needed to avoid hanging with
