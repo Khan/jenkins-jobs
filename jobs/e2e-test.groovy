@@ -240,8 +240,8 @@ def _startTestServer() {
       }
    } catch (e) {
       // Proceed anyway -- perhaps the file doesn't exist yet.
-      // Ah well; we'll just have worse splits.
-      echo("Unable to restore test-db from server, expect poor splitting: ${e}");
+      // Ah well; we'll just serve tests in a slightly sub-optimal order.
+      echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
    }
 
    def runSmokeTestsArgs = ["--prod", "--timing-db=genfiles/test-info.db"];
@@ -260,7 +260,7 @@ def _startTestServer() {
    // The `grep -v :` gets rid of the header line, which is not an actual test.
    // TODO(csilvers): integrate it with the normal runtests_server run
    // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . | sed -n '/SMOKE TESTS:/,/^\$/p' | grep -v : > genfiles/test-splits.txt")
+   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . | sed -n '/SMOKE TESTS:/,/^\$/p' | grep -v : > genfiles/test-specs.txt")
 
    // This gets our 10.x.x.x IP address.
    def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
@@ -375,7 +375,7 @@ def runTests() {
       // We want to cancel the provisioning and end the job right away,
       // not wait until the worker is provisioned and then have it be a noop.
       "failFast": true,
-      "determine-splits": {
+      "serving-tests": {
          withTimeout('1h') {
             _setupWebapp();
             dir("webapp") {
@@ -429,7 +429,7 @@ def analyzeResults() {
          try {
             unstash("results ${i}");
          } catch (e) {
-           // We'll mark the actual error next.
+            // We'll mark the actual error next.
          }
       }
 
@@ -478,7 +478,7 @@ def analyzeResults() {
                // The label goes at the top of the message; we include
                // both the URL and the REVISION_DESCRIPTION.
                "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
-               "--expected-tests-file", "genfiles/test-splits.txt",
+               "--expected-tests-file", "genfiles/test-specs.txt",
                "--cc-always", "#qa-log",
                // We try to keep the command short and clear.
                // We need only --url and -driver chrome.
@@ -507,9 +507,7 @@ def analyzeResults() {
    }
 }
 
-// We run the test-splitter, reporter, and graphql/android tests on a worker --
-// with all the tests running nowadays running it on the master can overwhelm
-// the master, and we have plenty of workers.
+
 onWorker(WORKER_TYPE, '5h') {  // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
@@ -526,7 +524,7 @@ onWorker(WORKER_TYPE, '5h') {  // timeout
       initializeGlobals();
 
       try {
-         stage("Running tests") {
+         stage("Running smoketests") {
             runTests();
          }
       } finally {
