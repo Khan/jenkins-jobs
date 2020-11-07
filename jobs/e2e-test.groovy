@@ -325,9 +325,9 @@ def doTestOnWorker(workerNum) {
       // running.
       _setupWebapp();
       // We also need to sync mobile, so we can run the mobile integration test
-      // (if we are assigned to do so).
-      // TODO(benkraft): Only run this if we get it from the splits?
-      // TODO(csilvers): Is this needed anymore?
+      // (content/end_to_end/android_integration_smoketest.py).
+      // TODO(benkraft): Do this in runmsoketests.py instead (at need),
+      //                 or in the smoketest itself?
       kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
 
       // Out with the old, in with the new!
