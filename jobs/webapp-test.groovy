@@ -250,6 +250,8 @@ def _runOneTest(splitId) {
    def runtestsArgs = [
        "--pickle",
        "--pickle-file=../test-results.${splitId}.pickle",
+       "--xml",
+       "--xml-dir=genfiles/test-reports/worker-${splitId}",
        "--quiet",
        "--jobs=1",
        TEST_SERVER_URL];
@@ -272,7 +274,7 @@ def doTestOnWorker(workerNum) {
       _setupWebapp();
 
       // Out with the old, in with the new!
-      sh("rm -f test-results.*.pickle");
+      sh("rm -rf test-results.*.pickle webapp/genfiles/test-reports");
 
       // We continue to hold the worker while waiting, so we can make sure to
       // get the same one, and start right away, once ready.
@@ -291,7 +293,7 @@ def doTestOnWorker(workerNum) {
          // runtests.py should normally produce these files
          // even when it returns a failure rc (due to some test
          // or other failing).
-         stash(includes: "test-results.*.pickle",
+         stash(includes: "test-results.*.pickle,webapp/genfiles/test-reports/**/*.xml",
                name: "results ${workerNum}",
                allowEmpty: true);
       }
@@ -357,7 +359,7 @@ def analyzeResults() {
          return;
       }
 
-      sh("rm -f test-results.*.pickle");
+      sh("rm -rf test-results.*.pickle webapp/genfiles/test-reports");
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          try {
             unstash("results ${i}");
@@ -430,14 +432,10 @@ def analyzeResults() {
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
-
-            sh("rm -rf genfiles/test-reports");
-            sh("tools/test_pickle_util.py to-junit " +
-               "genfiles/test-results.pickle genfiles/test-reports");
          }
       }
 
-      junit("webapp/genfiles/test-reports/*.xml");
+      junit("webapp/genfiles/test-reports/**/*.xml");
    }
 }
 
