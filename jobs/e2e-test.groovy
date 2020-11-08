@@ -250,25 +250,21 @@ def _startTestServer() {
    }
 
    def runSmokeTestsArgs = ["--prod", "--timing-db=genfiles/test-info.db"];
+   if (params.TEST_TYPE == "deploy") {
+      runSmokeTestsArgs += ["--deploy-tests-only"];
+   }
+   if (params.TEST_TYPE == "custom") {
+      runSmokeTestsArgs += ["--test-match=${params.TESTS_TO_RUN}"];
+   }
    if (params.SKIP_TESTS) {
       runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
-   }
-
-   if (params.TEST_TYPE == "all") {
-      runSmokeTestsArgs += ["."];
-   } else if (params.TEST_TYPE == "deploy") {
-      runSmokeTestsArgs += ["--deploy-tests-only", "."];
-   } else if (params.TEST_TYPE == "custom") {
-      runSmokeTestsArgs.addAll(params.TESTS_TO_RUN.split());
-   } else {
-      error("Unexpected TEST_TYPE '${params.TEST_TYPE}'");
    }
 
    // This isn't needed until tests are done.
    // The `grep -v :` gets rid of the header line, which is not an actual test.
    // TODO(csilvers): integrate it with the normal runtests_server run
    // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)} | grep -v : > genfiles/test-splits.txt")
+   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . | grep -v : > genfiles/test-splits.txt")
 
    // This gets our 10.x.x.x IP address.
    def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
@@ -281,7 +277,7 @@ def _startTestServer() {
    // Start the server.  Note this blocks.  It will auto-exit when
    // it's done serving all the tests.  "HOST=..." lets other machines
    // connect to us.
-   sh("env HOST=${serverIP} testing/runtests_server.py --smoketests ${exec.shellEscapeList(runSmokeTestsArgs)}")
+   sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runSmokeTestsArgs)} .")
 
    // Failing test-workers wait for this to be set so they all finish together.
    TESTS_ARE_DONE = true;
