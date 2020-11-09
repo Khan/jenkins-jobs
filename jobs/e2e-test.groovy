@@ -381,9 +381,12 @@ def runTests() {
             dir("webapp") {
                _startTestServer();
             }
-            // If we get here, all tests have been run.  Throw a
-            // TestsAreDone "exception" to cause all our workers to
-            // exit if they haven't already.
+            // If we get here, all tests have been run.  Wait a few
+            // seconds to let them finish stashing their results,
+            // then throw a TestsAreDone "exception" to cause all
+            // our workers to exit if they haven't already.
+            // TODO(csilvers): use a semaphore for stashing instead.
+            sleep(10);
             throw new TestsAreDone();
          }
       },
