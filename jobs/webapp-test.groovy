@@ -147,6 +147,7 @@ TEST_SERVER_URL = null;
 // to be done too), or all test-clients fail (so clients are done, and
 // we need server to be done too).
 TESTS_ARE_DONE = false;
+NUM_RUNNING_WORKERS = 0;
 NUM_WORKER_FAILURES = 0;
 
 // If we're running the large or huge tests, we need a bit more
@@ -284,6 +285,7 @@ def doTestOnWorker(workerNum) {
          parallelTests["job-$id"] = { _runOneTest(id); };
       }
 
+      NUM_RUNNING_WORKERS++;
       try {
          parallel(parallelTests);
       } finally {
@@ -294,6 +296,7 @@ def doTestOnWorker(workerNum) {
          stash(includes: "test-results.*.pickle",
                name: "results ${workerNum}",
                allowEmpty: true);
+         NUM_RUNNING_WORKERS--;
       }
    }
 }
@@ -315,12 +318,12 @@ def runTests() {
             dir("webapp") {
                _startTestServer();
             }
-            // If we get here, all tests have been run.  Wait a few
-            // seconds to let them finish stashing their results,
-            // then throw a TestsAreDone "exception" to cause all
-            // our workers to exit if they haven't already.
-            // TODO(csilvers): use a semaphore for stashing instead.
-            sleep(10);
+            // If we get here, all tests have been run.  Wait to let
+            // them finish stashing their results, then throw a
+            // TestsAreDone "exception" to cause all our workers to
+            // exit if they haven't already.
+            // TODO(csilvers): pass the data in /end instead.
+            waitUntil({ NUM_RUNNING_WORKERS == 0 });
             throw new TestsAreDone();
          }
       }
