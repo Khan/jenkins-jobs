@@ -297,6 +297,7 @@ def doTestOnWorker(workerNum) {
                name: "results ${workerNum}",
                allowEmpty: true);
          NUM_RUNNING_WORKERS--;
+         echo("Client has exited!  ${NUM_RUNNING_WORKERS} clients left.");
       }
    }
 }
@@ -324,6 +325,7 @@ def runTests() {
             // exit if they haven't already.
             // TODO(csilvers): pass the data in /end instead.
             waitUntil({ NUM_RUNNING_WORKERS == 0 });
+            echo("Server has exited!");
             throw new TestsAreDone();
          }
       }
