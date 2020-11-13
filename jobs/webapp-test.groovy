@@ -238,6 +238,10 @@ def _startTestServer() {
    // clients know this and will retry when connecting.
    TEST_SERVER_URL = "http://${serverIP}:5001";
 
+   // runtests_server.py writes to this directory.  Make sure it's clean
+   // before it does so, so it doesn't read "old" data.
+   sh("rm -rf genfiles/test-reports");
+
    // Start the server.  Note this blocks.  It will auto-exit when
    // it's done serving all the tests.  "HOST=..." lets other machines
    // connect to us.
