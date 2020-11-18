@@ -259,12 +259,29 @@ def _runOneTest(splitId) {
        "--jobs=1",
        TEST_SERVER_URL];
 
-   sh("cd webapp; " +
-      // Say what machine we're on, to help with debugging
-      "ifconfig; " +
-      "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
-      "../jenkins-jobs/timeout_output.py -v 55m " +
-      "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
+   // An extra begin-end pair so we can upload the pickle-file to the server.
+   exec(["curl", "--retry", "240", "--retry-delay", "1",
+         "--retry-connrefused", "${TEST_SERVER_URL}/begin"]);
+   try {
+      sh("cd webapp; " +
+         // Say what machine we're on, to help with debugging
+         "ifconfig; " +
+         "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
+         "../jenkins-jobs/timeout_output.py -v 55m " +
+         "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
+   } finally {
+      try {
+         // This stores the pickle file on the test-server machine in
+         // genfiles/test-reports/.  It's our very own stash()!
+         exec(["curl", "--retry", "3",
+               "--upload-file", "test-results.${splitId}.pickle",
+               "${TEST_SERVER_URL}/end?filename=test-results.${splitId}.pickle"]);
+      } catch (e) {
+         // Better to not pass a pickle file than to do nothing.
+         exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
+         throw e;
+      }
+   }
 }
 
 def doTestOnWorker(workerNum) {
@@ -289,20 +306,7 @@ def doTestOnWorker(workerNum) {
          parallelTests["job-$id"] = { _runOneTest(id); };
       }
 
-      NUM_RUNNING_WORKERS++;
-      try {
-         parallel(parallelTests);
-      } finally {
-         // Now let the next stage see all the results.
-         // runtests.py should normally produce these files
-         // even when it returns a failure rc (due to some test
-         // or other failing).
-         stash(includes: "test-results.*.pickle",
-               name: "results ${workerNum}",
-               allowEmpty: true);
-         NUM_RUNNING_WORKERS--;
-         echo("Client has exited!  ${NUM_RUNNING_WORKERS} clients left.");
-      }
+      parallel(parallelTests);
    }
 }
 
@@ -323,13 +327,6 @@ def runTests() {
             dir("webapp") {
                _startTestServer();
             }
-            // If we get here, all tests have been run.  Wait to let
-            // them finish stashing their results, then throw a
-            // TestsAreDone "exception" to cause all our workers to
-            // exit if they haven't already.
-            // TODO(csilvers): pass the data in /end instead.
-            waitUntil({ NUM_RUNNING_WORKERS == 0 });
-            echo("Server has exited!");
             throw new TestsAreDone();
          }
       }
@@ -369,19 +366,10 @@ def analyzeResults() {
          return;
       }
 
-      sh("rm -f test-results.*.pickle");
-      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         try {
-            unstash("results ${i}");
-         } catch (e) {
-            // We'll mark the actual error next.
-         }
-      }
-
       def foundAPickleFile = false;
       for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
          for (def j = 0; j < JOBS_PER_WORKER; j++) {
-            if (fileExists("test-results.${i}-${j}.pickle")) {
+            if (fileExists("webapp/genfiles/test-reports/test-results.${i}-${j}.pickle")) {
                foundAPickleFile = true;
             }
          }
@@ -397,7 +385,7 @@ def analyzeResults() {
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
             sh("tools/test_pickle_util.py merge " +
-               "../test-results.*.pickle " +
+               "genfiles/test-reports/test-results.*.pickle " +
                "genfiles/test-results.pickle");
             sh("tools/test_pickle_util.py update-timing-db " +
                "genfiles/test-results.pickle genfiles/test-info.db");
