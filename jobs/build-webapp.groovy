@@ -460,28 +460,63 @@ def deployToService(service) {
 // the cache dir (See INFRA-3594 for full details). Here we're careful to
 // build kotlin services in series. Once this bug is resolved, we can remove
 // this, and let kotlin services default to the shared deployToService again.
-def deployToKotlinServices() {
+def deployToKotlinServicesAndDataflow() {
    for (service in SERVICES) {
       if (service in ['course-editing', 'kotlin-routes']) {
          deployToService(service);
       }
+      if (service == 'dataflow-batch') {
+         deployToDataflow();
+      }
    }
 }
 
+// This should be called from within a node().
+// Similar to Kotlin services which are deployed by gradlew, parallelism is not
+// supported -- we need to ensure that the services are deployed sequentially.
+// Hence this is actually invoked by deployToKotlinServicesAndDataflow() until
+// the gradlew issue (INFRA-3594) is resolved.
+def deployToDataflow() {
+   if (!('dataflow-batch' in SERVICES)) {
+      return;
+   }
+
+   def args = ["deploy/deploy_to_dataflow.py", NEW_VERSION,
+               "--slack-channel=${params.SLACK_CHANNEL}",
+               "--deployer-username=${DEPLOYER_USERNAME}"];
+
+   args += params.SLACK_THREAD ? [
+      "--slack-thread=${params.SLACK_THREAD}"] : [];
+
+   withSecrets() {
+      dir("webapp") {
+         // Unlike our GCS / GAE deploy scripts, this one does not use kake,
+         // and hence doesn't need the additional file descriptors.
+         exec(args);
+      }
+   }
+}
 
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
       def jobs = ["deploy-to-gae": { deployToGAE(); },
                   "deploy-to-gcs": { deployToGCS(); },
-                  "deploy-to-kotlin-services": { deployToKotlinServices(); },
+                  "deploy-to-kotlin-services-and-dataflow": {
+                     deployToKotlinServicesAndDataflow();
+                  },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "failFast": true];
       for (service in SERVICES) {
-         // These two services are a bit more complex and are handled
-         // specially in deployToGAE and deployToGCS.
+         // 'dynamic', 'static', and 'dataflow-batch' services are a bit more
+         // complex / different and are handled specially in deployToGAE,
+         // deployToGCS, and deployToDataflow. Services with gradlew
+         // dependencies (i.e. Kotlin services / Dataflow) cannot be deployed
+         // in parallel, and hence must be handled sequentially. Those
+         // deployments are bundled in deployToKotlinServicesAndDataflow().
          if (!(service in [
-               'dynamic', 'static', 'course-editing', 'kotlin-routes'])) {
+               'dynamic', 'static', 'course-editing', 'kotlin-routes',
+               'dataflow-batch'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
