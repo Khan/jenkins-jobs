@@ -498,7 +498,13 @@ def analyzeResults() {
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
-            exec(summarize_args);
+            // summarize-to-slack returns a non-zero rc if it detects
+            // test failures.  We want to fail the entire job in that
+            // case, but still keep on running the rest of this script!
+            catchError(buildResult: "FAILURE", stageResult: "FAILURE",
+                       message: "There were test failures!") {
+               exec(summarize_args);
+            }
             // Let notify() know not to send any messages to slack,
             // because we just did it above.
             env.SENT_TO_SLACK = '1';
