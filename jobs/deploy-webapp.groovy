@@ -733,7 +733,9 @@ def finishWithSuccess() {
             // There's a race condition if someone commits to master
             // while this script is running, so check for that.
             try {
-               exec(["git", "push", "--tags", "origin", "master"]);
+               // Push both the master branch and our new tag.
+               exec(["git", "push", "origin",
+                     "master", "+refs/tags/${GIT_TAG}:refs/tags/${GIT_TAG}"]);
             } catch (e) {
                echo("FATAL ERROR running 'git push': ${e}");
                // Best-effort attempt to reset.  We ignore the status code.
