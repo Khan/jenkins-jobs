@@ -189,6 +189,7 @@ def _startTestServer() {
          stash(includes: "test-info.db", name: "test-info.db before");
       }
       dir("genfiles") {
+         sh("rm -f test-info.db");
          unstash(name: "test-info.db before");
       }
    } catch (e) {
