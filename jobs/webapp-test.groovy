@@ -6,6 +6,9 @@
 // This job can either run all tests, or a subset thereof, depending on
 // how parameters are specified.
 
+// The Jenkins "interrupt" exception: for failFast and user interrupt
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
+
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -51,7 +54,7 @@ value, the list of tests to run is limited by MAX_SIZE.""",
 
 ).addChoiceParam(
    "MAX_SIZE",
-   """The largest size tests to run, as per tools/runtests.py.""",
+   """The largest size tests to run, as per testing/runtests.py.""",
    ["medium", "large", "huge", "small", "tiny"]
 
 ).addStringParam(
@@ -85,8 +88,8 @@ API.""", ""
    onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addStringParam(
-   "JOBS_PER_WORKER",
-   """How many tests to run on each worker machine.  In my testing,
+   "CLIENTS_PER_WORKER",
+   """How many test-clients to run on each worker machine.  In my testing,
 the best value -- the one that minimizes the total test time -- is
 `#cpus + 1`.  This makes sure each CPU is occupied with a test, while
 having a "spare" test for when all the existing tests are doing
@@ -134,7 +137,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-JOBS_PER_WORKER = null;
+CLIENTS_PER_WORKER = null;
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 
@@ -142,26 +145,57 @@ GIT_SHA1 = null;
 // the server.
 TEST_SERVER_URL = null;
 
-// Used to make sure we exit our test-running at the right time:
-// either when all tests are done (so server is done, we need clients
-// to be done too), or all test-clients fail (so clients are done, and
-// we need server to be done too).
-TESTS_ARE_DONE = false;
-NUM_RUNNING_WORKERS = 0;
-NUM_WORKER_FAILURES = 0;
+// Used to tell whether all the test-workers raised an exception.
+WORKERS_RAISING_EXCEPTIONS = 0;
+public class TestFailed extends Exception {}  // for use with the above
 
 // If we're running the large or huge tests, we need a bit more
 // memory, because some of those tests seem to use a lot of memory.
-// So we have a special worker type.
 WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
                ? 'big-test-worker' : 'ka-test-ec2');
 
-WORKER_TIMEOUT = params.MAX_SIZE == 'huge' ? '4h' : '2h';
+// The tests each workers should run.  Each element is a map:
+// cmd: the command to run.  "<server>" is replaced by TEST_SERVER_URL.
+// oneAtATime: true if it's not ok to run multiple instances of cmd
+//    on the same machine at the same time.  Usually it's false, but
+//    golangci-lint, e.g., complains if two of them run at once.
+//    Can be omitted entirely when it's false.
+// done: starts at false, set to true when a client finishes with
+//    the last file for a given test.  This is the only element
+//    that is modified.  It's used only as a small perf optimization;
+//    things still work even if `done` is never set to true.
+TESTS = [
+    [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
+    [cmd: "testing/kotlin_test_client.sh -j1 <server>", done: false],
+    [cmd: "testing/runtests.py --quiet --jobs=1 --xml <server>", done: false],
+    [cmd: "testing/lint_test_client.sh -j1 <server> javascript", done: false],
+    [cmd: "testing/lint_test_client.sh -j1 <server> python", done: false],
+    [cmd: "testing/lint_test_client.sh -j1 <server> go", oneAtATime: true, done: false],
+    [cmd: "testing/lint_test_client.sh -j1 <server> kotlin", done: false],
+    [cmd: "testing/lint_test_client.sh -j1 <server> other", done: false],
+    [cmd: "testing/js_test_client.js --runInBand <server>", done: false],
+    [cmd: "testing/go_test_client.sh -j1 <server>", done: false],
+];
 
+
+// Run body, set the red circle on the flow-pipeline stage if it fails,
+// but do not fail the overall build.  Re-raises "interrupt" exceptions,
+// either due to a failFast or due to a user interrupt.
+def swallowExceptions(Closure body, Closure onException = {}) {
+    try {
+        body();
+    } catch (FlowInterruptedException e) {   // user interrupt
+        echo("Interrupted!");
+        throw e;
+    } catch (e) {
+        echo("Swallowing exception: ${e}");
+        onException();
+    }
+}
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+   CLIENTS_PER_WORKER = params.CLIENTS_PER_WORKER.toInteger();
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -174,187 +208,212 @@ def _setupWebapp() {
 
    dir("webapp") {
       clean(params.CLEAN);
-      // TOOD(csilvers): we could get away with only running
-      // python_deps, and just npm_deps if running js tests,
-      // and go_deps if running go tests/lints.
-      sh("make python_deps npm_deps");
+      sh("make python_deps");
    }
 }
 
+// Run the test-server.  Must be on a server node.
+def runTestServer() {
+   _setupWebapp();
 
-def _startTestServer() {
    // Try to load the server's test-info db.
    try {
       onMaster('1m') {
          stash(includes: "test-info.db", name: "test-info.db before");
       }
-      dir("genfiles") {
-         sh("rm -f test-info.db");
-         unstash(name: "test-info.db before");
-      }
+      sh("rm -f test-info.db");
+      unstash(name: "test-info.db before");
+      sh("touch test-info.db.lock");   // split_tests.py needs this too
    } catch (e) {
       // Proceed anyway -- perhaps the file doesn't exist yet.
       // Ah well; we'll just serve tests in a slightly sub-optimal order.
       echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
    }
-   // The `dir("genfiles")` creates a genfiles@tmp directory which
-   // confuses lint_test.py (it tries to make a Lint_genfiles__tmp
-   // test-class, which of course doesn't work on the workers).
-   // Let's remove it.
-   sh("rm -rf genfiles@tmp");
 
-   def runtestsArgs = ["--max-size=${params.MAX_SIZE}",
-                       "--override-skip-by-default",
-                       "--timing-db=genfiles/test-info.db",
-                     ];
+   dir("webapp") {
+      if (params.BASE_REVISION) {
+         // Only run the tests that are affected by files that were
+         // changed between BASE_REVISION and GIT_REVISION.
+         sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(params.GIT_REVISION)} | testing/all_tests_for.py - > ../files_to_test.txt");
+         // Note that unlike for tests, we consider deleted files for linting.
+         sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(params.GIT_REVISION)} | testing/all_lint_for.py - > ../files_to_lint.txt");
+      } else {
+         sh("echo . > ../files_to_test.txt");
+         sh("echo . > ../files_to_lint.txt");
+         echo("Running all tests.");
+      }
+      sh("cat ../files_to_test.txt");  // to help with debugging
+      sh("cat ../files_to_lint.txt");
 
-   if (params.BASE_REVISION) {
-      // Only run the tests that are affected by files that were
-      // changed between BASE_REVISION and GIT_REVISION.
-      def testsToRun = exec.outputOf(
-         ["deploy/should_run_tests.py",
-          "--from-commit=${params.BASE_REVISION}",
-          "--to-commit=${params.GIT_REVISION}"
-         ]).split("\n") as List;
-      runtestsArgs += testsToRun;
-      echo("Running ${testsToRun.size()} tests");
-   } else {
-      runtestsArgs += ["."];
-      echo("Running all tests");
+      def runtestsArgs = ["--port=5001",
+                          "--timing-db=../test-info.db",
+                          "--file-for-not-run-tests=../not-run-tests.txt",
+                          "--no-find-related",
+                          "--max-size=${params.MAX_SIZE}",
+                          "--lintfile=../files_to_lint.txt",
+                        ];
+
+      // This gets our 10.x.x.x IP address.
+      def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+      // This unblocks the test-workers to let them know they can connect
+      // to the server.  Note we do this before the server starts up,
+      // since the server is blocking (so we can't do it after), but the
+      // clients know this and will retry when connecting.
+      TEST_SERVER_URL = "http://${serverIP}:5001";
+
+      // Now that we have TEST_SERVER_URL, we can populate TESTS properly.
+      def escapedServer = exec.shellEscape(TEST_SERVER_URL);
+      for (i = 0; i < TESTS.size(); i++ ) {
+         TESTS[i].cmd = TESTS[i].cmd.replace('<server>', escapedServer);
+      }
+
+      // runtests_server.py writes to this directory.  Make sure it's clean
+      // before it does so, so it doesn't read "old" data.
+      sh("rm -rf genfiles/test-reports");
+
+      // START THE SERVER!  Note this blocks.  It will auto-exit when
+      // it's done serving all the tests.
+      // "HOST=..." lets other machines connect to us.
+      sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
    }
 
-   // This isn't needed until tests are done.
-   // The `sed` gets rid of all tests except python tests.
-   // The `grep -v :` gets rid of the header line, which is not an actual test.
-   // TODO(csilvers): do this differently once we move to per-language clients.
-   // TODO(csilvers): integrate it with the normal runtests_server run
-   // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runtestsArgs)} | sed -n '/PYTHON TESTS:/,/^\$/p' | grep -v : > genfiles/test-specs.txt")
-
-   // This gets our 10.x.x.x IP address.
-   def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-   // This unblocks the test-workers to let them know they can connect
-   // to the server.  Note we do this before the server starts up,
-   // since the server is blocking (so we can't do it after), but the
-   // clients know this and will retry when connecting.
-   TEST_SERVER_URL = "http://${serverIP}:5001";
-
-   // runtests_server.py writes to this directory.  Make sure it's clean
-   // before it does so, so it doesn't read "old" data.
-   sh("rm -rf genfiles/test-reports");
-
-   // Start the server.  Note this blocks.  It will auto-exit when
-   // it's done serving all the tests.  "HOST=..." lets other machines
-   // connect to us.
-   sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)}")
-
-   // Failing test-workers wait for this to be set so they all finish together.
-   TESTS_ARE_DONE = true;
-}
-
-def _runOneTest(splitId) {
-   def runtestsArgs = [
-       "--pickle",
-       "--pickle-file=../test-results.${splitId}.pickle",
-       "--quiet",
-       "--jobs=1",
-       TEST_SERVER_URL];
-
-   // An extra begin-end pair so we can upload the pickle-file to the server.
-   exec(["curl", "--retry", "240", "--retry-delay", "1",
-         "--retry-connrefused", "${TEST_SERVER_URL}/begin"]);
+   // The server updated test-info.db as it ran.  Let's store the updates!
    try {
-      sh("cd webapp; " +
-         // Say what machine we're on, to help with debugging
-         "ifconfig; " +
-         "curl -s -HMetadata-Flavor:Google http://metadata.google.internal/computeMetadata/v1/instance/hostname | cut -d. -f1; " +
-         "../jenkins-jobs/timeout_output.py -v 55m " +
-         "tools/runtests.py ${exec.shellEscapeList(runtestsArgs)} ");
-   } finally {
-      try {
-         // This stores the pickle file on the test-server machine in
-         // genfiles/test-reports/.  It's our very own stash()!
-         exec(["curl", "--retry", "3",
-               "--upload-file", "test-results.${splitId}.pickle",
-               "${TEST_SERVER_URL}/end?filename=test-results.${splitId}.pickle"]);
-      } catch (e) {
-         // Better to not pass a pickle file than to do nothing.
-         exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
-         throw e;
+      stash(includes: "test-info.db", name: "test-info.db after");
+      onMaster('1m') {
+         unstash(name: "test-info.db after");
       }
+   } catch (e) {
+      // Oh well; hopefully another job will do better.
+      echo("Unable to push test-db back to server: ${e}");
    }
 }
 
-def doTestOnWorker(workerNum) {
-   // Normally each worker should take 20-30m so we give them an hour
-   // or two just in case; when running huge tests, the one that gets
-   // make_test_db_test can take 2+ hours so we give it lots of time.
-   onWorker(WORKER_TYPE, WORKER_TIMEOUT) {
-      // We can sync webapp right away, before we know what tests we'll be
-      // running.
-      _setupWebapp();
-
-      // Out with the old, in with the new!
-      sh("rm -f test-results.*.pickle");
-
-      // We continue to hold the worker while waiting, so we can make sure to
-      // get the same one, and start right away, once ready.
-      waitUntil({ TEST_SERVER_URL != null });
-
-      def parallelTests = ["failFast": false];
-      for (def i = 0; i < JOBS_PER_WORKER; i++) {
-         def id = "$workerNum-$i";
-         parallelTests["job-$id"] = { _runOneTest(id); };
-      }
-
-      parallel(parallelTests);
-   }
-}
-
-public class TestsAreDone extends Exception {}
-
-def runTests() {
-   def jobs = [
-      // This is a kwarg that tells parallel() what to do when a job fails.
-      // We abuse it to handle this situation, which there's no other good
-      // way to handle: we have 2 test-workers, and the first one finishes
-      // all the tests while the second one is still being provisioned.
-      // We want to cancel the provisioning and end the job right away,
-      // not wait until the worker is provisioned and then have it be a noop.
-      "failFast": true,
-      "serving-tests": {
-         withTimeout(WORKER_TIMEOUT) {
-            _setupWebapp();
-            dir("webapp") {
-               _startTestServer();
-            }
-            throw new TestsAreDone();
+// Run one test-client on a worker machine.  A "test client" is a
+// single thread of execution that runs on a worker.  A worker may run
+// multiple test clients in parallel.  Each test-client runs the
+// individual test-runner processes in serial.  (A test-client never
+// runs two things in parallel.)  Specifically, each test client will
+// run all the test-runners in TESTS, one after the other.
+def runTestClient(workerId, clientId) {
+   echo("Starting tests for client ${workerId}-${clientId}");
+   // Each client gets the tests in a different order, to maximize
+   // the chance one client gets all the js tests, say, and the
+   // others don't have to pay the overhead of building js deps.
+   def startIndex = workerId * CLIENTS_PER_WORKER + clientId;
+   dir("webapp") {
+      for (def i = 0; i < TESTS.size(); i++) {
+         def test = TESTS[(i + startIndex) % TESTS.size()];
+         if (test.done) {
+            continue;  // small optimization: another client finished it
+         }
+         if (test.oneAtATime && clientId != 0) {
+            // To avoid the risk of running multiple copies of this
+            // test at a time, we limit to running it on process 0.
+            continue;
+         }
+         // If a test (or the test runner) fails, it's not a fatal error;
+         // another client might compensate.  We'll figure it out all out
+         // in the analyze step, when we see what the junit files say.
+         swallowExceptions {
+            sh(test.cmd);
+            // If we get here, we finished without raising an exception!
+            // That means this test has been run to completion.
+            test.done = true;
          }
       }
-   ];
-   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-      // A restriction in `parallel`: need to redefine the index var here.
-      def workerNum = i;
-      jobs["test-${workerNum}"] = {
+   }
+}
+
+// Run all the test-clients on a single worker machine, in parallel.
+def runTestWorker(workerId) {
+   // Say what machine we're on, to help with debugging.
+   def localIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+   echo("Running on ${localIP}");
+
+   def jobs = [:];
+   for (def i = 0; i < CLIENTS_PER_WORKER; i++) {
+      def clientId = i;  // avoid scoping problems
+      jobs["client-$workerId-$clientId"] = { runTestClient(workerId, clientId); };
+   }
+
+   sh("rm -rf webapp/genfiles/test-reports");
+   sh("mkdir -p webapp/genfiles/test-reports");
+   // The worker=... here is not used by code, it's just for documentation.
+   // In particular, the test-server will log a line like:
+   //    [10.0.4.23] GET /begin?worker=worker-5
+   // which is very useful because later the server will log:
+   //    [10.0.4.23] Sending these tests: ....
+   // and the earlier logline tells us that it's worker-5 that ran those tests.
+   exec(["curl", "--retry", "240", "--retry-delay", "1", "--retry-connrefused",
+         "${TEST_SERVER_URL}/begin?worker=worker-${workerId}"]);
+   try {
+      parallel(jobs);
+   } finally {
+      try {
+         // Collect all the junit xml files into one file for uploading.
+         // The "/dev/null" arg is to make sure something happens even
+         // if the `find` returns no files.
+         sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit.xml");
+         // This stores the xml file on the test-server machine at
+         // genfiles/test-reports/junit-<id>.xml.
+         exec(["curl", "--retry", "3",
+               "--upload-file", "junit.xml",
+               "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
+      } catch (e) {
+         echo("Error sending junit results to /end: ${e}");
+         // Better to not pass a junit file than to not /end at all.
          try {
-            doTestOnWorker(workerNum);
-         } catch(e) {
-            NUM_WORKER_FAILURES++;
-            // We don't *actually* want to failfast when a worker fails,
-            // so just wait until the server says tests are over,
-            // or until all the clients have failed (since the server
-            // will never get to "all tests run" in that case).
-            waitUntil({ TESTS_ARE_DONE || NUM_WORKER_FAILURES == NUM_WORKER_MACHINES });
-            throw e;
+            exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
+         } catch (e2) {
+            echo("Error sending /end at all: ${e2}");
+         }
+      }
+   }
+}
+
+// Run all the test-clients on all the worker machine, in parallel.
+def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
+   }
+
+   def jobs = [:];
+   for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+      def workerId = i;  // avoid scoping problems
+      jobs["test-${workerId}"] = {
+         onWorker(WORKER_TYPE, '2h') {
+            swallowExceptions({
+                _setupWebapp();
+                // We can go no further until we know the server to connect to.
+                waitUntil({ TEST_SERVER_URL != null });
+                runTestWorker(workerId);
+            }, onException);
          }
       };
    }
+   parallel(jobs);
+}
 
-   try {
-      parallel(jobs);
-   } catch (TestsAreDone e) {
-      // Ignore this "error": it's thrown on successful test completion.
-   }
+def runTests() {
+   parallel([
+      // We need to fail immediately if either a) the server dies
+      // unexpectedly, or b) all the clients die unexpectedly.
+      // runAllTestClients is set up to only raise an exception in
+      // case (b) -- all clients die -- so we can just use failFast.
+      failFast: true,
+      "test-server": { withTimeout('2h') { runTestServer(); } },
+      "test-clients": { withTimeout('2h') { runAllTestClients(); } },
+   ]);
 }
 
 
@@ -367,62 +426,41 @@ def analyzeResults() {
          return;
       }
 
-      def foundAPickleFile = false;
-      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         for (def j = 0; j < JOBS_PER_WORKER; j++) {
-            if (fileExists("webapp/genfiles/test-reports/test-results.${i}-${j}.pickle")) {
-               foundAPickleFile = true;
-            }
-         }
-      }
-      // Send a special message if all workers fail, because that's not good
-      // (and the normal script can't handle it).
-      if (!foundAPickleFile) {
+      // Send a special message if all workers fail.
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
          def msg = ("All test workers failed!  Check " +
-                    "${env.BUILD_URL}consoleFull to see why.)");
+                    "${env.BUILD_URL}flowPipelineSteps to see why.)");
          notify.fail(msg);
       }
 
+      // The test-server wrote junit files to this dir as it ran.
+      junit("webapp/genfiles/test-reports/*.xml");
+
+      // Collect all the junit files from the workers into one junit file.
+      // TODO(csilvers): allow summarize-to-slack to take a dir instead.
+      // As before, the "/dev/null" arg is to protect against no files to find.
+      sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit-all.xml");
+
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
-            sh("tools/test_pickle_util.py merge " +
-               "genfiles/test-reports/test-results.*.pickle " +
-               "genfiles/test-results.pickle");
-            sh("tools/test_pickle_util.py update-timing-db " +
-               "genfiles/test-results.pickle genfiles/test-info.db");
-
-            // Try to send the timings back to the server.
-            try {
-               dir("genfiles") {
-                  stash(includes: "test-info.db", name: "test-info.db after");
-               }
-               onMaster('1m') {
-                  unstash(name: "test-info.db after");
-               }
-            } catch (e) {
-               // Oh well; hopefully another job will do better.
-               echo("Unable to push test-db back to server: ${e}");
-            }
-
             // We try to keep the command short and clear.
             // max-size is the only option we need locally, and only
             // if it is not "medium".
             maxSizeParam = "";
             if (params.MAX_SIZE != "medium") {
-               maxSizeParam = (
-                  " --max-size=${exec.shellEscape(params.MAX_SIZE)}");
+               maxSizeParam = " --max-size=${exec.shellEscape(params.MAX_SIZE)}";
             }
-            rerunCommand = "tools/runtests.py${maxSizeParam} --override-skip-by-default"
+            pythonRerunCommand = "testing/runtests.py${maxSizeParam}"
             summarize_args = [
-               "tools/test_pickle_util.py", "summarize-to-slack",
-               "genfiles/test-results.pickle", params.SLACK_CHANNEL,
+               "testing/testresults_util.py", "summarize-to-slack",
+               "../junit-all.xml", params.SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
                // slack message, so we use REVISION_DESCRIPTION.
                "--label", REVISION_DESCRIPTION,
-               "--expected-tests-file", "genfiles/test-specs.txt",
-               "--rerun-command", rerunCommand,
+               "--not-run-tests-file", "../not-run-tests.txt",
+               "--rerun-command", pythonRerunCommand,
             ];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
@@ -435,16 +473,10 @@ def analyzeResults() {
                exec(summarize_args);
             }
             // Let notify() know not to send any messages to slack,
-            // because we just did it above.
+            // because we just did it here.
             env.SENT_TO_SLACK = '1';
-
-            sh("rm -rf genfiles/test-reports");
-            sh("tools/test_pickle_util.py to-junit " +
-               "genfiles/test-results.pickle genfiles/test-reports");
          }
       }
-
-      junit("webapp/genfiles/test-reports/*.xml");
    }
 }
 
