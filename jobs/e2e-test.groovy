@@ -1,4 +1,14 @@
 // The pipeline job for e2e tests.
+// TODO(csilvers): rename this job, and all references in it, from e2e->smoke.
+//
+// e2e tests are the smoketests run in the webapp repo, that hit a live
+// website using selenium.
+//
+// This job can either run all tests, or a subset thereof, depending on
+// how parameters are specified.
+
+// The Jenkins "interrupt" exception: for failFast and user interrupt
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 
 @Library("kautils")
 // Standard Math classes we use.
@@ -76,7 +86,7 @@ to spin up.""",
    false
 
 ).addStringParam(
-   "JOBS_PER_WORKER",
+   "CLIENTS_PER_WORKER",
    """How many end-to-end tests to run on each worker machine.  It
 will depend on the size of the worker machine, which you can see in
 the <code>Instance Type</code> value for the
@@ -179,28 +189,41 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-JOBS_PER_WORKER = null;
+CLIENTS_PER_WORKER = null;
+// GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 
 // Set the server protocol+host+port as soon as we're ready to start
 // the server.
 TEST_SERVER_URL = null;
 
-// Used to make sure we exit our test-running at the right time:
-// either when all tests are done (so server is done, we need clients
-// to be done too), or all test-clients fail (so clients are done, and
-// we need server to be done too).
-TESTS_ARE_DONE = false;
-NUM_RUNNING_WORKERS = 0;
-NUM_WORKER_FAILURES = 0;
+// Used to tell whether all the test-workers raised an exception.
+WORKERS_RAISING_EXCEPTIONS = 0;
+public class TestFailed extends Exception {}  // for use with the above
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
+
+// Run body, set the red circle on the flow-pipeline stage if it fails,
+// but do not fail the overall build.  Re-raises "interrupt" exceptions,
+// either due to a failFast or due to a user interrupt.
+def swallowExceptions(Closure body, Closure onException = {}) {
+    try {
+        body();
+    } catch (FlowInterruptedException e) {   // user interrupt
+        echo("Interrupted!");
+        throw e;
+    } catch (e) {
+        echo("Swallowing exception: ${e}");
+        onException();
+    }
+}
+
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   JOBS_PER_WORKER = params.JOBS_PER_WORKER.toInteger();
+   CLIENTS_PER_WORKER = params.CLIENTS_PER_WORKER.toInteger();
    if (params.TEST_TYPE == "custom") {
       // If we've specified a list of tests to run, there may be very few;
       // don't spin up more workers than we need.  This is slightly a lie --
@@ -209,9 +232,9 @@ def initializeGlobals() {
       // option, doesn't do that.  (And if somehow we do, we'll still run the
       // tests, just on fewer workers.)
       def numTests = params.TESTS_TO_RUN.split().size()
-      if (numTests < NUM_WORKER_MACHINES * JOBS_PER_WORKER) {
+      if (numTests < NUM_WORKER_MACHINES * CLIENTS_PER_WORKER) {
          NUM_WORKER_MACHINES = Math.ceil(
-            (numTests/JOBS_PER_WORKER).doubleValue()).toInteger();
+            (numTests/CLIENTS_PER_WORKER).doubleValue()).toInteger();
       }
    }
    // We want to make sure all nodes below work at the same sha1,
@@ -223,70 +246,92 @@ def initializeGlobals() {
 
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
+
    dir("webapp") {
       sh("make clean_pyc");
       sh("make python_deps");
    }
 }
 
+// Run the test-server.  Must be on a server node.
+def runTestServer() {
+   _setupWebapp();
 
-def _startTestServer() {
    // Try to load the server's test-info db.
    try {
       onMaster('1m') {
          stash(includes: "test-info.db", name: "test-info.db before");
       }
-      dir("genfiles") {
-         sh("rm -f test-info.db");
-         unstash(name: "test-info.db before");
-      }
+      sh("rm -f test-info.db");
+      unstash(name: "test-info.db before");
+      sh("touch test-info.db.lock");   // split_tests.py needs this too
    } catch (e) {
       // Proceed anyway -- perhaps the file doesn't exist yet.
       // Ah well; we'll just serve tests in a slightly sub-optimal order.
       echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
    }
 
-   def runSmokeTestsArgs = ["--prod", "--timing-db=genfiles/test-info.db"];
-   if (params.TEST_TYPE == "deploy") {
-      runSmokeTestsArgs += ["--deploy-tests-only"];
+   dir("webapp") {
+      def runSmokeTestsArgs = ["--prod",
+                               "--timing-db=../test-info.db",
+                               "--file-for-not-run-tests=../not-run-tests.txt",
+                              ];
+      if (params.TEST_TYPE == "deploy") {
+         runSmokeTestsArgs += ["--deploy-tests-only"];
+      }
+      if (params.TEST_TYPE == "custom") {
+         runSmokeTestsArgs += ["--test-match=${params.TESTS_TO_RUN}"];
+      }
+      if (params.SKIP_TESTS) {
+         runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
+      }
+
+      // This gets our 10.x.x.x IP address.
+      def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+      // This unblocks the test-workers to let them know they can connect
+      // to the server.  Note we do this before the server starts up,
+      // since the server is blocking (so we can't do it after), but the
+      // clients know this and will retry when connecting.
+      TEST_SERVER_URL = "http://${serverIP}:5001";
+
+      // runtests_server.py writes to this directory.  Make sure it's clean
+      // before it does so, so it doesn't read "old" data.
+      sh("rm -rf genfiles/test-reports");
+
+      // START THE SERVER!  Note this blocks.  It will auto-exit when
+      // it's done serving all the tests.
+      // "HOST=..." lets other machines connect to us.
+      sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runSmokeTestsArgs)} .");
    }
-   if (params.TEST_TYPE == "custom") {
-      runSmokeTestsArgs += ["--test-match=${params.TESTS_TO_RUN}"];
+
+   // The server updated test-info.db as it ran.  Let's store the updates!
+   try {
+      stash(includes: "test-info.db", name: "test-info.db after");
+      onMaster('1m') {
+         unstash(name: "test-info.db after");
+      }
+   } catch (e) {
+      // Oh well; hopefully another job will do better.
+      echo("Unable to push test-db back to server: ${e}");
    }
-   if (params.SKIP_TESTS) {
-      runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
-   }
-
-   // This isn't needed until tests are done.
-   // The `sed` gets rid of all tests except smoke tests.
-   // The `grep -v :` gets rid of the header line, which is not an actual test.
-   // TODO(csilvers): integrate it with the normal runtests_server run
-   // so we don't have to do it separately.
-   sh("testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . | sed -n '/SMOKE TESTS:/,/^\$/p' | grep -v : > genfiles/test-specs.txt")
-
-   // This gets our 10.x.x.x IP address.
-   def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-   // This unblocks the test-workers to let them know they can connect
-   // to the server.  Note we do this before the server starts up,
-   // since the server is blocking (so we can't do it after), but the
-   // clients know this and will retry when connecting.
-   TEST_SERVER_URL = "http://${serverIP}:5001";
-
-   // Start the server.  Note this blocks.  It will auto-exit when
-   // it's done serving all the tests.  "HOST=..." lets other machines
-   // connect to us.
-   sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runSmokeTestsArgs)} .")
-
-   // Failing test-workers wait for this to be set so they all finish together.
-   TESTS_ARE_DONE = true;
 }
 
-def _runOneTest(splitId) {
-   def args = ["xvfb-run", "-a", "tools/runsmoketests.py",
+// Run one test-client on a worker machine.  A "test client" is a
+// single thread of execution that runs on a worker.  A worker may run
+// multiple test clients in parallel.  Each test-client runs
+// runsmoketests.py separately.
+def runTestClient(workerId, clientId) {
+   echo("Starting tests for client ${workerId}-${clientId}");
+
+   // The `env` is apparently needed to avoid hanging with
+   // the chrome driver.  See
+   // https://github.com/SeleniumHQ/docker-selenium/issues/87
+   // We also work around https://bugs.launchpad.net/bugs/1033179
+   def args = ["env", "DBUS_SESSION_BUS_ADDRESS=/dev/null", "TMPDIR=/tmp",
+               "xvfb-run", "-a",
+               "tools/runsmoketests.py",
                "--url=${E2E_URL}",
-               "--pickle", "--pickle-file=../test-results.${splitId}.pickle",
-               "--timing-db=genfiles/test-info.db",
-               "--xml-dir=genfiles/test-reports",
+               "--xml", "--xml-dir=genfiles/test-reports",
                "--quiet", "--jobs=1", "--retries=3",
                "--driver=chrome",
                TEST_SERVER_URL];
@@ -300,125 +345,114 @@ def _runOneTest(splitId) {
       args += ["--expected-version=${params.EXPECTED_VERSION}"];
    }
 
+   dir("webapp") {
+      // If a test (or the test runner) fails, it's not a fatal error;
+      // another client might compensate.  We'll figure it out all out
+      // in the analyze step, when we see what the junit files say.
+      swallowExceptions {
+         exec(args);
+      }
+   }
+}
+
+// Run all the test-clients on a single worker machine, in parallel.
+def runTestWorker(workerId) {
+   // Say what machine we're on, to help with debugging.
+   def localIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+   echo("Running on ${localIP}");
+
+   def jobs = [:];
+   for (def i = 0; i < CLIENTS_PER_WORKER; i++) {
+      def clientId = i;  // avoid scoping problems
+      jobs["client-$workerId-$clientId"] = { runTestClient(workerId, clientId); };
+   }
+
+   sh("rm -rf webapp/genfiles/test-reports");
+   sh("mkdir -p webapp/genfiles/test-reports");
+   // The worker=... here is not used by code, it's just for documentation.
+   // In particular, the test-server will log a line like:
+   //    [10.0.4.23] GET /begin?worker=worker-5
+   // which is very useful because later the server will log:
+   //    [10.0.4.23] Sending these tests: ....
+   // and the earlier logline tells us that it's worker-5 that ran those tests.
+   exec(["curl", "--retry", "240", "--retry-delay", "1", "--retry-connrefused",
+         "${TEST_SERVER_URL}/begin?worker=worker-${workerId}"]);
    try {
-      exec(args);
-   } catch (e) {
-      // end-to-end failures are not blocking currently, so if
-      // tests fail set the status to UNSTABLE, not FAILURE.
-      echo("Smoketest-executable failed, marking build unstable: ${e}");
-      currentBuild.result = "UNSTABLE";
-   }
-}
-
-def doTestOnWorker(workerNum) {
-   onWorker(WORKER_TYPE, '1h') {     // timeout
-      // We can sync webapp right away, before we know what tests we'll be
-      // running.
-      _setupWebapp();
-      // We also need to sync mobile, so we can run the mobile integration test
-      // (content/end_to_end/android_integration_smoketest.py).
-      // TODO(benkraft): Do this in runmsoketests.py instead (at need),
-      //                 or in the smoketest itself?
-      kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
-
-      // Out with the old, in with the new!
-      sh("rm -f test-results.*.pickle");
-
-      // Wait for the test-server to start up, or to say it's not going to.
-      waitUntil({ TEST_SERVER_URL != null });
-
-      def parallelTests = ["failFast": false];
-      for (def i = 0; i < JOBS_PER_WORKER; i++) {
-         def id = "$workerNum-$i";
-         parallelTests["job-$id"] = { _runOneTest(id); };
+      // We need secrets to talk to saucelabs.
+      // TODO(csilvers): only do this if USE_SAUCE is true?
+      withSecrets() {
+         parallel(jobs);
       }
-
-      NUM_RUNNING_WORKERS++;
+   } finally {
       try {
-         // This is apparently needed to avoid hanging with
-         // the chrome driver.  See
-         // https://github.com/SeleniumHQ/docker-selenium/issues/87
-         // We also work around https://bugs.launchpad.net/bugs/1033179
-         withEnv(["DBUS_SESSION_BUS_ADDRESS=/dev/null",
-                  "TMPDIR=/tmp"]) {
-            withSecrets() {   // we need secrets to talk to saucelabs
-               dir("webapp") {
-                  parallel(parallelTests);
-               }
-            }
+         // Collect all the junit xml files into one file for uploading.
+         // The "/dev/null" arg is to make sure something happens even
+         // if the `find` returns no files.
+         sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit.xml");
+         // This stores the xml file on the test-server machine at
+         // genfiles/test-reports/junit-<id>.xml.
+         exec(["curl", "--retry", "3",
+               "--upload-file", "junit.xml",
+               "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
+      } catch (e) {
+         echo("Error sending junit results to /end: ${e}");
+         // Better to not pass a junit file than to not /end at all.
+         try {
+            exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
+         } catch (e2) {
+            echo("Error sending /end at all: ${e2}");
          }
-      } finally {
-         // Now let the next stage see all the results.
-         // runsmoketests.py should normally produce these files
-         // even when it returns a failure rc (due to some test
-         // or other failing).
-         stash(includes: "test-results.*.pickle",
-               name: "results ${workerNum}",
-               allowEmpty: true);
-         NUM_RUNNING_WORKERS--;
       }
    }
 }
 
-public class TestsAreDone extends Exception {}
-
-def runTests() {
-   def slackArgsWithoutChannel = ["jenkins-jobs/alertlib/alert.py",
-                                  "--chat-sender=Testing Turtle",
-                                  "--icon-emoji=:turtle:"];
-   def slackArgs = (slackArgsWithoutChannel +
-      ["--slack=${params.SLACK_CHANNEL}"]);
-   if (params.SLACK_THREAD) {
-      slackArgs += ["--slack-thread=${params.SLACK_THREAD}"];
+// Run all the test-clients on all the worker machine, in parallel.
+def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
    }
-   def jobs = [
-      // This is a kwarg that tells parallel() what to do when a job fails.
-      // We abuse it to handle this situation, which there's no other good
-      // way to handle: we have 2 test-workers, and the first one finishes
-      // all the tests while the second one is still being provisioned.
-      // We want to cancel the provisioning and end the job right away,
-      // not wait until the worker is provisioned and then have it be a noop.
-      "failFast": true,
-      "serving-tests": {
-         withTimeout('1h') {
-            _setupWebapp();
-            dir("webapp") {
-               _startTestServer();
-            }
-            // If we get here, all tests have been run.  Wait to let
-            // them finish stashing their results, then throw a
-            // TestsAreDone "exception" to cause all our workers to
-            // exit if they haven't already.
-            // TODO(csilvers): pass the data in /end instead.
-            waitUntil({ NUM_RUNNING_WORKERS == 0 });
-            throw new TestsAreDone();
-         }
-      },
-   ];
-   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-      // A restriction in `parallel`: need to redefine the index var here.
-      def workerNum = i;
 
-      jobs["e2e-test-${workerNum}"] = {
-         try {
-            doTestOnWorker(workerNum);
-         } catch (e) {
-            NUM_WORKER_FAILURES++;
-            // We don't *actually* want to failfast when a worker fails,
-            // so just wait until the server says tests are over,
-            // or until all the clients have failed (since the server
-            // will never get to "all tests run" in that case).
-            waitUntil({ TESTS_ARE_DONE || NUM_WORKER_FAILURES == NUM_WORKER_MACHINES });
-            throw e;
+   def jobs = [:];
+   for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+      def workerId = i;  // avoid scoping problems
+      jobs["e2e-test-${workerId}"] = {
+         onWorker(WORKER_TYPE, '2h') {
+            swallowExceptions({
+                _setupWebapp();
+                // We also need to sync mobile, so we can run
+                // content/end_to_end/android_integration_smoketest.py.
+                // TODO(benkraft): Do this in runmsoketests.py instead
+                // (at need), or in the smoketest itself?
+                kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
+                // We can go no further until we know the server to connect to.
+                waitUntil({ TEST_SERVER_URL != null });
+                runTestWorker(workerId);
+            }, onException);
          }
       };
    }
+   parallel(jobs);
+}
 
-   try {
-      parallel(jobs);
-   } catch (TestsAreDone e) {
-      // Ignore this "error": it's thrown on successful test completion.
-   }
+def runTests() {
+   parallel([
+      // We need to fail immediately if either a) the server dies
+      // unexpectedly, or b) all the clients die unexpectedly.
+      // runAllTestClients is set up to only raise an exception in
+      // case (b) -- all clients die -- so we can just use failFast.
+      failFast: true,
+      "e2e-test-server": { withTimeout('1h') { runTestServer(); } },
+      "e2e-test-clients": { withTimeout('1h') { runAllTestClients(); } },
+   ]);
 }
 
 
@@ -431,97 +465,59 @@ def analyzeResults() {
          return;
       }
 
-      sh("rm -f test-results.*.pickle");
-      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         try {
-            unstash("results ${i}");
-         } catch (e) {
-            // We'll mark the actual error next.
-         }
+      // Send a special message if all workers fail.
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         def msg = ("All test workers failed!  Check " +
+                    "${env.BUILD_URL}flowPipelineSteps to see why.)");
+         notify.fail(msg);
       }
 
-      def foundAPickleFile = false;
-      for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
-         for (def j = 0; j < JOBS_PER_WORKER; j++) {
-            if (fileExists("test-results.${i}-${j}.pickle")) {
-               foundAPickleFile = true;
-            }
-         }
-      }
-      // Send a special message if all workers fail, because that's not good
-      // (and the normal script can't handle it).
-      if (!foundAPickleFile) {
-         def msg = ("All test workers failed!  Check " +
-                    "${env.BUILD_URL}consoleFull to see why.)");
-         notify.fail(msg, "UNSTABLE");
-      }
+      // The test-server wrote junit files to this dir as it ran.
+      junit("webapp/genfiles/test-reports/*.xml");
+
+      // Collect all the junit files from the workers into one junit file.
+      // TODO(csilvers): allow summarize-to-slack to take a dir instead.
+      // As before, the "/dev/null" arg is to protect against no files to find.
+      sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit-all.xml");
 
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
-            sh("tools/test_pickle_util.py merge " +
-               "../test-results.*.pickle " +
-               "genfiles/test-results.pickle");
-            sh("tools/test_pickle_util.py update-timing-db " +
-               "genfiles/test-results.pickle genfiles/test-info.db");
-
-            // Try to send the timings back to the server.
-            try {
-               dir("genfiles") {
-                  stash(includes: "test-info.db", name: "test-info.db after");
-               }
-               onMaster('1m') {
-                  unstash(name: "test-info.db after");
-               }
-            } catch (e) {
-               // Oh well; hopefully another job will do better.
-               echo("Unable to push test-db back to server: ${e}");
-            }
-
+            rerunCommand = "tools/runsmoketests.py --driver chrome " + (
+                  E2E_URL == "https://www.khanacademy.org"
+                  ? "--prod"
+                  : "--url ${exec.shellEscape(E2E_URL)}");
             summarize_args = [
-               "tools/test_pickle_util.py", "summarize-to-slack",
-               "genfiles/test-results.pickle", params.SLACK_CHANNEL,
+               "testing/testresults_util.py", "summarize-to-slack",
+               "../junit-all.xml", params.SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
-               // The label goes at the top of the message; we include
-               // both the URL and the REVISION_DESCRIPTION.
-               "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
-               "--expected-tests-file", "genfiles/test-specs.txt",
-               "--cc-always", "#qa-log",
-               // We try to keep the command short and clear.
-               // We need only --url and -driver chrome.
-               // If using www.khanacademy.org, we abbreviate --url to --prod.
-               "--rerun-command",
-               "tools/runsmoketests.py --driver chrome " + (
-                     E2E_URL == "https://www.khanacademy.org"
-                     ? "--prod"
-                     : "--url ${exec.shellEscape(E2E_URL)}"),
+               // The commit here is just used for a human-readable
+               // slack message, so we use REVISION_DESCRIPTION.
+               "--label", REVISION_DESCRIPTION,
+               "--not-run-tests-file", "../not-run-tests.txt",
+               "--rerun-command", rerunCommand,
             ];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
             // summarize-to-slack returns a non-zero rc if it detects
-            // test failures.  We want to fail the entire job in that
-            // case, but still keep on running the rest of this script!
-            catchError(buildResult: "FAILURE", stageResult: "FAILURE",
+            // test failures.  We set the job to UNSTABLE in that case
+            // (since we don't consider smoketest failures to be blocking).
+            // But we still keep on running the rest of this script!
+            catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
                        message: "There were test failures!") {
                exec(summarize_args);
             }
             // Let notify() know not to send any messages to slack,
-            // because we just did it above.
+            // because we just did it here.
             env.SENT_TO_SLACK = '1';
-
-            sh("rm -rf genfiles/test-reports");
-            sh("tools/test_pickle_util.py to-junit " +
-               "genfiles/test-results.pickle genfiles/test-reports");
          }
       }
-
-      junit("webapp/genfiles/test-reports/*.xml");
    }
 }
 
 
-onWorker(WORKER_TYPE, '5h') {  // timeout
+onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
@@ -532,8 +528,7 @@ onWorker(WORKER_TYPE, '5h') {  // timeout
                                'FAILURE', 'ABORTED', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
                          what: (E2E_URL == "https://www.khanacademy.org" ?
-                                'second-smoke-test': 'first-smoke-test')],
-           timeout: "2h"]) {
+                                'second-smoke-test': 'first-smoke-test')]]) {
       initializeGlobals();
 
       try {
@@ -541,8 +536,8 @@ onWorker(WORKER_TYPE, '5h') {  // timeout
             runTests();
          }
       } finally {
-         // We want to analyze results even if -- especially if -- there
-         // were failures; hence we're in the `finally`.
+         // We want to analyze results even if -- especially if --
+         // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {
             analyzeResults();
          }
