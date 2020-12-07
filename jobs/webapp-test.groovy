@@ -173,7 +173,7 @@ TESTS = [
     [cmd: "testing/lint_test_client.sh -j1 <server> go", oneAtATime: true, done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> kotlin", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> other", done: false],
-    [cmd: "testing/js_test_client.js --runInBand <server>", done: false],
+    [cmd: "testing/js_test_client.js --runInBand --ci <server>", done: false],
     [cmd: "testing/go_test_client.sh -j1 <server>", done: false],
 ];
 
