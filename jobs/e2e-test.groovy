@@ -475,6 +475,11 @@ def analyzeResults() {
       // The test-server wrote junit files to this dir as it ran.
       junit("webapp/genfiles/test-reports/*.xml");
 
+      // Collect all the junit files from the workers into one junit file.
+      // TODO(csilvers): allow summarize-to-slack to take a dir instead.
+      // As before, the "/dev/null" arg is to protect against no files to find.
+      sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit-all.xml");
+
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
             rerunCommand = "tools/runsmoketests.py --driver chrome " + (
@@ -483,7 +488,7 @@ def analyzeResults() {
                   : "--url ${exec.shellEscape(E2E_URL)}");
             summarize_args = [
                "testing/testresults_util.py", "summarize-to-slack",
-               "genfiles/test-reports/", params.SLACK_CHANNEL,
+               "../junit-all.xml", params.SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
                // The commit here is just used for a human-readable
