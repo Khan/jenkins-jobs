@@ -148,6 +148,8 @@ TEST_SERVER_URL = null;
 // Used to tell whether all the test-workers raised an exception.
 WORKERS_RAISING_EXCEPTIONS = 0;
 public class TestFailed extends Exception {}  // for use with the above
+// Used to make sure we finish our job as soon as all tests are run.
+public class TestsAreDone extends Exception {}
 
 // If we're running the large or huge tests, we need a bit more
 // memory, because some of those tests seem to use a lot of memory.
@@ -287,6 +289,10 @@ def runTestServer() {
       // Oh well; hopefully another job will do better.
       echo("Unable to push test-db back to server: ${e}");
    }
+
+   // This lets us cancel any clients that haven't started up yet.
+   // See the comments in runTests() for more details.
+   throw new TestsAreDone();
 }
 
 // Run one test-client on a worker machine.  A "test client" is a
@@ -391,29 +397,44 @@ def runAllTestClients() {
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
       jobs["test-${workerId}"] = {
-         onWorker(WORKER_TYPE, '2h') {
-            swallowExceptions({
+         swallowExceptions({
+            onWorker(WORKER_TYPE, '2h') {
                 _setupWebapp();
                 // We can go no further until we know the server to connect to.
                 waitUntil({ TEST_SERVER_URL != null });
                 runTestWorker(workerId);
-            }, onException);
-         }
+            }
+         }, onException);
       };
    }
    parallel(jobs);
 }
 
 def runTests() {
-   parallel([
-      // We need to fail immediately if either a) the server dies
-      // unexpectedly, or b) all the clients die unexpectedly.
-      // runAllTestClients is set up to only raise an exception in
-      // case (b) -- all clients die -- so we can just use failFast.
-      failFast: true,
-      "test-server": { withTimeout('2h') { runTestServer(); } },
-      "test-clients": { withTimeout('2h') { runAllTestClients(); } },
-   ]);
+   // We want to immediately exit if:
+   // (a) the server dies unexpectedly.
+   // (b) all the clients die unexpectedly.
+   // (c) all tests are done.
+   // Of these, the only straightforward one is (a).  For (b), we only
+   // want to fail if *all* clients die; if just one dies the others
+   // can pick up the slack.  We carefully set up runAllTestClients to
+   // only raise an exception when all clients die.  (c) seems
+   // straightforward but is tricky when some clients handle all the
+   // tests before the rest of the clients have even started up their
+   // gce instance.  The only way to cancel the gce-startup
+   // immediately is via an failFast plus an exception.  So we use
+   // failfast, but swallow the exception in the case of (c) since it's
+   // not really an error.
+   try {
+      parallel([
+         failFast: true,
+         "test-server": { withTimeout('2h') { runTestServer(); } },
+         "test-clients": { withTimeout('2h') { runAllTestClients(); } },
+      ]);
+    } catch (TestsAreDone e) {
+      // Ignore this "error": it's thrown on successful test completion.
+      echo("Tests are done!");
+    }
 }
 
 
