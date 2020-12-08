@@ -51,7 +51,7 @@ video_list_path="$DATA_DIR/captions/video_list.txt"
 tools="`pwd`/webapp/tools"
 
 # Download a list of videos that exist in production
-# "$tools/get_video_list.py" > "$video_list_path"
+"$tools/get_video_list.py" > "$video_list_path"
 
 if [[ -z "$SKIP_DROPBOX_SYNC" ]]; then
     jenkins-jobs/busy_wait_on_dropbox.sh "$DATA_DIR/captions/"
