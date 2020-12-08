@@ -21,6 +21,8 @@ new Setup(steps
 
 ).apply();
 
+currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE})";
+
 def installDeps() {
    withTimeout('60m') { // webapp can take quite a while
       // Unhappily, we need to clone webapp in this workspace so that we have
