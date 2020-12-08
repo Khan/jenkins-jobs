@@ -491,9 +491,10 @@ def analyzeResults() {
                "../junit-all.xml", params.SLACK_CHANNEL,
                "--jenkins-build-url", env.BUILD_URL,
                "--deployer", params.DEPLOYER_USERNAME,
-               // The commit here is just used for a human-readable
-               // slack message, so we use REVISION_DESCRIPTION.
-               "--label", REVISION_DESCRIPTION,
+               // The label goes at the top of the message; we include
+               // both the URL and the REVISION_DESCRIPTION.
+               "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
+               "--cc-always", "#qa-log",
                "--not-run-tests-file", "../not-run-tests.txt",
                "--rerun-command", rerunCommand,
             ];
