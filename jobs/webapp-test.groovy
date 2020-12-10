@@ -276,7 +276,19 @@ def runTestServer() {
       // START THE SERVER!  Note this blocks.  It will auto-exit when
       // it's done serving all the tests.
       // "HOST=..." lets other machines connect to us.
-      sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
+      try {
+         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
+      } catch (e) {
+         // Mark all tests as done so the clients stop iterating.  In
+         // theory this isn't necessary: we're about to raise an
+         // exception and we're in a failFast context, which should
+         // cancel the clients.  But it seems Jenkins isn't always so
+         // good at canceling with failFast, so this is a backup.
+         for (def i = 0; i < TESTS.size(); i++) {
+            TESTS[i].done = true;
+         }
+         throw e;
+      }
    }
 
    // The server updated test-info.db as it ran.  Let's store the updates!
