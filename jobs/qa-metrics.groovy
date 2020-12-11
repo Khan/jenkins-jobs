@@ -26,20 +26,19 @@ new Setup(steps
 ).apply()
 
 
-def setup() {
-    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-            params.WEBAPP_GIT_REVISION);
-    kaGit.safeSyncToOrigin("git@github.com/Khan/qa-tools",
-            params.QA_TOOLS_GIT_REVISION);
-
-    dir("qa-tools") {
-        sh("pip install -r requirements.txt");
-    }
-}
-
 def runScript() {
-    dir("qa-tools/quality_metrics") {
-        sh("metrics_script.py");
+    def tempDir = exec.outputOf(["mktemp", "-d", "-t", "qa-tools-XXXXXXXXXX"]);
+
+    dir(tempDir) {
+        sh("git clone --depth 1 git@github.com:Khan/qa-tools.git");
+    }
+    try {
+        dir(tempDir+"/qa-tools") {
+            sh("pip install -r requirements.txt");
+            sh("cd quality_metrics && python metrics_script.py");
+        }
+    } finally {
+        sh("rm -rf ${exec.shellEscape(tempDir)}");
     }
 }
 
@@ -47,12 +46,8 @@ onWorker("ka-test-ec2", '6h') {
     // TODO(ruslan): this should be changed to qa channel after
     notify([slack: [channel: '#bot-testing',
                     when: ['FAILURE', 'UNSTABLE']]]) {
-        stage("Setting Up") {
-            setup();
-        }
-        stage("Running the script") {
+        stage("Run a script") {
             runScript();
         }
     }
 }
-
