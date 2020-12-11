@@ -27,19 +27,18 @@ new Setup(steps
 
 
 def setup() {
-    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-            params.WEBAPP_GIT_REVISION);
-    kaGit.safeSyncToOrigin("git@github.com/Khan/qa-tools",
-            params.QA_TOOLS_GIT_REVISION);
+    def tempDir = exec.outputOf(["mktemp", "-d", "-t", "qa-tools-XXXXXXXXXX"]);
 
-    dir("qa-tools") {
-        sh("pip install -r requirements.txt");
+    dir(tempDir) {
+        sh("git clone git@github.com:Khan/qa-tools.git");
+        dir("qa-tools") {
+            sh("git checkout ${params.QA_TOOLS_GIT_REVISION}");
+        }
     }
-}
 
-def runScript() {
-    dir("qa-tools/quality_metrics") {
-        sh("metrics_script.py");
+    dir(tempDir+"/qa-tools") {
+        sh("pip install -r requirements.txt");
+        sh("cd quality_metrics && python metrics_script.py");
     }
 }
 
@@ -50,9 +49,5 @@ onWorker("ka-test-ec2", '6h') {
         stage("Setting Up") {
             setup();
         }
-        stage("Running the script") {
-            runScript();
-        }
     }
 }
-
