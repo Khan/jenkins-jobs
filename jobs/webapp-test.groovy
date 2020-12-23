@@ -91,10 +91,9 @@ API.""", ""
    "CLIENTS_PER_WORKER",
    """How many test-clients to run on each worker machine.  In my testing,
 the best value -- the one that minimizes the total test time -- is
-`#cpus + 1`.  This makes sure each CPU is occupied with a test, while
-having a "spare" test for when all the existing tests are doing
-something I/O bound.  `#cpus` is also reasonable.""",
-   "1"
+`#cpus`.  `#cpus + 1` may also work well, letting a CPU-bound test and
+an IO-bound test share a processor.""",
+   "2"
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
