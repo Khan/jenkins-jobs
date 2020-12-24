@@ -40,9 +40,10 @@ def runAllTests() {
              booleanParam(name: 'FORCE', value: params.FORCE),
             // The single test make_test_db_test takes 65 minutes to
             // run.  All the other tests between them take 399 minutes
-            // to run.  So 7 test-workers is right to have everyone
+            // to run.  So 7 other CPUs is right to have everyone
             // finish after ~65 minutes.
-            string(name: 'NUM_WORKER_MACHINES', value: "7"),
+            string(name: 'NUM_WORKER_MACHINES', value: "4"),
+            string(name: 'CLIENTS_PER_WORKER', value: "2"),
           ]);
 }
 

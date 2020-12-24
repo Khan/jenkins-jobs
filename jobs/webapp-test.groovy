@@ -84,8 +84,9 @@ API.""", ""
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
-   """How many worker machines to use.""",
-   onWorker.defaultNumTestWorkerMachines().toString()
+    """How many worker machines to use.""",
+    // We divide by 2 because we use 2 clients per worker by default.
+    (onWorker.defaultNumTestWorkerMachines() / 2).toString()
 
 ).addStringParam(
    "CLIENTS_PER_WORKER",
