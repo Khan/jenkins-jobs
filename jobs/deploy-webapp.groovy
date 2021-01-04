@@ -349,7 +349,7 @@ def mergeFromMasterAndInitializeGlobals() {
 
          dir("webapp") {
             def revList = exec.outputOf(
-                  ["git", "rev-list", "${params.GIT_REVISION}..master"])
+                  ["git", "rev-list", "${params.GIT_REVISION}..origin/master"])
             if (revList) {
                // We do an extra safety check, that GIT_REVISION
                // is a valid sha ahead of master.
