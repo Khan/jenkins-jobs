@@ -181,9 +181,11 @@ def deployToGAE() {
    if (!("dynamic" in SERVICES)) {
       return;
    }
+   // strip space
+   def modules = params.MODULES.split(/,/).collect { it.trim() }.join(',');
    def args = ["deploy/deploy_to_gae.py",
                "--version=${VERSION}",
-               "--modules=${params.MODULES}",
+               "--modules=${modules}",
                "--no-browser", "--no-up",
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
@@ -346,7 +348,7 @@ def deploy() {
                            "'dynamic,static,donations,kotlin-routes'");
             }
          } else {
-            SERVICES = params.SERVICES.split(",");
+            SERVICES = params.SERVICES.split(",").collect { it.trim() };
          }
 
          // Make the deps we need based on what we're deploying.  The
