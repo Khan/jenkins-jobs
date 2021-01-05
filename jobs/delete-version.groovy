@@ -21,8 +21,8 @@ spaces. Must exactly match the name of an existing version (e.g.
 
 ).addStringParam(
     "MODULES",
-    """The modules to delete, comma-separated.  By default we delete all the
-"webapp" modules.""",
+    """The modules to delete, comma-separated (without space).  By default we
+delete all the "webapp" modules.""",
     ""
 
 ).apply();

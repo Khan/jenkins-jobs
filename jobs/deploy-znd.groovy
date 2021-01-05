@@ -38,10 +38,11 @@ deploying non-default modules!</i>""",
 
 ).addStringParam(
     "SERVICES",
-    """<p>A comma-separated list of services we wish to deploy (see below for
-options), or the special value "auto", which says to choose the services to
-deploy automatically based on what files have changed.  For example, you might
-specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+    """<p>A comma-separated list of services (without space) we wish to deploy
+(see below for options), or the special value "auto", which says to choose the
+services to deploy automatically based on what files have changed.  For
+example, you might specify "dynamic,static" to force a full deploy to GAE and
+GCS.</p>
 
 <p>Here are some services:</p>
 <ul>
@@ -63,9 +64,10 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 
 ).addStringParam(
     "MODULES",
-    """A comma-separated list of modules to upload to appengine. For a list
-of all modules we support, see <code>webapp/modules_util.py</code>.
-The special value 'all' uploads all modules.""",
+    """A comma-separated list of modules (without space) to upload to
+appengine. For a list of all modules we support, see
+<code>webapp/modules_util.py</code>. The special value 'all' uploads all
+modules.""",
     "default"
 
 ).addChoiceParam(

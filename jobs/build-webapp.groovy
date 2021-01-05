@@ -62,10 +62,11 @@ new Setup(steps
 
 ).addStringParam(
     "SERVICES",
-    """<p>A comma-separated list of services we wish to deploy (see below for
-options), or the special value "auto", which says to choose the services to
-deploy automatically based on what files have changed.  For example, you might
-specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+    """<p>A comma-separated list of services (without space) we wish to deploy
+(see below for options), or the special value "auto", which says to choose the
+services to deploy automatically based on what files have changed.  For
+example, you might specify "dynamic,static" to force a full deploy to GAE and
+GCS.</p>
 
 <p>Here are the services:</p>
 <ul>
