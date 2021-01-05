@@ -47,7 +47,9 @@ def deleteVersion() {
                      // groovy wants a List, apparently.
                      + (params.VERSION.split(" ") as List));
          if (params.MODULES) {
-            args += ["--modules", params.MODULES];
+            args += ["--modules",
+                     params.MODULES.split(/,/).collect { it.trim() }.join(',')
+                     ];
          }
          exec(args);
       }

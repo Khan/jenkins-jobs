@@ -318,7 +318,7 @@ def mergeFromMasterAndInitializeGlobals() {
                            "aren't sure, ask dev-support for help!");
             }
          } else {
-            SERVICES = params.SERVICES.split(",");
+            SERVICES = params.SERVICES.split(",").collect { it.trim() };
          }
          if (SERVICES == [""]) {
             // Either of the above could be [""], if we should deploy nothing.
