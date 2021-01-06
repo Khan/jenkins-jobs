@@ -168,7 +168,7 @@ WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
 //    things still work even if `done` is never set to true.
 TESTS = [
     [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
-    [cmd: "testing/kotlin_test_client.sh -j1 <server>", done: false],
+    [cmd: "testing/kotlin_test_client.sh -j1 <server>", oneAtATime: true, done: false],
     [cmd: "testing/runtests.py --quiet --jobs=1 --xml <server>", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> javascript", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> python", done: false],
