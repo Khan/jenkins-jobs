@@ -69,10 +69,7 @@ onMaster('23h') {
                    extraText: "@cp-support",
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
            email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
       stage("Updating webapp repo") {
          updateRepo();
       }

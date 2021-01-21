@@ -844,10 +844,7 @@ onMaster('4h') {
                    // alertMsgs.SUCCESS.
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: 'deploy-webapp'],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                        'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                         what: 'deploy-webapp']]) {
       try {
          stage("Merging in master") {
             mergeFromMasterAndInitializeGlobals();

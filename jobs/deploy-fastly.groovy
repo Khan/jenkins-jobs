@@ -124,10 +124,7 @@ onMaster('30m') {
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    when: ['BUILD START',
-                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       if (params.GIT_REVISION == "") {
          notify.fail("Must specify a GIT_REVISION");
       }

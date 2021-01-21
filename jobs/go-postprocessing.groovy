@@ -34,10 +34,7 @@ onMaster('1h') {
                          sender   : 'I18N Imp',
                          emoji    : ':smiling_imp:', emojiOnFailure: ':imp:',
                          extraText: "@cp-support",
-                         when     : ['FAILURE', 'UNSTABLE']],
-            aggregator: [initiative: 'content-platform',
-                         when      : ['SUCCESS', 'BACK TO NORMAL',
-                                      'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                         when     : ['FAILURE', 'UNSTABLE']]]) {
 
         runScript();
     }

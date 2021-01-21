@@ -61,10 +61,7 @@ onMaster('90m') {
                    sender: 'Mr Meta Monkey', // we may be deploying Mr. Monkey himself!
                    emoji: ':monkey_face:',
                    when: ['BUILD START',
-                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       if (params.SERVICE == "") {
          notify.fail("SERVICE is required!");
       }

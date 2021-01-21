@@ -68,10 +68,7 @@ def runScript() {
 // memory.  
 onWorker("ka-content-sync-ec2", "8h") {
    notify([slack: [channel: '#infrastructure',
-                   when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Running script") {
          runScript();
       }

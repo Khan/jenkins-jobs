@@ -71,10 +71,7 @@ onMaster('5h') {
       [slack: [channel: '#1s-and-0s',
                when: ['STARTED', 'ABORTED']],
        bugtracker: [project: 'Infrastructure',
-                    when: ['FAILURE']],
-       aggregator: [initiative: 'infrastructure',
-                    when: ['SUCCESS', 'BACK TO NORMAL',
-                           'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                    when: ['FAILURE']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
       // TODO(csilvers): move those secrets somewhere else instead.
