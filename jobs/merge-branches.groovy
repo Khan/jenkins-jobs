@@ -152,10 +152,7 @@ onMaster('1h') {
                    thread: params.SLACK_THREAD,
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
          def sha1 = mergeBranches();

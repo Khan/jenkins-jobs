@@ -39,9 +39,7 @@ def runScript() {
 
 onMaster('1h') {
     notify([slack: [channel: '#cp-eng',
-                    when: ['FAILURE', 'UNSTABLE']],
-            aggregator: [initiative: 'content-platform',
-                         when: ['FAILURE', 'UNSTABLE']]]) {
+                    when: ['FAILURE', 'UNSTABLE']]]) {
         stage("Running script") {
             runScript();
         }

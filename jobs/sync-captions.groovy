@@ -51,10 +51,7 @@ onMaster('23h') {
                    extraText: "@joshua",
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
            email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
       stage("Syncing captions") {
          runScript();
       }

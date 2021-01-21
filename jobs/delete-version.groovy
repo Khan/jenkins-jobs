@@ -61,10 +61,7 @@ onMaster('30m') {
    notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-        aggregator: [initiative: 'infrastructure',
-                     when: ['SUCCESS', 'BACK TO NORMAL',
-                            'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       verifyArgs();
       stage("Deleting") {
          deleteVersion();

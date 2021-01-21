@@ -267,36 +267,6 @@ def sendToBugtracker(bugtrackerOptions, status, extraText='') {
 
 
 // Supported options:
-// when (required): under what circumstances to send to aggregator; a list.
-//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-//    (Used in call(), below.)
-// initiative (required): a string indicating which initiative this pertains,
-//    to e.g. "infrastructure"
-// [extraText: if specified, text to add to the task body.]
-def sendToAggregator(aggregatorOptions, status, extraText='') {
-   def arr = _dataForAlertlib(status, extraText);
-   def subject = arr[0];
-   def severity = arr[1];
-   def body = arr[2];
-   subject += "${currentBuild.displayName} See ${env.BUILD_URL} for full details.";
-   // 'failed' rather than actual status included so as to provide a consistent
-   // event name, otherwise dashboard will not recognize entries as corresponding
-   // to the same issue and will open a new issue
-   def event_name = "${env.JOB_NAME} failed";
-
-   def extraFlags = ["--aggregator=${aggregatorOptions.initiative}",
-                     "--aggregator-resource=jenkins",
-                     "--aggregator-event-name=${event_name}"];
-
-   // If job is successful mark alerta alert resolved
-   if (!_failed(status)) {
-      extraFlags += ["--aggregator-resolve"];
-   }
-   _sendToAlertlib(subject, severity, body, extraFlags);
-}
-
-
-// Supported options:
 // sha (required): Closure yielding git-sha being processed.  If this doesn't
 //     look like a sha, we don't notify the buildmaster.
 // what (required): Which job the status refers to.
@@ -442,9 +412,6 @@ def call(options, Closure body) {
       }
       if (options.bugtracker && _shouldReport(status, options.bugtracker.when)) {
          sendToBugtracker(options.bugtracker, status, failureText);
-      }
-      if (options.aggregator && _shouldReport(status, options.aggregator.when)) {
-         sendToAggregator(options.aggregator, status, failureText);
       }
    }
 }

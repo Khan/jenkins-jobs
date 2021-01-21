@@ -540,9 +540,6 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
                          what: (E2E_URL == "https://www.khanacademy.org" ?
                                 'second-smoke-test': 'first-smoke-test')]]) {

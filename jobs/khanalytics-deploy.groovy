@@ -90,10 +90,7 @@ onMaster('90m') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
-                   when: ['SUCCESS', 'BUILD START', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL', 'FAILURE',
-                               'UNSTABLE', 'ABORTED']]]) {
+                   when: ['SUCCESS', 'BUILD START', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
 
        stage("Cloning repository"){
            cloneKhanalyticsPrivate();

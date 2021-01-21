@@ -44,10 +44,7 @@ onMaster('10h') {
                    emoji: ':monkey_face:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
            email: [to: 'jenkins-admin+builds, csilvers',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
       def jobs = [];
       stage("Listing jobs to run") {
          def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);

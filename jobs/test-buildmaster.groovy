@@ -53,10 +53,7 @@ onMaster('90m') {
    notify([slack: [channel: '#infrastructure-devops',
                    sender: 'Mr Meta Monkey', // we are testing Mr. Monkey himself!
                    emoji: ':monkey_face:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Installing deps") {
          installDeps();
       }

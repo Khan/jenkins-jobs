@@ -424,10 +424,7 @@ onWorker('znd-worker', '3h') {
                    sender: CHAT_SENDER,
                    emoji: EMOJI,
                    // We don't need to notify on success because deploy.sh does.
-                   when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       determineVersion();
       stage("Deploying") {
          deploy();

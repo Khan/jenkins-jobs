@@ -113,10 +113,7 @@ onWorker('ka-test-ec2', '1h') {
     notify([slack: [channel: params.SLACK_CHANNEL,
                     sender: 'Testing Turtle',
                     emoji: ':turtle:',
-                    when: ['FAILURE', 'UNSTABLE', 'SUCCESS']],
-            aggregator: [initiative: 'infrastructure',
-                         when: ['SUCCESS', 'BACK TO NORMAL',
-                                'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                    when: ['FAILURE', 'UNSTABLE', 'SUCCESS']]]) {
         initializeGlobals();
         runTests();
         publishHTML target: [

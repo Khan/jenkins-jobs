@@ -25,10 +25,7 @@ onMaster('1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Taskqueue Totoro',
                    emoji: ':totoro:',
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           aggregator: [initiative: 'infrastructure',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          dir("webapp") {

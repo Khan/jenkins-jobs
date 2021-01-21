@@ -59,10 +59,7 @@ onMaster('3h') {
                    extraText: "@cp-support",
                    when: ['FAILURE', 'UNSTABLE']],
            email: [to: 'content-platform',
-                   when: ['FAILURE', 'UNSTABLE']],
-           aggregator: [initiative: 'content-platform',
-                        when: ['SUCCESS', 'BACK TO NORMAL',
-                               'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+                   when: ['FAILURE', 'UNSTABLE']]]) {
       stage("Running script") {
          runScript();
       }
