@@ -38,7 +38,6 @@ export FORCE_COMMIT=1
 clean_docker() {
     docker rm `docker ps -a | grep Exited | cut -f1 -d" "` || true
     docker rmi `docker images -aq` || true
-    ( cd webapp && make docker-prod-staging-dir )
 }
 
 
