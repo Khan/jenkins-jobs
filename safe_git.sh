@@ -83,7 +83,7 @@ _alert() {
 
 # Call this from within the repo that you want to do the fetching.
 _fetch() {
-    timeout 120m git fetch --prune --tags --force --progress origin
+    timeout 120m git fetch --tags --prune --prune-tags --force --progress origin
 }
 
 # Like fetch, but call from the workspace root.
