@@ -120,7 +120,7 @@ turn_old_branches_into_tags() {
         cd webapp
         echo "Turning old branches into tags in `pwd`"
 
-        git fetch --prune origin
+        git fetch --prune --prune-tags origin
         six_months_ago=`date +%s -d "-6 months"`
         # This pattern-match should be good for another 83 years or so!
         git for-each-ref --format='%(refname:strip=3) %(authordate:unix)' \
