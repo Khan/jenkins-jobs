@@ -33,12 +33,9 @@ export FORCE_COMMIT=1
 
 
 # Every week, make sure that /var/lib/docker's size is under control.
-# We then re-do a docker run to re-create the docker images we
-# actually still need (to make the next deploy faster).
 clean_docker() {
     docker rm `docker ps -a | grep Exited | cut -f1 -d" "` || true
     docker rmi `docker images -aq` || true
-    ( cd webapp && make docker-prod-staging-dir )
 }
 
 
