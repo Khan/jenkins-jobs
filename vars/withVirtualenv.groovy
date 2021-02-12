@@ -45,6 +45,11 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
    echo("Activating virtualenv ${pwd()}/env");
    withEnv(["VIRTUAL_ENV=${pwd()}/env",
             "PATH=${pwd()}/env/bin:${env.PATH}"]) {
+      // pip20+ stopped supporting python2.7, so we need to make sure
+      // we are using an older pip.
+      if (exec.outputOf(["pip", "--version"][0..4] != "pip 1") {
+        sh("pip install -U 'pip<20' setuptools");
+      }
       body();
    }
 }
