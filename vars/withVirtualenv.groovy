@@ -1,5 +1,12 @@
 //import vars.exec
 
+// pip20+ stopped supporting python2.7, so we need to make sure
+// we are using an older pip.
+def _maybeDowngradePip() {
+  // TODO(csilvers): check if the pip version is actually 20+ first.
+  sh("pip install -U 'pip<20' setuptools");
+}
+
 // This must be called from workspace-root.
 def call(Closure body) {
    if (env.VIRTUAL_ENV && fileExists(env.VIRTUAL_ENV)) {
@@ -7,9 +14,13 @@ def call(Closure body) {
       // because a node can inherit the environment from its parent
       // and have an inaccuarte VIRTUAL_ENV.
       echo("(Not activating virtualenv; already active at ${env.VIRTUAL_ENV})");
+      // TODO(csilvers): this is probably safe to remove now that we've
+      // changed the worker-ami creation script to do the downgrading too.
+      _maybeDowngradePip();
       body();
       return;
    }
+
    if (!fileExists("env")) {
       echo("Creating new virtualenv(s)");
 
@@ -45,10 +56,7 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
    echo("Activating virtualenv ${pwd()}/env");
    withEnv(["VIRTUAL_ENV=${pwd()}/env",
             "PATH=${pwd()}/env/bin:${env.PATH}"]) {
-      // pip20+ stopped supporting python2.7, so we need to make sure
-      // we are using an older pip.
-      // TODO(csilvers): check if the pip version is actually 20+ first.
-      sh("pip install -U 'pip<20' setuptools");
+      _maybeDowngradePip();
       body();
    }
 }
