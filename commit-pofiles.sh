@@ -34,8 +34,8 @@ rm pofiles.tar.gz
 # This lets us commit messages without a test plan
 export FORCE_COMMIT=1
 
-echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
-( cd webapp/intl/translations && git add . )
+echo "Checking in [approved_]pofiles/*.po"
+( cd webapp/intl/translations && git add pofiles approved_pofiles )
 
 # If we updated some "bigfiles", we need to push them to S3.  We do
 # that first so if it fails we don't do the git push.
@@ -55,7 +55,7 @@ echo "Checking in crowdin_stringids.pickle and [approved_]pofiles/*.po"
 jenkins-jobs/safe_git.sh commit_and_push_submodule \
     webapp intl/translations \
     -a \
-    -m "Automatic update of crowdin .po files and crowdin_stringids.pickle" \
+    -m "Automatic update of crowdin .po files" \
     -m "(locales: $LOCALE)" \
     -m "(at webapp commit `cd webapp && git rev-parse HEAD`)"
 
