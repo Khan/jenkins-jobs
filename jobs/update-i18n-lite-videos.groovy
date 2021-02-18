@@ -51,7 +51,16 @@ def runAndCommit() {
          }
       }
       dir("webapp/intl/translations") {
+         // TODO(csilvers): after webapp is modified to just use gcs,
+         // don't do the git stuff, just do the gcs stuff.
+         // The `-x` flag causes only `v*` files to be rsynced.
+         // (Ideally we'd say `gsutil rsync videos*.json gs://...`,
+         // but gsutil's rsync only lets us sync entire directories;
+         // the only way to get per-file control is via `-x`.)
+         exec(["gsutil", "-m", "rsync", "-d", "-x", "^[^v]",
+               "./", "gs://ka-lite-homepage-data/"]);
          exec(["git", "add", "videos_*.json"]);
+
       }
       kaGit.safeCommitAndPushSubmodule(
          "webapp", "intl/translations",
