@@ -57,7 +57,7 @@ def runAndCommit() {
          // (Ideally we'd say `gsutil rsync videos*.json gs://...`,
          // but gsutil's rsync only lets us sync entire directories;
          // the only way to get per-file control is via `-x`.)
-         exec(["gsutil", "-m", "rsync", "-d", "-x", "^[^v]",
+         exec(["gsutil", "-m", "rsync", "-x", "^[^v]",
                "./", "gs://ka-lite-homepage-data/"]);
          exec(["git", "add", "videos_*.json"]);
 
