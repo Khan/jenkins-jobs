@@ -24,15 +24,6 @@ def updateRepo() {
    withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
-      // We do our work in the 'automated-commits' branch.
-      kaGit.safePullInBranch("webapp", "automated-commits");
-
-      // ...which we want to make sure is up-to-date with master.
-      kaGit.safeMergeFromMaster("webapp", "automated-commits");
-
-      // We also make sure the intl/translations sub-repo is up to date.
-      kaGit.safePull("webapp/intl/translations");
-
       dir("webapp") {
          sh("make clean_pyc");    // in case some .py files went away
          sh("make python_deps");
@@ -41,32 +32,22 @@ def updateRepo() {
 }
 
 
-def runAndCommit() {
+def runAndUpload() {
    withTimeout('22h') {
-      def GIT_SHA1 = null;
       withSecrets() {
          dir("webapp") {
-            exec(["tools/update_i18n_lite_videos.py", "intl/translations"])
-            GIT_SHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
+            sh("mkdir -p ../lite-video-data");
+            // Download the current videos from gcs so we can update them.
+            exec(["gsutil", "-m", "rsync",
+                  "gs://ka-lite-homepage-data/", "../lite-video-data/"]);
+
+            exec(["tools/update_i18n_lite_videos.py", "../lite-video-data"]);
+
+            // Now upload the changes
+            exec(["gsutil", "-m", "rsync",
+                  "../lite-video-data/", "gs://ka-lite-homepage-data/"]);
          }
       }
-      dir("webapp/intl/translations") {
-         // TODO(csilvers): after webapp is modified to just use gcs,
-         // don't do the git stuff, just do the gcs stuff.
-         // The `-x` flag causes only `v*` files to be rsynced.
-         // (Ideally we'd say `gsutil rsync videos*.json gs://...`,
-         // but gsutil's rsync only lets us sync entire directories;
-         // the only way to get per-file control is via `-x`.)
-         exec(["gsutil", "-m", "rsync", "-x", "^[^v]",
-               "./", "gs://ka-lite-homepage-data/"]);
-         exec(["git", "add", "videos_*.json"]);
-
-      }
-      kaGit.safeCommitAndPushSubmodule(
-         "webapp", "intl/translations",
-         ["-m", "Automatic update of videos_*.json",
-          "-m", "(at webapp commit ${GIT_SHA1})",
-          "videos_*.json"]);
    }
 }
 
@@ -83,7 +64,7 @@ onMaster('23h') {
          updateRepo();
       }
       stage("Updating lite videos") {
-         runAndCommit();
+         runAndUpload();
       }
    }
 }
