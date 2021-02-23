@@ -83,11 +83,7 @@ _alert() {
 
 # Call this from within the repo that you want to do the fetching.
 _fetch() {
-    # NOTE(jeremy): We've added `--quiet` because ZND deploys are failing with
-    #               a SIGPIPE error during this fetch operation. When the 
-    #               Great Tag Cleanup of 2021 has been completed we may be able
-    #               to remove that option.
-    timeout 120m git fetch --quiet --tags --prune --prune-tags --force --progress origin
+    timeout 120m git fetch --tags --prune --prune-tags --force --progress origin
 }
 
 # Like fetch, but call from the workspace root.
