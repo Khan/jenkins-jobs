@@ -247,7 +247,9 @@ clean_ka_static() {
     # so we shouldn't expect an explosion of stale icons. We don't need to
     # worry about keeping older manifests around, since the mobile clients
     # download and ship with the most recent manifest.
-    KA_STATIC_WHITELIST="-e genfiles/topic-icons/icons/"
+    # We also need to keep around CKEditor, as we treat it as a static asset
+    # at this point.
+    KA_STATIC_WHITELIST="-e genfiles/topic-icons/icons/ -e ckeditor/"
 
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
