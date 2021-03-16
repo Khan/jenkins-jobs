@@ -29,7 +29,7 @@ def installDeps() {
       sh("chmod 644 alert-context/src/secrets.py");
 
       dir("alert-context") {
-         sh("make fix_deps");  // force a remake of all deps all the time
+         sh("make -B deps");  // force a remake of all deps all the time
       }
    }
 }
