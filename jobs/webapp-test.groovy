@@ -235,17 +235,22 @@ def runTestServer() {
    dir("webapp") {
       if (params.BASE_REVISION) {
          // Only run the tests that are affected by files that were
-         // changed between BASE_REVISION and GIT_REVISION.
-         sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(params.GIT_REVISION)} | testing/all_tests_for.py - > ../files_to_test.txt");
+         // changed between BASE_REVISION and GIT_REVISION.  We ignore
+         // files where only sync tags have changed; those can't affect
+         // tests.
+         sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)} ${exec.shellEscape(params.GIT_REVISION)} > ../trivial_diffs.txt");
+         sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(params.GIT_REVISION)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py - > ../files_to_test.txt");
          // Note that unlike for tests, we consider deleted files for linting.
          sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(params.GIT_REVISION)} | testing/all_lint_for.py - > ../files_to_lint.txt");
       } else {
+         sh("echo > ../trivial_diffs.txt");
          sh("echo . > ../files_to_test.txt");
          sh("echo . > ../files_to_lint.txt");
          echo("Running all tests.");
       }
       sh("cat ../files_to_test.txt");  // to help with debugging
       sh("cat ../files_to_lint.txt");
+      sh("cat ../trivial_diffs.txt");
 
       def runtestsArgs = ["--port=5001",
                           "--timing-db=../test-info.db",
