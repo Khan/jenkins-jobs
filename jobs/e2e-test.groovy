@@ -251,7 +251,9 @@ def _setupWebapp() {
 
    dir("webapp") {
       sh("make clean_pyc");
-      sh("make python_deps");
+      // One of our smoketests runs js code:
+      // GraphQLSchemaIntegrationSmokeTest.test_graphql_schema_validates
+      sh("make python_deps npm_deps");
    }
 }
 
