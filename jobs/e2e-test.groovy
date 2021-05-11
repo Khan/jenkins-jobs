@@ -510,12 +510,14 @@ def analyzeResults() {
                // The label goes at the top of the message; we include
                // both the URL and the REVISION_DESCRIPTION.
                "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
-               "--cc-always", "#qa-log",
                "--not-run-tests-file", "../not-run-tests.txt",
                "--rerun-command", rerunCommand,
             ];
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
+            }
+            if (params.SLACK_CHANNEL != "#qa-log") {
+               summarize_args += ["--cc-always", "#qa-log"];
             }
             // summarize-to-slack returns a non-zero rc if it detects
             // test failures.  We set the job to UNSTABLE in that case
