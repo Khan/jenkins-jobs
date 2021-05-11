@@ -50,7 +50,7 @@ def runAllTests() {
 def runSmokeTests() {
     build(job: '../deploy/e2e-test',
           parameters: [
-             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+             string(name: 'SLACK_CHANNEL', value: "#qa-log"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
             // It takes about 15 minutes to run all the e2e tests when
             // using the default of 20 workers.  There's no need for
