@@ -101,8 +101,9 @@ def prime() {
    _setupWebapp();
    // We also need to sync mobile, so we can run the mobile integration test
    // (if we are assigned to do so).
+   // Note that Mobile latest code is at develop branch
    // TODO(benkraft): Only run this if we get it from the splits?
-   kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
+   kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "develop");
 }
 
 def primeWorkers() {
