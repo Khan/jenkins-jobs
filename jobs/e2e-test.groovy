@@ -438,9 +438,10 @@ def runAllTestClients() {
                 _setupWebapp();
                 // We also need to sync mobile, so we can run
                 // content/end_to_end/android_integration_smoketest.py.
+                // Note that Mobile latest code is at develop branch
                 // TODO(benkraft): Do this in runmsoketests.py instead
                 // (at need), or in the smoketest itself?
-                kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "master");
+                kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "develop");
                 // We can go no further until we know the server to connect to.
                 waitUntil({ TEST_SERVER_URL != null });
                 runTestWorker(workerId);
