@@ -39,6 +39,12 @@ clean_docker() {
 }
 
 
+# Let's make sure size is under control on the publish worker too.
+clean_publish_worker() {
+    gcloud compute --project khan-internal-services ssh --zone us-central1-b publish-worker -- sh -x /var/publish/clean.sh
+}
+
+
 # Every week, we do a 'partial' clean of genfiles directories that
 # gets rid of certain files that are "probably" obsolete.
 clean_genfiles() {
