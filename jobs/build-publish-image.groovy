@@ -26,6 +26,13 @@ znd's name here.  It will be appended to the docker image name, to
 indicate that this image does not derive from prod.""",
     ""
 
+).addBooleanParam(
+    "VALIDATE_COMMIT",
+    """If set, check that this commit is safe to publish.  <b>UNSET
+WITH CAUTION!</b> -- only for situations where you are overwriting
+someone else's publish-deploy on purpose.""",
+    true
+
 ).apply();
 
 
@@ -34,7 +41,9 @@ def runScript() {
                           params.GIT_REVISION);
 
    dir("webapp") {
-       sh("content_editing/tools/publish/validate_commit_for_publish.sh");
+       if (params.VALIDATE_COMMIT) {
+          sh("content_editing/tools/publish/validate_commit_for_publish.sh");
+       }
        exec(["env", "ZND_NAME=${params.ZND_NAME}", "content_editing/tools/publish/build_publish_image.sh"]);
        // TODO(csilvers): report the publish-content version to slack?
        echo("For how to use this image, see");
