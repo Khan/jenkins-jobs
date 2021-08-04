@@ -425,6 +425,26 @@ def deployToGCS() {
 }
 
 
+// This should be called from within a node().
+def uploadGraphqlSafelist() {
+   if (SERVICE.any { it != 'static'}) {
+      echo("Uploading GraphQL queries to the safelist.");
+      def args = ["deploy/upload_graphql_safelist.py", NEW_VERSION, "--prod"];
+
+      withSecrets() {
+         dir("webapp") {
+            // Increase the the maximum number of open file descriptors.
+            // This is necessary because kake keeps a lockfile open for
+            // every file it's compiling, and that can easily be
+            // thousands of files.  4096 is as much as linux allows.
+            // We also use python -u to get maximally unbuffered output.
+            sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+         }
+      }
+   }
+}
+
+
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -526,6 +546,8 @@ def deployAndReport() {
          }
       }
       parallel(jobs);
+
+      uploadGraphqlSafelist();
 
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,
