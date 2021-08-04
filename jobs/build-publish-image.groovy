@@ -35,6 +35,7 @@ someone else's publish-deploy on purpose.""",
 
 ).apply();
 
+currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
 
 def runScript() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
