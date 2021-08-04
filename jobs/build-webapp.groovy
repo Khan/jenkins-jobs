@@ -425,6 +425,28 @@ def deployToGCS() {
 }
 
 
+// This should be called from within a node().
+def uploadGraphqlSafelist() {
+   // We don't upload queries from the static service here becuase
+   // services/static/deploy/deploy.js is responsible for that.
+   // TODO(kevinb): update deploy scripts for each service to be responsible
+   // for uploading its own queries to the safelist.
+   if (SERVICES.any { it != 'static'}) {
+      echo("Uploading GraphQL queries to the safelist.");
+      withSecrets() {
+         dir("webapp") {
+            exec([
+               "python",
+               "deploy/upload_graphql_safelist.py",
+               NEW_VERSION,
+               "--prod",
+            ])
+         }
+      }
+   }
+}
+
+
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -526,6 +548,8 @@ def deployAndReport() {
          }
       }
       parallel(jobs);
+
+      uploadGraphqlSafelist();
 
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,
