@@ -208,6 +208,9 @@ WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 
+// Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
+skipTestAnalysis = false
+
 // Run body, set the red circle on the flow-pipeline stage if it fails,
 // but do not fail the overall build.  Re-raises "interrupt" exceptions,
 // either due to a failFast or due to a user interrupt.
@@ -301,6 +304,19 @@ def runTestServer() {
       // runtests_server.py writes to this directory.  Make sure it's clean
       // before it does so, so it doesn't read "old" data.
       sh("rm -rf genfiles/test-reports");
+
+      tests = sh(script: "testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . ", returnStdout: true);
+      // The runtests_server.py script with -n outputs all tests to run of 
+      // various types. We only need to worry about smoke tests, which are 
+      // also the last section, so grab everything after the header. If it's 
+      // empty, there are no tests to run.
+      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + 13).trim()
+      echo("e2eTests: ${e2eTests}")
+      if (e2eTests.isAllWhitespace()) {
+         echo("No E2E Tests to run!")
+         skipTestAnalysis = true
+         return
+      }
 
       // START THE SERVER!  Note this blocks.  It will auto-exit when
       // it's done serving all the tests.
@@ -555,6 +571,13 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             runTests();
          }
       } finally {
+         // If we determined there were no tests to run, we should skip 
+         // analysis since it fails if there are no test results.
+         if (skipTestAnalysis) {
+            echo("Skipping Analysis - No tests run")
+            return
+         }
+
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {

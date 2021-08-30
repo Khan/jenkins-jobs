@@ -179,6 +179,8 @@ TESTS = [
     [cmd: "testing/go_test_client.sh -j1 <server>", done: false],
 ];
 
+// Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
+skipTestAnalysis = false
 
 // Run body, set the red circle on the flow-pipeline stage if it fails,
 // but do not fail the overall build.  Re-raises "interrupt" exceptions,
@@ -277,6 +279,13 @@ def runTestServer() {
       // runtests_server.py writes to this directory.  Make sure it's clean
       // before it does so, so it doesn't read "old" data.
       sh("rm -rf genfiles/test-reports");
+
+      tests = sh(script: "cat ../files_to_test.txt", returnStdout: true);
+      if (tests.isAllWhitespace()) {
+         echo("No Unit Tests to run!")
+         skipTestAnalysis = true
+         return
+      }
 
       // START THE SERVER!  Note this blocks.  It will auto-exit when
       // it's done serving all the tests.
@@ -529,6 +538,13 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             runTests();
          }
       } finally {
+         // If we determined there were no tests to run, we should skip 
+         // analysis since it fails if there are no test results.
+         if (skipTestAnalysis) {
+            echo("Skipping Analysis - No tests run")
+            return
+         }
+
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {
