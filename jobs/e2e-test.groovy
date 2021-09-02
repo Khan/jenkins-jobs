@@ -293,6 +293,28 @@ def runTestServer() {
          runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
       }
 
+      // Determine if we actually need to run any tests at all
+      // tests = sh(script: "testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . ", returnStdout: true);
+      tests = exec.outputOf(["testing/runtests_server.py", "-n", runSmokeTestsArgs, "."].flatten());
+
+      // The runtests_server.py script with -n outputs all tests to run of 
+      // various types. We only need to worry about smoke tests, which are 
+      // also the last section, so grab everything after the header. If it's 
+      // empty, there are no tests to run.
+      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + 12)
+      // An empty line indicates the end of the section (if found)
+      emptyLineIndex = e2eTests.lastIndexOf('\n\n')
+      if (emptyLineIndex >= 0) {
+         e2eTests = e2eTests.substring(0, emptyLineIndex).trim()
+      }
+
+      echo("e2eTests: ${e2eTests}")
+      if (e2eTests.isAllWhitespace()) {
+         echo("No E2E Tests to run!")
+         skipTestAnalysis = true
+         throw new TestsAreDone();
+      }
+
       // This gets our 10.x.x.x IP address.
       def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
       // This unblocks the test-workers to let them know they can connect
@@ -304,19 +326,6 @@ def runTestServer() {
       // runtests_server.py writes to this directory.  Make sure it's clean
       // before it does so, so it doesn't read "old" data.
       sh("rm -rf genfiles/test-reports");
-
-      tests = sh(script: "testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . ", returnStdout: true);
-      // The runtests_server.py script with -n outputs all tests to run of 
-      // various types. We only need to worry about smoke tests, which are 
-      // also the last section, so grab everything after the header. If it's 
-      // empty, there are no tests to run.
-      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + 13).trim()
-      echo("e2eTests: ${e2eTests}")
-      if (e2eTests.isAllWhitespace()) {
-         echo("No E2E Tests to run!")
-         skipTestAnalysis = true
-         return
-      }
 
       // START THE SERVER!  Note this blocks.  It will auto-exit when
       // it's done serving all the tests.

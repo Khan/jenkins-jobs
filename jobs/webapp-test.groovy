@@ -262,6 +262,14 @@ def runTestServer() {
                           "--lintfile=../files_to_lint.txt",
                         ];
 
+      // Determine if we actually need to run any tests at all
+      tests = exec.outputOf(["cat", "../files_to_test.txt"]);
+      if (tests.isAllWhitespace()) {
+         echo("No Unit Tests to run!")
+         skipTestAnalysis = true
+         throw new TestsAreDone();
+      }
+
       // This gets our 10.x.x.x IP address.
       def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
       // This unblocks the test-workers to let them know they can connect
@@ -279,13 +287,6 @@ def runTestServer() {
       // runtests_server.py writes to this directory.  Make sure it's clean
       // before it does so, so it doesn't read "old" data.
       sh("rm -rf genfiles/test-reports");
-
-      tests = sh(script: "cat ../files_to_test.txt", returnStdout: true);
-      if (tests.isAllWhitespace()) {
-         echo("No Unit Tests to run!")
-         skipTestAnalysis = true
-         return
-      }
 
       // START THE SERVER!  Note this blocks.  It will auto-exit when
       // it's done serving all the tests.
