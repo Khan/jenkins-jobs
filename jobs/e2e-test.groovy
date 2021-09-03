@@ -294,14 +294,17 @@ def runTestServer() {
       }
 
       // Determine if we actually need to run any tests at all
-      // tests = sh(script: "testing/runtests_server.py -n ${exec.shellEscapeList(runSmokeTestsArgs)} . ", returnStdout: true);
-      tests = exec.outputOf(["testing/runtests_server.py", "-n", runSmokeTestsArgs, "."].flatten());
+      // TODO(dbraley): This process takes a few seconds to run, and is done 
+      //  again by the actual server run a bit later in this method. We should
+      //  make this faster, or at least able to reuse the test list we've 
+      //  already calculated.
+      tests = exec.outputOf(["testing/runtests_server.py", "-n"] + runSmokeTestsArgs + ["."]);
 
       // The runtests_server.py script with -n outputs all tests to run of 
       // various types. We only need to worry about smoke tests, which are 
       // also the last section, so grab everything after the header. If it's 
       // empty, there are no tests to run.
-      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + 12)
+      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + "SMOKE TESTS:".length())
       // An empty line indicates the end of the section (if found)
       emptyLineIndex = e2eTests.lastIndexOf('\n\n')
       if (emptyLineIndex >= 0) {
