@@ -179,6 +179,8 @@ TESTS = [
     [cmd: "testing/go_test_client.sh -j1 <server>", done: false],
 ];
 
+// Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
+skipTestAnalysis = false
 
 // Run body, set the red circle on the flow-pipeline stage if it fails,
 // but do not fail the overall build.  Re-raises "interrupt" exceptions,
@@ -259,6 +261,14 @@ def runTestServer() {
                           "--max-size=${params.MAX_SIZE}",
                           "--lintfile=../files_to_lint.txt",
                         ];
+
+      // Determine if we actually need to run any tests at all
+      tests = exec.outputOf(["cat", "../files_to_test.txt"]);
+      if (tests.isAllWhitespace()) {
+         echo("No Unit Tests to run!")
+         skipTestAnalysis = true
+         throw new TestsAreDone();
+      }
 
       // This gets our 10.x.x.x IP address.
       def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
@@ -529,6 +539,13 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             runTests();
          }
       } finally {
+         // If we determined there were no tests to run, we should skip 
+         // analysis since it fails if there are no test results.
+         if (skipTestAnalysis) {
+            echo("Skipping Analysis - No tests run")
+            return
+         }
+
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {

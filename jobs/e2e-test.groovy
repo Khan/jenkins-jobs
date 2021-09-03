@@ -208,6 +208,9 @@ WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 
+// Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
+skipTestAnalysis = false
+
 // Run body, set the red circle on the flow-pipeline stage if it fails,
 // but do not fail the overall build.  Re-raises "interrupt" exceptions,
 // either due to a failFast or due to a user interrupt.
@@ -288,6 +291,31 @@ def runTestServer() {
       }
       if (params.SKIP_TESTS) {
          runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
+      }
+
+      // Determine if we actually need to run any tests at all
+      // TODO(dbraley): This process takes a few seconds to run, and is done 
+      //  again by the actual server run a bit later in this method. We should
+      //  make this faster, or at least able to reuse the test list we've 
+      //  already calculated.
+      tests = exec.outputOf(["testing/runtests_server.py", "-n"] + runSmokeTestsArgs + ["."]);
+
+      // The runtests_server.py script with -n outputs all tests to run of 
+      // various types. We only need to worry about smoke tests, which are 
+      // also the last section, so grab everything after the header. If it's 
+      // empty, there are no tests to run.
+      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + "SMOKE TESTS:".length())
+      // An empty line indicates the end of the section (if found)
+      emptyLineIndex = e2eTests.lastIndexOf('\n\n')
+      if (emptyLineIndex >= 0) {
+         e2eTests = e2eTests.substring(0, emptyLineIndex).trim()
+      }
+
+      echo("e2eTests: ${e2eTests}")
+      if (e2eTests.isAllWhitespace()) {
+         echo("No E2E Tests to run!")
+         skipTestAnalysis = true
+         throw new TestsAreDone();
       }
 
       // This gets our 10.x.x.x IP address.
@@ -555,6 +583,13 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             runTests();
          }
       } finally {
+         // If we determined there were no tests to run, we should skip 
+         // analysis since it fails if there are no test results.
+         if (skipTestAnalysis) {
+            echo("Skipping Analysis - No tests run")
+            return
+         }
+
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {
