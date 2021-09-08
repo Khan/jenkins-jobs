@@ -351,10 +351,15 @@ update_caniuse() {
     #    https://github.com/facebook/create-react-app/issues/6708#issuecomment-488392836
     (
         cd webapp
-        # This deletes everything from the first "caniuse-lite" line
-        # to the following blank line, from yarn.lock.
-        sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
-        yarn upgrade caniuse-lite browserlist
+        for d in `git grep -l caniuse-lite "*yarn.lock" | xargs -n1 dirname`; do
+            (
+                cd "$d"
+                # This deletes everything from the first "caniuse-lite" line
+                # to the following blank line, from yarn.lock.
+                sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
+                yarn upgrade caniuse-lite browserlist
+            )
+        done
     )
     jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" yarn.lock
 }
