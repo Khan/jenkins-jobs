@@ -455,8 +455,8 @@ def runTests() {
    try {
       parallel([
          failFast: true,
-         "test-server": { withTimeout('2h') { runTestServer(); } },
-         "test-clients": { withTimeout('2h') { runAllTestClients(); } },
+         "test-server": { withTimeout('3h') { runTestServer(); } },
+         "test-clients": { withTimeout('3h') { runAllTestClients(); } },
       ]);
     } catch (TestsAreDone e) {
       // Ignore this "error": it's thrown on successful test completion.
