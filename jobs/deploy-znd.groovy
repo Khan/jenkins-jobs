@@ -102,6 +102,15 @@ znd, consider setting this to false since they are more expensive instances.""",
    "#1s-and-0s-deploys"
 
 ).addStringParam(
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+alerts.  By default we do not send in a thread. This is the number at the end
+of a message link, with a period inserted before the last 6 digits, e.g.
+for the link,
+https://khanacademy.slack.com/archives/C013ANU53LK/p1631811224115400,
+the thread is 1631811224.115400.'""", ""
+
+).addStringParam(
     "PHAB_REVISION",
     """The Phabricator revision ID for this build. This field should only be
 defined if the znd-deploy originates from the Phabricator Herald Build Plan 6.
@@ -192,6 +201,8 @@ def deployToGAE() {
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
    args += params.PRIME ? [] : ["--no-priming"];
    args += params.HIGHMEM_INSTANCE ? ["--highmem-instance"] : [];
+   args +=
+      params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
 
    withSecrets() {     // we need to deploy secrets.py.
       dir("webapp") {
@@ -221,6 +232,8 @@ def deployToGCS() {
    } else {
       args += ["--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
+      args +=
+         params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
    }
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
 
@@ -301,6 +314,8 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
                 "--chat-sender=${CHAT_SENDER}",
                 "--icon-emoji=${EMOJI}",
                 "--slack-simple-message"];
+   args +=
+      args.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
     // Secrets required to talk to slack.
     withSecrets() {
         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
@@ -421,6 +436,7 @@ def deploy() {
 // a mess of our build caches for the main deploy.
 onWorker('znd-worker', '3h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
+                   thread: params.SLACK_THREAD,
                    sender: CHAT_SENDER,
                    emoji: EMOJI,
                    // We don't need to notify on success because deploy.sh does.
