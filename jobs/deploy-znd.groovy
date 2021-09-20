@@ -315,7 +315,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
                 "--icon-emoji=${EMOJI}",
                 "--slack-simple-message"];
    args +=
-      args.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
+      params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
     // Secrets required to talk to slack.
     withSecrets() {
         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
