@@ -112,8 +112,10 @@ def deploy() {
 
 def setDefault() {
    withTimeout('5m') {
-      dir("webapp/services/fastly-khanacademy") {
-         sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
+      withSecrets() { // to report the change to #whats-happening
+         dir("webapp/services/fastly-khanacademy") {
+            sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
+         }
       }
    }
 }
