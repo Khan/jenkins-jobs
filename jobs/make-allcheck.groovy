@@ -38,12 +38,8 @@ def runAllTests() {
              string(name: 'MAX_SIZE', value: "huge"),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              booleanParam(name: 'FORCE', value: params.FORCE),
-            // The single test make_test_db_test takes 99 minutes to
-            // run.  All the other tests between them take 340 minutes
-            // to run.  So 5 other CPUs is right to have everyone
-            // finish after ~99 minutes.
-            string(name: 'NUM_WORKER_MACHINES', value: "3"),
-            string(name: 'CLIENTS_PER_WORKER', value: "2"),
+             string(name: 'NUM_WORKER_MACHINES', value: "6"),
+             string(name: 'CLIENTS_PER_WORKER', value: "2"),
           ]);
 }
 
