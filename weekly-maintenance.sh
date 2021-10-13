@@ -259,7 +259,7 @@ clean_ka_static() {
     # We also need to keep around CKEditor, live-editor, and MathJax as we
     # treat them as a static asset at this point. More information:
     # https://khanacademy.atlassian.net/wiki/spaces/ENG/pages/1257046459/Static+JS+Third+Party+Library+Files
-    KA_STATIC_WHITELIST="-e genfiles/topic-icons/icons/ -e ckeditor/ -e live-editor/ -e khan-mathjax-build/ -e _manifest.json"
+    KA_STATIC_WHITELIST="-e genfiles/topic-icons/icons/ -e ckeditor/ -e live-editor/ -e khan-mathjax-build/ -e /_manifest.json"
 
     # Now we go through every file in ka-static and delete it if it's
     # not in files-to-keep.  We ignore lines ending with ':' -- those
