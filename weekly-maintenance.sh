@@ -203,8 +203,9 @@ clean_ka_translations() {
 }
 
 
-# NOTE(kevinb): We're disabling clean_ka_static() until we can schedule some time
-# to update the logic to avoid deleting files we need.
+# TODO(FEI-4154): Fix this logic to be more robust.
+# We're disabling clean_ka_static() for the time 
+# being to avoid deleting files we need by accident.
 # clean_ka_static() {
 #     # First we ask Fastly for the list of live static versions.
 #     # (Buildmaster is responsible for pruning that list.)
