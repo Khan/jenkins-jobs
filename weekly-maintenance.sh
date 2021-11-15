@@ -203,86 +203,89 @@ clean_ka_translations() {
 }
 
 
-clean_ka_static() {
-    # First we ask Fastly for the list of live static versions.
-    # (Buildmaster is responsible for pruning that list.)
-    active_versions=`webapp/deploy/list_static_versions.py`
+# TODO(FEI-4154): Fix this logic to be more robust.
+# We're disabling clean_ka_static() for the time 
+# being to avoid deleting files we need by accident.
+# clean_ka_static() {
+#     # First we ask Fastly for the list of live static versions.
+#     # (Buildmaster is responsible for pruning that list.)
+#     active_versions=`webapp/deploy/list_static_versions.py`
 
-    files_to_keep=`mktemp -d`/files_to_keep
-    # The 'ls -l' output looks like this:
-    #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
-    gsutil ls -l 'gs://ka-static/_manifest.*.json' | grep _manifest | sort -k2r | while read line; do
-        # (Since we create the manifest-files, we know they don't
-        # have spaces in their name.)
-        manifest=`echo "$line" | awk '{print $3}'`
-        manifest_version=`echo "$manifest" | cut -d. -f2`  # _manifest.<v>.json
-        if echo "$active_versions" | grep -q "$manifest_version"; then
-            # This gets the keys (which is the url) to each dict-entry
-            # in the manifest file.  The manifest file might be
-            # uploaded compressed, so I use `zcat -f` to uncompress it
-            # if needed. (`-f` handles uncompressed data correctly too.)
-            gsutil cat "$manifest" | zcat -f | grep -o '"[^"]*":' | tr -d '":' \
-                >> "$files_to_keep"
-            # We also keep the manifest file itself around -- we do so
-            # explicitly since it does not reference itself.  We also
-            # explicitly keep the version's toc-file, because it is
-            # copied on a static-only deploy, and the manifest's
-            # reference to it is not updated.
-            # TODO(benkraft): Update the manifest on copy, and remove
-            # at least the latter special case.
-            echo "$manifest" >> "$files_to_keep"
-            echo "/genfiles/manifests/toc-webpack-manifest-$manifest_version.json" >> "$files_to_keep"
-        fi
-    done
+#     files_to_keep=`mktemp -d`/files_to_keep
+#     # The 'ls -l' output looks like this:
+#     #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
+#     gsutil ls -l 'gs://ka-static/_manifest.*.json' | grep _manifest | sort -k2r | while read line; do
+#         # (Since we create the manifest-files, we know they don't
+#         # have spaces in their name.)
+#         manifest=`echo "$line" | awk '{print $3}'`
+#         manifest_version=`echo "$manifest" | cut -d. -f2`  # _manifest.<v>.json
+#         if echo "$active_versions" | grep -q "$manifest_version"; then
+#             # This gets the keys (which is the url) to each dict-entry
+#             # in the manifest file.  The manifest file might be
+#             # uploaded compressed, so I use `zcat -f` to uncompress it
+#             # if needed. (`-f` handles uncompressed data correctly too.)
+#             gsutil cat "$manifest" | zcat -f | grep -o '"[^"]*":' | tr -d '":' \
+#                 >> "$files_to_keep"
+#             # We also keep the manifest file itself around -- we do so
+#             # explicitly since it does not reference itself.  We also
+#             # explicitly keep the version's toc-file, because it is
+#             # copied on a static-only deploy, and the manifest's
+#             # reference to it is not updated.
+#             # TODO(benkraft): Update the manifest on copy, and remove
+#             # at least the latter special case.
+#             echo "$manifest" >> "$files_to_keep"
+#             echo "/genfiles/manifests/toc-webpack-manifest-$manifest_version.json" >> "$files_to_keep"
+#         fi
+#     done
 
-    # We need to add the gs://ka-static prefix to match the gsutil ls output.
-    sed s,^/,gs://ka-static/, "$files_to_keep" \
-        | LANG=C sort -u > "$files_to_keep.sorted"
+#     # We need to add the gs://ka-static prefix to match the gsutil ls output.
+#     sed s,^/,gs://ka-static/, "$files_to_keep" \
+#         | LANG=C sort -u > "$files_to_keep.sorted"
 
-    # Basic sanity check: make sure favicon.ico is in the list of files
-    # to keep.  If not, something has gone terribly wrong.
-    if ! grep -q "favicon.ico" "$files_to_keep.sorted"; then
-        echo "FATAL ERROR: The list of files-to-keep seems to be wrong"
-        exit 1
-    fi
+#     # Basic sanity check: make sure favicon.ico is in the list of files
+#     # to keep.  If not, something has gone terribly wrong.
+#     if ! grep -q "favicon.ico" "$files_to_keep.sorted"; then
+#         echo "FATAL ERROR: The list of files-to-keep seems to be wrong"
+#         exit 1
+#     fi
 
-    # Configure the whitelist. Any files in the whitelist will be kept around
-    # in perpetuity.
-    # We need to keep topic icons around forever because older mobile clients
-    # continue to point to them. Thankfully, they don't change that often, and
-    # so we shouldn't expect an explosion of stale icons. We don't need to
-    # worry about keeping older manifests around, since the mobile clients
-    # download and ship with the most recent manifest.  We keep _manifest.json
-    # around since it's used by the static deploy process to reduce the number
-    # of files we need to upload to GCS (it contains a list of files that were
-    # uploaded during the last static deploy).
-    # We also need to keep around CKEditor, live-editor, and MathJax as we
-    # treat them as a static asset at this point. More information:
-    # https://khanacademy.atlassian.net/wiki/spaces/ENG/pages/1257046459/Static+JS+Third+Party+Library+Files
-    KA_STATIC_WHITELIST="-e genfiles/topic-icons/ -e ckeditor/ -e live-editor/ -e khan-mathjax-build/ -e /_manifest.json"
+#     # Configure the whitelist. Any files in the whitelist will be kept around
+#     # in perpetuity.
+#     # We need to keep topic icons around forever because older mobile clients
+#     # continue to point to them. Thankfully, they don't change that often, and
+#     # so we shouldn't expect an explosion of stale icons. We don't need to
+#     # worry about keeping older manifests around, since the mobile clients
+#     # download and ship with the most recent manifest.  We keep _manifest.json
+#     # around since it's used by the static deploy process to reduce the number
+#     # of files we need to upload to GCS (it contains a list of files that were
+#     # uploaded during the last static deploy).
+#     # We also need to keep around CKEditor, live-editor, and MathJax as we
+#     # treat them as a static asset at this point. More information:
+#     # https://khanacademy.atlassian.net/wiki/spaces/ENG/pages/1257046459/Static+JS+Third+Party+Library+Files
+#     KA_STATIC_WHITELIST="-e genfiles/topic-icons/ -e ckeditor/ -e live-editor/ -e khan-mathjax-build/ -e /_manifest.json"
 
-    # Now we go through every file in ka-static and delete it if it's
-    # not in files-to-keep.  We ignore lines ending with ':' -- those
-    # are directories.  We also ignore any files in the whitelist.
-    # Finally, we keep any files touched recently: they were presumably
-    # deployed for a reason, perhaps due to an ongoing deploy whose
-    # manifest has not yet been uploaded.
-    # The 'ls -l' output looks like this:
-    #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
-    # TODO(csilvers): make the xargs 'gsutil -m' after we've debugged
-    # why that sometimes fails with 'file not found'.
-    yesterday_or_today="-e `date --utc +"%Y-%m-%d"`T -e `date --utc -d "-1 day" +"%Y-%m-%d"`T"
-    gsutil -m ls -r gs://ka-static/ \
-        | grep . \
-        | grep -v ':$' \
-        | grep -v $KA_STATIC_WHITELIST \
-        | grep -v $yesterday_or_today \
-        | LANG=C sort > "$files_to_keep.candidates"
-    # This prints files in 'candidates that are *not* in files_to_keep.
-    LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
-        | tr '\012' '\0' \
-        | xargs -0r gsutil -m rm
-}
+#     # Now we go through every file in ka-static and delete it if it's
+#     # not in files-to-keep.  We ignore lines ending with ':' -- those
+#     # are directories.  We also ignore any files in the whitelist.
+#     # Finally, we keep any files touched recently: they were presumably
+#     # deployed for a reason, perhaps due to an ongoing deploy whose
+#     # manifest has not yet been uploaded.
+#     # The 'ls -l' output looks like this:
+#     #    2374523  2016-04-21T17:47:23Z  gs://ka-static/_manifest.foo
+#     # TODO(csilvers): make the xargs 'gsutil -m' after we've debugged
+#     # why that sometimes fails with 'file not found'.
+#     yesterday_or_today="-e `date --utc +"%Y-%m-%d"`T -e `date --utc -d "-1 day" +"%Y-%m-%d"`T"
+#     gsutil -m ls -r gs://ka-static/ \
+#         | grep . \
+#         | grep -v ':$' \
+#         | grep -v $KA_STATIC_WHITELIST \
+#         | grep -v $yesterday_or_today \
+#         | LANG=C sort > "$files_to_keep.candidates"
+#     # This prints files in 'candidates that are *not* in files_to_keep.
+#     LANG=C comm -23 "$files_to_keep.candidates" "$files_to_keep.sorted" \
+#         | tr '\012' '\0' \
+#         | xargs -0r gsutil -m rm
+# }
 
 
 backup_network_config() {
