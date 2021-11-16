@@ -76,9 +76,9 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
 
     # make sure dev-server's subprocesses are stopped too.
     # 8011 is the pubsub emulator; 8081 is the nginx proxy.
-    lsof -t -iTCP:8011 -iTCP:8081 | xargs kill -15
+    lsof -t -iTCP:8011 -iTCP:8081 | xargs -r kill -15
     sleep 10
-    lsof -t -iTCP:8011 -iTCP:8081 | xargs kill -9
+    lsof -t -iTCP:8011 -iTCP:8081 | xargs -r kill -9
 
     # wait some extra time to make sure everything has actually shut down and
     # fully written current.sqlite to disk
