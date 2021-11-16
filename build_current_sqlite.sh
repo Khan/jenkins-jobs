@@ -49,6 +49,8 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
         ./app.yaml > genfiles/appserver.log 2>&1 &
     appserver_pid=$!
 
+    trap 'tail -n100 genfiles/appserver.log' 0 HUP INT QUIT
+
     # wait for server to start
     sleep 60
 
@@ -76,6 +78,8 @@ for snapshot_bucket in $SNAPSHOT_NAMES; do
     # fully written current.sqlite to disk
     sleep 30
     is_first_run=
+
+    trap - 0 HUP INT QUIT
 done
 
 cd ..
