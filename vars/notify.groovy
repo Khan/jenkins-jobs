@@ -83,34 +83,6 @@ def _statusText(status, includeNumConsecutiveFailures=true) {
 }
 
 
-// Returns the last 50 lines of the logfile.  However, we omit the
-// text of commands run by notify() (below) when it's easy to do so,
-// since they are run after the job proper has already finished, and
-// don't provide any useful information for debugging.
-def _logSuffix() {
-   def NUM_LINES = 50;
-   // We allow 400 lines of post-failure processing.
-   // TODO(csilvers): rawBuild is a bit of a security hole; revoke
-   // permissions for it and use logMatcher instead if we can get it
-   // to work.
-   def loglines = currentBuild.rawBuild.getLog(NUM_LINES + 400);
-
-   // We always include loglines[0], that's the one that says
-   def end = loglines.size() - 1;
-   if (end < 1) {
-      return "";
-   }
-   for (def i = 0; i < loglines.size(); i++) {
-      if ("===== JOB FAILED =====" in loglines[i]) {
-         end = i;
-         break;
-      }
-   }
-   def start = end - NUM_LINES < 1 ? 1 : end - NUM_LINES;
-   return loglines[0, start..end].join("\n");
-}
-
-
 // Returns shared alertlib requirements, including severity, subject,
 // and body text. Individual sendTo functions (slack, bugtracker, email,
 // and alerta) can build upon these, as needed.
@@ -120,20 +92,15 @@ def _dataForAlertlib(status, extraText) {
    // Do not add if want subject to stay consistent (e.g. for sending to
    // bugtracker, we don't want to open a new task for each failure)
    def subject = "${env.JOB_NAME} ${_statusText(status, false)}";
-   def severity = _failed(status) ? 'error' : 'info';
-   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
+   def severity = "info";
+   def body = "${subject}: See ${env.BUILD_URL}/ for full details.\n";
+   if (_failed(status)) {
+      severity = "error";
+      body = ("${subject}: See ${env.BUILD_URL}/flowGraphTable/ " +
+              "for what failed (look for the red circle(s)).\n")
+   }
    if (extraText) {
       body += "\n${extraText}";
-   }
-   if (_failed(status)) {
-      body += """
-Below is the tail of the build log.
-If there's a failure it is probably near the bottom!
-
----------------------------------------------------------------------
-
-${_logSuffix()}
-""";
    }
    return [subject, severity, body];
 }
