@@ -93,10 +93,10 @@ def _dataForAlertlib(status, extraText) {
    // bugtracker, we don't want to open a new task for each failure)
    def subject = "${env.JOB_NAME} ${_statusText(status, false)}";
    def severity = "info";
-   def body = "${subject}: See ${env.BUILD_URL}/ for full details.\n";
+   def body = "${subject}: See ${env.BUILD_URL} for full details.\n";
    if (_failed(status)) {
       severity = "error";
-      body = ("${subject}: See ${env.BUILD_URL}/flowGraphTable/ " +
+      body = ("${subject}: See ${env.BUILD_URL}flowGraphTable/ " +
               "for what failed (look for the red circle(s)).\n")
    }
    if (extraText) {
