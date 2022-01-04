@@ -460,6 +460,11 @@ def deployToGatewayConfig() {
        exec(["make", "-C", "services/graphql-gateway",
              "deploy-gateway-config",
              "DEPLOY_VERSION=${NEW_VERSION}"]);
+       if (fileExists("services/graphql-gateway-2/Makefile")) {
+          exec(["make", "-C", "services/graphql-gateway-2",
+                "deploy-gateway-config",
+                "DEPLOY_VERSION=${NEW_VERSION}"]);
+       }
    }
 }
 
