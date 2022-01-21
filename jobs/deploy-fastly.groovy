@@ -83,11 +83,11 @@ def installDeps() {
    }
 }
 
-def _currentVersion() {
+def _activeVersion() {
    def cmd = [
        "make",
        "-C", "webapp/services/fastly-khanacademy",
-        params.TARGET == "prod" ? "current-version" : "current-version-test",
+        params.TARGET == "prod" ? "active-version" : "active-version-test",
    ];
    withTimeout('1m') {
       return exec.outputOf(cmd)
@@ -160,7 +160,7 @@ onMaster('30m') {
          installDeps();
       }
 
-      def oldActive = _currentVersion();
+      def oldActive = _activeVersion();
 
       stage("Deploying") {
          if (params.TARGET == "prod") {
@@ -176,7 +176,7 @@ onMaster('30m') {
          setDefault();
       }
 
-      def newActive = _currentVersion();
+      def newActive = _activeVersion();
       notifyWithVersionInfo(oldActive, newActive);
    }
 }
