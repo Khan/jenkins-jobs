@@ -83,6 +83,17 @@ def installDeps() {
    }
 }
 
+def _activeVersion() {
+   def cmd = [
+       "make",
+       "-s",
+       "-C", "webapp/services/fastly-khanacademy",
+        params.TARGET == "prod" ? "active-version" : "active-version-test",
+   ];
+   withTimeout('1m') {
+      return exec.outputOf(cmd)
+   }
+}
 
 // When deploying normal webapp services we merge in master to make sure
 // the latest code is running.  We should probably do that here too but
@@ -120,6 +131,21 @@ def setDefault() {
    }
 }
 
+def notifyWithVersionInfo(oldActive, newActive) {
+   def subject = "fastly-${params.TARGET} is now at version ${newActive}";
+   def body = "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`";
+   def cmd = [
+       "jenkins-jobs/alertlib/alert.py",
+       "--slack=#fastly",
+       "--chat-sender=Fastly Flamingo",
+       "--icon-emoji=:flamingo:",
+       "--severity=info",
+       "--summary=${subject}",
+   ];
+   withSecrets() {     // to talk to slack
+      sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
+   }
+}
 
 onMaster('30m') {
    notify([slack: [channel: '#fastly',
@@ -135,6 +161,8 @@ onMaster('30m') {
          installDeps();
       }
 
+      def oldActive = _activeVersion();
+
       stage("Deploying") {
          if (params.TARGET == "prod") {
             ensureUpToDate();
@@ -148,5 +176,8 @@ onMaster('30m') {
       stage("Setting default") {
          setDefault();
       }
+
+      def newActive = _activeVersion();
+      notifyWithVersionInfo(oldActive, newActive);
    }
 }
