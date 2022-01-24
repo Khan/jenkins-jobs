@@ -86,6 +86,7 @@ def installDeps() {
 def _activeVersion() {
    def cmd = [
        "make",
+       "-s",
        "-C", "webapp/services/fastly-khanacademy",
         params.TARGET == "prod" ? "active-version" : "active-version-test",
    ];
