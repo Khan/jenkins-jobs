@@ -33,12 +33,13 @@ rm -rf webapp/genfiles/content_prefill
 cd webapp
 make deps
 
-# start dev server serving locally on port 9085
+# start dev server serving locally
+# go services assume graphql works on 8080 in dev
 # write logs to genfiles/appserver.log
 timeout 10h python third_party/frankenserver/dev_appserver.py \
     --application=khan-academy \
     --datastore_path=../current.sqlite \
-    --port=9085 \
+    --port=8080 \
     --require_indexes=yes \
     --skip_sdk_update_check=yes \
     --automatic_restart=no \
@@ -46,6 +47,7 @@ timeout 10h python third_party/frankenserver/dev_appserver.py \
     --max_module_instances=1 \
     --log_level=info \
     --host=127.0.0.1 \
+    --enable_datastore_translator=yes \
     $DEV_APPSERVER_ARGS \
     ./app.yaml > genfiles/appserver.log 2>&1 &
 appserver_pid=$!
@@ -53,17 +55,23 @@ appserver_pid=$!
 # if we close this script early, dump the last part of the appserver logs to the console
 trap 'tail -n100 genfiles/appserver.log' 0 HUP INT QUIT
 
-#hard to detect what's required or not, so just maintain a hard coded list
-required_services="admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails grpc-translator graphql-gateway  gateway-proxy progress rest-gateway rewards search test-prep users"
+
+# setup redis server
+redis-server --port 8202 --dir genfiles &
+redis_pid=$1
+
+# hard to detect what's required or not, so just maintain a hard coded list
+# This list is ordered! some of these services are early in the list because other
+# services depend on them to start.For example: grpc-translator and graphql-gateway
+required_services="grpc-translator localproxy graphql-gateway admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
 
 # We also need to start the go services
 service_pids=
 for d in $required_services; do
    make -C "services/$d" serve &
    service_pids="$service_pids $!"
+   sleep 5 # some services need to come up first, we need to wait for them to come up
 done
-# wait for everything to fully start
-sleep 60
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
@@ -72,25 +80,23 @@ go run ./services/admin/cmd/make_admin --username=testadmin
 for snapshot_bucket in $SNAPSHOT_NAMES; do  
     # do content sync
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
-    tools/devshell.py --host localhost:9085  --script dev/dev_appserver/sync_snapshot.py "../$snapshot_bucket" "$locale_name"
+    tools/devshell.py --host localhost:8080  --script dev/dev_appserver/sync_snapshot.py "../$snapshot_bucket" "$locale_name"
     sleep 10
 done
 
 # create interaction data for the users, and have testcoach watch some videos
-tools/devshell.py --host localhost:9085  --script dev/dev_appserver/create_user_interactions.py
+tools/devshell.py --host localhost:8080  --script dev/dev_appserver/create_user_interactions.py
 kaid=$(go run ./services/users/cmd/get-kaid-for-username testcoach)
 go run ./services/progress/cmd/watch-videos/ $kaid
-
-
-# wait some extra time to make sure everything has actually shut down and
-# fully written current.sqlite to disk
-sleep 30
 
 # stop the go services. We don't do try too hard because these generally shut down cleanly.
 kill $service_pids
 
 # try to stop dev server
 kill -15 "$appserver_pid"
+
+# try to stop redis
+kill $redis_pid
 
 sleep 10
 
@@ -108,11 +114,15 @@ fi
 
 # make sure dev-server's subprocesses are stopped too.
 # 8011 is the pubsub emulator; 8081 is the nginx proxy.
-lsof -t -iTCP:8011 -iTCP:8081 | xargs -r kill -15
+lsof -t -iTCP:8011 -iTCP:8081 -iTCP:8080 | xargs -r kill -15
 sleep 10
-lsof -t -iTCP:8011 -iTCP:8081 | xargs -r kill -9
+lsof -t -iTCP:8011 -iTCP:8081  -iTCP:8080 | xargs -r kill -9
 
 trap - 0 HUP INT QUIT
+
+# wait some extra time to make sure everything has actually shut down and
+# fully written current.sqlite to disk
+sleep 30
 
 cd ..
 # upload current.sqlite and new content prefill files (deleteing old ones)
