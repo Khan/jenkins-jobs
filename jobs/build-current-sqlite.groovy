@@ -65,7 +65,7 @@ def runScript() {
 
 
 // We run on a special worker machine because this job uses so much
-// memory.  
+// memory.
 onWorker("ka-content-sync-ec2", "8h") {
    notify([slack: [channel: '#infrastructure',
                    when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {

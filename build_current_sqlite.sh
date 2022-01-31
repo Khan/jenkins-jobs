@@ -1,7 +1,7 @@
-#!/bin/sh -ex
+#!/bin/bash -ex
 
 # A script to build an up-to-date current.sqlite by using various tools to seed
-# our dev environment state.  
+# our dev environment state.
 
 # Specifically those tools are:
 # services/users/cmd/make_dev_users - go script to create dev user accounts
@@ -56,9 +56,9 @@ appserver_pid=$!
 trap 'tail -n100 genfiles/appserver.log' 0 HUP INT QUIT
 
 
-# setup redis server
+# setup redis server.
 redis-server --port 8202 --dir genfiles &
-redis_pid=$1
+redis_pid=$!
 
 # hard to detect what's required or not, so just maintain a hard coded list
 # This list is ordered! some of these services are early in the list because other
@@ -68,16 +68,24 @@ required_services="grpc-translator localproxy graphql-gateway admin analytics as
 # We also need to start the go services
 service_pids=
 for d in $required_services; do
-   make -C "services/$d" serve &
+    # We do the "sed" so we can tell what service a given piece of output
+    # is coming from (since they're all interleaved).  We use the weird
+    # `>(...)` syntax so "$!" still points to the "make" command, not "sed":
+    # https://stackoverflow.com/questions/1652680/how-to-get-the-pid-of-a-process-that-is-piped-to-another-process-in-bash
+   make -C "services/$d" serve < /dev/null > >(sed "s/^/[$d] /") 2>&1 &
    service_pids="$service_pids $!"
-   sleep 5 # some services need to come up first, we need to wait for them to come up
+   sleep 5  # some services need to come up first, so we wait for them
 done
+
+# It can take graphql-gateway more than a minute to start up, so let's
+# give it some time before we start throwing traffic at it
+sleep 60
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
 go run ./services/admin/cmd/make_admin --username=testadmin
 
-for snapshot_bucket in $SNAPSHOT_NAMES; do  
+for snapshot_bucket in $SNAPSHOT_NAMES; do
     # do content sync
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
     tools/devshell.py --host localhost:8080  --script dev/dev_appserver/sync_snapshot.py "../$snapshot_bucket" "$locale_name"
