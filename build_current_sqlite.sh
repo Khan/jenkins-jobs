@@ -74,15 +74,18 @@ for d in $required_services; do
     # https://stackoverflow.com/questions/1652680/how-to-get-the-pid-of-a-process-that-is-piped-to-another-process-in-bash
    make -C "services/$d" serve < /dev/null > >(sed "s/^/[$d] /") 2>&1 &
    service_pids="$service_pids $!"
-   # TODO(csilvers): lower this to 5 once we move to go graphql-gateway
-   sleep 90 # it can take graphql-gateway more than a minute to start up!
+   sleep 5  # some services need to come up first, so we wait for them
 done
+
+# It can take graphql-gateway more than a minute to start up, so let's
+# give it some time before we start throwing traffic at it
+sleep 60
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
 go run ./services/admin/cmd/make_admin --username=testadmin
 
-for snapshot_bucket in $SNAPSHOT_NAMES; do  
+for snapshot_bucket in $SNAPSHOT_NAMES; do
     # do content sync
     locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
     tools/devshell.py --host localhost:8080  --script dev/dev_appserver/sync_snapshot.py "../$snapshot_bucket" "$locale_name"
