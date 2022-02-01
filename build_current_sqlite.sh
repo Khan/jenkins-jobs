@@ -63,7 +63,7 @@ redis_pid=$!
 # hard to detect what's required or not, so just maintain a hard coded list
 # This list is ordered! some of these services are early in the list because other
 # services depend on them to start.For example: grpc-translator and graphql-gateway
-required_services="grpc-translator localproxy graphql-gateway admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
+required_services="grpc-translator localproxy graphql-gateway graphql-gateway-2 admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
 
 # We also need to start the go services
 service_pids=
@@ -84,6 +84,9 @@ sleep 60
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
 go run ./services/admin/cmd/make_admin --username=testadmin
+
+# copy feature flags from prod to dev
+go run ./services/admin/cmd/sync-feature-flags-dev
 
 for snapshot_bucket in $SNAPSHOT_NAMES; do
     # do content sync
