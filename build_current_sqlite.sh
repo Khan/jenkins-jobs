@@ -79,7 +79,7 @@ done
 
 # It can take graphql-gateway more than a minute to start up, so let's
 # give it some time before we start throwing traffic at it
-sleep 60
+sleep 90
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
