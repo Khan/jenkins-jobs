@@ -14,6 +14,20 @@
 #
 # For this script to work, secrets.py must be on the PYTHONPATH.
 
+function wait_for_graphql_gateway() {
+    retry_count=0
+    # We poll /playground since it replies to GETs with a 200 when
+    # it's active and running correctly. This provides a 0 rc for curl
+    until curl localhost:8102/playground; 
+        do sleep 30;
+        ((retry_count+=1))
+        if [[ $retry_count -gt 6 ]]; then
+            echo "graphql-gateway is taking too long to start"
+            exit 1
+        fi
+    done
+}
+
 # Space-separated list of GCS buckets to download snapshots from.
 : ${SNAPSHOT_NAMES:="snapshot_en snapshot_es"}
 # GCS bucket to upload current.sqlite to.
@@ -77,9 +91,8 @@ for d in $required_services; do
    sleep 5  # some services need to come up first, so we wait for them
 done
 
-# It can take graphql-gateway more than a minute to start up, so let's
-# give it some time before we start throwing traffic at it
-sleep 90
+# graphql gateway takes quite a while to start. 
+wait_for_graphql_gateway
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
