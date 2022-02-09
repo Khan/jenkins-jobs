@@ -202,6 +202,28 @@ clean_ka_translations() {
     done
 }
 
+clean_graphql_gateway_schemas() {
+    # Files have the format:
+    #    csdl-YYMMDD-HHMM-######.json(.gz)
+    #    csdl-znd-YYMMDD-HHMM-######.json(.gz)
+    #    v2-YYMMDD-HHMM-######.json
+    #    v2-znd-YYMMDD-HHMM-######.json
+    # We keep everything from the last two months.  But if there
+    # are less than 50 non-znd files from the last two months, we
+    # don't delete anything, just in case there haven't been any
+    # schema updates for many months.  (The 50 was picked
+    # arbitrarily.)
+    grep_cmd="grep"
+    for days_ago in `seq 0 62`; do   # 62 days is 2 months
+        grep_cmd="$grep_cmd -e -`date +%y%m%d -d "-$days_ago days"`-"
+    done
+
+    dir=gs://ka-webapp/graphql-gateway/data_graph_configs
+    num_non_znd_files_to_keep=`gsutil ls "$dir" | $grep_cmd | grep -v znd- | wc -l`
+    if [ "$num_non_znd_files_to_keep" -gt 50 ]; then
+        gsutil ls "$dir" | $grep_cmd -v | gsutil -m rm -I
+    fi
+}
 
 # TODO(FEI-4154): Fix this logic to be more robust.
 # We're disabling clean_ka_static() for the time 
