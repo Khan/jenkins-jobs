@@ -389,7 +389,7 @@ update_caniuse() {
             )
         done
     )
-    jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" yarn.lock
+    jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" yarn.lock '*/yarn.lock'
 }
 
 
