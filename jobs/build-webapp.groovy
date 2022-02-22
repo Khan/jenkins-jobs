@@ -444,6 +444,21 @@ def uploadGraphqlSafelist() {
          }
       }
    }
+
+   // Pre-generate query plans for everything on the new safelist, at
+   // the new version.  This depends on the static deploy having
+   // finished, since that updates the safelist.
+   echo("Pre-computing the query-plans for the latest safelist queries.");
+   withSecrets() {
+      dir("webapp") {
+         exec([
+            "go", "run",
+            "./services/graphql-gateway-2/cmd/prime-query-plan-cache",
+            "--prod",
+            NEW_VERSION,
+         ])
+      }
+   }
 }
 
 
