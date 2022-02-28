@@ -802,7 +802,7 @@ def finishWithFailure(why) {
                // During the rollback, we need the local version of code to be
                // of the good version for some of the rollback operation
                // e.g. update dispatch.yaml
-               exec(["git", "checkout", "tag/${ROLLBACK_TO}"]);
+               exec(["git", "checkout", "tags/${ROLLBACK_TO}"]);
 
                // We use --bad-dict instead of --bad here because
                // there's no git tag yet for the bad version:
