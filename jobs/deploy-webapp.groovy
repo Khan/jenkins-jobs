@@ -259,33 +259,33 @@ def _alert(def slackArgs, def interpolationArgs) {
    }
 }
 
-// This method filters a common 'DEPLOYER_USERNAME' into a series of comma 
-// seperated slack user id's for the purpose of passing into alert.py's 
+// This method filters a common 'DEPLOYER_USERNAME' into a series of comma
+// seperated slack user id's for the purpose of passing into alert.py's
 // '--slack' argument. For Example:
 // DEPLOYER_USERNAME: <@UMZGEUH09> (cc <@UN5UC0EM6>)
 // becomes: UMZGEUH09,UN5UC0EM6,
 // TODO(dbraley): Add parsing of `@` usernames and `#` channels if needed
 @NonCPS // for pattern & matcher
 def _userIdsFrom(def deployUsernameBlob) {
-   // Regex to specifically grab the ids, which should start with U and be 
-   // some number of capital letters and numbers. Ids can also start with 
+   // Regex to specifically grab the ids, which should start with U and be
+   // some number of capital letters and numbers. Ids can also start with
    // W (special users), T (teams), or C (channels).
     def pattern = /<@([UTWC][0-9A-Z]+)>/;
     def match = (deployUsernameBlob =~ pattern);
-    
+
     allUsers = "";
-    
+
     for (n in match) {
         allUsers += "${n[1]},";
     }
-    
+
     return allUsers;
 }
 
-// Sends a survey to the deployer and anyone cc'ed to help infrastructure 
-// understand why a deployment was aborted. Also sends it to 
+// Sends a survey to the deployer and anyone cc'ed to help infrastructure
+// understand why a deployment was aborted. Also sends it to
 // #dev-support-stream so we can follow up on 'missed' surveys.
-// 
+//
 // #infrastructure: <#C8Y4Q1E0J>
 def _sendAbortedDeploymentSurvey() {
     def msg = ":robot_hearthands: It looks like you recently aborted a " +
@@ -298,7 +298,7 @@ def _sendAbortedDeploymentSurvey() {
 
     def userIds = _userIdsFrom("${DEPLOYER_USERNAME}");
     userIds += "#dev-support-stream";
-   
+
     args = ["jenkins-jobs/alertlib/alert.py",
         "--slack=${userIds}",
         "--chat-sender=Mr Monkey",
@@ -799,6 +799,11 @@ def finishWithFailure(why) {
                  gitTag: GIT_TAG]);
          withSecrets() {
             dir("webapp") {
+               // During the rollback, we need the local version of code to be
+               // of the good version for some of the rollback operation
+               // e.g. update dispatch.yaml
+               exec(["git", "checkout", "tags/${ROLLBACK_TO}"]);
+
                // We use --bad-dict instead of --bad here because
                // there's no git tag yet for the bad version:
                // it's only created when we end a deploy with
