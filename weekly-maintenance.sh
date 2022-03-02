@@ -300,9 +300,9 @@ backup_network_config() {
 }
 
 
-# Delete unused queries from our GraphQL whitelist.
-clean_unused_queries() {
-    curl --retry 3 https://www.khanacademy.org/api/internal/graphql_safelist/clean
+# Delete unused queries from our GraphQL safelist.
+clean_unused_graphql_safelist_queries() {
+    ( cd webapp; tools/prune_graphql_safelist.sh --prod )
 }
 
 
