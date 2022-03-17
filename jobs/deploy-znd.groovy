@@ -291,7 +291,7 @@ def deployToGatewayConfig() {
        if (fileExists("services/queryplanner/Makefile")) {
           exec(["make", "-C", "services/queryplanner",
                 "deploy-gateway-config",
-                "DEPLOY_VERSION=${NEW_VERSION}"]);
+                "DEPLOY_VERSION=${VERSION}"]);
        }
    }
 }
