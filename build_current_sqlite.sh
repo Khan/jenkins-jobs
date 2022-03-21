@@ -18,7 +18,7 @@ function wait_for_graphql_gateway() {
     retry_count=0
     # We poll /playground since it replies to GETs with a 200 when
     # it's active and running correctly. This provides a 0 rc for curl
-    until curl localhost:8102/playground 2>&1 >/dev/null 
+    until curl localhost:8102/playground 2>&1 >/dev/null
         do sleep 30;
         ((retry_count+=1))
         if [[ $retry_count -gt 6 ]]; then
@@ -74,10 +74,11 @@ trap 'tail -n100 genfiles/appserver.log' 0 HUP INT QUIT
 redis-server --port 8202 --dir genfiles &
 redis_pid=$!
 
-# hard to detect what's required or not, so just maintain a hard coded list
-# This list is ordered! some of these services are early in the list because other
-# services depend on them to start.For example: grpc-translator and graphql-gateway
-required_services="grpc-translator localproxy graphql-gateway graphql-gateway-2 admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
+# hard to detect what's required or not, so just maintain a hard coded
+# list This list is ordered! some of these services are early in the
+# list because other services depend on them to start.
+# For example: grpc-translator and graphql-gateway
+required_services="grpc-translator localproxy queryplanner graphql-gateway graphql-gateway-2 admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
 
 # We also need to start the go services
 service_pids=
@@ -91,7 +92,7 @@ for d in $required_services; do
    sleep 5  # some services need to come up first, so we wait for them
 done
 
-# graphql gateway takes quite a while to start. 
+# graphql gateway takes quite a while to start.
 wait_for_graphql_gateway
 
 # create all the dev users and make test admin an admin user

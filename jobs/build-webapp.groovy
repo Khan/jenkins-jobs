@@ -451,12 +451,7 @@ def uploadGraphqlSafelist() {
    echo("Pre-computing the query-plans for the latest safelist queries.");
    withSecrets() {
       dir("webapp") {
-         exec([
-            "go", "run",
-            "./services/graphql-gateway-2/cmd/prime-query-plan-cache",
-            "--prod",
-            NEW_VERSION,
-         ])
+         exec(["tools/prime_query_plan_cache.sh", "--prod", NEW_VERSION]);
       }
    }
 }
