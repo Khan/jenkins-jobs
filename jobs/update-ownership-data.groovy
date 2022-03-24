@@ -39,6 +39,9 @@ def runScript() {
    kaGit.safeMergeFromMaster("webapp", params.GIT_BRANCH);
 
    dir("webapp") {
+      sh("timeout 2m git clean -ffd"); // in case the merge modified .gitignore
+      sh("timeout 1m git clean -ffd"); // sometimes we need two runs to clean
+
       sh("make clean_pyc");    // in case some .py files went away
       sh("make fix_deps");  // force a remake of all deps all the time
 
