@@ -78,7 +78,7 @@ redis_pid=$!
 # list This list is ordered! some of these services are early in the
 # list because other services depend on them to start.
 # For example: grpc-translator and graphql-gateway
-required_services="grpc-translator localproxy queryplanner graphql-gateway graphql-gateway-2 admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
+required_services="grpc-translator localproxy queryplanner graphql-gateway admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
 
 # We also need to start the go services
 service_pids=
