@@ -25,8 +25,7 @@ def updateRepo() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       dir("webapp") {
-         sh("make clean_pyc");    // in case some .py files went away
-         sh("make python_deps");
+         sh("make go_deps");
       }
    }
 }
@@ -41,7 +40,7 @@ def runAndUpload() {
             exec(["gsutil", "-m", "rsync",
                   "gs://ka-lite-homepage-data/", "../lite-video-data/"]);
 
-            exec(["tools/update_i18n_lite_videos.py", "../lite-video-data"]);
+            exec(["tools/content/update-i18n-lite-videos.sh", "../lite-video-data"]);
 
             // Now upload the changes
             exec(["gsutil", "-m", "rsync",
