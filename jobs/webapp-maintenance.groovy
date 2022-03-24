@@ -33,6 +33,14 @@ def runScript() {
       // ...which we want to make sure is up-to-date with master.
       kaGit.safeMergeFromMaster("webapp", "automated-commits");
 
+      // Do some more cleaning in case the merge modified .gitignore.
+      // We run it twice because sometimes we need two runs to clean
+      // fully (if the first run deletes a .gitignore in a subrepo, say).
+      dir("webapp") {
+         sh("timeout 2m git clean -ffd");
+         sh("timeout 1m git clean -ffd");
+      }
+
       sh("jenkins-jobs/weekly-maintenance.sh");
    }
 }
