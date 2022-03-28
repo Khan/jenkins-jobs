@@ -5,6 +5,9 @@
 def _maybeDowngradePip() {
   // TODO(csilvers): check if the pip version is actually 20+ first.
   sh("pip install -U 'pip<20' setuptools");
+
+  // TODO(csilvers): remove this once we've updated the config in aws-config.
+  sh("grep -q login_v3 ~/.keeper-config.json || perl -pli -e '/server/ and print q{    \"login_v3\": false,}' ~/.keeper-config.json");
 }
 
 // This must be called from workspace-root.
