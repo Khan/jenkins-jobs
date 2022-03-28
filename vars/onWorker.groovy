@@ -41,31 +41,31 @@ def call(def label, def timeoutString, Closure body) {
          // worker machines.
          dir("/home/ubuntu/webapp-workspace") {
             kaGit.checkoutJenkinsTools();
-            withVirtualenv() {
-               withTimeout(timeoutString) {
-                  // We document what machine we're running on, to help
-                  // with debugging.
-                  def instanceId = sh(
-                     script: ("curl -s " +
-                              "http://metadata.google.internal/computeMetadata/v1/instance/hostname " +
-                              "-H 'Metadata-Flavor: Google' | cut -d. -f1"),
-                     returnStdout: true).trim();
-                  def ip = exec.outputOf(
-                     ["curl", "-s",
-                      "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
-                      "-H", 'Metadata-Flavor: Google']);
-                  echo("Running on GCE instance ${instanceId} at ip ${ip}");
-                  // TODO(csilvers): figure out how to get the worker
-                  // to source the .bashrc like it did before.  Now I
-                  // think it's inheriting the PATH from the parent instead.
-                  // To export BOTO_CONFIG, for some reason, worker did not
-                  // source the .profile or .bashrc anymore.
-                  withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
-                           "PATH=/usr/local/google_appengine:" +
-                           "/home/ubuntu/google-cloud-sdk/bin:" +
-                           "/usr/local/bin/:" +
-                           "${env.HOME}/git-bigfile/bin:" +
-                           "${env.PATH}"]) {
+            withTimeout(timeoutString) {
+               // We document what machine we're running on, to help
+               // with debugging.
+               def instanceId = sh(
+                  script: ("curl -s " +
+                           "http://metadata.google.internal/computeMetadata/v1/instance/hostname " +
+                           "-H 'Metadata-Flavor: Google' | cut -d. -f1"),
+                  returnStdout: true).trim();
+               def ip = exec.outputOf(
+                  ["curl", "-s",
+                   "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
+                   "-H", 'Metadata-Flavor: Google']);
+               echo("Running on GCE instance ${instanceId} at ip ${ip}");
+               // TODO(csilvers): figure out how to get the worker
+               // to source the .bashrc like it did before.  Now I
+               // think it's inheriting the PATH from the parent instead.
+               // To export BOTO_CONFIG, for some reason, worker did not
+               // source the .profile or .bashrc anymore.
+               withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
+                        "PATH=/usr/local/google_appengine:" +
+                        "/home/ubuntu/google-cloud-sdk/bin:" +
+                        "/usr/local/bin/:" +
+                        "${env.HOME}/git-bigfile/bin:" +
+                        "${env.PATH}"]) {
+                  withVirtualenv() {
                      body();
                   }
                }

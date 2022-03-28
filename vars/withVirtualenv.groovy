@@ -14,10 +14,13 @@ def call(Closure body) {
       // because a node can inherit the environment from its parent
       // and have an inaccuarte VIRTUAL_ENV.
       echo("(Not activating virtualenv; already active at ${env.VIRTUAL_ENV})");
-      // TODO(csilvers): this is probably safe to remove now that we've
-      // changed the worker-ami creation script to do the downgrading too.
-      _maybeDowngradePip();
-      body();
+      // Make sure the virtual-env is still first in the path.
+      withEnv(["PATH=${env.VIRTUAL_ENV}/bin:${env.PATH}"]) {
+         // TODO(csilvers): this is probably safe to remove now that we've
+         // changed the worker-ami creation script to do the downgrading too.
+         _maybeDowngradePip();
+         body();
+      }
       return;
    }
 
