@@ -14,18 +14,28 @@
 #
 # For this script to work, secrets.py must be on the PYTHONPATH.
 
-function wait_for_graphql_gateway() {
+# $1: name of the service to poll.  $2: its port
+function poll_for_service() {
     retry_count=0
-    # We poll /playground since it replies to GETs with a 200 when
-    # it's active and running correctly. This provides a 0 rc for curl
-    until curl localhost:8102/playground 2>&1 >/dev/null
-        do sleep 30;
+    until curl "localhost:$2/_api/version" 2>&1 >/dev/null; do
+        sleep 10
         ((retry_count+=1))
-        if [[ $retry_count -gt 6 ]]; then
-            echo "graphql-gateway is taking too long to start"
+        if [[ $retry_count -gt 18 ]]; then
+            echo "$1 is taking too long to start"
             exit 1
         fi
     done
+}
+
+function wait_for_service() {
+    # TODO(csilvers): poll something instead of just waiting for the first two.
+    case "$1" in
+        grpc-translator) sleep 3;;
+        localproxy) sleep 5;;
+        queryplanner) poll_for_service "$1" 8128;;
+        graphql-gateway) poll_for_service "$1" 8102;;
+        # All the other services can safely start in parallel.
+    esac
 }
 
 # Space-separated list of GCS buckets to download snapshots from.
@@ -89,11 +99,14 @@ for d in $required_services; do
     # https://stackoverflow.com/questions/1652680/how-to-get-the-pid-of-a-process-that-is-piped-to-another-process-in-bash
    make -C "services/$d" serve < /dev/null > >(sed "s/^/[$d] /") 2>&1 &
    service_pids="$service_pids $!"
-   sleep 5  # some services need to come up first, so we wait for them
+   wait_for_service "$d"
 done
 
-# graphql gateway takes quite a while to start.
-wait_for_graphql_gateway
+# Do a final wait for all the services that were running in parallel,
+# to start.  We assume they all take about the same amount of time,
+# so we wait for one (arbitrarily) and add a bit of padding.
+poll_for_service users 8121
+sleep 10
 
 # create all the dev users and make test admin an admin user
 go run ./services/users/cmd/create_dev_users/
@@ -104,7 +117,7 @@ go run ./services/admin/cmd/sync-feature-flags-dev
 
 for snapshot_bucket in $SNAPSHOT_NAMES; do
     # do content sync
-    locale_name=`echo "$snapshot_bucket" | awk -F"_" '{print $NF}'`
+    locale_name=$(echo "$snapshot_bucket" | awk -F"_" '{print $NF}')
     tools/devshell.py --host localhost:8080  --script dev/dev_appserver/sync_snapshot.py "../$snapshot_bucket" "$locale_name"
     sleep 10
 done
@@ -112,7 +125,7 @@ done
 # create interaction data for the users, and have testcoach watch some videos
 tools/devshell.py --host localhost:8080  --script dev/dev_appserver/create_user_interactions.py
 kaid=$(go run ./services/users/cmd/get-kaid-for-username testcoach)
-go run ./services/progress/cmd/watch-videos/ $kaid
+go run ./services/progress/cmd/watch-videos/ "$kaid"
 
 # stop the go services. We don't do try too hard because these generally shut down cleanly.
 kill $service_pids
