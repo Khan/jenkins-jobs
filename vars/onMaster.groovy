@@ -9,6 +9,7 @@ def call(timeoutString, Closure body) {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
             withTimeout(timeoutString) {
+                echo("Running on main jenkins-server");
                 // To export BOTO_CONFIG, for some reason, master did not
                 // source the .profile or .bashrc anymore.
                 // TODO(benkraft): Should this also do the path-munging that
