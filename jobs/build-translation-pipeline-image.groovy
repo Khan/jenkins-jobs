@@ -40,7 +40,7 @@ def runScript() {
    }
 }
 
-onWorker("build-worker", "30m") {
+onWorker("build-worker", "90m") {
    notify([slack: [channel: '#cp-eng',
                    when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Running script") {
