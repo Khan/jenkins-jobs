@@ -36,7 +36,7 @@ def runScript() {
        exec(["env", "ZND_NAME=${params.ZND_NAME}", "content_editing/tools/publish/build_translation_pipeline_image.sh"]);
        // TODO(csilvers): report the image version to slack?
        echo("For how to use this image, see");
-       echo ("https://github.com/Khan/webapp/blob/master/services/content-editing/translation_pipeline/Makefile");
+       echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/1800470706/Common+Support+Tasks#Translation-Tasks");
    }
 }
 
