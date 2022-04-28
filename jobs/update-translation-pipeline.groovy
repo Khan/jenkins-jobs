@@ -1,5 +1,6 @@
 // Pipeline job that creates a new dockerfile image for the translation-pipeline,
-// and uploads it to our docker container-registry.
+// uploads it to our docker container-registry, and maybe refreshes crowdin-go
+// deployment in GKE.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -26,18 +27,33 @@ znd's name here.  It will be appended to the docker image name, to
 indicate that this image does not derive from prod.""",
     ""
 
+).addBooleanParam(
+    "REFRESH_CROWDIN_GO",
+    """If set, (re-)start the crowdin-go deployment on GKE after pushing the
+new docker image.""",
+    true
+
+).apply();
+
 currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
 
 def runScript() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                           params.GIT_REVISION);
 
-   dir("webapp") {
-       exec(["env", "ZND_NAME=${params.ZND_NAME}", "content_editing/tools/publish/build_translation_pipeline_image.sh"]);
+    dir("webapp/services/content-editing/translation_pipeline") {
+       exec(["make", "push", "ZND_NAME=${params.ZND_NAME}"]);
        // TODO(csilvers): report the image version to slack?
-       echo("For how to use this image, see");
-       echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/1800470706/Common+Support+Tasks#Translation-Tasks");
-   }
+       echo("gcr.io/khan-internal-services/crowdin-go has been pushed");
+       if (params.REFRESH_CROWDIN_GO) {
+          exec(["make", "crowdin-go"]);
+          echo("console.cloud.google.com/kubernetes/deployment/us-central1-b/internal-services/crowdin-go/crowdin-go/overview?project=khan-internal-services has been refreshed");
+       } else {
+          echo("Next step is to run `make -C services/content-editing/translation_pipeline refresh` or similar.");
+       }
+       echo("For more details, see");
+       echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/1800470706/Common+Support+Tasks#Translation-Tasks");
+    }
 }
 
 onWorker("build-worker", "90m") {
