@@ -6,7 +6,6 @@
 // TODO(ruslan): integrate later this job to the e2e tests pipeline.
 // This job runs lambdatest-cypress-cli in the webapp environment 
 // depending on how parameters are specified.
-// 
 
 
 @Library("kautils")
@@ -18,14 +17,13 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 //import vars.withSecrets
 
-public class TestFailed extends Exception {}
 
 new Setup(steps
 
 ).addStringParam(
-   "GIT_REVISION",
-   """The name of a webapp branch to use when building.""",
-   "master"
+   "CYPRESS_GIT_REVISION",
+   """The name of a cypress branch to use when building.""",
+   "feature/cypress"
 
 ).addStringParam(
    "URL",
@@ -73,66 +71,56 @@ Defaults to GIT_REVISION.""",
 """,
    ["all", "deploy", "nightly"]
 
-
 ).apply()
 
 def _setupWebapp() {
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
-   
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
 
-   dir("webapp") {
-      sh("make clean_pyc");
-
+   dir("webapp/services/static") {
+      sh("yarn install")
    }
 }
 
 def runLamdaTest() {
-    _setupWebapp();
+   _setupWebapp();
 
-    // We need login creds for LambdaTest Cli
-    def lt_username = sh(script: """\
-        keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
-        get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .login\
-        """, returnStdout:true).trim();
-    def lt_access_key = sh(script: """\
-        keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
-        get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
-        """, returnStdout:true).trim();
-    
-    def runLambdaTestArgs = ["--cy=\"--config baseUrl=${params.URL}\", retries=${params.TEST_RETRIES}",
-                             "--bn",
-                             "e2e-test # (${params.URL}: ${params.REVISION_DESCRIPTION}) @${params.DEPLOYER_USERNAME}",
-                             "-p",
-                             "${params.NUM_WORKER_MACHINES}"
-    ];
-    
-    try {
-        dir('webapp/services/static') {
-            
-            sh("git checkout feature/cypress");
-            sh("yarn install")
-
-            withEnv(["LT_USERNAME=${lt_username}",
-                     "LT_ACCESS_KEY=${lt_access_key}"]) {
-                sh("yarn lambdatest ${exec.shellEscapeList(runLambdaTestArgs)}")     
-            }
-        }
-    } catch (e) {
-        throw new TestFailed("LambdaTest build failed!");
-    }
+   // We need login creds for LambdaTest Cli
+   def lt_username = sh(script: """\
+      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
+      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .login\
+      """, returnStdout:true).trim();
+   def lt_access_key = sh(script: """\
+      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
+      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
+      """, returnStdout:true).trim();
+   
+   // TODO(ruslan): implement TEST_TYPE param to use decorator or flag 
+   // in cypress script files. 
+   def runLambdaTestArgs = ["yarn",
+                            "lambdatest",
+                            "--cy=\"--config baseUrl=${params.URL}\", retries=${params.TEST_RETRIES}",
+                            "--bn",
+                            "e2e-test # (${params.URL}: ${params.REVISION_DESCRIPTION}) @${params.DEPLOYER_USERNAME}",
+                            "-p",
+                            "${params.NUM_WORKER_MACHINES}"
+   ];
+   
+   dir('webapp/services/static') {
+      withEnv(["LT_USERNAME=${lt_username}",
+               "LT_ACCESS_KEY=${lt_access_key}"]) {
+         exec(runLambdaTestArgs)   
+      }
+   }
 }
 
 onWorker("ka-test-ec2", '6h') {
+   notify([slack: [channel: params.SLACK_CHANNEL,
+                  when: ['FAILURE', 'UNSTABLE']]]) {
 
-    notify([slack: [channel: params.SLACK_CHANNEL,
-                    when: ['FAILURE', 'UNSTABLE']]]) {
-
-        stage("Run e2e tests") {
-            runLamdaTest();
-        }
-    }
+      stage("Run e2e tests") {
+         runLamdaTest();
+      }
+   }
 }
 
     
