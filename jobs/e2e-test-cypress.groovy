@@ -82,8 +82,6 @@ def _setupWebapp() {
 }
 
 def runLamdaTest() {
-   _setupWebapp();
-
    // We need login creds for LambdaTest Cli
    def lt_username = sh(script: """\
       keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
@@ -116,11 +114,11 @@ def runLamdaTest() {
 onWorker("ka-test-ec2", '6h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                   when: ['FAILURE', 'UNSTABLE']]]) {
-
+      stage("Sync webapp") {
+         _setupWebapp();
+      }
       stage("Run e2e tests") {
          runLamdaTest();
       }
    }
 }
-
-    
