@@ -159,7 +159,7 @@ def notifyFailures() {
    // raise an error?
    if (status == null) {
       // something went wrong 
-      notify.sendToSlack(notifyMsg + '@cypress-support something went wrong!', 'FAILURE');
+      notify.sendToSlack(notifyMsg + ' @cypress-support something went wrong!', 'FAILURE');
    } else if (status != "passed") {
       // with custom status we won't send logs to #dev-support-log 
       notify.sendToSlack(notifyMsg, 'LAMBDA_ERROR');
