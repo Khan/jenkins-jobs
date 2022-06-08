@@ -57,6 +57,13 @@ rm -rf webapp/genfiles/content_prefill
 cd webapp
 make deps
 
+# The analytics service spams many gigabytes of logs when receiving
+# `analytics-events` pubsubs events.  These logs are for CEDAR
+# development only and don't help us, so we just filter them out.
+# (everything from the "devOnly_push_sub_analytics" line to the next
+# blank line.
+perl -nli -e '$q = 1 if /devOnly_push_sub_analytics/; $q = 0 if /^\s*$/; print unless $q' pubsub.yaml
+
 # start dev server serving locally
 # go services assume graphql works on 8080 in dev
 # write logs to genfiles/appserver.log
