@@ -113,9 +113,9 @@ def runLamdaTest() {
    ];
    
    dir('webapp/services/static') {
-         withEnv(["LT_USERNAME=${lt_username}",
-                  "LT_ACCESS_KEY=${lt_access_key}"]) {
-            exec(runLambdaTestArgs); 
+      withEnv(["LT_USERNAME=${lt_username}",
+               "LT_ACCESS_KEY=${lt_access_key}"]) {
+         exec(runLambdaTestArgs); 
       }
    }
 }
