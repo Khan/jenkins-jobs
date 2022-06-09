@@ -28,9 +28,10 @@ function poll_for_service() {
 }
 
 function wait_for_service() {
-    # TODO(csilvers): poll something instead of just waiting for the first two.
+    # TODO(csilvers): poll something instead of just waiting for the first 3.
     case "$1" in
         grpc-translator) sleep 3;;
+        fake-gcs) sleep 7;;
         localproxy) sleep 5;;
         queryplanner) poll_for_service "$1" 8128;;
         graphql-gateway) poll_for_service "$1" 8102;;
@@ -88,7 +89,7 @@ redis_pid=$!
 # list This list is ordered! some of these services are early in the
 # list because other services depend on them to start.
 # For example: grpc-translator and graphql-gateway
-required_services="grpc-translator localproxy queryplanner graphql-gateway admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
+required_services="grpc-translator fake-gcs localproxy queryplanner graphql-gateway admin analytics assignments campaigns coaches content content-editing content-library discussions districts donations emails progress rest-gateway rewards search test-prep users"
 
 # We also need to start the go services
 service_pids=
