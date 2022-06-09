@@ -7,9 +7,6 @@
 // This job runs lambdatest-cypress-cli in the webapp environment 
 // depending on how parameters are specified.
 
-// The Jenkins "interrupt" exception: for failFast and user interrupt
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
-
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
