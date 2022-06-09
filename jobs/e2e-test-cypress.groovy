@@ -7,7 +7,6 @@
 // This job runs lambdatest-cypress-cli in the webapp environment 
 // depending on how parameters are specified.
 
-
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -16,7 +15,6 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withTimeout
 //import vars.withSecrets
-
 
 new Setup(steps
 
@@ -73,11 +71,14 @@ Defaults to GIT_REVISION.""",
 
 ).apply()
 
+// We use the build name as a unique identifier for user notifications. 
+BUILD_NAME = "e2e-test #${env.BUILD_NUMBER} (${params.URL}: ${params.CYPRESS_GIT_REVISION})"
+
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
 
    dir("webapp/services/static") {
-      sh("yarn install")
+      sh("yarn install");
    }
 }
 
@@ -92,28 +93,41 @@ def runLamdaTest() {
       get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
       """, returnStdout:true).trim();
    
-   // TODO(ruslan): implement TEST_TYPE param to use decorator or flag 
+   // TODO(ruslan): Implement TEST_TYPE param to use decorator or flag 
    // in cypress script files. 
+   // TODO(ruslan): Use build tags --bt with prod/znd states.
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
                             "--cy=\"--config baseUrl=${params.URL}\", retries=${params.TEST_RETRIES}",
                             "--bn",
-                            "e2e-test # (${params.URL}: ${params.REVISION_DESCRIPTION}) @${params.DEPLOYER_USERNAME}",
+                            BUILD_NAME,
                             "-p",
-                            "${params.NUM_WORKER_MACHINES}"
+                            "${params.NUM_WORKER_MACHINES}",
+                            "--sync=true", 
+                            "--bt",
+                            "e2e-test #${env.BUILD_NUMBER}",
+                            "--eof"
    ];
    
    dir('webapp/services/static') {
       withEnv(["LT_USERNAME=${lt_username}",
                "LT_ACCESS_KEY=${lt_access_key}"]) {
-         exec(runLambdaTestArgs)   
+         exec(runLambdaTestArgs); 
       }
    }
 }
 
+
 onWorker("ka-test-ec2", '6h') {
+   // TODO(ruslan): Remove @ in extraText before merging with current e2e-test pipeline, 
+   // we don't want to disturb real users.  
+   // TODO(ruslan): Add specific build_id number to lambdatest logs link.
    notify([slack: [channel: params.SLACK_CHANNEL,
-                  when: ['FAILURE', 'UNSTABLE']]]) {
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   extraText : "Hey @${params.DEPLOYER_USERNAME} build ${BUILD_NAME} " +
+                   "FAILED (<https://automation.lambdatest.com/logs/|Open>)",
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Sync webapp") {
          _setupWebapp();
       }
