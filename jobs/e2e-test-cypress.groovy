@@ -121,13 +121,12 @@ def runLamdaTest() {
 onWorker("ka-test-ec2", '6h') {
    // TODO(ruslan): Remove @ in extraText before merging with current e2e-test pipeline, 
    // we don't want to disturb real users.  
+   // TODO(ruslan): Add specific build_id number to lambdatest logs link.
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   extraText : 'Hey '+'@' + 
-                   params.DEPLOYER_USERNAME + 
-                   " BUILD: " + BUILD_NAME + 
-                   ') FAILED (<https://automation.lambdatest.com/logs/|Open>)',
+                   extraText : "Hey @${params.DEPLOYER_USERNAME} build ${BUILD_NAME} " +
+                   "FAILED (<https://automation.lambdatest.com/logs/|Open>)",
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Sync webapp") {
          _setupWebapp();
