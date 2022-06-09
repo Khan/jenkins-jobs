@@ -77,8 +77,6 @@ def _statusText(status, includeNumConsecutiveFailures=true) {
       return "is starting";
    } else if (status == "BACK TO NORMAL") {
       return "is back to normal";
-   } else if (status == "LAMBDA_ERROR") {
-      return "LambdaTest build failed";   
    } else {
       return "has unknown status (oops!)";
    }
@@ -166,8 +164,6 @@ def sendToSlack(slackOptions, status, extraText='') {
    if (status == "UNSTABLE") {
       emoji = slackOptions.emojiOnFailure ?: emoji;
       severity = 'warning';
-   } else if (status == "LAMBDA_ERROR") {
-      severity = 'error';   
    } else if (_failed(status)) {
       emoji = slackOptions.emojiOnFailure ?: emoji;
    }
