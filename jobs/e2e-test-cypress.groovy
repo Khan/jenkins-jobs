@@ -72,7 +72,7 @@ Defaults to GIT_REVISION.""",
 ).apply()
 
 // We use the build name as a unique identifier for user notifications. 
-BUILD_NAME = "build e2e-test #${env.BUILD_NUMBER} (${params.URL}: ${params.REVISION_DESCRIPTION})"
+BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${params.URL}: ${params.REVISION_DESCRIPTION})"
 
 // At this time removing @ before username.
 DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
