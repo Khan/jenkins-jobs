@@ -480,6 +480,24 @@ def runAllTestClients() {
    parallel(jobs);
 }
 
+def runLambda(){
+   build(job: 'e2e-test-cypress',
+          parameters: [
+             string(name: 'SLACK_CHANNEL', value: "#cypress-testing"),
+             string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
+             string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
+             string(name: 'URL', value: E2E_URL),
+             string(name: 'NUM_WORKER_MACHINES', value: params.NUM_WORKER_MACHINES),
+             string(name: 'TEST_RETRIES', value: "1"),
+            // It takes about 5 minutes to run all the Cypress e2e tests when
+            // using the default of 20 workers. This build is running in parallel
+            // with runTests(). During this test run we don't want to disturb our 
+            // mainstream e2e pipeline, so set propagate to false.
+          ],
+          propagate: false,
+          );
+}
+
 def runTests() {
    // We want to immediately exit if:
    // (a) the server dies unexpectedly.
@@ -580,7 +598,10 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
 
       try {
          stage("Running smoketests") {
-            runTests();
+            parallel([
+               "run-tests": { runTests(); },
+               "test-lambdacli": { runLambda(); },
+            ]);
          }
       } finally {
          // If we determined there were no tests to run, we should skip 

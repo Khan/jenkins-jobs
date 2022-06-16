@@ -37,14 +37,14 @@ new Setup(steps
    "DEPLOYER_USERNAME",
    """Who asked to run this job, used to ping on slack.
 Typically not set manually, but rather by other jobs that call this one.""",
-   "username"
+   ""
 
 ).addStringParam(
    "REVISION_DESCRIPTION",
    """Set by the buildmaster to give a more human-readable description
 of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
-   ""
+   "master"
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
@@ -72,7 +72,10 @@ Defaults to GIT_REVISION.""",
 ).apply()
 
 // We use the build name as a unique identifier for user notifications. 
-BUILD_NAME = "e2e-test #${env.BUILD_NUMBER} (${params.URL}: ${params.CYPRESS_GIT_REVISION})"
+BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${params.URL}: ${params.REVISION_DESCRIPTION})"
+
+// At this time removing @ before username.
+DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
@@ -119,13 +122,11 @@ def runLamdaTest() {
 
 
 onWorker("ka-test-ec2", '6h') {
-   // TODO(ruslan): Remove @ in extraText before merging with current e2e-test pipeline, 
-   // we don't want to disturb real users.  
    // TODO(ruslan): Add specific build_id number to lambdatest logs link.
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   extraText : "Hey @${params.DEPLOYER_USERNAME} build ${BUILD_NAME} " +
+                   extraText : "Hey ${DEPLOYER_USER} ${BUILD_NAME} " +
                    "FAILED (<https://automation.lambdatest.com/logs/|Open>)",
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Sync webapp") {
