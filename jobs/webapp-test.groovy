@@ -530,6 +530,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
+           github: [sha: params.GIT_REVISION],
            buildmaster: [sha: params.GIT_REVISION,
                          what: 'webapp-test']]) {
       initializeGlobals();
@@ -539,7 +540,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             runTests();
          }
       } finally {
-         // If we determined there were no tests to run, we should skip 
+         // If we determined there were no tests to run, we should skip
          // analysis since it fails if there are no test results.
          if (skipTestAnalysis) {
             echo("Skipping Analysis - No tests run")
