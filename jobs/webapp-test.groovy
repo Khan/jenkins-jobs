@@ -530,7 +530,8 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           github: [sha: params.GIT_REVISION],
+           github: [sha: params.GIT_REVISION,
+                    context: 'webapp-test'],
            buildmaster: [sha: params.GIT_REVISION,
                          what: 'webapp-test']]) {
       initializeGlobals();

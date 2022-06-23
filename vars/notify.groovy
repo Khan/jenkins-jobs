@@ -187,6 +187,7 @@ def sendToSlack(slackOptions, status, extraText='') {
 // Update the Github commit status
 // Supported options:
 //  - sha: The commit SHA to update the status of.
+//  - context: The name of the what the results represent (defaults to Jenkins).
 //  - repo: The repo to update the status in (defaults to webapp).
 //  - owner: The owner of the repo (defaults to Khan).
 def sendToGithub(githubOptions, status, extraText='') {
@@ -205,11 +206,13 @@ def sendToGithub(githubOptions, status, extraText='') {
       githubStatus = "success";
    }
 
-   def flags = ["--github-sha='${githubOptions.sha}'",
-                "--github-target-url='${env.BUILD_URL}'",
-                "--github-status='${githubStatus}'",
-                "--github-summary='${subject}'"
-                "--github-context='Jenkins'"];
+   def context = githubOptions.context ?: "Jenkins";
+
+   def flags = ["--github-sha=${githubOptions.sha}",
+                "--github-target-url=${env.BUILD_URL}",
+                "--github-status=${githubStatus}",
+                "--summary=${subject}",
+                "--github-context=${context}"];
 
    if (githubOptions.repo) {
       flags += ["--github-repo=${githubOptions.repo}"];
