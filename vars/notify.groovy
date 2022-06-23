@@ -184,6 +184,47 @@ def sendToSlack(slackOptions, status, extraText='') {
    }
 }
 
+// Update the Github commit status
+// Supported options:
+//  - sha: The commit SHA to update the status of.
+//  - context: The name of the what the results represent (defaults to Jenkins).
+//  - repo: The repo to update the status in (defaults to webapp).
+//  - owner: The owner of the repo (defaults to Khan).
+def sendToGithub(githubOptions, status, extraText='') {
+   def arr = _dataForAlertlib(status, extraText);
+   def subject = arr[0];
+   def severity = arr[1];
+   def body = arr[2];
+   subject += "${currentBuild.displayName}";
+
+   // Everything that isn't a failure or a success is reported as "pending"
+   def githubStatus = "pending";
+
+   if (_failed(status)) {
+      githubStatus = "failure";
+   } else if (_shouldReport(status, ["SUCCESS"])) {
+      githubStatus = "success";
+   }
+
+   def context = githubOptions.context ?: "Jenkins";
+
+   def flags = ["--github-sha=${githubOptions.sha}",
+                "--github-target-url=${env.BUILD_URL}",
+                "--github-status=${githubStatus}",
+                "--summary=${subject}",
+                "--github-context=${context}"];
+
+   if (githubOptions.repo) {
+      flags += ["--github-repo=${githubOptions.repo}"];
+   }
+
+   if (githubOptions.owner) {
+      flags += ["--github-owner=${githubOptions.owner}"];
+   }
+
+   _sendToAlertlib(subject, severity, body, flags);
+}
+
 
 // Supported options:
 // when (required): under what circumstances to send to email; a list.
@@ -304,6 +345,9 @@ def call(options, Closure body) {
       if (options.buildmaster) {
          sendToBuildmaster(options.buildmaster, "BUILD START");
       }
+      if (options.github) {
+         sendToGithub(options.github, "BUILD START");
+      }
 
       // We do this `parallel` to catch when the job has been aborted.
       // http://stackoverflow.com/questions/36855066/how-to-query-jenkins-to-determine-if-a-still-building-pipeline-job-has-been-abor
@@ -373,6 +417,9 @@ def call(options, Closure body) {
          if (!env.SENT_TO_SLACK) {
             sendToSlack(options.slack, status, failureText);
          }
+      }
+      if (options.github) {
+         sendToGithub(options.github, status, failureText);
       }
       if (options.email && _shouldReport(status, options.email.when)) {
          sendToEmail(options.email, status, failureText);
