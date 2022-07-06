@@ -619,7 +619,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
          // possible issues to the deploys.  
          // NOTE: This will be changed once we stabilize our Cypress/LambdaTest
          // infra.
-         state("Runnning Cypress e2e tests") {
+         stage("Runnning Cypress e2e tests") {
             runLambda();
          } 
       }
