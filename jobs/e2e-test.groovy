@@ -598,10 +598,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
 
       try {
          stage("Running smoketests") {
-            parallel([
-               "run-tests": { runTests(); },
-               "test-lambdacli": { runLambda(); },
-            ]);
+            runTests();
          }
       } finally {
          // If we determined there were no tests to run, we should skip 
@@ -616,6 +613,15 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
          stage("Analyzing results") {
             analyzeResults();
          }
+
+         // We want to run the Cypress e2e tests only after the official e2e
+         // tests are completed. By doing this we can prevent introducing any
+         // possible issues to the deploys.  
+         // NOTE: This will be changed once we stabilize our Cypress/LambdaTest
+         // infra.
+         state("Runnning Cypress e2e tests") {
+            runLambda();
+         } 
       }
    }
 }
