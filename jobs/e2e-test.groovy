@@ -495,6 +495,9 @@ def runLambda(){
             // mainstream e2e pipeline, so set propagate to false.
           ],
           propagate: false,
+          // The pipeline will NOT wait for this job to complete to avoid
+          // blocking the main pipeline (e2e tests).
+          wait: false,
           );
 }
 
