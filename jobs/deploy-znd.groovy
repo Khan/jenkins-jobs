@@ -327,20 +327,6 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
     }
 }
 
-// Run a script that crafts a comment with the necessary fixture links and
-// posts that comment to Phab. See script at webapp/deploy/post_znd_fixture_links.py
-// for full description of the workflow from including `Components for Review:` in
-// diff summary to running a znd deploy to posting fixture links to Phab.
-def _sendCommentToPhabricator() {
-   def args = ["deploy/post_znd_fixture_links.py", PHAB_REVISION, VERSION];
-
-   withSecrets() {      // we need secrets to talk to phabricator
-      dir("webapp") {
-         sh("${exec.shellEscapeList(args)}");
-      }
-   }
-}
-
 def deploy() {
    withTimeout('150m') {
       // In principle we should fetch from workspace@script which is where this
@@ -426,13 +412,6 @@ def deploy() {
           logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
                     "project=khan-academy&resource=gae_app%2F" +
                     "version_id%2F" + VERSION)]);
-
-      // If the phab_revision param exists than this znd-deploy must have
-      // originated from the Herald Build Plan 6 and we can expect that the
-      // revision summary includes some fixtures that we want to post to Phab.
-      if (params.PHAB_REVISION) {
-         _sendCommentToPhabricator()
-      }
    }
 }
 
