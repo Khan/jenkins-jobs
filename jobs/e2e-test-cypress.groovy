@@ -18,7 +18,10 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addStringParam(
+.allowConcurrentBuilds(
+
+// Allow multiple LambdaTest runs to execute concurrently.
+)).addStringParam(
    "CYPRESS_GIT_REVISION",
    """The name of a cypress branch to use when building.""",
    "feature/cypress"
