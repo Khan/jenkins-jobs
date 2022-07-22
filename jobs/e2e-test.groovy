@@ -481,6 +481,7 @@ def runAllTestClients() {
 }
 
 def runLambda(){
+   // In case the main provider is down, shift a build-job to 'e2e-test-cypress-backup'
    build(job: 'e2e-test-cypress',
           parameters: [
              string(name: 'SLACK_CHANNEL', value: "#cypress-testing"),
