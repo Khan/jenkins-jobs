@@ -81,8 +81,7 @@ def runTests() {
                              "run", 
                              "--browser=chrome",
                              "-c {\"baseUrl\":\"${params.URL}\", \"retries\":${params.TEST_RETRIES}, \
-                             \"screenshotOnRunFailure\":false, \"video\":false}"
-                             
+                             \"screenshotOnRunFailure\":false, \"video\":false}"       
    ];
    
    dir('webapp/services/static') {
