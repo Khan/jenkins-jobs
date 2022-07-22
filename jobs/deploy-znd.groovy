@@ -337,6 +337,12 @@ def deploy() {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                              params.GIT_REVISION);
 
+      // We merge `master` into the current revision before deploying the ZND
+      // so that the ZND is deployed using out of date processes.  We call this
+      // function directly instead of relying on the merge-branches job because
+      // deploy-znd isn't facilitated by buildmaster.
+      kaGit.mergeBranches("master+" + params.GIT_REVISION, VERSION);
+
       dir("webapp") {
          clean(params.CLEAN);
          sh("make python_deps");
