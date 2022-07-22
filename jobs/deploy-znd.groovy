@@ -338,7 +338,7 @@ def deploy() {
                              params.GIT_REVISION);
 
       // We merge `master` into the current revision before deploying the ZND
-      // so that the ZND is deployed using out of date processes.  We call this
+      // so that the ZND isn't deployed using out of date processes.  We call this
       // function directly instead of relying on the merge-branches job because
       // deploy-znd isn't facilitated by buildmaster.
       kaGit.mergeBranches("master+" + params.GIT_REVISION, VERSION);

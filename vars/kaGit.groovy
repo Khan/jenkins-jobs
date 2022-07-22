@@ -182,18 +182,14 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 // 
 // Arguments:
 // - gitRevisions: string containing one or more branche names separated by "+"
-// - tagName: string to tag the resulting commit with
+// - tagName: string to tag the resulting commit with.  We need to tag the 
+//   result of the merge so git doesn't prune it.
 //
 // Notes:
 // - Used by merge-granches.groovy and deploy-znd.groovy.
 def mergeBranches(gitRevisions, tagName) {
-   // We don't use kaGit for many of the ops here, and use lower-level ops
-   // where we do. We can afford this because we don't need to update
-   // submodules at each step, and we don't need a fully clean checkout.  All
-   // we need is enough to merge.  This saves us a *lot* of time traversing all
-   // the submodules on each branch, and being careful to clean at each step.
    def allBranches = gitRevisions.split(/\+/);
-   kaGit.quickClone("git@github.com:Khan/webapp", "webapp",
+   quickClone("git@github.com:Khan/webapp", "webapp",
                     allBranches[0].trim());
    dir('webapp') {
       // We need to reset before fetching, because if a previous incomplete
@@ -203,11 +199,11 @@ def mergeBranches(gitRevisions, tagName) {
       // as you might think.
       exec(["git", "reset", "--hard"]);
    }
-   kaGit.quickFetch("webapp");
+   quickFetch("webapp");
    dir('webapp') {
       for (def i = 0; i < allBranches.size(); i++) {
-         def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                                 allBranches[i].trim());
+         def branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
+                                           allBranches[i].trim());
          try {
             if (i == 0) {
                // TODO(benkraft): If there's only one branch, skip the checkout
