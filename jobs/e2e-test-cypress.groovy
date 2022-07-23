@@ -102,10 +102,9 @@ def runLamdaTest() {
    // TODO(ruslan): Implement TEST_TYPE param to use decorator or flag 
    // in cypress script files. 
    // TODO(ruslan): Use build tags --bt with prod/znd states.
-   // TODO(ruslan): Add retries flag.
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--cy='--config baseUrl=\"${params.URL}\"'",
+                            "--cy='--config baseUrl=\"${params.URL}\", retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
                             "--sync=true", 
