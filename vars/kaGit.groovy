@@ -176,3 +176,64 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
             dir, commitToMergeInto] + _submodulesArg(submodules));
    }
 }
+
+
+// Merges multiple branches together into a single commit.
+// 
+// Arguments:
+// - gitRevisions: string containing one or more branche names separated by "+"
+// - tagName: string to tag the resulting commit with.  We need to tag the 
+//   result of the merge so git doesn't prune it.
+//
+// Notes:
+// - Used by merge-granches.groovy and deploy-znd.groovy.
+def mergeBranches(gitRevisions, tagName) {
+   def allBranches = gitRevisions.split(/\+/);
+   quickClone("git@github.com:Khan/webapp", "webapp",
+                    allBranches[0].trim());
+   dir('webapp') {
+      // We need to reset before fetching, because if a previous incomplete
+      // merge left .gitmodules in a weird state, git will fail to read its
+      // config, and even the fetch can fail.  This also avoids certain
+      // post-merge-conflict states where git checkout -f doesn't reset as much
+      // as you might think.
+      exec(["git", "reset", "--hard"]);
+   }
+   quickFetch("webapp");
+   dir('webapp') {
+      for (def i = 0; i < allBranches.size(); i++) {
+         def branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
+                                           allBranches[i].trim());
+         try {
+            if (i == 0) {
+               // TODO(benkraft): If there's only one branch, skip the checkout
+               // and tag/return sha1 immediately.
+               // Note that this is a no-op when we did a fresh clone above.
+               exec(["git", "checkout", "-f", branchSha1]);
+            } else {
+               // TODO(benkraft): This puts the sha in the commit message
+               // instead of the branch; we should just write our own commit
+               // message.
+               exec(["git", "merge", branchSha1]);
+            }
+         } catch (e) {
+            // TODO(benkraft): Also send the output of the merge command that
+            // failed.
+            notify.fail("Failed to merge ${branchSha1} into " +
+                        "${allBranches[0..<i].join(' + ')}: ${e}");
+         }
+      }
+      // We need to at least tag the commit, otherwise github may prune it.
+      // (We can skip this step if something already points to the commit; in
+      // fact we want to to avoid Phabricator paying attention to this commit.)
+      // TODO(benkraft): Prune these tags eventually.
+      if (exec.outputOf(["git", "tag", "--points-at", "HEAD"]) == "" &&
+          exec.outputOf(["git", "branch", "-r", "--points-at", "HEAD"]) == "") {
+         exec(["git", "tag", tagName, "HEAD"]);
+         exec(["git", "push", "--tags", "origin"]);
+      }
+      def sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
+      echo("Resolved ${gitRevisions} --> ${sha1}");
+      return sha1;
+   }
+}

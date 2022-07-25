@@ -79,65 +79,6 @@ def checkArgs() {
 }
 
 
-def mergeBranches() {
-   // We don't use kaGit for many of the ops here, and use lower-level ops
-   // where we do. We can afford this because we don't need to update
-   // submodules at each step, and we don't need a fully clean checkout.  All
-   // we need is enough to merge.  This saves us a *lot* of time traversing all
-   // the submodules on each branch, and being careful to clean at each step.
-   def allBranches = params.GIT_REVISIONS.split(/\+/);
-   kaGit.quickClone("git@github.com:Khan/webapp", "webapp",
-                    allBranches[0].trim());
-   dir('webapp') {
-      // We need to reset before fetching, because if a previous incomplete
-      // merge left .gitmodules in a weird state, git will fail to read its
-      // config, and even the fetch can fail.  This also avoids certain
-      // post-merge-conflict states where git checkout -f doesn't reset as much
-      // as you might think.
-      exec(["git", "reset", "--hard"]);
-   }
-   kaGit.quickFetch("webapp");
-   dir('webapp') {
-      for (def i = 0; i < allBranches.size(); i++) {
-         def branchSha1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                                 allBranches[i].trim());
-         try {
-            if (i == 0) {
-               // TODO(benkraft): If there's only one branch, skip the checkout
-               // and tag/return sha1 immediately.
-               // Note that this is a no-op when we did a fresh clone above.
-               exec(["git", "checkout", "-f", branchSha1]);
-            } else {
-               // TODO(benkraft): This puts the sha in the commit message
-               // instead of the branch; we should just write our own commit
-               // message.
-               exec(["git", "merge", branchSha1]);
-            }
-         } catch (e) {
-            // TODO(benkraft): Also send the output of the merge command that
-            // failed.
-            notify.fail("Failed to merge ${branchSha1} into " +
-                        "${allBranches[0..<i].join(' + ')}: ${e}");
-         }
-      }
-      // We need to at least tag the commit, otherwise github may prune it.
-      // (We can skip this step if something already points to the commit; in
-      // fact we want to to avoid Phabricator paying attention to this commit.)
-      // TODO(benkraft): Prune these tags eventually.
-      if (exec.outputOf(["git", "tag", "--points-at", "HEAD"]) == "" &&
-          exec.outputOf(["git", "branch", "-r", "--points-at", "HEAD"]) == "") {
-         tag_name = ("buildmaster-${params.COMMIT_ID}-" +
-                     "${new Date().format('yyyyMMdd-HHmmss')}");
-         exec(["git", "tag", tag_name, "HEAD"]);
-         exec(["git", "push", "--tags", "origin"]);
-      }
-      def sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
-      echo("Resolved ${params.GIT_REVISIONS} --> ${sha1}");
-      return sha1;
-   }
-}
-
-
 def getGaeVersionName() {
    dir('webapp') {
      def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
@@ -155,7 +96,9 @@ onMaster('1h') {
                    when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
-         def sha1 = mergeBranches();
+         tag_name = ("buildmaster-${params.COMMIT_ID}-" +
+                     "${new Date().format('yyyyMMdd-HHmmss')}");
+         def sha1 = kaGit.mergeBranches(params.GIT_REVISIONS, tag_name);
          def gae_version_name = getGaeVersionName();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
                                        sha1, gae_version_name);
