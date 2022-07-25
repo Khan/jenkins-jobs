@@ -104,7 +104,7 @@ def runLamdaTest() {
    // TODO(ruslan): Use build tags --bt with prod/znd states.
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--cy='--config baseUrl=\"${params.URL}\", retries=${params.TEST_RETRIES}'",
+                            "--cy='--config baseUrl=\"${params.URL}\"'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
                             "--sync=true", 
