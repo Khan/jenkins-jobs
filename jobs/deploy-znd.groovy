@@ -165,7 +165,10 @@ def determineVersion() {
    }
 
    def date = new Date().format("yyMMdd");
-   VERSION = "znd-${date}-${_currentUser()}-${params.VERSION}";
+   // VERSION parameter needs to be lowercased.
+   // Otherwise Fastly will have issue looking up the static version as it expects
+   // lowercase hostname.
+   VERSION = "znd-${date}-${_currentUser()}-${params.VERSION.toLowerCase()}";
 
    // DNS has a limit of 63 bytes per hostname-component.  This
    // version can yield hostname-components like
