@@ -24,7 +24,7 @@ new Setup(steps
 ).addStringParam(
    "CYPRESS_GIT_REVISION",
    """The name of a cypress branch to use when building.""",
-   "feature/cypress"
+   "master"
 
 ).addStringParam(
    "URL",
