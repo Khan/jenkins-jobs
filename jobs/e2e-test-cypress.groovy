@@ -22,7 +22,7 @@ new Setup(steps
 
 // Allow multiple LambdaTest runs to execute concurrently.
 ).addStringParam(
-   "CYPRESS_GIT_REVISION",
+   "GIT_REVISION",
    """The name of a cypress branch to use when building.""",
    "master"
 
@@ -80,8 +80,14 @@ BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${params.URL}: ${para
 // At this time removing @ before username.
 DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
+// GIT_SHA1 is the sha1 for GIT_REVISION.
+GIT_SHA1 = null;
+
 def _setupWebapp() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                        params.GIT_REVISION);
+
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
       sh("yarn install");
@@ -104,7 +110,7 @@ def runLamdaTest() {
    // TODO(ruslan): Use build tags --bt with prod/znd states.
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--cy='--config baseUrl=\"${params.URL}\"'",
+                            "--cy='--config baseUrl=\"${params.URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
                             "--sync=true", 
