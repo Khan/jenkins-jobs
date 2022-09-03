@@ -10,11 +10,16 @@ def call(timeoutString, Closure body) {
          withVirtualenv() {
             withTimeout(timeoutString) {
                 echo("Running on main jenkins-server");
-                // To export BOTO_CONFIG, for some reason, master did not
+                // TODO(csilvers): figure out how to get the worker
+                // to source the .bashrc like it did before.  Now I
+                // think it's inheriting the PATH from the parent instead.
+                // To export BOTO_CONFIG, for some reason, worker did not
                 // source the .profile or .bashrc anymore.
-                // TODO(benkraft): Should this also do the path-munging that
-                // onWorker does?
-                withEnv(["BOTO_CONFIG=${env.HOME}/.boto"]) {
+                withEnv(["BOTO_CONFIG=${env.HOME}/.boto",
+                         "PATH=/usr/local/google_appengine:" +
+                         "/home/ubuntu/google-cloud-sdk/bin:" +
+                         "${env.HOME}/git-bigfile/bin:" +
+                         "${env.PATH}"]) {
                      body();
                 }
             }
