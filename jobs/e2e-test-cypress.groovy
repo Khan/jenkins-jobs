@@ -104,6 +104,8 @@ def runLamdaTest() {
       keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
       get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
       """, returnStdout:true).trim();
+
+   def e2eEnv = params.URL == "https://www.khanacademy.org" ? "prod" : "preprod";
    
    // TODO(ruslan): Implement TEST_TYPE param to use decorator or flag 
    // in cypress script files. 
@@ -114,7 +116,7 @@ def runLamdaTest() {
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
                             "--sync=true", 
-                            "--bt='e2e-test #${env.BUILD_NUMBER}'",
+                            "--bt='jenkins,${e2eEnv}'",
                             "--eof"
    ];
    
