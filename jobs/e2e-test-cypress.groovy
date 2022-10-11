@@ -56,8 +56,8 @@ Defaults to GIT_REVISION.""",
 
 ).addStringParam(
    "TEST_RETRIES",
-   """How many retry attempts to use. By default is 1.""",
-   "1"
+   """How many retry attempts to use. By default is 3.""",
+   "3"
 
 ).addChoiceParam(
    "TEST_TYPE",
