@@ -489,7 +489,7 @@ def runLambda(){
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
              string(name: 'URL', value: E2E_URL),
              string(name: 'NUM_WORKER_MACHINES', value: params.NUM_WORKER_MACHINES),
-             string(name: 'TEST_RETRIES', value: "1"),
+             string(name: 'TEST_RETRIES', value: "3"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
             // It takes about 5 minutes to run all the Cypress e2e tests when
             // using the default of 20 workers. This build is running in parallel
