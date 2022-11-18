@@ -13,7 +13,9 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule("H 21 * * *"
+// TODO(csilvers): re-enable this cronjob after building current.sqlite
+// has moved entirely to Go, including fetching the content data.
+//).addCronSchedule("H 21 * * *"
 
 ).addStringParam(
     "SNAPSHOT_NAMES",
