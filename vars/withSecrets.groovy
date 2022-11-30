@@ -10,7 +10,7 @@ import groovy.transform.Field
 @Field _activeSecretsBlocks = 0;
 
 def _secretsPasswordPath() {
-   return "${env.HOME}/secrets_py/secrets.py.cast5.password";
+   return "${env.HOME}/secrets_py/secrets.py.aes.password";
 }
 
 
@@ -21,10 +21,9 @@ def call(Closure body) {
       // This decryption command was modified from the make target
       // "secrets_decrypt" in the webapp project.
       // Note that we do this even if ACTIVE_SECRETS_BLOCKS > 0;
-      // secrets.py.cast5 might have changed.
-      // In Ubuntu 18.04, openssl needs "-md" optpion.
-      exec(["openssl", "cast5-cbc", "-d", "-md", "md5",
-            "-in", "webapp/shared/secrets.py.cast5",
+      // secrets.py.aes might have changed.
+      exec(["openssl", "aes-256-cbc", "-d", "-md", "sha256", "-salt",
+            "-in", "webapp/shared/secrets.py.aes",
             "-out", "webapp/shared/secrets.py",
             "-kfile", _secretsPasswordPath()]);
       sh("chmod 600 webapp/shared/secrets.py");
@@ -49,7 +48,7 @@ def call(Closure body) {
 // and secrets are present.
 // Use cautiously! -- this may not decrypt secrets for you.
 def ifAvailable(Closure body) {
-   if (fileExists("webapp/shared/secrets.py.cast5")) {
+   if (fileExists("webapp/shared/secrets.py.aes")) {
       call(body);
    }
 }
