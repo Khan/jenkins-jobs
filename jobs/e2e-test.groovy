@@ -603,10 +603,22 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
 
       try {
          stage("Running smoketests") {
-            parallel([
-               "run-tests": { runTests(); },
-               "test-lambdacli": { runLambda(); },
-            ]);
+            // In case we are retrying smoke tests, we should only run the
+            // Python/Selenium tests.  
+            // NOTE: `custom` is a special type that allow us to run a subset of
+            // tests. This happens when:  
+            // a) A deployer uses the `retry-xx-smoke-tests` command or  
+            // b) when this job is triggered from the Jenkins UI and we only run
+            // a subset of tests.
+            if (params.TEST_TYPE == "custom") {
+               runTests();
+            // Otherwise, run Python/Selenium tests + Cypress tests in parallel.
+            } else {
+               parallel([
+                  "run-tests": { runTests(); },
+                  "test-lambdacli": { runLambda(); },
+               ]);
+            }
          }
       } finally {
          // If we determined there were no tests to run, we should skip 
