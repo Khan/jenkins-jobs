@@ -74,6 +74,11 @@ Defaults to GIT_REVISION.""",
 
 ).apply()
 
+// Override the build name by the info that is passed in (from buildmaster).
+REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
+currentBuild.displayName = ("${currentBuild.displayName} " +
+                            "(${REVISION_DESCRIPTION})");
+
 // We use the build name as a unique identifier for user notifications. 
 BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${params.URL}: ${params.REVISION_DESCRIPTION})"
 
