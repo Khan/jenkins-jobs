@@ -485,6 +485,7 @@ def runLambda(){
    build(job: 'e2e-test-cypress',
           parameters: [
              string(name: 'SLACK_CHANNEL', value: params.SLACK_CHANNEL),
+             string(name: 'SLACK_THREAD', value: params.SLACK_THREAD),
              string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
              string(name: 'URL', value: E2E_URL),

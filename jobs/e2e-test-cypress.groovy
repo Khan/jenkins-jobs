@@ -30,7 +30,13 @@ new Setup(steps
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
    "#cypress-logs-deploys"
-
+).addStringParam(
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+alerts.  By default we do not send in a thread.  Generally only set by the
+buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
+API.""",
+    ""
 ).addStringParam(
    "DEPLOYER_USERNAME",
    """Who asked to run this job, used to ping on slack.
@@ -127,6 +133,34 @@ def runLamdaTest() {
    }
 }
 
+// This method filters a common 'DEPLOYER_USERNAME' into a series of comma
+// seperated slack user id's. For Example:
+// DEPLOYER_USERNAME: <@UMZGEUH09> (cc <@UN5UC0EM6>)
+// becomes: UMZGEUH09,UN5UC0EM6,
+def getUserIds(def deployUsernameBlob) {
+   // Regex to specifically grab the ids, which should start with U and be
+   // some number of capital letters and numbers. Ids can also start with
+   // W (special users), T (teams), or C (channels).
+   def pattern = /<@([UTWC][0-9A-Z]+)>/;
+   def match = (deployUsernameBlob =~ pattern);
+
+   def mainUser = match[0][1];
+   def otherUsers = "";
+
+   for (n in match) {
+      // We look for possible duplicates as we don't want to notify the main
+      // user twice.  
+      // NOTE: This can happen when the deployer includes their name in the
+      // deploy command (e.g. `@foo` types: `sun queue foo`).
+      if (n[1] != mainUser) {
+         otherUsers += ",${n[1]}";
+      }
+   }
+
+   // Return the list of unique ids
+   return mainUser + otherUsers;
+}
+
 def analyzeResults() {
    withTimeout('5m') {
       if (currentBuild.result == 'ABORTED') {
@@ -137,11 +171,10 @@ def analyzeResults() {
       }
 
       dir('webapp/services/static') {
+         // Get the SLACK_TOKEN from global credentials (env vars).
          withCredentials([
             string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
          ]) {
-            def deployerUsername = params.DEPLOYER_USERNAME;
-            
             def notifyResultsArgs = [
                "./dev/cypress/e2e/tools/notify-e2e-results.js",
                "--channel", params.SLACK_CHANNEL,
@@ -149,7 +182,7 @@ def analyzeResults() {
                "--build-url", env.BUILD_URL,
                // The deployer is the person who triggered the build (this is
                // only included in the message if the e2e tests fail).
-               "--deployer", deployerUsername,
+               "--deployer", params.DEPLOYER_USERNAME,
                // The LambdaTest build name that will be included at the
                // beginning of the message.
                "--label", BUILD_NAME,
@@ -160,12 +193,14 @@ def analyzeResults() {
             ];
 
             if (params.SLACK_THREAD) {
-               notifyResultsArgs += ["--slack-thread", params.SLACK_THREAD];
+               notifyResultsArgs += ["--thread", params.SLACK_THREAD];   
             }
+            
+            def userIds = getUserIds(params.DEPLOYER_USERNAME);
 
-            // Include the deployer here so they can get DMs when the e2e
+            // Include the deployer(s) here so they can get DMs when the e2e
             // results are ready.
-            def ccAlways = "#cypress-logs-deploys,${deployerUsername}";
+            def ccAlways = "#cypress-logs-deploys,${userIds}";
             
             if (params.SLACK_CHANNEL != "#qa-log") {
                ccAlways += ",#qa-log";
