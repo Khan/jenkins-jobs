@@ -2,11 +2,6 @@
 // 
 // cypress e2e tests are the smoketests run in the webapp/feature/cypress repo, 
 // that hit a live website using lambdatest cli.
-//
-// TODO(ruslan): integrate later this job to the e2e tests pipeline.
-// This job runs lambdatest-cypress-cli in the webapp environment 
-// depending on how parameters are specified.
-
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -34,7 +29,7 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#cypress-testing"
+   "#cypress-logs-deploys"
 
 ).addStringParam(
    "DEPLOYER_USERNAME",
@@ -110,11 +105,10 @@ def runLamdaTest() {
       get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
       """, returnStdout:true).trim();
 
+   // Determine which environment we're running against, so we can provide a tag
+   // in the LambdaTest build.
    def e2eEnv = params.URL == "https://www.khanacademy.org" ? "prod" : "preprod";
    
-   // TODO(ruslan): Implement TEST_TYPE param to use decorator or flag 
-   // in cypress script files. 
-   // TODO(ruslan): Use build tags --bt with prod/znd states.
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
                             "--cy='--config baseUrl=\"${params.URL}\",retries=${params.TEST_RETRIES}'",
@@ -128,14 +122,76 @@ def runLamdaTest() {
    dir('webapp/services/static') {
       withEnv(["LT_USERNAME=${lt_username}",
                "LT_ACCESS_KEY=${lt_access_key}"]) {
-         exec(runLambdaTestArgs); 
+         exec(runLambdaTestArgs);
+      }
+   }
+}
+
+def analyzeResults() {
+   withTimeout('5m') {
+      if (currentBuild.result == 'ABORTED') {
+         // No need to report the results in the case of abort!  They will
+         // likely be more confusing than useful.
+         echo('We were aborted; no need to report results.');
+         return;
+      }
+
+      dir('webapp/services/static') {
+         withCredentials([
+            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
+         ]) {
+            def deployerUsername = params.DEPLOYER_USERNAME;
+            
+            def notifyResultsArgs = [
+               "./dev/cypress/e2e/tools/notify-e2e-results.js",
+               "--channel", params.SLACK_CHANNEL,
+               // The URL associated to this Jenkins build.
+               "--build-url", env.BUILD_URL,
+               // The deployer is the person who triggered the build (this is
+               // only included in the message if the e2e tests fail).
+               "--deployer", deployerUsername,
+               // The LambdaTest build name that will be included at the
+               // beginning of the message.
+               "--label", BUILD_NAME,
+               // The URL we test against.
+               "--url", params.URL,
+               // Notify failures to DevOps
+               "--cc-on-failure", "#dev-support-log"
+            ];
+
+            if (params.SLACK_THREAD) {
+               notifyResultsArgs += ["--slack-thread", params.SLACK_THREAD];
+            }
+
+            // Include the deployer here so they can get DMs when the e2e
+            // results are ready.
+            def ccAlways = "#cypress-logs-deploys,${deployerUsername}";
+            
+            if (params.SLACK_CHANNEL != "#qa-log") {
+               ccAlways += ",#qa-log";
+            }
+
+            notifyResultsArgs += ["--cc-always", ccAlways];
+
+            // notify-e2e-results returns a non-zero rc if it detects test
+            // failures. We set the job to UNSTABLE in that case (since we don't
+            // consider smoketest failures to be blocking). But we still keep on
+            // running the rest of this script!
+            catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
+                        message: "There were test failures!") {
+               exec(notifyResultsArgs);
+            }
+
+            // Let notify() know not to send any messages to slack, because we
+            // just did it here.
+            env.SENT_TO_SLACK = '1';
+         }
       }
    }
 }
 
 
 onWorker("ka-test-ec2", '6h') {
-   // TODO(ruslan): Add specific build_id number to lambdatest logs link.
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
@@ -145,8 +201,19 @@ onWorker("ka-test-ec2", '6h') {
       stage("Sync webapp") {
          _setupWebapp();
       }
-      stage("Run e2e tests") {
-         runLamdaTest();
+
+      try {
+         stage("Run e2e tests") {
+            runLamdaTest();
+            
+         }
+      } finally {
+         // We want to analyze results even if -- especially if -- there were
+         // failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
+         }
       }
+
    }
 }
