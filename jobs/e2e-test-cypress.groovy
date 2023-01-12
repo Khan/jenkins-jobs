@@ -55,18 +55,7 @@ Defaults to GIT_REVISION.""",
    """How many worker machines to use. Max available is 20.""",
    "20"
 
-)
-.addBooleanParam(
-   "USE_FIRSTINQUEUE_WORKERS",
-   """If true, use the jenkins workers that are set aside for the
-currently active deploy.  Obviously, this should only be set if you
-are, indeed, the currently active deploy.  We reserve these machines
-so the currently active deploy never has to wait for smoketest workers
-to spin up.""",
-   false
-
-)
-.addStringParam(
+).addStringParam(
    "TEST_RETRIES",
    """How many retry attempts to use. By default is 3.""",
    "3"
@@ -100,10 +89,6 @@ DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 
-// We have a dedicated set of workers for the second smoke test.
-WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
-               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
-
 def _setupWebapp() {
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                         params.GIT_REVISION);
@@ -111,11 +96,11 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
-      sh("yarn install --frozen-lockfile");
+      sh("yarn install");
    }
 }
 
-def runLambdaTest() {
+def runLamdaTest() {
    // We need login creds for LambdaTest Cli
    def lt_username = sh(script: """\
       keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
@@ -241,19 +226,20 @@ def analyzeResults() {
 }
 
 
-onWorker(WORKER_TYPE, '5h') {     // timeout
+onWorker("ka-test-ec2", '6h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']]]) {
+                   extraText : "Hey ${DEPLOYER_USER} ${BUILD_NAME} " +
+                   "FAILED (<https://automation.lambdatest.com/logs/|Open>)",
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Sync webapp") {
          _setupWebapp();
       }
 
       try {
          stage("Run e2e tests") {
-            runLambdaTest();
+            runLamdaTest();
             
          }
       } finally {
