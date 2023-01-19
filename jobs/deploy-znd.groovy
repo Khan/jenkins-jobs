@@ -187,7 +187,6 @@ def deployToGAE() {
                "--deployer-username=@${_currentUser()}"];
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
    args += params.PRIME ? [] : ["--no-priming"];
-   args += params.HIGHMEM_INSTANCE ? ["--highmem-instance"] : [];
    args +=
       params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
 
