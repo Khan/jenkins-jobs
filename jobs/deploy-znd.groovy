@@ -87,14 +87,6 @@ The special value 'all' uploads all modules.""",
 people will be accessing this deploy.""",
     false
 
-).addBooleanParam(
-    "HIGHMEM_INSTANCE",
-    """If set, this version will be deployed on a highmem instance class rather
-than the instance class used for regular default deployes to aid in filling
-caches and reducing timeouts. If you will be sending significant traffic to your
-znd, consider setting this to false since they are more expensive instances.""",
-    true
-
 ).addStringParam(
    "SLACK_CHANNEL",
    """The slack channel to which to send failure alerts.  Set to
@@ -109,14 +101,6 @@ of a message link, with a period inserted before the last 6 digits, e.g.
 for the link,
 https://khanacademy.slack.com/archives/C013ANU53LK/p1631811224115400,
 the thread is 1631811224.115400.'""", ""
-
-).addStringParam(
-    "PHAB_REVISION",
-    """The Phabricator revision ID for this build. This field should only be
-defined if the znd-deploy originates from the Phabricator Herald Build Plan 6.
-It helps us access data from the a revision, namely the summary, which we need
-in order to know the appropriate fixtures to post links for in Phabricator.""",
-    ""
 
 // Since we use build workers, there's no need to serialize znd deploys.
 ).allowConcurrentBuilds(
@@ -203,7 +187,6 @@ def deployToGAE() {
                "--deployer-username=@${_currentUser()}"];
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
    args += params.PRIME ? [] : ["--no-priming"];
-   args += params.HIGHMEM_INSTANCE ? ["--highmem-instance"] : [];
    args +=
       params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
 
