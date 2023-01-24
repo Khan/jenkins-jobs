@@ -432,6 +432,11 @@ def deployIndexYaml() {
    }
    // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
    dir("webapp") {
+      // NOTE: appengine treats deploying index.yaml as a "create"
+      // operation: even if you remove entries from index.yaml appengine
+      // doesn't delete those indexes from datastore (you have to do a
+      // separate "index vacuum" command for that).  Thus, it's safe
+      // to call pre-set-default, here in build-webapp.groovy.
       exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
             "app", "deploy", "index.yaml"]);
    }
@@ -467,11 +472,11 @@ def deployDispatchYaml() {
       return;
    }
 
-   // We do not deploy dispatch.yaml in build-webapp.groovy because
-   // dispatch.yaml is not an "additive" yaml file like index.yaml:
-   // uploading this removes old dispatch rules in addition to adding
-   // new ones.  So it's not safe to do until set-default time.
-   // Thus, dispatch.yaml is handled by deploy-webapp.groovy, not here.
+   // We do not deploy dispatch.yaml in build-webapp.groovy because,
+   // unlike with e.g. pubsub.yaml, we haven't created functionality
+   // to just add new rules instead of doing a full update (add + delete).
+   // So it's not safe to do speculatively, and we must wait until
+   // set-default time (that is, in deploy-webapp.groovy).
    // This function is included just for documentation purposes.
    return;
 }
@@ -482,11 +487,11 @@ def deployCronYaml() {
       return;
    }
 
-   // We do not deploy ka_cron.yaml in build-webapp.groovy because
-   // cron.yaml is not an "additive" yaml file like index.yaml:
-   // uploading this removes old cron jobs in addition to adding
-   // new ones.  So it's not safe to do until set-default time.
-   // Thus, ka_cron.yaml is handled by deploy-webapp.groovy, not here.
+   // We do not deploy ka-cron.yaml in build-webapp.groovy because,
+   // unlike with e.g. pubsub.yaml, we haven't created functionality
+   // to just add new rules instead of doing a full update (add + delete).
+   // So it's not safe to do speculatively, and we must wait until
+   // set-default time (that is, in deploy-webapp.groovy).
    // This function is included just for documentation purposes.
    return;
 }
