@@ -431,8 +431,10 @@ def deployIndexYaml() {
       return;
    }
    // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
-   exec(["env", "APPENGINE_RUNTIME=",
-         "gcloud", "--project=khan-academy", "app", "deploy", "index.yaml"]);
+   dir("webapp") {
+      exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
+            "app", "deploy", "index.yaml"]);
+   }
 }
 
 // This should be called from within a node().
