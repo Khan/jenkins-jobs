@@ -71,10 +71,9 @@ specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 <ul>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
-  <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
-  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
-  <li> <b>index.yaml</b>: upload index.yaml to GAE. </li>
+  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
+  <li> <b>index_yaml</b>: upload index.yaml to GAE. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -428,7 +427,7 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployIndexYaml() {
-   if (!("index.yaml" in SERVICES)) {
+   if (!("index_yaml" in SERVICES)) {
       return;
    }
    // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
@@ -534,7 +533,7 @@ def deployToService(service) {
 // this, and let kotlin services default to the shared deployToService again.
 def deployToKotlinServicesAndDataflow() {
    for (service in SERVICES) {
-      if (service in ['course-editing', 'kotlin-routes']) {
+      if (service in ['course-editing']) {
          deployToService(service);
       }
       if (service == 'dataflow-batch') {
@@ -578,9 +577,9 @@ def deployAndReport() {
                      deployToKotlinServicesAndDataflow();
                   },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
-                  "deploy-index.yaml": { deployIndexYaml(); },
-                  "deploy-queue.yaml": { deployQueueYaml(); },
-                  "deploy-pubsub.yaml": { deployPubsubYaml(); },
+                  "deploy-index-yaml": { deployIndexYaml(); },
+                  "deploy-queue-yaml": { deployQueueYaml(); },
+                  "deploy-pubsub-yaml": { deployPubsubYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
          // 'dynamic', 'static', and 'dataflow-batch' services are a bit more
@@ -591,8 +590,8 @@ def deployAndReport() {
          // deployments are bundled in deployToKotlinServicesAndDataflow().
          if (!(service in [
                'dynamic', 'static',
-               'course-editing', 'kotlin-routes', 'dataflow-batch',
-               'index.yaml', 'queue.yaml', 'pubsub.yaml'])) {
+               'course-editing', 'dataflow-batch',
+               'index_yaml', 'queue_yaml', 'pubsub_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
