@@ -436,6 +436,7 @@ def deployIndexYaml() {
          "gcloud", "--project=khan-academy", "app", "deploy", "index.yaml"]);
 }
 
+// This should be called from within a node().
 def deployQueueYaml() {
    if (!("queue.yaml" in SERVICES)) {
       return;
@@ -447,6 +448,7 @@ def deployQueueYaml() {
     }
 }
 
+// This should be called from within a node().
 def deployPubsubYaml() {
    if (!("pubsub.yaml" in SERVICES)) {
       return;
