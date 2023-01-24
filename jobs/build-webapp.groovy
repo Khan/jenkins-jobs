@@ -437,7 +437,7 @@ def deployIndexYaml() {
 
 // This should be called from within a node().
 def deployQueueYaml() {
-   if (!("queue.yaml" in SERVICES)) {
+   if (!("queue_yaml" in SERVICES)) {
       return;
    }
    withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
@@ -449,7 +449,7 @@ def deployQueueYaml() {
 
 // This should be called from within a node().
 def deployPubsubYaml() {
-   if (!("pubsub.yaml" in SERVICES)) {
+   if (!("pubsub_yaml" in SERVICES)) {
       return;
    }
    withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
@@ -457,6 +457,36 @@ def deployPubsubYaml() {
          exec(["deploy/upload_pubsub.py", "create", NEW_VERSION]);
       }
    }
+}
+
+// This should be called from within a node().
+def deployDispatchYaml() {
+   if (!("dispatch_yaml" in SERVICES)) {
+      return;
+   }
+
+   // We do not deploy dispatch.yaml in build-webapp.groovy because
+   // dispatch.yaml is not an "additive" yaml file like index.yaml:
+   // uploading this removes old dispatch rules in addition to adding
+   // new ones.  So it's not safe to do until set-default time.
+   // Thus, dispatch.yaml is handled by deploy-webapp.groovy, not here.
+   // This function is included just for documentation purposes.
+   return;
+}
+
+// This should be called from within a node().
+def deployCronYaml() {
+   if (!("cron_yaml" in SERVICES)) {
+      return;
+   }
+
+   // We do not deploy ka_cron.yaml in build-webapp.groovy because
+   // cron.yaml is not an "additive" yaml file like index.yaml:
+   // uploading this removes old cron jobs in addition to adding
+   // new ones.  So it's not safe to do until set-default time.
+   // Thus, ka_cron.yaml is handled by deploy-webapp.groovy, not here.
+   // This function is included just for documentation purposes.
+   return;
 }
 
 // This should be called from within a node().
@@ -580,6 +610,8 @@ def deployAndReport() {
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
                   "deploy-pubsub-yaml": { deployPubsubYaml(); },
+                  "deploy-dispatch-yaml": { deployDispatchYaml(); },
+                  "deploy-cron-yaml": { deployCronYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
          // 'dynamic', 'static', and 'dataflow-batch' services are a bit more
@@ -591,7 +623,8 @@ def deployAndReport() {
          if (!(service in [
                'dynamic', 'static',
                'course-editing', 'dataflow-batch',
-               'index_yaml', 'queue_yaml', 'pubsub_yaml'])) {
+               'index_yaml', 'queue_yaml', 'pubsub_yaml',
+               'dispatch_yaml', 'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
