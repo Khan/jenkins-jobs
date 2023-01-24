@@ -67,12 +67,14 @@ options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed.  For example, you might
 specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
 
-<p>Here are the services:</p>
+<p>Here are some services:</p>
 <ul>
   <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
   <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
+  <li> <b>donations</b>: webapp's services/donations/. </li>
+  <li> <b>index.yaml</b>: upload index.yaml to GAE. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -424,6 +426,37 @@ def deployToGCS() {
    }
 }
 
+// This should be called from within a node().
+def deployIndexYaml() {
+   if (!("index.yaml" in SERVICES)) {
+      return;
+   }
+   // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
+   exec(["env", "APPENGINE_RUNTIME=",
+         "gcloud", "--project=khan-academy", "app", "deploy", "index.yaml"]);
+}
+
+def deployQueueYaml() {
+   if (!("queue.yaml" in SERVICES)) {
+      return;
+   }
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
+      dir("webapp") {
+         exec(["deploy/upload_queues.py", "create", NEW_VERSION]);
+        }
+    }
+}
+
+def deployPubsubYaml() {
+   if (!("pubsub.yaml" in SERVICES)) {
+      return;
+   }
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
+      dir("webapp") {
+         exec(["deploy/upload_pubsub.py", "create", NEW_VERSION]);
+      }
+   }
+}
 
 // This should be called from within a node().
 def uploadGraphqlSafelist() {
@@ -543,6 +576,9 @@ def deployAndReport() {
                      deployToKotlinServicesAndDataflow();
                   },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
+                  "deploy-index.yaml": { deployIndexYaml(); },
+                  "deploy-queue.yaml": { deployQueueYaml(); },
+                  "deploy-pubsub.yaml": { deployPubsubYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
          // 'dynamic', 'static', and 'dataflow-batch' services are a bit more
@@ -552,8 +588,9 @@ def deployAndReport() {
          // in parallel, and hence must be handled sequentially. Those
          // deployments are bundled in deployToKotlinServicesAndDataflow().
          if (!(service in [
-               'dynamic', 'static', 'course-editing', 'kotlin-routes',
-               'dataflow-batch'])) {
+               'dynamic', 'static',
+               'course-editing', 'kotlin-routes', 'dataflow-batch',
+               'index.yaml', 'queue.yaml', 'pubsub.yaml'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
