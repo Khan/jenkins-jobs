@@ -43,9 +43,9 @@ def runScript() {
 
    dir("webapp") {
        if (params.VALIDATE_COMMIT) {
-          sh("content_editing/tools/publish/validate_commit_for_publish.sh");
+          sh("services/content-editing/publish/tools/validate_commit_for_publish.sh");
        }
-       exec(["env", "ZND_NAME=${params.ZND_NAME}", "content_editing/tools/publish/build_publish_image.sh"]);
+       exec(["env", "ZND_NAME=${params.ZND_NAME}", "services/content-editing/publish/tools/build_publish_image.sh"]);
        // TODO(csilvers): report the publish-content version to slack?
        echo("For how to use this image, see");
        echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
