@@ -71,12 +71,10 @@ buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
 API.""",
     ""
 
-// NOTE: We remove one worker from the default as it is used by the
-// e2e-test-cypress job.
 ).addStringParam(
    "NUM_WORKER_MACHINES",
    """How many worker machines to use.""",
-   (onWorker.defaultNumTestWorkerMachines() - 1).toString()
+   onWorker.defaultNumTestWorkerMachines().toString()
 
 ).addBooleanParam(
    "USE_FIRSTINQUEUE_WORKERS",
@@ -491,7 +489,6 @@ def runLambda(){
              string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
              string(name: 'URL', value: E2E_URL),
-             string(name: 'NUM_WORKER_MACHINES', value: "30"),
              booleanParam(name: 'USE_FIRSTINQUEUE_WORKERS', value: params.USE_FIRSTINQUEUE_WORKERS),
              string(name: 'TEST_RETRIES', value: "4"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),

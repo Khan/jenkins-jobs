@@ -3,19 +3,11 @@
 //import vars.withTimeout
 //import vars.withVirtualenv
 
-
-// NOTE: We currently use the following workers in e2e-related jobs in parallel:
-// a) 20 workers for the `e2e-test` job.
-// b) 1 worker for the `e2e-test-cypress` job.
-// TODO(FEI-4888): Modify this value once we turn off the Python e2e tests. We
-// could probably reduce this to the number of workers we use in the
-// `webapp-test` job.
-
 // How many test-workers we run in parallel, by default. This no longer needs to
 // be consistent across jobs, but most jobs using the ka-test-ec2 workers use it
 // by default.
 def defaultNumTestWorkerMachines() {
-   return 21;
+   return 20;
 }
 
 // label is the label of the node.  It should be one of the worker labels
