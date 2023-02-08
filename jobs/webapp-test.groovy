@@ -86,7 +86,8 @@ API.""", ""
    "NUM_WORKER_MACHINES",
     """How many worker machines to use.""",
     // We divide by 2 because we use 2 clients per worker by default.
-    (onWorker.defaultNumTestWorkerMachines() / 2).toString()
+    // We subtract 1 because we reserve one machine for Cypress e2e tests.
+    ((onWorker.defaultNumTestWorkerMachines() - 1) / 2).toString()
 
 ).addStringParam(
    "CLIENTS_PER_WORKER",
