@@ -294,15 +294,15 @@ def runTestServer() {
       }
 
       // Determine if we actually need to run any tests at all
-      // TODO(dbraley): This process takes a few seconds to run, and is done 
+      // TODO(dbraley): This process takes a few seconds to run, and is done
       //  again by the actual server run a bit later in this method. We should
-      //  make this faster, or at least able to reuse the test list we've 
+      //  make this faster, or at least able to reuse the test list we've
       //  already calculated.
       tests = exec.outputOf(["testing/runtests_server.py", "-n"] + runSmokeTestsArgs + ["."]);
 
-      // The runtests_server.py script with -n outputs all tests to run of 
-      // various types. We only need to worry about smoke tests, which are 
-      // also the last section, so grab everything after the header. If it's 
+      // The runtests_server.py script with -n outputs all tests to run of
+      // various types. We only need to worry about smoke tests, which are
+      // also the last section, so grab everything after the header. If it's
       // empty, there are no tests to run.
       e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + "SMOKE TESTS:".length())
       // An empty line indicates the end of the section (if found)
@@ -489,15 +489,13 @@ def runLambda(){
              string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
              string(name: 'URL', value: E2E_URL),
-             string(name: 'NUM_WORKER_MACHINES', value: params.NUM_WORKER_MACHINES),
              booleanParam(name: 'USE_FIRSTINQUEUE_WORKERS', value: params.USE_FIRSTINQUEUE_WORKERS),
-             string(name: 'TEST_RETRIES', value: "3"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            // It takes about 5 minutes to run all the Cypress e2e tests when
-            // using the default of 20 workers. This build is running in parallel
-            // with runTests(). During this test run we don't want to disturb our 
-            // mainstream e2e pipeline, so set propagate to false.
           ],
+          // It takes about 5 minutes to run all the Cypress e2e tests when
+          // using the default of 20 workers. This build is running in parallel
+          // with runTests(). During this test run we don't want to disturb our
+          // mainstream e2e pipeline, so set propagate to false.
           propagate: false,
           // The pipeline will NOT wait for this job to complete to avoid
           // blocking the main pipeline (e2e tests).
@@ -608,10 +606,10 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             // In case we are retrying smoke tests, we should only run the
             // Python/Selenium tests. We don't have to run the Cypress tests
             // because the results from the Python tests are completely
-            // unrelated to the Cypress tests.   
+            // unrelated to the Cypress tests.
             // NOTE: `custom` is a special type that allow us to run a subset of
-            // tests. This happens when:  
-            // a) A deployer uses the `retry-xx-smoke-tests` command or  
+            // tests. This happens when:
+            // a) A deployer uses the `retry-xx-smoke-tests` command or
             // b) when this job is triggered from the Jenkins UI and we only run
             // a subset of tests.
             if (params.TEST_TYPE == "custom") {
@@ -625,7 +623,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             }
          }
       } finally {
-         // If we determined there were no tests to run, we should skip 
+         // If we determined there were no tests to run, we should skip
          // analysis since it fails if there are no test results.
          if (skipTestAnalysis) {
             echo("Skipping Analysis - No tests run")

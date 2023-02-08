@@ -3,9 +3,9 @@
 //import vars.withTimeout
 //import vars.withVirtualenv
 
-// How many test-workers we run in parallel, by default.
-// This no longer needs to be consistent across jobs, but
-// most jobs using the ka-test-ec2 workers use it by default.
+// How many test-workers we run in parallel, by default. This no longer needs to
+// be consistent across jobs, but most jobs using the ka-test-ec2 workers use it
+// by default.
 def defaultNumTestWorkerMachines() {
    return 20;
 }

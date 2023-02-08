@@ -1,6 +1,6 @@
 // Single job for cypress e2e tests.
-// 
-// cypress e2e tests are the smoketests run in the webapp/feature/cypress repo, 
+//
+// cypress e2e tests are the smoketests run in the webapp/feature/cypress repo,
 // that hit a live website using lambdatest cli.
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -49,11 +49,14 @@ Typically not set manually, but rather by other jobs that call this one.""",
 of the GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to GIT_REVISION.""",
    "master"
-
+// NOTE: These workers are not the same as the workers used by the Jenkins
+// onWorker config. These are the workers we have available in LambdaTest.
+// TODO(FEI-4888): Rename this param to make it clear that these are separate
+// workers.
 ).addStringParam(
    "NUM_WORKER_MACHINES",
-   """How many worker machines to use. Max available is 20.""",
-   "20"
+   """How many worker machines to use in LambdaTest. Max available is 30.""",
+   "30"
 
 )
 .addBooleanParam(
@@ -68,8 +71,8 @@ to spin up.""",
 )
 .addStringParam(
    "TEST_RETRIES",
-   """How many retry attempts to use. By default is 3.""",
-   "3"
+   """How many retry attempts to use. By default is 4.""",
+   "4"
 
 ).addChoiceParam(
    "TEST_TYPE",
@@ -91,7 +94,7 @@ REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
 
-// We use the build name as a unique identifier for user notifications. 
+// We use the build name as a unique identifier for user notifications.
 BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${params.URL}: ${params.REVISION_DESCRIPTION})"
 
 // At this time removing @ before username.
@@ -129,17 +132,17 @@ def runLambdaTest() {
    // Determine which environment we're running against, so we can provide a tag
    // in the LambdaTest build.
    def e2eEnv = params.URL == "https://www.khanacademy.org" ? "prod" : "preprod";
-   
+
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
                             "--cy='--config baseUrl=\"${params.URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
-                            "--sync=true", 
+                            "--sync=true",
                             "--bt='jenkins,${e2eEnv}'",
                             "--eof"
    ];
-   
+
    dir('webapp/services/static') {
       withEnv(["LT_USERNAME=${lt_username}",
                "LT_ACCESS_KEY=${lt_access_key}"]) {
@@ -164,7 +167,7 @@ def getUserIds(def deployUsernameBlob) {
 
    for (n in match) {
       // We look for possible duplicates as we don't want to notify the main
-      // user twice.  
+      // user twice.
       // NOTE: This can happen when the deployer includes their name in the
       // deploy command (e.g. `@foo` types: `sun queue foo`).
       if (n[1] != mainUser) {
@@ -208,15 +211,15 @@ def analyzeResults() {
             ];
 
             if (params.SLACK_THREAD) {
-               notifyResultsArgs += ["--thread", params.SLACK_THREAD];   
+               notifyResultsArgs += ["--thread", params.SLACK_THREAD];
             }
-            
+
             def userIds = getUserIds(params.DEPLOYER_USERNAME);
 
             // Include the deployer(s) here so they can get DMs when the e2e
             // results are ready.
             def ccAlways = "#cypress-logs-deploys,${userIds}";
-            
+
             if (params.SLACK_CHANNEL != "#qa-log") {
                ccAlways += ",#qa-log";
             }
@@ -254,7 +257,6 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
       try {
          stage("Run e2e tests") {
             runLambdaTest();
-            
          }
       } finally {
          // We want to analyze results even if -- especially if -- there were

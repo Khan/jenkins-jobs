@@ -110,7 +110,17 @@ def primeWorkers() {
    def jobs = [
        "sync-webapp": { prime() },
    ];
-   for (def i = 0; i < NUM_WORKER_MACHINES; i++) {
+
+   // NOTE: We currently use the following workers in e2e-related jobs in
+   // parallel:
+   // a) 20 workers for the `e2e-test` job (NUM_WORKER_MACHINES).
+   // b) 1 worker is reserved for Cypress e2e running (`e2e-cypress-test`).
+   def NUM_TOTAL_WORKER_MACHINES = NUM_WORKER_MACHINES + 1;
+
+   // TODO(FEI-4888): Modify this logic once we turn off the Python e2e tests.
+   // We could probably get rid of the for loop below and just prime the Cypress
+   // worker directly.
+   for (def i = 0; i < NUM_TOTAL_WORKER_MACHINES; i++) {
       // A restriction in `parallel`: need to redefine the index var here.
       def workerNum = i;
       jobs["e2e-test-${workerNum}"] = {
@@ -121,7 +131,9 @@ def primeWorkers() {
             // a new machine for each worker, rather than reusing a
             // machine if it happens to be really fast at building deps.
             // We do this by just waiting until all machines have primed.
-            waitUntil({ NUM_PRIMED_WORKER_MACHINES == NUM_WORKER_MACHINES });
+            waitUntil({
+               NUM_PRIMED_WORKER_MACHINES == NUM_TOTAL_WORKER_MACHINES
+            });
          }
       }
    }
