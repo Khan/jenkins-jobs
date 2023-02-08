@@ -490,13 +490,12 @@ def runLambda(){
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
              string(name: 'URL', value: E2E_URL),
              booleanParam(name: 'USE_FIRSTINQUEUE_WORKERS', value: params.USE_FIRSTINQUEUE_WORKERS),
-             string(name: 'TEST_RETRIES', value: "4"),
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-            // It takes about 5 minutes to run all the Cypress e2e tests when
-            // using the default of 20 workers. This build is running in parallel
-            // with runTests(). During this test run we don't want to disturb our
-            // mainstream e2e pipeline, so set propagate to false.
           ],
+          // It takes about 5 minutes to run all the Cypress e2e tests when
+          // using the default of 20 workers. This build is running in parallel
+          // with runTests(). During this test run we don't want to disturb our
+          // mainstream e2e pipeline, so set propagate to false.
           propagate: false,
           // The pipeline will NOT wait for this job to complete to avoid
           // blocking the main pipeline (e2e tests).
