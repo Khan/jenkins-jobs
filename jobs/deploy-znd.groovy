@@ -285,11 +285,8 @@ def deployToGatewayConfig() {
 def createCloudRunTags(){
    echo("Creating Cloud Run tags.")
    dir("webapp") {
-      try {
-         exec(["deploy/update_cloud_run_tags.py", VERSION]);
-      } catch (e) {
-         echo("Failed to wait for new version: ${e}");
-      }
+      exec(["deploy/update_cloud_run_tags.py", VERSION,
+            "--modules_to_ignore", SERVICES.join(', ')]);
    }
 }
 

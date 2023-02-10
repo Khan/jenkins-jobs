@@ -531,11 +531,8 @@ def uploadGraphqlSafelist() {
 def createCloudRunTags(){
    echo("Creating Cloud Run tags.")
    dir("webapp") {
-      try {
-         exec(["deploy/update_cloud_run_tags.py", NEW_VERSION]);
-      } catch (e) {
-         echo("Failed to wait for new version: ${e}");
-      }
+      exec(["deploy/update_cloud_run_tags.py", NEW_VERSION
+            "--modules_to_ignore", SERVICES.join(', ')]);
    }
 }
 
@@ -654,8 +651,10 @@ def deployAndReport() {
       }
       parallel(jobs);
 
-      createCloudRunTags();
-      uploadGraphqlSafelist();
+      parallel([
+         "create-cloud-run-tags": { createCloudRunTags(); },
+         "update-graphql-safelist": { uploadGraphqlSafelist(); }
+      ])
 
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,
