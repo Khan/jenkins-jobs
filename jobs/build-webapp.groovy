@@ -528,6 +528,18 @@ def uploadGraphqlSafelist() {
 }
 
 
+def createCloudRunTags(){
+   echo("Creating Cloud Run tags.")
+   dir("webapp") {
+      // Note: we do not update tags on the modules that we are deploying,
+      // because they get assigned their tag at deploy-time, so doing it
+      // here would be redundant (and would actually conflict).
+      exec(["deploy/update_cloud_run_tags.py", NEW_VERSION
+            "--modules_to_ignore", SERVICES.join(',')]);
+   }
+}
+
+
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -642,7 +654,10 @@ def deployAndReport() {
       }
       parallel(jobs);
 
-      uploadGraphqlSafelist();
+      parallel([
+         "create-cloud-run-tags": { createCloudRunTags(); },
+         "update-graphql-safelist": { uploadGraphqlSafelist(); }
+      ])
 
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,

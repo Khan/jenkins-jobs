@@ -282,6 +282,17 @@ def deployToGatewayConfig() {
    }
 }
 
+def createCloudRunTags(){
+   echo("Creating Cloud Run tags.")
+   dir("webapp") {
+      // Note: we do not update tags on the modules that we are deploying,
+      // because they get assigned their tag at deploy-time, so doing it
+      // here would be redundant (and would actually conflict).
+      exec(["deploy/update_cloud_run_tags.py", VERSION,
+            "--modules_to_ignore", SERVICES.join(',')]);
+   }
+}
+
 // TODO(colin): these messaging functions are mostly duplicated from
 // deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
 // an alertlib (or perhaps just slack messaging) wrapper, since similar
@@ -394,6 +405,8 @@ def deploy() {
       jobs["failFast"] = true;
 
       parallel(jobs);
+
+      createCloudRunTags();
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
