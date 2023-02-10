@@ -531,7 +531,10 @@ def uploadGraphqlSafelist() {
 def createCloudRunTags(){
    echo("Creating Cloud Run tags.")
    dir("webapp") {
-      exec(["deploy/update_cloud_run_tags.py", NEW_VERSION
+            // Note: we do not update tags on the modules that we are deploying,
+            // because they get assigned their tag at deploy-time, so doing it
+            // here would be redundant (and would actually conflict).
+            exec(["deploy/update_cloud_run_tags.py", NEW_VERSION
             "--modules_to_ignore", SERVICES.join(', ')]);
    }
 }
