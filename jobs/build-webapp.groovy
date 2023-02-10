@@ -528,6 +528,18 @@ def uploadGraphqlSafelist() {
 }
 
 
+def createCloudRunTags(){
+   echo("Creating Cloud Run tags.")
+   dir("webapp") {
+      try {
+         exec(["deploy/update_cloud_run_tags.py", NEW_VERSION]);
+      } catch (e) {
+         echo("Failed to wait for new version: ${e}");
+      }
+   }
+}
+
+
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -642,6 +654,7 @@ def deployAndReport() {
       }
       parallel(jobs);
 
+      createCloudRunTags();
       uploadGraphqlSafelist();
 
       _alert(alertMsgs.JUST_DEPLOYED,

@@ -282,6 +282,17 @@ def deployToGatewayConfig() {
    }
 }
 
+def createCloudRunTags(){
+   echo("Creating Cloud Run tags.")
+   dir("webapp") {
+      try {
+         exec(["deploy/update_cloud_run_tags.py", VERSION]);
+      } catch (e) {
+         echo("Failed to wait for new version: ${e}");
+      }
+   }
+}
+
 // TODO(colin): these messaging functions are mostly duplicated from
 // deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
 // an alertlib (or perhaps just slack messaging) wrapper, since similar
@@ -394,6 +405,8 @@ def deploy() {
       jobs["failFast"] = true;
 
       parallel(jobs);
+
+      createCloudRunTags();
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
