@@ -146,7 +146,14 @@ def runLambdaTest() {
    dir('webapp/services/static') {
       withEnv(["LT_USERNAME=${lt_username}",
                "LT_ACCESS_KEY=${lt_access_key}"]) {
-         exec(runLambdaTestArgs);
+         // NOTE: We include this Slack token in case we need to notify to the
+         // FEI team when we are going to hit a `queue_timeout` error in the
+         // LambdaTest platform.
+         withCredentials([
+            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
+         ]) {
+            exec(runLambdaTestArgs);
+         }
       }
    }
 }
