@@ -146,7 +146,7 @@ def runLambdaTest() {
    dir('webapp/services/static') {
       withEnv(["LT_USERNAME=${lt_username}",
                "LT_ACCESS_KEY=${lt_access_key}"]) {
-         // NOTE: We include this Slack token in case we need to notify to the
+         // NOTE: We include this Slack token in case we need to notify the
          // FEI team when we are going to hit a `queue_timeout` error in the
          // LambdaTest platform.
          withCredentials([
