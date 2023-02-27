@@ -261,6 +261,62 @@ def deployToKotlinServices() {
    }
 }
 
+// This should be called from within a node().
+def deployIndexYaml() {
+   if (!("index_yaml" in SERVICES)) {
+      return;
+   }
+   // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
+   dir("webapp") {
+      // NOTE: appengine treats deploying index.yaml as a "create"
+      // operation: even if you remove entries from index.yaml appengine
+      // doesn't delete those indexes from datastore (you have to do a
+      // separate "index vacuum" command for that).  Thus, it's safe
+      // to call pre-set-default, here in build-webapp.groovy.
+      exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
+            "app", "deploy", "index.yaml"]);
+   }
+}
+
+// This should be called from within a node().
+def deployQueueYaml() {
+   if (!("queue_yaml" in SERVICES)) {
+      return;
+   }
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
+      dir("webapp") {
+         exec(["deploy/upload_queues.py", "create", VERSION]);
+        }
+    }
+}
+
+// This should be called from within a node().
+def deployPubsubYaml() {
+   if (!("pubsub_yaml" in SERVICES)) {
+      return;
+   }
+   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
+      dir("webapp") {
+         exec(["deploy/upload_pubsub.py", "create", VERSION]);
+      }
+   }
+}
+
+// This should be called from within a node().
+def deployCronYaml() {
+   if (!("cron_yaml" in SERVICES)) {
+      return;
+   }
+
+   // We do not deploy ka-cron.yaml in build-webapp.groovy because,
+   // unlike with e.g. pubsub.yaml, we haven't created functionality
+   // to just add new rules instead of doing a full update (add + delete).
+   // So it's not safe to do speculatively, and we must wait until
+   // set-default time (that is, in deploy-webapp.groovy).
+   // This function is included just for documentation purposes.
+   return;
+}
+
 // When we deploy a change to a service, it may change the overall federated
 // graphql schema. We store this overall schema in a version labeled json file
 // stored on GCS.
@@ -391,10 +447,26 @@ def deploy() {
                jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
                break;
 
+            case "index_yaml":
+               jobs["deploy-index-yaml"] = { deployIndexYaml(); };
+               break;
+
+            case "queue_yaml":
+               jobs["deploy-queue-yaml"] = { deployQueueYaml(); };
+               break;
+
+            case "pubsub_yaml":
+               jobs["deploy-pubsub-yaml"] = { deployPubsubYaml(); };
+               break;
+
+            case "cron_yaml":
+               jobs["deploy-cron-yaml"] = { deployCronYaml(); };
+               break;
+
             default:
-               // We need to define a new variable so that we don't pass the loop
-               // variable into the closure: it may have changed before the
-               // closure executes.  See for example
+               // We need to define a new variable so that we don't
+               // pass the loop variable into the closure: it may have
+               // changed before the closure executes.  See, e.g.:
                // http://blog.freeside.co/2013/03/29/groovy-gotcha-for-loops-and-closure-scope/
                def serviceAgain = service;
                jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
