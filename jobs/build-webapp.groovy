@@ -467,21 +467,6 @@ def deployPubsubYaml() {
 }
 
 // This should be called from within a node().
-def deployDispatchYaml() {
-   if (!("dispatch_yaml" in SERVICES)) {
-      return;
-   }
-
-   // We do not deploy dispatch.yaml in build-webapp.groovy because,
-   // unlike with e.g. pubsub.yaml, we haven't created functionality
-   // to just add new rules instead of doing a full update (add + delete).
-   // So it's not safe to do speculatively, and we must wait until
-   // set-default time (that is, in deploy-webapp.groovy).
-   // This function is included just for documentation purposes.
-   return;
-}
-
-// This should be called from within a node().
 def deployCronYaml() {
    if (!("cron_yaml" in SERVICES)) {
       return;
@@ -629,7 +614,6 @@ def deployAndReport() {
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
                   "deploy-pubsub-yaml": { deployPubsubYaml(); },
-                  "deploy-dispatch-yaml": { deployDispatchYaml(); },
                   "deploy-cron-yaml": { deployCronYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
@@ -643,7 +627,7 @@ def deployAndReport() {
                'dynamic', 'static',
                'course-editing', 'dataflow-batch',
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
-               'dispatch_yaml', 'cron_yaml'])) {
+               'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
