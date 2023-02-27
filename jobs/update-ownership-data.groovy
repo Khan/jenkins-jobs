@@ -73,7 +73,7 @@ onMaster('2h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Run script") {
          runScript();
       }

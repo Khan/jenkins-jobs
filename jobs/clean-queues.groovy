@@ -37,7 +37,7 @@ onMaster('1h') {
    notify([slack: [channel: '#infrastructure',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
-                when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Deleting queues") {
          deleteQueues();
       }
