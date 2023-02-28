@@ -14,10 +14,13 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-).addCronSchedule(
-   // Run every Tuesday at 10am.  The time is arbitrary, but during business
-   // hours so we can fix things if they break.
-   '0 10 * * 2'
+// We've disabled this job until we can be sure it only deletes
+// queues it's supposed to.
+//
+// ).addCronSchedule(
+//    // Run every Tuesday at 10am.  The time is arbitrary, but during business
+//    // hours so we can fix things if they break.
+//    '0 10 * * 2'
 
 ).apply();
 
