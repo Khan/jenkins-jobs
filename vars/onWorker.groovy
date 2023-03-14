@@ -62,6 +62,7 @@ def call(def label, def timeoutString, Closure body) {
                withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
                         "PATH=/usr/local/google_appengine:" +
                         "/home/ubuntu/google-cloud-sdk/bin:" +
+                        "/home/ubuntu/.cargo/bin:" +
                         "/usr/local/bin/:" +
                         "${env.HOME}/git-bigfile/bin:" +
                         "${env.PATH}"]) {
