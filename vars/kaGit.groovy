@@ -179,10 +179,10 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 
 
 // Merges multiple branches together into a single commit.
-// 
+//
 // Arguments:
 // - gitRevisions: string containing one or more branche names separated by "+"
-// - tagName: string to tag the resulting commit with.  We need to tag the 
+// - tagName: string to tag the resulting commit with.  We need to tag the
 //   result of the merge so git doesn't prune it.
 //
 // Notes:
@@ -199,6 +199,8 @@ def mergeBranches(gitRevisions, tagName) {
       // as you might think.
       exec(["git", "reset", "--hard"]);
    }
+   // Get rid of all old branches; if they were dangling they'd break fetch.
+   exec(["jenkins-jobs/safe_git.sh", "clean_branches", directory]);
    quickFetch("webapp");
    dir('webapp') {
       for (def i = 0; i < allBranches.size(); i++) {
