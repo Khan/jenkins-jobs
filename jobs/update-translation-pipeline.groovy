@@ -38,8 +38,11 @@ new docker image.""",
 currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
 
 def runScript() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                           params.GIT_REVISION);
+
+    // Prune docker images before building if under 1.5GB of disk space.
+    sh("[ $(df -BM --output=avail . | tr -cd 0-9) -gt 1500 ] || docker image prune -af")
 
     dir("webapp/services/content-editing/translation_pipeline") {
        exec(["make", "push", "ZND_NAME=${params.ZND_NAME}"]);
