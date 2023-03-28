@@ -200,7 +200,7 @@ def mergeBranches(gitRevisions, tagName) {
       exec(["git", "reset", "--hard"]);
    }
    // Get rid of all old branches; if they were dangling they'd break fetch.
-   exec(["jenkins-jobs/safe_git.sh", "clean_branches", directory]);
+   exec(["jenkins-jobs/safe_git.sh", "clean_branches", "webapp"]);
    quickFetch("webapp");
    dir('webapp') {
       for (def i = 0; i < allBranches.size(); i++) {
