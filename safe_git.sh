@@ -92,6 +92,21 @@ simple_fetch() {
     ( cd "$1" && _fetch )
 }
 
+# Clean out all branches but master/main (and the current branch).
+# This useful because sometimes branches can become dangling (due to
+# force-pushes) and that will break git-fetch.  In situations where
+# you don't care about existing branches, this is a way to fix that.
+# Call from the workspace-root.
+# $1: the repo directory
+clean_branches() {
+    (
+        cd "$1"
+        git branch \
+            | grep -v -e '\*' -e '^ *master *$' -e '^ *main *$' \
+            | xargs -r --verbose git branch -D
+    )
+}
+
 # $1: the branch we're in.  We assume this branch also exists on the remote.
 _rebase() {
     timeout 10m git rebase "origin/$1" || {
@@ -178,6 +193,7 @@ clone() {
         repo_dir="$REPOS_ROOT/`basename "$repo"`"
         # Clone or update into repo-dir, the canonical home.
         if [ -d "$repo_dir" ]; then
+            clean_branches "$repo_dir"
             ( cd "$repo_dir" && _fetch )
         else
             timeout 60m git clone "$repo" "$repo_dir"
@@ -215,6 +231,7 @@ sync_to() {
     (
     repo_workspace="$WORKSPACE_ROOT/`basename "$repo"`"
     if [ -d "$repo_workspace" ]; then
+        clean_branches "$repo_workspace"  # avoids dangling-ref problems
         cd "$repo_workspace"
         _fetch
         _destructive_checkout "$commit"
