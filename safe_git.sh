@@ -174,7 +174,9 @@ _update_submodules() {
 
 # Clone the given repo if it doesn't already exist.
 # This is just like git clone, except we set up "alternates" to point
-# to a central repo.
+# to a central repo.  We also make it a "blobless" clone so we don't
+# fetch a bunch of history we're unlikely to care about.  See
+# https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/
 # $1: repo to clone (a la sync_to)
 # $2: directory into which to clone it
 # $2: commit-ish to check out at.  Note that we don't do submodules
@@ -196,12 +198,12 @@ clone() {
             clean_branches "$repo_dir"
             ( cd "$repo_dir" && _fetch )
         else
-            timeout 60m git clone "$repo" "$repo_dir"
+            timeout 60m git clone --filter=blob:none "$repo" "$repo_dir"
         fi
         # Now clone locally as well.
         # TODO(csilvers): figure out how to use `git clone -s` but still
         # have our version point to the correct remote.
-        timeout 60m git clone "$repo" "$repo_workspace"
+        timeout 60m git clone --filter=blob:none "$repo" "$repo_workspace"
 
         cd "$repo_workspace"
         # This is the magic that makes all our repos share an "objects" dir.
