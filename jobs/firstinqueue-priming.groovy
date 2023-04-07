@@ -75,13 +75,9 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
-NUM_WORKER_MACHINES = null;
-NUM_PRIMED_WORKER_MACHINES = null;
 GIT_SHA1 = null;
 
 def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   NUM_PRIMED_WORKER_MACHINES = 0;
    // We want to make sure all nodes below work at the same sha1,
    // so we resolve our input commit to a sha1 right away.
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -99,11 +95,6 @@ def _setupWebapp() {
 
 def prime() {
    _setupWebapp();
-   // We also need to sync mobile, so we can run the mobile integration test
-   // (if we are assigned to do so).
-   // Note that Mobile latest code is at develop branch
-   // TODO(benkraft): Only run this if we get it from the splits?
-   kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "develop");
 }
 
 def primeWorkers() {
@@ -111,30 +102,10 @@ def primeWorkers() {
        "sync-webapp": { prime() },
    ];
 
-   // NOTE: We currently use the following workers in e2e-related jobs in
-   // parallel:
-   // a) 20 workers for the `e2e-test` job (NUM_WORKER_MACHINES).
-   // b) 1 worker is reserved for Cypress e2e running (`e2e-cypress-test`).
-   def NUM_TOTAL_WORKER_MACHINES = NUM_WORKER_MACHINES + 1;
-
-   // TODO(FEI-4888): Modify this logic once we turn off the Python e2e tests.
-   // We could probably get rid of the for loop below and just prime the Cypress
-   // worker directly.
-   for (def i = 0; i < NUM_TOTAL_WORKER_MACHINES; i++) {
-      // A restriction in `parallel`: need to redefine the index var here.
-      def workerNum = i;
-      jobs["e2e-test-${workerNum}"] = {
-         onWorker('ka-firstinqueue-ec2', '1h') {     // timeout
-            prime();
-            NUM_PRIMED_WORKER_MACHINES++;
-            // Hold the machine to make sure jenkins actually starts
-            // a new machine for each worker, rather than reusing a
-            // machine if it happens to be really fast at building deps.
-            // We do this by just waiting until all machines have primed.
-            waitUntil({
-               NUM_PRIMED_WORKER_MACHINES == NUM_TOTAL_WORKER_MACHINES
-            });
-         }
+   // NOTE: We use one worker for Cypress e2e running (`e2e-test`).
+   jobs["e2e-test"] = {
+      onWorker('ka-firstinqueue-ec2', '1h') {     // timeout
+         prime();
       }
    }
 

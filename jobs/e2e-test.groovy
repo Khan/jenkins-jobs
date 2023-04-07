@@ -1,28 +1,15 @@
-// The pipeline job for e2e tests.
-// TODO(csilvers): rename this job, and all references in it, from e2e->smoke.
+// Single job for cypress e2e tests.
 //
-// e2e tests are the smoketests run in the webapp repo, that hit a live
-// website using selenium.
-//
-// This job can either run all tests, or a subset thereof, depending on
-// how parameters are specified.
-
-// The Jenkins "interrupt" exception: for failFast and user interrupt
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
-
+// cypress e2e tests are the smoketests run in the webapp/feature/cypress repo,
+// that hit a live website using lambdatest cli.
 @Library("kautils")
-// Standard Math classes we use.
-import java.lang.Math;
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
-//import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
-//import vars.onWorker
 //import vars.withSecrets
-
 
 new Setup(steps
 
@@ -40,22 +27,14 @@ new Setup(steps
 
 ).addChoiceParam(
    "TEST_TYPE",
-   """\
-<ul>
-  <li> <b>all</b>: run all tests</li>
-  <li> <b>deploy</b>: run only those tests that are important to run at
-        deploy-time (as identified by the `@run_on_every_deploy`
-        decorator)</li>
-  <li> <b>custom</b>: run a specified list of tests, defined in
-        TESTS_TO_RUN </li>
-</ul>
-""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    ["all", "deploy", "custom"]
 
 ).addStringParam(
    "TESTS_TO_RUN",
-   """A space-separated list of tests to run. Only relevant if we've selected
-   TEST_TYPE=custom above.""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    ""
 
 ).addStringParam(
@@ -73,8 +52,8 @@ API.""",
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
-   """How many worker machines to use.""",
-   onWorker.defaultNumTestWorkerMachines().toString()
+   """How many worker machines to use in LambdaTest. Max available is 30.""",
+   "30"
 
 ).addBooleanParam(
    "USE_FIRSTINQUEUE_WORKERS",
@@ -86,30 +65,9 @@ to spin up.""",
    false
 
 ).addStringParam(
-   "CLIENTS_PER_WORKER",
-   """How many end-to-end tests to run on each worker machine.  It
-will depend on the size of the worker machine, which you can see in
-the <code>Instance Type</code> value for the
-<code>ka-test worker</code> ec2 setup at
-<a href=\"/configure\">the Jenkins configure page</a>.<br><br>
-Here's one way to figure out the right value: log into a worker
-machine and run:
-<blockqoute>
-<pre>
-cd webapp-workspace/webapp
-. ../env/bin/activate
-for num in `seq 1 16`; do echo -- \$num; time tools/runsmoketests.py -j\$num >/dev/null 2>&1; done
-</pre>
-</blockquote>
-and pick the number with the shortest time.  For m3.large,
-the best value is 4.""",
+   "TEST_RETRIES",
+   """How many retry attempts to use. By default is 4.""",
    "4"
-
-).addBooleanParam(
-   "USE_SAUCE",
-   """Use SauceLabs to record a video of any tests that fail.
-This slows down the tests significantly but is often helpful for debugging.""",
-   false
 
 ).addStringParam(
    "GIT_REVISION",
@@ -139,25 +97,20 @@ that are part of the same deploy.  Write-only; not used by this script.""",
 
 ).addBooleanParam(
    "SET_SPLIT_COOKIE",
-   """Set by deploy-webapp when we are in the middle of migrating traffic;
-this causes us to set the magic cookie to send tests to the new version.
-Only works when the URL is www.khanacademy.org.""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    false
 
 ).addStringParam(
    "EXPECTED_VERSION",
-   """Set along with SET_SPLIT_COOKIE if we wish to verify we got the right
-version.  Currently only supported when we are deploying dynamic.
-TODO(csilvers): move this to wait_for_default.py and with
-EXPECTED_VERSION_SERVICES.""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    ""
 
 ).addStringParam(
    "EXPECTED_VERSION_SERVICES",
-   """Used with EXPECTED_VERSION.  If set (as a space-separated list),
-we busy-wait until all these services's /_api/version calls return
-EXPECTED_VERSION.
-TODO(csilvers): actually use this!""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    ""
 
 ).addStringParam(
@@ -172,364 +125,110 @@ for more information.""",
 
 ).addStringParam(
    "SKIP_TESTS",
-   """Space-separated list of tests to be skipped by the test runner.
-   Tests should be the full path - e.g.
-   web.response.end_to_end.loggedout_smoketest.LoggedOutPageLoadTest""",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
    ""
 
 ).apply();
 
+// Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
 
+// We use the build name as a unique identifier for user notifications.
+BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.REVISION_DESCRIPTION})"
 
-// We set these to real values first thing below; but we do it within
-// the notify() so if there's an error setting them we notify on slack.
-NUM_WORKER_MACHINES = null;
-CLIENTS_PER_WORKER = null;
+// At this time removing @ before username.
+DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
+
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
-
-// Set the server protocol+host+port as soon as we're ready to start
-// the server.
-TEST_SERVER_URL = null;
-
-// Used to tell whether all the test-workers raised an exception.
-WORKERS_RAISING_EXCEPTIONS = 0;
-public class TestFailed extends Exception {}  // for use with the above
-// Used to make sure we finish our job as soon as all tests are run.
-public class TestsAreDone extends Exception {}
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
-
-// Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
-skipTestAnalysis = false
-
-// Run body, set the red circle on the flow-pipeline stage if it fails,
-// but do not fail the overall build.  Re-raises "interrupt" exceptions,
-// either due to a failFast or due to a user interrupt.
-def swallowExceptions(Closure body, Closure onException = {}) {
-    try {
-        body();
-    } catch (FlowInterruptedException e) {   // user interrupt
-        echo("Interrupted!");
-        throw e;
-    } catch (e) {
-        echo("Swallowing exception: ${e}");
-        onException();
-    }
-}
-
-def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
-   CLIENTS_PER_WORKER = params.CLIENTS_PER_WORKER.toInteger();
-   if (params.TEST_TYPE == "custom") {
-      // If we've specified a list of tests to run, there may be very few;
-      // don't spin up more workers than we need.  This is slightly a lie --
-      // you might have specified a module which contains many test-cases --
-      // but luckily the deploy system, which is the primary user of this
-      // option, doesn't do that.  (And if somehow we do, we'll still run the
-      // tests, just on fewer workers.)
-      def numTests = params.TESTS_TO_RUN.split().size()
-      if (numTests < NUM_WORKER_MACHINES * CLIENTS_PER_WORKER) {
-         NUM_WORKER_MACHINES = Math.ceil(
-            (numTests/CLIENTS_PER_WORKER).doubleValue()).toInteger();
-      }
-   }
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
-}
-
-
 def _setupWebapp() {
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+                                        params.GIT_REVISION);
+
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
-   dir("webapp") {
-      sh("make clean_pyc");
-      // One of our smoketests runs js code:
-      // GraphQLSchemaIntegrationSmokeTest.test_graphql_schema_validates
-      sh("make python_deps npm_deps");
+   dir("webapp/services/static") {
+      sh("yarn install --frozen-lockfile");
    }
 }
 
-// Run the test-server.  Must be on a server node.
-def runTestServer() {
-   _setupWebapp();
+def runLambdaTest() {
+   // We need login creds for LambdaTest Cli
+   def lt_username = sh(script: """\
+      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
+      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .login\
+      """, returnStdout:true).trim();
+   def lt_access_key = sh(script: """\
+      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
+      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
+      """, returnStdout:true).trim();
 
-   // Try to load the server's test-info db.
-   try {
-      onMaster('1m') {
-         stash(includes: "test-info.db", name: "test-info.db before");
-      }
-      sh("rm -f test-info.db");
-      unstash(name: "test-info.db before");
-      sh("touch test-info.db.lock");   // split_tests.py needs this too
-   } catch (e) {
-      // Proceed anyway -- perhaps the file doesn't exist yet.
-      // Ah well; we'll just serve tests in a slightly sub-optimal order.
-      echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
-   }
+   // Determine which environment we're running against, so we can provide a tag
+   // in the LambdaTest build.
+   def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
-   dir("webapp") {
-      def runSmokeTestsArgs = ["--prod",
-                               "--timing-db=../test-info.db",
-                               "--file-for-not-run-tests=../not-run-tests.txt",
-                              ];
-      if (params.TEST_TYPE == "deploy") {
-         runSmokeTestsArgs += ["--deploy-tests-only"];
-      }
-      if (params.TEST_TYPE == "custom") {
-         runSmokeTestsArgs += ["--test-match=${params.TESTS_TO_RUN}"];
-      }
-      if (params.SKIP_TESTS) {
-         runSmokeTestsArgs += ["--skip-tests=${params.SKIP_TESTS}"];
-      }
+   def runLambdaTestArgs = ["yarn",
+                            "lambdatest",
+                            "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
+                            "--bn='${BUILD_NAME}'",
+                            "-p=${params.NUM_WORKER_MACHINES}",
+                            "--sync=true",
+                            "--bt='jenkins,${e2eEnv}'",
+                            "--eof"
+   ];
 
-      // Determine if we actually need to run any tests at all
-      // TODO(dbraley): This process takes a few seconds to run, and is done
-      //  again by the actual server run a bit later in this method. We should
-      //  make this faster, or at least able to reuse the test list we've
-      //  already calculated.
-      tests = exec.outputOf(["testing/runtests_server.py", "-n"] + runSmokeTestsArgs + ["."]);
-
-      // The runtests_server.py script with -n outputs all tests to run of
-      // various types. We only need to worry about smoke tests, which are
-      // also the last section, so grab everything after the header. If it's
-      // empty, there are no tests to run.
-      e2eTests = tests.substring(tests.lastIndexOf("SMOKE TESTS:") + "SMOKE TESTS:".length())
-      // An empty line indicates the end of the section (if found)
-      emptyLineIndex = e2eTests.lastIndexOf('\n\n')
-      if (emptyLineIndex >= 0) {
-         e2eTests = e2eTests.substring(0, emptyLineIndex).trim()
-      }
-
-      echo("e2eTests: ${e2eTests}")
-      if (e2eTests.isAllWhitespace()) {
-         echo("No E2E Tests to run!")
-         skipTestAnalysis = true
-         throw new TestsAreDone();
-      }
-
-      // This gets our 10.x.x.x IP address.
-      def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-      // This unblocks the test-workers to let them know they can connect
-      // to the server.  Note we do this before the server starts up,
-      // since the server is blocking (so we can't do it after), but the
-      // clients know this and will retry when connecting.
-      TEST_SERVER_URL = "http://${serverIP}:5001";
-
-      // runtests_server.py writes to this directory.  Make sure it's clean
-      // before it does so, so it doesn't read "old" data.
-      sh("rm -rf genfiles/test-reports");
-
-      // START THE SERVER!  Note this blocks.  It will auto-exit when
-      // it's done serving all the tests.
-      // "HOST=..." lets other machines connect to us.
-      sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runSmokeTestsArgs)} .");
-   }
-
-   // The server updated test-info.db as it ran.  Let's store the updates!
-   try {
-      stash(includes: "test-info.db", name: "test-info.db after");
-      onMaster('1m') {
-         unstash(name: "test-info.db after");
-      }
-   } catch (e) {
-      // Oh well; hopefully another job will do better.
-      echo("Unable to push test-db back to server: ${e}");
-   }
-
-   // This lets us cancel any clients that haven't started up yet.
-   // See the comments in runTests() for more details.
-   throw new TestsAreDone();
-}
-
-// Run one test-client on a worker machine.  A "test client" is a
-// single thread of execution that runs on a worker.  A worker may run
-// multiple test clients in parallel.  Each test-client runs
-// runsmoketests.py separately.
-def runTestClient(workerId, clientId) {
-   echo("Starting tests for client ${workerId}-${clientId}");
-
-   // The `env` is apparently needed to avoid hanging with
-   // the chrome driver.  See
-   // https://github.com/SeleniumHQ/docker-selenium/issues/87
-   // We also work around https://bugs.launchpad.net/bugs/1033179
-   def args = ["env", "DBUS_SESSION_BUS_ADDRESS=/dev/null", "TMPDIR=/tmp",
-               "xvfb-run", "-a",
-               "tools/runsmoketests.py",
-               "--url=${E2E_URL}",
-               "--xml", "--xml-dir=genfiles/test-reports",
-               "--quiet", "--jobs=1", "--retries=3",
-               "--driver=chrome",
-               TEST_SERVER_URL];
-   if (params.USE_SAUCE) {
-      args += ["--backup-driver=sauce"];
-   }
-   if (params.SET_SPLIT_COOKIE) {
-      args += ["--set-split-cookie"];
-   }
-   if (params.EXPECTED_VERSION) {
-      args += ["--expected-version=${params.EXPECTED_VERSION}"];
-   }
-
-   dir("webapp") {
-      // If a test (or the test runner) fails, it's not a fatal error;
-      // another client might compensate.  We'll figure it out all out
-      // in the analyze step, when we see what the junit files say.
-      swallowExceptions {
-         exec(args);
-      }
-   }
-}
-
-// Run all the test-clients on a single worker machine, in parallel.
-def runTestWorker(workerId) {
-   // Say what machine we're on, to help with debugging.
-   def localIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-   echo("Running on ${localIP}");
-
-   def jobs = [:];
-   for (def i = 0; i < CLIENTS_PER_WORKER; i++) {
-      def clientId = i;  // avoid scoping problems
-      jobs["client-$workerId-$clientId"] = { runTestClient(workerId, clientId); };
-   }
-
-   sh("rm -rf webapp/genfiles/test-reports");
-   sh("mkdir -p webapp/genfiles/test-reports");
-   // The worker=... here is not used by code, it's just for documentation.
-   // In particular, the test-server will log a line like:
-   //    [10.0.4.23] GET /begin?worker=worker-5
-   // which is very useful because later the server will log:
-   //    [10.0.4.23] Sending these tests: ....
-   // and the earlier logline tells us that it's worker-5 that ran those tests.
-   exec(["curl", "--retry", "240", "--retry-delay", "1", "--retry-connrefused",
-         "${TEST_SERVER_URL}/begin?worker=worker-${workerId}"]);
-   try {
-      // We need secrets to talk to saucelabs.
-      // TODO(csilvers): only do this if USE_SAUCE is true?
-      withSecrets() {
-         parallel(jobs);
-      }
-   } finally {
-      try {
-         // Collect all the junit xml files into one file for uploading.
-         // The "/dev/null" arg is to make sure something happens even
-         // if the `find` returns no files.
-         sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit.xml");
-         // This stores the xml file on the test-server machine at
-         // genfiles/test-reports/junit-<id>.xml.
-         exec(["curl", "--retry", "3",
-               "--upload-file", "junit.xml",
-               "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
-      } catch (e) {
-         echo("Error sending junit results to /end: ${e}");
-         // Better to not pass a junit file than to not /end at all.
-         try {
-            exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
-         } catch (e2) {
-            echo("Error sending /end at all: ${e2}");
+   dir('webapp/services/static') {
+      withEnv(["LT_USERNAME=${lt_username}",
+               "LT_ACCESS_KEY=${lt_access_key}"]) {
+         // NOTE: We include this Slack token in case we need to notify the
+         // FEI team when we are going to hit a `queue_timeout` error in the
+         // LambdaTest platform.
+         withCredentials([
+            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
+         ]) {
+            exec(runLambdaTestArgs);
          }
       }
    }
 }
 
-// Run all the test-clients on all the worker machine, in parallel.
-def runAllTestClients() {
-   // We want to swallow any framework exceptions unless *all* the
-   // clients have raised a framework exception.  Our theory is that
-   // if one client dies unexpectedly the others can compensate, but
-   // if they all do, then there's nothing more we can do.
-   def onException = {
-      echo("Worker raised an exception");
-      WORKERS_RAISING_EXCEPTIONS++;
-      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
-         echo("All worker machines failed!");
-         throw new TestFailed("All worker machines failed!");
+// This method filters a common 'DEPLOYER_USERNAME' into a series of comma
+// seperated slack user id's. For Example:
+// DEPLOYER_USERNAME: <@UMZGEUH09> (cc <@UN5UC0EM6>)
+// becomes: UMZGEUH09,UN5UC0EM6,
+def getUserIds(def deployUsernameBlob) {
+   // Regex to specifically grab the ids, which should start with U and be
+   // some number of capital letters and numbers. Ids can also start with
+   // W (special users), T (teams), or C (channels).
+   def pattern = /<@([UTWC][0-9A-Z]+)>/;
+   def match = (deployUsernameBlob =~ pattern);
+
+   def mainUser = match[0][1];
+   def otherUsers = "";
+
+   for (n in match) {
+      // We look for possible duplicates as we don't want to notify the main
+      // user twice.
+      // NOTE: This can happen when the deployer includes their name in the
+      // deploy command (e.g. `@foo` types: `sun queue foo`).
+      if (n[1] != mainUser) {
+         otherUsers += ",${n[1]}";
       }
    }
 
-   def jobs = [:];
-   for (i = 0; i < NUM_WORKER_MACHINES; i++) {
-      def workerId = i;  // avoid scoping problems
-      jobs["e2e-test-${workerId}"] = {
-         swallowExceptions({
-            onWorker(WORKER_TYPE, '2h') {
-                _setupWebapp();
-                // We also need to sync mobile, so we can run
-                // content/end_to_end/android_integration_smoketest.py.
-                // Note that Mobile latest code is at develop branch
-                // TODO(benkraft): Do this in runmsoketests.py instead
-                // (at need), or in the smoketest itself?
-                kaGit.safeSyncToOrigin("git@github.com:Khan/mobile", "develop");
-                // We can go no further until we know the server to connect to.
-                waitUntil({ TEST_SERVER_URL != null });
-                runTestWorker(workerId);
-            }
-         }, onException);
-      };
-   }
-   parallel(jobs);
+   // Return the list of unique ids
+   return mainUser + otherUsers;
 }
-
-def runLambda(){
-   // In case the main provider is down, shift a build-job to 'e2e-test-cypress-backup'
-   build(job: 'e2e-test-cypress',
-          parameters: [
-             string(name: 'SLACK_CHANNEL', value: params.SLACK_CHANNEL),
-             string(name: 'SLACK_THREAD', value: params.SLACK_THREAD),
-             string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
-             string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
-             string(name: 'URL', value: E2E_URL),
-             booleanParam(name: 'USE_FIRSTINQUEUE_WORKERS', value: params.USE_FIRSTINQUEUE_WORKERS),
-             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
-          ],
-          // It takes about 5 minutes to run all the Cypress e2e tests when
-          // using the default of 20 workers. This build is running in parallel
-          // with runTests(). During this test run we don't want to disturb our
-          // mainstream e2e pipeline, so set propagate to false.
-          propagate: false,
-          // The pipeline will NOT wait for this job to complete to avoid
-          // blocking the main pipeline (e2e tests).
-          wait: false,
-          );
-}
-
-def runTests() {
-   // We want to immediately exit if:
-   // (a) the server dies unexpectedly.
-   // (b) all the clients die unexpectedly.
-   // (c) all tests are done.
-   // Of these, the only straightforward one is (a).  For (b), we only
-   // want to fail if *all* clients die; if just one dies the others
-   // can pick up the slack.  We carefully set up runAllTestClients to
-   // only raise an exception when all clients die.  (c) seems
-   // straightforward but is tricky when some clients handle all the
-   // tests before the rest of the clients have even started up their
-   // gce instance.  The only way to cancel the gce-startup
-   // immediately is via an failFast plus an exception.  So we use
-   // failfast, but swallow the exception in the case of (c) since it's
-   // not really an error.
-   try {
-      parallel([
-         failFast: true,
-         "test-server": { withTimeout('1h') { runTestServer(); } },
-         "test-clients": { withTimeout('1h') { runAllTestClients(); } },
-      ]);
-    } catch (TestsAreDone e) {
-      // Ignore this "error": it's thrown on successful test completion.
-      echo("Tests are done!");
-    }
-}
-
 
 def analyzeResults() {
    withTimeout('5m') {
@@ -540,49 +239,55 @@ def analyzeResults() {
          return;
       }
 
-      // Send a special message if all workers fail.
-      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
-         def msg = ("All test workers failed!  Check " +
-                    "${env.BUILD_URL}flowPipelineSteps to see why.)");
-         notify.fail(msg);
-      }
-
-      // The test-server wrote junit files to this dir as it ran.
-      junit("webapp/genfiles/test-reports/*.xml");
-
-      withSecrets() {     // we need secrets to talk to slack!
-         dir("webapp") {
-            rerunCommand = "tools/runsmoketests.py --driver chrome " + (
-                  E2E_URL == "https://www.khanacademy.org"
-                  ? "--prod"
-                  : "--url ${exec.shellEscape(E2E_URL)}");
-            summarize_args = [
-               "testing/testresults_util.py", "summarize-to-slack",
-               "genfiles/test-reports/", params.SLACK_CHANNEL,
-               "--jenkins-build-url", env.BUILD_URL,
+      dir('webapp/services/static') {
+         // Get the SLACK_TOKEN from global credentials (env vars).
+         withCredentials([
+            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
+         ]) {
+            def notifyResultsArgs = [
+               "./dev/cypress/e2e/tools/notify-e2e-results.js",
+               "--channel", params.SLACK_CHANNEL,
+               // The URL associated to this Jenkins build.
+               "--build-url", env.BUILD_URL,
+               // The deployer is the person who triggered the build (this is
+               // only included in the message if the e2e tests fail).
                "--deployer", params.DEPLOYER_USERNAME,
-               // The label goes at the top of the message; we include
-               // both the URL and the REVISION_DESCRIPTION.
-               "--label", "${E2E_URL}: ${REVISION_DESCRIPTION}",
-               "--not-run-tests-file", "../not-run-tests.txt",
-               "--rerun-command", rerunCommand,
+               // The LambdaTest build name that will be included at the
+               // beginning of the message.
+               "--label", BUILD_NAME,
+               // The URL we test against.
+               "--url", params.URL,
+               // Notify failures to DevOps
+               "--cc-on-failure", "#dev-support-log"
             ];
+
             if (params.SLACK_THREAD) {
-               summarize_args += ["--slack-thread", params.SLACK_THREAD];
+               notifyResultsArgs += ["--thread", params.SLACK_THREAD];
             }
+
+            def userIds = getUserIds(params.DEPLOYER_USERNAME);
+
+            // Include the deployer(s) here so they can get DMs when the e2e
+            // results are ready.
+            def ccAlways = "#cypress-logs-deploys,${userIds}";
+
             if (params.SLACK_CHANNEL != "#qa-log") {
-               summarize_args += ["--cc-always", "#qa-log"];
+               ccAlways += ",#qa-log";
             }
-            // summarize-to-slack returns a non-zero rc if it detects
-            // test failures.  We set the job to UNSTABLE in that case
-            // (since we don't consider smoketest failures to be blocking).
-            // But we still keep on running the rest of this script!
+
+            notifyResultsArgs += ["--cc-always", ccAlways];
+
+            // notify-e2e-results returns a non-zero rc if it detects test
+            // failures. We set the job to UNSTABLE in that case (since we don't
+            // consider smoketest failures to be blocking). But we still keep on
+            // running the rest of this script!
             catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
-                       message: "There were test failures!") {
-               exec(summarize_args);
+                        message: "There were test failures!") {
+               exec(notifyResultsArgs);
             }
-            // Let notify() know not to send any messages to slack,
-            // because we just did it here.
+
+            // Let notify() know not to send any messages to slack, because we
+            // just did it here.
             env.SENT_TO_SLACK = '1';
          }
       }
@@ -599,42 +304,22 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: (E2E_URL == "https://www.khanacademy.org" ?
                                 'second-smoke-test': 'first-smoke-test')]]) {
-      initializeGlobals();
+
+      stage("Sync webapp") {
+         _setupWebapp();
+      }
 
       try {
-         stage("Running smoketests") {
-            // In case we are retrying smoke tests, we should only run the
-            // Python/Selenium tests. We don't have to run the Cypress tests
-            // because the results from the Python tests are completely
-            // unrelated to the Cypress tests.
-            // NOTE: `custom` is a special type that allow us to run a subset of
-            // tests. This happens when:
-            // a) A deployer uses the `retry-xx-smoke-tests` command or
-            // b) when this job is triggered from the Jenkins UI and we only run
-            // a subset of tests.
-            if (params.TEST_TYPE == "custom") {
-               runTests();
-            // Otherwise, run Python/Selenium tests + Cypress tests in parallel.
-            } else {
-               parallel([
-                  "run-tests": { runTests(); },
-                  "test-lambdacli": { runLambda(); },
-               ]);
-            }
+         stage("Run e2e tests") {
+            runLambdaTest();
          }
       } finally {
-         // If we determined there were no tests to run, we should skip
-         // analysis since it fails if there are no test results.
-         if (skipTestAnalysis) {
-            echo("Skipping Analysis - No tests run")
-            return
-         }
-
-         // We want to analyze results even if -- especially if --
-         // there were failures; hence we're in the `finally`.
+         // We want to analyze results even if -- especially if -- there were
+         // failures; hence we're in the `finally`.
          stage("Analyzing results") {
             analyzeResults();
          }
       }
+
    }
 }
