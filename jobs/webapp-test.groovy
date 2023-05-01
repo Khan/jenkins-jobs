@@ -170,7 +170,7 @@ TESTS = [
     [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/typecheck_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/kotlin_test_client.sh -j1 <server>", oneAtATime: true, done: false],
-    [cmd: "testing/runtests.py --quiet --jobs=1 --xml <server>", done: false],
+    [cmd: "testing/runpytests.sh --quiet --jobs=1 --xml <server>", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> javascript", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> python", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> go", oneAtATime: true, done: false],
@@ -499,7 +499,7 @@ def analyzeResults() {
             if (params.MAX_SIZE != "medium") {
                maxSizeParam = " --max-size=${exec.shellEscape(params.MAX_SIZE)}";
             }
-            pythonRerunCommand = "testing/runtests.py${maxSizeParam}"
+            pythonRerunCommand = "testing/runpytests.sh{maxSizeParam}"
             summarize_args = [
                "testing/testresults_util.py", "summarize-to-slack",
                "genfiles/test-reports/", params.SLACK_CHANNEL,
