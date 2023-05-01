@@ -499,7 +499,7 @@ def analyzeResults() {
             if (params.MAX_SIZE != "medium") {
                maxSizeParam = " --max-size=${exec.shellEscape(params.MAX_SIZE)}";
             }
-            pythonRerunCommand = "testing/runpytests.sh{maxSizeParam}"
+            pythonRerunCommand = "testing/runpytests.sh${maxSizeParam}"
             summarize_args = [
                "testing/testresults_util.py", "summarize-to-slack",
                "genfiles/test-reports/", params.SLACK_CHANNEL,
