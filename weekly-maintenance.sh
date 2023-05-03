@@ -296,6 +296,8 @@ backup_network_config() {
 
 # Delete unused queries from our GraphQL safelist.
 clean_unused_graphql_safelist_queries() {
+    # Let's back it up first.
+    ( cd webapp; tools/datastore-get.sh -prod -format=json GraphQLQuery | gzip | gsutil cp - gs://ka_backups/graphql-safelist/`date +%Y%m%d`.json.gz )
     ( cd webapp; tools/prune_graphql_safelist.sh --prod )
 }
 
