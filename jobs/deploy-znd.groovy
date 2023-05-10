@@ -420,10 +420,7 @@ def deploy() {
          // python services (default/etc) only need python deps.  The
          // goliath services build their own deps via their `make deploy`
          // rules.  That leaves the static service, which needs js deps.
-         // TODO(csilvers): make it so we don't have to do this for
-         //                 graphql-gateway deploys, right now they call
-         //                 `make genfiles/gateway_config.json` which runs js.
-         if ("static" in SERVICES || "graphql-gatway" in SERVICES) {
+         if ("static" in SERVICES) {
              sh("make npm_deps");
          }
       }
