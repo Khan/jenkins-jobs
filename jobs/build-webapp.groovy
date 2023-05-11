@@ -535,14 +535,9 @@ def createCloudRunTags(){
 // just do it always.
 def deployToGatewayConfig() {
    dir("webapp") {
-       exec(["make", "-C", "services/graphql-gateway",
-             "deploy-gateway-config",
-             "DEPLOY_VERSION=${NEW_VERSION}"]);
-       if (fileExists("services/queryplanner/Makefile")) {
-          exec(["make", "-C", "services/queryplanner",
-                "deploy-gateway-config",
-                "DEPLOY_VERSION=${NEW_VERSION}"]);
-       }
+      exec(["make", "-C", "services/queryplanner",
+            "deploy-gateway-config",
+            "DEPLOY_VERSION=${NEW_VERSION}"]);
    }
 }
 
