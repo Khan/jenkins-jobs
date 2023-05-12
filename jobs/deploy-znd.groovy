@@ -327,14 +327,9 @@ def deployCronYaml() {
 // just do it always.
 def deployToGatewayConfig() {
    dir("webapp") {
-       exec(["make", "-C", "services/graphql-gateway",
+       exec(["make", "-C", "services/queryplanner",
              "deploy-gateway-config",
              "DEPLOY_VERSION=${VERSION}"]);
-       if (fileExists("services/queryplanner/Makefile")) {
-          exec(["make", "-C", "services/queryplanner",
-                "deploy-gateway-config",
-                "DEPLOY_VERSION=${VERSION}"]);
-       }
    }
 }
 
