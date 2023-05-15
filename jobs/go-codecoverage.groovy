@@ -50,8 +50,10 @@ def cloneRepo() {
 // allows us to generate slick coverage reports
 def installDeps(){
     dir(WEBAPP_DIR) {
-        // converts native go coverage to cobertura format
-        sh 'go get github.com/t-yuki/gocover-cobertura'
+        // converts native go coverage to cobertura format, do not use the
+        // t-yuki version, it's buggy
+        sh 'go get github.com/boumenot/gocover-cobertura'
+        sh 'go install github.com/ory/go-acc@latest'
         sh 'go mod download'
    }
 }
@@ -63,23 +65,29 @@ def runTests(){
         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
             // | grep -v, will remove packages we don't want tested, like
             // generated dirs
-            sh 'go test --coverprofile="../coverage.txt" --race --covermode=atomic $(go list ./services/... ./pkg/... | grep -v generated | grep -v testutil)'
+            // go-acc is used to get correct coverage which would include
+            // integration tests (resolvers which call domain funcs)
+            sh 'go-acc ./services/... --ignore=testutil,generated,cmd -o=coverage.txt'
         }
     }
 }
 
 def generateCoverageXML() {
     dir(WEBAPP_DIR) {
-        sh 'gocover-cobertura < "../coverage.txt" > "../coverage.xml"'
-        sh 'rm ../coverage.txt'
+        sh 'rm coverage.xml || true'
+        sh 'go tool cover -func coverage.txt'
+        sh 'go run github.com/boumenot/gocover-cobertura < coverage.txt > coverage.xml'
+        sh 'rm coverage.txt'
     }
 }
 
 def buildCoberturaReport() {
-    // coberturaAdapter works well, but cobertura doesn't see supported formats
-    // here: https://www.jenkins.io/doc/pipeline/steps/code-coverage-api/
-    // STORE_LAST_BUILD instead of all because webapp is about 1GB
-    publishCoverage adapters: [coberturaAdapter(path:"coverage.xml")], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+    dir(WEBAPP_DIR) {
+        // coberturaAdapter works well, but cobertura doesn't see supported formats
+        // here: https://www.jenkins.io/doc/pipeline/steps/code-coverage-api/
+        // STORE_LAST_BUILD instead of all because webapp is about 1GB
+        publishCoverage adapters: [coberturaAdapter(path:"coverage.xml")], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+    }
 }
 
 
