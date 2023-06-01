@@ -12,6 +12,11 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+// We run this job once every few minutes; 100 builds covers about
+// 30 minutes.  Let's keep at least a days' around, for debugging.
+).resetNumBuildsToKeep(
+   5000,
+
 ).addStringParam(
     "VERSION",
     """<b>REQUIRED</b>. The names of the versions to delete, separated by
