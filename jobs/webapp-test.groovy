@@ -169,6 +169,7 @@ WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
 TESTS = [
     [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/typecheck_test_client.sh -j1 <server>", done: false],
+    [cmd: "testing/mypy_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/kotlin_test_client.sh -j1 <server>", oneAtATime: true, done: false],
     [cmd: "testing/runpytests.sh --quiet --jobs=1 --xml <server>", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> javascript", done: false],
