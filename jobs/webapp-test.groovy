@@ -478,6 +478,7 @@ def analyzeResults() {
          // No need to report the results in the case of abort!  They will
          // likely be more confusing than useful.
          echo('We were aborted; no need to report results.');
+         notify.log("Aborted", ["job":"webapp-test"])
          return;
       }
 
@@ -527,11 +528,18 @@ def analyzeResults() {
             env.SENT_TO_SLACK = '1';
          }
       }
+      // TODO(ebrown): Remove: onWorker logs, so not needed here too
+      notify.log("Finished ${env.JOB_NAME} ${env.BUILD_NUMBER}")
    }
 }
 
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
+   // TODO(ebrown): Remove: onWorker logs, so not needed here too
+   notify.log("Starting ${env.JOB_NAME} " + 
+              "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
+   ]);
+
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
