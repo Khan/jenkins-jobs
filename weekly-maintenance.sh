@@ -207,7 +207,7 @@ clean_ka_content_data() {
                     echo "FATAL ERROR: Why are we trying to delete $fname??"
                     exit 1
                 fi
-                # And never delete the current sha.
+                # And never delete the current publish-content-version.
                 if echo "$fname" | grep -q "$current_sha"; then
                     echo "FATAL ERROR: Why are we trying to delete $fname?"
                     exit 1
