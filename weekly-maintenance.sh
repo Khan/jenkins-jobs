@@ -176,8 +176,12 @@ clean_ka_translations() {
 
 clean_ka_content_data() {
     for dir in `gsutil ls gs://ka-content-data gs://ka-revision-data | grep -v :$`; do
+        ka_locale=`echo "$dir" | cut -d/ -f4`
+        # TODO(csilvers): enable on all locales once we're comfortable with.
+        [ "$ka_locale" = "lol" ] || continue
+
         # This sorts by date.  Each line looks like:
-        #  <size>  YYYY-MM-DDTHH:MM:SSZ  gs://<filename>
+        #  <size>  YYYY-MM-DDTHH:MM:SSZ  gs://ka-*-data/<ka-locale>/[snapshot|manifest]-<hash>.json
         files=`gsutil ls -l $dir | sort -k2 | grep -v ^TOTAL:`
 
         # We keep all snapshot/manifest files that fit either of these criteria:
@@ -189,6 +193,12 @@ clean_ka_content_data() {
         # we keep the most recent 20 files; that's the 10 most recent uploads.
         not_last_ten=`echo "$files" | tac | tail -n+20`
         sixty_days_ago_time_t=`date -d "-60 days" +%s`
+        current_sha=`curl -s "https://www.khanacademy.org/_fastly/published-content-version/$ka_locale" | jq -r .publishedContentVersion`
+        if [ -z "$current_sha" ]; then
+            echo "ERROR: skipping locale '$ka_locale': it lacks a sha!"
+            continue
+        fi
+
         echo "$not_last_ten" | while read size date fname; do
             time_t=`date -d "$date" +%s`
             if [ "$time_t" -lt "$sixty_days_ago_time_t" ]; then
@@ -197,6 +207,12 @@ clean_ka_content_data() {
                     echo "FATAL ERROR: Why are we trying to delete $fname??"
                     exit 1
                 fi
+                # And never delete the current sha.
+                if echo "$fname" | grep -q "$current_sha"; then
+                    echo "FATAL ERROR: Why are we trying to delete $fname?"
+                    exit 1
+                fi
+
                 echo "Deleting obsolete snapshot/manifest file $fname"
                 gsutil rm "$fname"
             fi
