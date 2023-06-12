@@ -174,6 +174,36 @@ clean_ka_translations() {
     done
 }
 
+clean_ka_content_data() {
+    for dir in `gsutil ls gs://ka-content-data gs://ka-revision-data | grep -v :$`; do
+        # This sorts by date.  Each line looks like:
+        #  <size>  YYYY-MM-DDTHH:MM:SSZ  gs://<filename>
+        files=`gsutil ls -l $dir | sort -k2 | grep -v ^TOTAL:`
+
+        # We keep all snapshot/manifest files that fit either of these criteria:
+        # 1) One of the last 10 snapshots/manifests
+        # 2) snapshot/manifest was created within the last 60 days
+        # Based on:
+        # https://khanacademy.slack.com/archives/C49296Q7P/p1686587762692149?thread_ts=1686584563.057689&cid=C49296Q7P
+        # Because we have both manifest and snapshot files in each dir,
+        # we keep the most recent 20 files; that's the 10 most recent uploads.
+        not_last_ten=`echo "$files" | tac | tail -n+20`
+        sixty_days_ago_time_t=`date -d "-60 days" +%s`
+        echo "$not_last_ten" | while read size date fname; do
+            time_t=`date -d "$date" +%s`
+            if [ "$time_t" -lt "$sixty_days_ago_time_t" ]; then
+                # Very basic sanity-check: never delete files from today!
+                if echo "$date" | grep -q `date +%Y-%m-%d`; then
+                    echo "FATAL ERROR: Why are we trying to delete $fname??"
+                    exit 1
+                fi
+                echo "Deleting obsolete snapshot/manifest file $fname"
+                gsutil rm "$fname"
+            fi
+        done
+    done
+}
+
 clean_graphql_gateway_schemas() {
     # Files have the format:
     #    csdl-YYMMDD-HHMM-######.json(.gz)
