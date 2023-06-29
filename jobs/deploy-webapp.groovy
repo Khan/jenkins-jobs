@@ -615,17 +615,21 @@ def _monitor() {
       dir("webapp") {
          try {
             exec(cmd);
+            buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished:succeeded");
          } catch (e) {
             sleep(1);   // give the watchdog a chance to notice an abort
             if (currentBuild.result == "ABORTED") {
                // Means that we aborted while running this, which
                // the watchdog (in vars/notify.groovy) noticed.
-               // We want to continue with the abort process.
+               // We want to continue with the abort process, while notifying buildmaster.
+               buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished:aborted");
                throw e;
-            }
+            } else {
             // Failure to monitor is not a fatal error: we'll tell
             // people on slack so they can monitor manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
+               buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished:failed");
+            }
             echo("Marking unstable due to monitoring failure: ${e}");
             currentBuild.result = "UNSTABLE";
          }
@@ -633,7 +637,6 @@ def _monitor() {
          // differentiate between finishing with success vs finishing with
          // failure as that is not a blocker for continuing a deploy.
          // Notifying buildmaster of completion is used to trigger finish up.
-         buildmaster.notifyMonitoringStatus(params.GIT_REVISION, "finished");
       }
    }
 }
