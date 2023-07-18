@@ -69,12 +69,6 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
                httpMode: httpMode,
                requestBody: new JsonBuilder(params).toString(),
                url: "https://buildmaster.khanacademy.org/${resource}");
-            notify.log("Buildmaster request: ${resource}", [
-               resource: resource,
-               response: response,
-               params: params,
-               SEND_SLACK_COUNT: SEND_SLACK_COUNT,
-            ])
             SEND_SLACK_COUNT = 0;
             return response;
          }
@@ -99,12 +93,6 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
                [step: "${resource} + ${httpMode}",
                logsUrl: env.BUILD_URL]);
          }
-         notify.log("Buildmaster request failed", [
-            resource: resource,
-            params: params,
-            SEND_SLACK_COUNT: SEND_SLACK_COUNT,
-            level: "ERROR",
-         ])
          return;
       }
    }

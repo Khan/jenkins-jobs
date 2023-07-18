@@ -1,7 +1,3 @@
-import groovy.json.JsonBuilder;
-import java.util.Date
-import java.util.concurrent.TimeUnit
-
 // Normally you will just use notify() directly (via `call()` below).
 // But you may also find it useful to use `notify.fail(msg)`.  This
 // will not only fail the build, it will include `msg` in the slack
@@ -181,16 +177,6 @@ def sendToSlack(slackOptions, status, extraText='') {
    }
 
    _sendToAlertlib(subject, severity, body, extraFlags + channelFlags);
-   log("Sent to slack: ${subject}", [
-         channel: slackOptions.channel,
-         level: severity,
-         subject: subject,
-         sender: sender,
-         body: body,
-         thread: slackOptions.thread,
-         status: status,
-         extra_text: extraText,
-      ]);
    if (_failed(status)) {
       // Also send all failures to dev-support-log
       def logChannelFlags = ["--slack=CB00L3VFZ"];   // dev-support-log
@@ -324,147 +310,13 @@ def sendToBuildmaster(buildmasterOptions, status) {
    try {
       buildmaster.notifyStatus(
          buildmasterOptions.what, buildmasterStatus, buildmasterOptions.sha);
-      log("Notified buildmaster", [
-         level: "INFO",
-         buildmasterStatus: buildmasterStatus,
-         buildmasterOptions: buildmasterOptions,
-         status: status,
-      ])
    } catch (e) {
       echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
-      log("Notifying buildmaster failed", [
-         level: "ERROR",
-         buildmasterStatus: buildmasterStatus,
-         buildmasterOptions: buildmasterOptions,
-         status: status,
-         exception: e,
-      ]);
-   }
-}
-
-
-// We only support the following severity levels for logging to Google Cloud
-def validLogLevels() {
-   return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "ALERT", "EMERGENCY"];
-}
-
-
-// Log something to Google Cloud Logging.
-// Supported options in args:
-// level: The severity of the log message.  Possible values are
-//    "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "ALERT", "EMERGENCY".
-//    Defaults to "INFO".
-// log: The name of the log to write to.  Defaults to "jenkins".
-def log(message, args=[:]) {
-   def level = "INFO";
-   def logName = "jenkins";
-   def paramString = ""; // For logging to jenkins
-   try {
-      if (args.level) {
-         level = args.level.toUpperCase();
-         args.remove("level");
-      }
-      if (args.log) {
-         log = args.log;
-         args.remove("log");
-      }
-
-      // Add additional metadata
-      args.buildmaster_deploy_id = params.BUILDMASTER_DEPLOY_ID;
-      args.build_url = env.BUILD_URL;
-      args.build_user = env.BUILD_USER_ID;
-      args.build_number = env.BUILD_NUMBER;
-      args.git_revision = params.GIT_REVISION;
-      args.description = params.REVISION_DESCRIPTION; // branch name
-      args.job_name = env.JOB_NAME;
-      args.virtual_env = env.VIRTUAL_ENV;
-      args.home = env.HOME;
-      args.build_status = env.STATUS;
-
-      // Put it in a format we can echo to a jenkins log
-      paramString = "${args}"
-   } catch (e) {
-      // Ignore -- we'll just use the default.
-   }
-
-  // Not sure what could go wrong here, but be safe!
-   try {
-      if (!(level in validLogLevels())) {
-         echo("Invalid log level: ${level}.  Defaulting to INFO.");
-         level = "INFO";
-      }
-   } catch (e) {
-      // Ignore -- we'll just use the default.
-      level = "INFO"
-   }
-
-   // Log inside jenkins
-   echo("[${level}] ${message} ${paramString}")
-
-   try {
-      args.message = message; // Add message to json for logging to Google Cloud
-      def jsonMessage = new JsonBuilder(args).toPrettyString();
-
-      def shellCommand = ("gcloud logging write " +
-                          "--payload-type=json " +
-                          "--severity=${level} " +
-                          logName + " " +
-                          exec.shellEscape(jsonMessage));
-      sh(shellCommand);
-   } catch (e) {
-      // We never want logging itself to cause a build to fail.
-      echo("Logging to Google Cloud Logging failed: ${e.getMessage()}.  Continuing.");
-   }
-}
-
-
-// Log that we are starting onWorker() or onMaster()
-def logNodeStart(label, timeoutString) {
-   try {
-      env.STATUS = "starting";
-      // The hostname is useful for debugging.
-      hostname = sh(script: "hostname", returnStdout: true).trim();
-      log("start work ${env.JOB_NAME} " + 
-          "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER} " +
-          "${timeoutString} ${label} hostname=${hostname}", [
-         hostname: hostname,
-         timeout: timeoutString,
-         label: label,
-      ]);
-   } catch (err) {
-      // We don't want to fail the build if we can't log.
-      echo("node start failed to log: ${err}");
-   }
-}
-
-
-// Log that we are finishing onWorker() or onMaster()
-def logNodeFinish(label, timeoutString, start) {
-   try {
-      if (env.STATUS == "starting") {
-         env.STATUS = "finishing";
-      }
-      // The hostname is useful for debugging.
-      hostname = sh(script: "hostname", returnStdout: true).trim();
-      duration = (new Date().getTime() - start.getTime()) / 1000;
-      log("finishing work ${env.JOB_NAME} " + 
-          "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER} " +
-          "hostname=${hostname}", [
-         hostname: hostname,
-         timeout: timeoutString,
-         label: label,
-         start: start,
-         seconds: duration,
-      ]);
-   } catch (err) {
-      // We don't want to fail the build if we can't log.
-      echo("node finish failed to log: ${err}");
    }
 }
 
 
 def fail(def msg, def statusToSet="FAILURE") {
-   env.STATUS = statusToSet + ":" + msg;
    throw new FailedBuild(msg, statusToSet);
 }
 
