@@ -5,6 +5,8 @@
 
 def call(timeoutString, Closure body) {
    node("master") {
+      start = new Date();
+      notify.logNodeStart("master", timeoutString);
       timestamps {
          kaGit.checkoutJenkinsTools();
          withVirtualenv() {
@@ -25,5 +27,6 @@ def call(timeoutString, Closure body) {
             }
          }
       }
+      notify.logNodeFinish("master", timeoutString, start);
    }
 }

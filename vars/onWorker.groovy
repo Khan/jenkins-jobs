@@ -36,6 +36,8 @@ def call(def label, def timeoutString, Closure body) {
    }
 
    node(label) {
+      start = new Date();
+      notify.logNodeStart(label, timeoutString);
       timestamps {
          // We use a shared workspace for all jobs that are run on the
          // worker machines.
@@ -69,6 +71,7 @@ def call(def label, def timeoutString, Closure body) {
                      body();
                   }
                }
+               notify.logNodeFinish(label, timeoutString, start);
             }
          }
       }
