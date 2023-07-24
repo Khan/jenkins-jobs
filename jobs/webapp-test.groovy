@@ -167,6 +167,7 @@ WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
 //    that is modified.  It's used only as a small perf optimization;
 //    things still work even if `done` is never set to true.
 TESTS = [
+    [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/typecheck_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/mypy_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/kotlin_test_client.sh -j1 <server>", oneAtATime: true, done: false],
