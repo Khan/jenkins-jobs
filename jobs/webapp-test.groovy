@@ -177,7 +177,7 @@ TESTS = [
     [cmd: "testing/lint_test_client.sh -j1 <server> go", oneAtATime: true, done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> kotlin", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> other", done: false],
-    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/javaascript", done: false],
+    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/javascript", done: false],
     [cmd: "tools/runtests.sh -j1 --server=<server>/tests/go", done: false],
 ];
 
