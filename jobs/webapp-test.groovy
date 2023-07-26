@@ -170,15 +170,15 @@ TESTS = [
     [cmd: "testing/flow_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/typecheck_test_client.sh -j1 <server>", done: false],
     [cmd: "testing/mypy_test_client.sh -j1 <server>", done: false],
-    [cmd: "testing/kotlin_test_client.sh -j1 <server>", oneAtATime: true, done: false],
-    [cmd: "testing/py_test_client.sh --quiet --jobs=1 --xml <server>", done: false],
+    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/kotlin", oneAtATime: true, done: false],
+    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/python", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> javascript", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> python", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> go", oneAtATime: true, done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> kotlin", done: false],
     [cmd: "testing/lint_test_client.sh -j1 <server> other", done: false],
-    [cmd: "testing/js_test_client.js --runInBand --ci <server>", done: false],
-    [cmd: "testing/go_test_client.sh -j1 <server>", done: false],
+    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/javascript", done: false],
+    [cmd: "tools/runtests.sh -j1 --server=<server>/tests/go", done: false],
 ];
 
 // Gloabally scoped to allow the test runner to set this and allow us to skip analysis as well
