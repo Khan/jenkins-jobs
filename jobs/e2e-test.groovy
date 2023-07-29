@@ -245,7 +245,7 @@ def analyzeResults() {
             string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
          ]) {
             def notifyResultsArgs = [
-               "./dev/cypress/e2e/tools/notify-e2e-results.js",
+               "./dev/cypress/e2e/tools/notify-e2e-results.ts",
                "--channel", params.SLACK_CHANNEL,
                // The URL associated to this Jenkins build.
                "--build-url", env.BUILD_URL,
