@@ -165,12 +165,12 @@ def _setupWebapp() {
 def runLambdaTest() {
    // We need login creds for LambdaTest Cli
    def lt_username = sh(script: """\
-      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
-      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .login\
+      gcloud --project khan-academy secrets describe \
+      lambdatest_admin_account --format json | jq -r .annotations.login \
       """, returnStdout:true).trim();
    def lt_access_key = sh(script: """\
-      keeper --config ${exec.shellEscape("${HOME}/.keeper-config.json")} \
-      get qvYpo_KnpCiLBN69fYpEYA --format json | jq -r .password\
+      gcloud --project khan-academy secrets versions access latest \
+      --secret lambdatest_admin_account \
       """, returnStdout:true).trim();
 
    // Determine which environment we're running against, so we can provide a tag
