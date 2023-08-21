@@ -177,8 +177,6 @@ clean_ka_translations() {
 clean_ka_content_data() {
     for dir in `gsutil ls gs://ka-content-data gs://ka-revision-data | grep -v :$`; do
         ka_locale=`echo "$dir" | cut -d/ -f4`
-        # TODO(csilvers): enable on all locales once we're comfortable with.
-        [ "$ka_locale" = "lol" ] || continue
 
         # This sorts by date.  Each line looks like:
         #  <size>  YYYY-MM-DDTHH:MM:SSZ  gs://ka-*-data/<ka-locale>/[snapshot|manifest]-<hash>.json
