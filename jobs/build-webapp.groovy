@@ -505,6 +505,12 @@ def uploadGraphqlSafelist() {
    // the new version.  This depends on the static deploy having
    // finished, since that updates the safelist.
    echo("Pre-computing the query-plans for the latest safelist queries.");
+   echo("NOTE: this command will give a lot of errors like");
+   echo("- Error getting query plan");
+   echo("- query did not validate against schema");
+   echo("This is expected, since some obsolete queries in the safelist do");
+   echo("not validate against the current schema.");
+   echo("These errors do NOT indicate a problem with the deploy.");
    withSecrets() {
       dir("webapp") {
          exec(["tools/prime_query_plan_cache.sh", "--prod", NEW_VERSION]);
