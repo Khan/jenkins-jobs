@@ -55,11 +55,11 @@ def runScript() {
 
 def publishResults() {
    dir("webapp") {
-      sh("git add dev/server/tag-of-latest-uploaded-images.txt");
+      sh("git add dev/server/.env.latest_uploaded_build_tag");
    }
    // Check it in!
    kaGit.safeCommitAndPush(
-      "webapp", ["-m", "Automated update of tag-of-latest-uploaded-images.txt"]);
+      "webapp", ["-m", "Automated update of .env.latest_uploaded_build_tag"]);
 }
 
 
