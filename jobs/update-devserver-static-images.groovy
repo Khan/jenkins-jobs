@@ -56,11 +56,6 @@ def runScript() {
 def publishResults() {
    dir("webapp") {
       sh("git add dev/server/tag-of-latest-uploaded-images.txt");
-      // Also publish to GCS, for usage from scripts.
-      // TODO(benkraft): Is this actually the best way for scripts to read this
-      // data?
-      sh("gsutil cp dev/ownership_data.json "
-         + "gs://webapp-artifacts/ownership_data.json");
    }
    // Check it in!
    kaGit.safeCommitAndPush(
