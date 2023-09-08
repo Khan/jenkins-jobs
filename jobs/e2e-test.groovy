@@ -258,7 +258,7 @@ def analyzeResults() {
                // The URL we test against.
                "--url", params.URL,
                // Notify failures to DevOps
-               "--cc-on-failure", "#dev-support-log"
+               "--cc-on-failure", "#deploy-support-log"
             ];
 
             if (params.SLACK_THREAD) {

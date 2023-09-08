@@ -192,8 +192,8 @@ def sendToSlack(slackOptions, status, extraText='') {
          extra_text: extraText,
       ]);
    if (_failed(status)) {
-      // Also send all failures to dev-support-log
-      def logChannelFlags = ["--slack=CB00L3VFZ"];   // dev-support-log
+      // Also send all failures to deploy-support-log
+      def logChannelFlags = ["--slack=CB00L3VFZ"];   // deploy-support-log
       _sendToAlertlib(subject, severity, body, extraFlags + logChannelFlags);
    }
 }
