@@ -47,8 +47,11 @@ def runScript() {
 
       sh("make fix_deps");  // force a remake of all deps all the time
 
-      // Run the script!
-      sh("Make -C dev/server upload-all-static-images");
+      // Run the script!  We need to add ~/go/bin to the path because
+      // that's where `ko` lives.
+      withEnv(["PATH=${env.PATH}:${env.HOME}/go/bin"]) {
+         sh("make -C dev/server upload-all-static-images");
+      }
    }
 }
 
