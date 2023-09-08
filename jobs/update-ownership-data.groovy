@@ -49,7 +49,7 @@ def runScript() {
       sh("dev/tools/update_ownership_data.py");
 
       // Check we didn't break anything.
-      sh("testing/runpytests.sh dev/consistency_tests/ownership_test.py");
+      sh("testing/runtests.sh dev/consistency_tests/ownership_test.py");
    }
 }
 
