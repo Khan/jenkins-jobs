@@ -59,6 +59,10 @@ def runScript() {
 def publishResults() {
    dir("webapp") {
       sh("git add dev/server/.env.latest_uploaded_build_tag");
+      // The upload-all-static-images rule can modify some other generated
+      // files, that we don't care about.  `git restore .` resets everything
+      // in the client except files that have been `git add`-ed.
+      sh("git restore .");
    }
    // Check it in!
    kaGit.safeCommitAndPush(
