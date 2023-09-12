@@ -18,9 +18,12 @@ def call(timeoutString, Closure body) {
                 // To export BOTO_CONFIG, for some reason, worker did not
                 // source the .profile or .bashrc anymore.
                 withEnv(["BOTO_CONFIG=${env.HOME}/.boto",
-                         "PATH=/usr/local/google_appengine:" +
+                         "PATH=" +
+                         "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
+                         "/var/lib/jenkins/repositories/khan-linter/bin" +
+                         "/usr/local/google_appengine:" +
                          "/home/ubuntu/google-cloud-sdk/bin:" +
-                         "${env.HOME}/git-bigfile/bin:" +
+                         "${env.HOME}/go/bin:" +
                          "${env.PATH}"]) {
                      body();
                 }
