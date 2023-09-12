@@ -494,14 +494,7 @@ def analyzeResults() {
 
       withSecrets() {     // we need secrets to talk to slack!
          dir("webapp") {
-            // We try to keep the command short and clear.
-            // max-size is the only option we need locally, and only
-            // if it is not "medium".
-            maxSizeParam = "";
-            if (params.MAX_SIZE != "medium") {
-               maxSizeParam = " --max-size=${exec.shellEscape(params.MAX_SIZE)}";
-            }
-            pythonRerunCommand = "testing/runpytests.sh${maxSizeParam}"
+            pythonRerunCommand = "tools/runtests.sh";
             summarize_args = [
                "testing/testresults_util.py", "summarize-to-slack",
                "genfiles/test-reports/", params.SLACK_CHANNEL,
