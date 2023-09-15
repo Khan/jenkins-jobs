@@ -41,6 +41,12 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 
 
+def formatServicesList(services) {
+   return services
+      .collect({ svc -> "`${svc}`" })
+      .join(", ");
+}
+
 new Setup(steps
 
 // We only need to lock out for promoting; builds are fine to do in parallel.
@@ -647,7 +653,7 @@ def deployAndReport() {
       _alert(alertMsgs.JUST_DEPLOYED,
              [deployUrl: DEPLOY_URL,
               version: NEW_VERSION,
-              services: SERVICES.join(', '),
+              services: formatServicesList(SERVICES),
               branches: REVISION_DESCRIPTION,
               logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
                         "project=khan-academy&resource=gae_app%2F" +
@@ -683,7 +689,7 @@ def finishWithFailure(why) {
       _alert(alertMsgs.FAILED_WITHOUT_ROLLBACK,
              [version: NEW_VERSION,
               // TODO(benkraft): Report specifically which service failed.
-              services: SERVICES.join(', ') ?: "tools-only",
+              services: formatServicesList(SERVICES) ?: "tools-only",
               branch: REVISION_DESCRIPTION,
               why: why]);
       env.SENT_TO_SLACK = '1';
