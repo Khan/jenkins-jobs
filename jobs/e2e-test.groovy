@@ -18,7 +18,7 @@ new Setup(steps
 // We do a lot of e2e-test runs, and QA would like to be able to see details
 // for a bit longer.
 ).resetNumBuildsToKeep(
-   250,
+   350,
 
 ).addStringParam(
    "URL",

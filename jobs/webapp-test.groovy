@@ -30,7 +30,7 @@ new Setup(steps
 // We do a *ton* of webapp-test runs, often >100 each day.  Make sure we don't
 // clean them too quickly.
 ).resetNumBuildsToKeep(
-   500,
+   1500,
 
 ).addStringParam(
    "GIT_REVISION",
