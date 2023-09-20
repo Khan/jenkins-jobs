@@ -56,6 +56,11 @@ import org.khanacademy.Setup;
 // the buildmaster, but we do it too as an extra safety check.
 new Setup(steps
 
+// Sometimes we want to debug a deploy a week or two later.  Let's
+// keep a lot of these.
+).resetNumBuildsToKeep(
+   500,
+
 ).addStringParam(
     "GIT_REVISION",
     """<b>REQUIRED</b>. The sha1 to deploy.""",

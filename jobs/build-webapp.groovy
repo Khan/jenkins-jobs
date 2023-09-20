@@ -52,6 +52,11 @@ new Setup(steps
 // We only need to lock out for promoting; builds are fine to do in parallel.
 ).allowConcurrentBuilds(
 
+// Sometimes we want to debug a deploy a week or two later.  Let's
+// keep a lot of these.
+).resetNumBuildsToKeep(
+   500,
+
 ).addStringParam(
     "GIT_REVISION",
     """<b>REQUIRED</b>. The sha1 to deploy.""",
