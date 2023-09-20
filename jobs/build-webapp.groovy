@@ -327,7 +327,7 @@ def mergeFromMasterAndInitializeGlobals() {
                            "SERVICES on your deploy; see " +
                            "${env.BUILD_URL}rebuild for documentation, and " +
                            "`sun: help flags` for how to set it.  If you " +
-                           "aren't sure, ask dev-support for help!");
+                           "aren't sure, ask deploy-support for help!");
             }
          } else {
             SERVICES = params.SERVICES.split(",").collect { it.trim() };

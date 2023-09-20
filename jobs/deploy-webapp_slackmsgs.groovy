@@ -40,6 +40,7 @@
 //
 // #infrastructure: <#C8Y4Q1E0J>
 // #release-notes: <#C2RFQGYKU>
+// @deploy-support: <!subteam^S05M3QU7WJE>
 // @dev-support: <!subteam^S41PPSJ21>
 
 
@@ -85,7 +86,7 @@ ROLLBACK_FAILED = [
 :ohnoes: :ohnoes: Auto-rollback failed!
 Roll back to %(rollbackToAsVersion)s manually by running
 `deploy/rollback.py --bad '%(gitTag)s' --good '%(rollbackTo)s'`
-cc <!subteam^S41PPSJ21>
+cc <!subteam^S05M3QU7WJE>
 """)];
 
 
