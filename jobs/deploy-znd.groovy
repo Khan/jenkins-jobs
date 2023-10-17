@@ -13,6 +13,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.onWorker
+//import vars.withSecrets
 //import vars.withTimeout
 
 
@@ -226,7 +227,7 @@ def deployToGCS() {
    }
    args += params.SKIP_I18N ? ["--no-i18n"] : [];
 
-   withSecrets() {     // TODO(csilvers): do we actually need secrets?
+   withSecrets.slackAlertlibOnly() {  // Because we set --slack-channel
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
@@ -240,12 +241,10 @@ def deployToGCS() {
 
 // This should be called from within a node().
 def deployToService(service) {
-   withSecrets() {     // TODO(benkraft): do we actually need secrets?
-      dir("webapp") {
-         exec(["make", "-C", "services/${service}", "deploy",
-               "ALREADY_RAN_TESTS=1",
-               "DEPLOY_VERSION=${VERSION}"]);
-      }
+   dir("webapp") {
+      exec(["make", "-C", "services/${service}", "deploy",
+            "ALREADY_RAN_TESTS=1",
+            "DEPLOY_VERSION=${VERSION}"]);
    }
 }
 
@@ -286,11 +285,9 @@ def deployQueueYaml() {
    if (!("queue_yaml" in SERVICES)) {
       return;
    }
-   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
-      dir("webapp") {
-         exec(["deploy/upload_queues.py", "create", VERSION]);
-        }
-    }
+   dir("webapp") {
+      exec(["deploy/upload_queues.py", "create", VERSION]);
+     }
 }
 
 // This should be called from within a node().
@@ -298,10 +295,8 @@ def deployPubsubYaml() {
    if (!("pubsub_yaml" in SERVICES)) {
       return;
    }
-   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
-      dir("webapp") {
-         exec(["deploy/upload_pubsub.py", "create", VERSION]);
-      }
+   dir("webapp") {
+      exec(["deploy/upload_pubsub.py", "create", VERSION]);
    }
 }
 
@@ -372,8 +367,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
                 "--slack-simple-message"];
    args +=
       params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
-    // Secrets required to talk to slack.
-    withSecrets() {
+    withSecrets.slackAlertlibOnly() {  // We pass --slack, so may talk to slack
         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
     }
 }

@@ -158,8 +158,8 @@ def safeUpdateSubmodulePointerToMaster(repoDir, submoduleDir) {
 // Submodules is as in _submodulesArg`.
 def safeMergeFromBranch(dir, commitToMergeInto, branchToMerge, submodules=[]) {
    // This job talks directly to slack on error (for better or worse),
-   // so it needs secrets.
-   withSecrets() {
+   // so it needs that secret.
+   withSecrets.slackAlertlibOnly() {
       exec(["jenkins-jobs/safe_git.sh", "merge_from_branch",
             dir, commitToMergeInto, branchToMerge]
            + _submodulesArg(submodules));
@@ -170,8 +170,8 @@ def safeMergeFromBranch(dir, commitToMergeInto, branchToMerge, submodules=[]) {
 // Submodules is as in _submodulesArg`.
 def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
    // This job talks directly to slack on error (for better or worse),
-   // so it needs secrets.
-   withSecrets() {
+   // so it needs that secret.
+   withSecrets.slackAlertlibOnly() {
       exec(["jenkins-jobs/safe_git.sh", "merge_from_master",
             dir, commitToMergeInto] + _submodulesArg(submodules));
    }

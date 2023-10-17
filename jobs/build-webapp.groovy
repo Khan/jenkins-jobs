@@ -262,7 +262,7 @@ def _alert(def slackArgs, def interpolationArgs) {
                                             interpolationArgs);
       args += ["--slack-attachments=${attachmentString}"];
    }
-   withSecrets() {     // to talk to slack
+   withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
    }
 }
@@ -424,7 +424,7 @@ def deployToGCS() {
       "--slack-thread=${params.SLACK_THREAD}"] : [];
    args += params.FORCE ? ["--force"] : [];
 
-   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
+   withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
       dir("webapp") {
          // Increase the the maximum number of open file descriptors.
          // This is necessary because kake keeps a lockfile open for
@@ -458,11 +458,9 @@ def deployQueueYaml() {
    if (!("queue_yaml" in SERVICES)) {
       return;
    }
-   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
-      dir("webapp") {
-         exec(["deploy/upload_queues.py", "create", NEW_VERSION]);
-        }
-    }
+   dir("webapp") {
+      exec(["deploy/upload_queues.py", "create", NEW_VERSION]);
+     }
 }
 
 // This should be called from within a node().
@@ -470,10 +468,8 @@ def deployPubsubYaml() {
    if (!("pubsub_yaml" in SERVICES)) {
       return;
    }
-   withSecrets() {    // TODO(csilvers): do we actually need Python secrets?
-      dir("webapp") {
-         exec(["deploy/upload_pubsub.py", "create", NEW_VERSION]);
-      }
+   dir("webapp") {
+      exec(["deploy/upload_pubsub.py", "create", NEW_VERSION]);
    }
 }
 
@@ -500,15 +496,13 @@ def uploadGraphqlSafelist() {
    // for uploading its own queries to the safelist.
    if (SERVICES.any { it != 'static'}) {
       echo("Uploading GraphQL queries to the safelist.");
-      withSecrets() {
-         dir("webapp") {
-            exec([
-               "python",
-               "deploy/upload_graphql_safelist.py",
-               NEW_VERSION,
-               "--prod",
-            ])
-         }
+      dir("webapp") {
+         exec([
+            "python",
+            "deploy/upload_graphql_safelist.py",
+            NEW_VERSION,
+            "--prod",
+         ])
       }
    }
 
@@ -522,10 +516,8 @@ def uploadGraphqlSafelist() {
    echo("This is expected, since some obsolete queries in the safelist do");
    echo("not validate against the current schema.");
    echo("These errors do NOT indicate a problem with the deploy.");
-   withSecrets() {
-      dir("webapp") {
-         exec(["tools/prime_query_plan_cache.sh", "--prod", NEW_VERSION]);
-      }
+   dir("webapp") {
+      exec(["tools/prime_query_plan_cache.sh", "--prod", NEW_VERSION]);
    }
 }
 
@@ -561,12 +553,10 @@ def deployToGatewayConfig() {
 
 // This should be called from within a node().
 def deployToService(service) {
-   withSecrets() {     // TODO(benkraft): do we actually need Python secrets?
-      dir("webapp") {
-         exec(["make", "-C", "services/${service}", "deploy",
-               "ALREADY_RAN_TESTS=1",
-               "DEPLOY_VERSION=${NEW_VERSION}"]);
-      }
+   dir("webapp") {
+      exec(["make", "-C", "services/${service}", "deploy",
+            "ALREADY_RAN_TESTS=1",
+            "DEPLOY_VERSION=${NEW_VERSION}"]);
    }
 }
 
@@ -605,7 +595,7 @@ def deployToDataflow() {
    args += params.SLACK_THREAD ? [
       "--slack-thread=${params.SLACK_THREAD}"] : [];
 
-   withSecrets() {
+   withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
       dir("webapp") {
          // Unlike our GCS / GAE deploy scripts, this one does not use kake,
          // and hence doesn't need the additional file descriptors.
@@ -670,7 +660,7 @@ def deployAndReport() {
 def sendChangelog() {
    withTimeout('5m') {
       // Send the changelog!
-      withSecrets() {
+      withSecrets.slackAlertlibOnly() {
          dir("webapp") {
             def currentVersionTag;
             if (!params.BASE_REVISION) {

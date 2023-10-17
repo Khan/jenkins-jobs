@@ -6,6 +6,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.withSecrets
 
 
 new Setup(steps
@@ -29,7 +30,7 @@ onMaster('1h') {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          sh("make -C webapp python_deps")
-         withSecrets() {  // to talk to slack
+         withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
             dir("webapp") {
                exec(["dev/tools/failing_taskqueue_tasks.py",
                      "--slack-channel=${params.SLACK_CHANNEL}"]);

@@ -16,8 +16,8 @@ import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.kaGit
 //import vars.notify
-//import vars.withTimeout
 //import vars.withSecrets
+//import vars.withTimeout
 
 
 // The simplest setup ever! -- we only want the defaults.
@@ -27,7 +27,7 @@ new Setup(steps).apply();
 def runScript() {
    withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-      withSecrets() {      // we need secrets to talk to slack
+      withSecrets.slackAlertlibOnly() {  // because we pass --notify_slack
          dir("webapp") {
             sh("make clean_pyc");    // in case some .py files went away
             sh("make python_deps");

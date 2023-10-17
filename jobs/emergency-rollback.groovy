@@ -17,8 +17,8 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
-//import vars.withTimeout
 //import vars.withSecrets
+//import vars.withTimeout
 
 // We try to keep minimal options in this job: you don't want to have to
 // figure out which options are right when the site is down!
@@ -75,7 +75,7 @@ def _alert(def msg) {
            "--icon-emoji=:monkey_face:",
            "--slack-simple-message",
           ];
-   withSecrets() {     // to talk to slack
+   withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
    }
 }
@@ -129,7 +129,7 @@ def verifyValidTag(tag) {
 
 def doRollback() {
    withTimeout('30m') {
-      withSecrets() {
+      withSecrets.slackAlertlibOnly() {  // rollback.py talks to slack
          cmd = ["deploy/rollback.py"];
          if (params.DRY_RUN) {
             cmd += ["-n"];

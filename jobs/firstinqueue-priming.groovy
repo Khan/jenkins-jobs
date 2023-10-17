@@ -30,7 +30,6 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withTimeout
 //import vars.onWorker
-//import vars.withSecrets
 
 
 new Setup(steps
