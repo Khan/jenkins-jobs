@@ -50,7 +50,10 @@ def call(Closure body) {
 def slackAlertlibOnly(Closure body) {
    // TODO(csilvers): provide another implementation that just gets the
    // one slack secret from GCS.  But properly promote from this to a
-   // "real" withSecrets call later.
+   // "real" withSecrets call later.  One idea: put these secrets in
+   // workspace root, and set ALERTLIB_SECRETS_DIR to that, and then
+   // have withSecrets override that ALBERTLIB_SECRETS_DIR, but for us
+   // if ALERTLIB_SECRETS_DIR is set it's a noop.
    _withSecrets(body);
 }
 
