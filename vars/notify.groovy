@@ -566,7 +566,7 @@ def call(options, Closure body) {
             sendToSlack(options.slack, status, failureText);
          }
       }
-      if (options.github && _shouldReport(status, options.github.when) {
+      if (options.github && _shouldReport(status, options.github.when)) {
          sendToGithub(options.github, status, failureText);
       }
       if (options.email && _shouldReport(status, options.email.when)) {
