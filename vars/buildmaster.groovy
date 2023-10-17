@@ -83,6 +83,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
          // it's not being caught properly.
          // httpRequest throws exceptions when buildmaster responds with status
          // code >=400
+         echo("Error talking to buildmaster [${resource}]: ${e}");
 
          // checkout jenkins-jobs folder in current workspace
          // in order to load other groovy file.
@@ -104,6 +105,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
             params: params,
             SEND_SLACK_COUNT: SEND_SLACK_COUNT,
             level: "ERROR",
+            error: e.getMessage(),
          ])
          return;
       }
