@@ -66,12 +66,11 @@ onMaster('5h') {
    notify([slack: [channel: '#1s-and-0s', when: ['STARTED', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
-      // TODO(csilvers): move those secrets somewhere else instead.
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master", null);
 
       parallel([
          "webapp-test": { runAllTests(); },
          "smoke-tests": { runSmokeTests(); },
       ])
+
    }
 }

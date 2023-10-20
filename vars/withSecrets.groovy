@@ -8,12 +8,15 @@ import groovy.transform.Field
 // assuming we're always in the same directory is good enough at present.
 // TODO(benkraft): Make sure updates to this are actually atomic.
 @Field _activeSecretsBlocks = 0;
+@Field _activeSlackSecretsBlocks = 0;
+@Field _activeGithubSecretsBlocks = 0;
 
 def _secretsPasswordPath() {
    return "${env.HOME}/secrets_py/secrets.py.aes.password";
 }
 
-def _withSecrets(Closure body) {
+// This must be called from workspace-root.
+def call(Closure body) {
    try {
       // First, set up secrets.
       // This decryption command was modified from the make target
@@ -41,27 +44,50 @@ def _withSecrets(Closure body) {
    }
 }
 
-
-// This must be called from workspace-root.
-def call(Closure body) {
-   _withSecrets(body);
-}
-
+// This must be called from workspace-root.  While this is in scope,
+// *only* the slack secret is available, even if there's a higher-up
+// call to withSecrets().
 def slackAlertlibOnly(Closure body) {
-   // TODO(csilvers): provide another implementation that just gets the
-   // one slack secret from GCS.  But properly promote from this to a
-   // "real" withSecrets call later.  One idea: put these secrets in
-   // workspace root, and set ALERTLIB_SECRETS_DIR to that, and then
-   // have withSecrets override that ALBERTLIB_SECRETS_DIR, but for us
-   // if ALERTLIB_SECRETS_DIR is set it's a noop.
-   _withSecrets(body);
+   try {
+      sh("mkdir -p decrypted_secrets/slack/");
+      sh('echo "slack_alertlib_api_token = \"$(gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib)\"" > decrypted_secrets/slack/secrets.py');
+      sh("chmod 600 decrypted_secrets/slack/secrets.py");
+      _activeSecretsBlocks++;
+
+      // Then, tell alertlib where secrets live, and run the wrapped block.
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]) {
+         body();
+      }
+   } finally {
+      _activeSlackSecretsBlocks--;
+      // Finally, iff we're exiting the last slackAlertlibOnly block,
+      // clean up our secret.
+      if (!_activeSlackSecretsBlocks) {
+         sh("rm -f decrypted_secrets/slack/");
+      }
+   }
 }
 
-// Only try to decrypt secrets if webapp is checked out
-// and secrets are present.
-// Use cautiously! -- this may not decrypt secrets for you.
-def ifAvailable(Closure body) {
-   if (fileExists("webapp/shared/secrets.py.aes")) {
-      call(body);
+// This must be called from workspace-root.  While this is in scope,
+// *only* the github secrets are available, even if there's a higher-up
+// call to withSecrets().
+def githubAlertlibOnly(Closure body) {
+   try {
+      sh("mkdir -p decrypted_secrets/github/");
+      sh('echo "github_repo_status_deployment_pat = \"$(gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Repository_Status___Deployments__repo_status__repo_deployment__)\"" > decrypted_secrets/github/secrets.py');
+      sh("chmod 600 decrypted_secrets/github/secrets.py");
+      _activeSecretsBlocks++;
+
+      // Then, tell alertlib where secrets live, and run the wrapped block.
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]) {
+         body();
+      }
+   } finally {
+      _activeGithubSecretsBlocks--;
+      // Finally, iff we're exiting the last githubAlertlibOnly block,
+      // clean up our secret.
+      if (!_activeGithubSecretsBlocks) {
+         sh("rm -f decrypted_secrets/github/");
+      }
    }
 }

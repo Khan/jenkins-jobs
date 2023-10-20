@@ -111,6 +111,7 @@ def _dataForAlertlib(status, extraText) {
 
 
 // Given all necessary arguments, builds shellcommand and sends to alertlib.
+// You must have made the appropriate secrets available before calling this.
 def _sendToAlertlib(subject, severity, body, extraFlags) {
    def shellCommand = ("echo ${exec.shellEscape(body)} | " +
                        "jenkins-jobs/alertlib/alert.py " +
@@ -127,16 +128,7 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
       echo("Unable to install dependencies for alertlib, but continuing...");
    }
 
-
-   // Sometimes we want to notify before webapp has even been
-   // cloned, at which point secrets aren't available.  So we just
-   // do best-effort.  Presumably this will only happen once, the
-   // first time a new jenkins job is ever run, so I don't worry
-   // about it too much.  TODO(csilvers): instead, move secrets to
-   // some other repo, or clone webapp in withSecrets().
-   withSecrets.ifAvailable() {     // you need secrets to talk to slack
-      sh(shellCommand);
-   }
+    sh(shellCommand);
 }
 
 
@@ -180,21 +172,23 @@ def sendToSlack(slackOptions, status, extraText='') {
       channelFlags += ["--slack-thread=${slackOptions.thread}"];
    }
 
-   _sendToAlertlib(subject, severity, body, extraFlags + channelFlags);
-   log("Sent to slack: ${subject}", [
-         channel: slackOptions.channel,
-         level: severity,
-         subject: subject,
-         sender: sender,
-         body: body,
-         thread: slackOptions.thread,
-         status: status,
-         extra_text: extraText,
-      ]);
-   if (_failed(status)) {
-      // Also send all failures to deploy-support-log
-      def logChannelFlags = ["--slack=CB00L3VFZ"];   // deploy-support-log
-      _sendToAlertlib(subject, severity, body, extraFlags + logChannelFlags);
+   withSecrets.slackAlertlibOnly() {
+      _sendToAlertlib(subject, severity, body, extraFlags + channelFlags);
+      log("Sent to slack: ${subject}", [
+            channel: slackOptions.channel,
+            level: severity,
+            subject: subject,
+            sender: sender,
+            body: body,
+            thread: slackOptions.thread,
+            status: status,
+            extra_text: extraText,
+         ]);
+      if (_failed(status)) {
+         // Also send all failures to deploy-support-log
+         def logChannelFlags = ["--slack=CB00L3VFZ"];   // deploy-support-log
+         _sendToAlertlib(subject, severity, body, extraFlags + logChannelFlags);
+      }
    }
 }
 
@@ -236,8 +230,9 @@ def sendToGithub(githubOptions, status, extraText='') {
       flags += ["--github-owner=${githubOptions.owner}"];
    }
 
-   // TODO(csilvers): make a withSecrets() call here (for github secrets)
-   _sendToAlertlib(subject, severity, body, flags);
+   withSecrets.githubAlertlibOnly() {
+      _sendToAlertlib(subject, severity, body, flags);
+   }
 }
 
 
