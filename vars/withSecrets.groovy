@@ -65,7 +65,7 @@ def slackAlertlibOnly(Closure body) {
       // Finally, iff we're exiting the last slackAlertlibOnly block,
       // clean up our secret.
       if (!_activeSlackSecretsBlocks) {
-         sh("rm -f decrypted_secrets/slack/");
+         sh("rm -rf decrypted_secrets/slack/");
       }
    }
 }
@@ -90,7 +90,7 @@ def githubAlertlibOnly(Closure body) {
       // Finally, iff we're exiting the last githubAlertlibOnly block,
       // clean up our secret.
       if (!_activeGithubSecretsBlocks) {
-         sh("rm -f decrypted_secrets/github/");
+         sh("rm -rf decrypted_secrets/github/");
       }
    }
 }
@@ -118,7 +118,7 @@ def slackAndStackdriverAlertlibOnly(Closure body) {
       // Finally, iff we're exiting the last slackAlertlibOnly block,
       // clean up our secret.
       if (!_activeSlackAndStackdriverSecretsBlocks) {
-         sh("rm -f decrypted_secrets/slack/");
+         sh("rm -rf decrypted_secrets/slack_and_stackdriver/");
       }
    }
 }
