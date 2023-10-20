@@ -3,6 +3,7 @@ import groovy.json.JsonBuilder;
 import groovy.transform.Field;
 
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.exec
 //import vars.notify
 //import vars.retry
 //import vars.withSecrets
@@ -45,8 +46,9 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
 
 def initializeBuildmasterToken() {
    if (!BUILDMASTER_TOKEN) {
-      BUILDMASTER_TOKEN = readFile(
-         "${env.HOME}/buildmaster-api-token.secret").trim();
+      BUILDMASTER_TOKEN = exec.outputOf(
+         ["gcloud", "--project=khan-academy", "secrets", "versions", "access",
+          "latest", "--secret", "BUILDMASTER_TOKEN"]);
    }
 }
 
