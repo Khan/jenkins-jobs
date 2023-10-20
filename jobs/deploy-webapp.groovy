@@ -259,7 +259,7 @@ def _alert(def slackArgs, def interpolationArgs) {
                                             interpolationArgs);
       args += ["--slack-attachments=${attachmentString}"];
    }
-   withSecrets() {     // to talk to slack
+   withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
    }
 }
@@ -311,7 +311,7 @@ def _sendAbortedDeploymentSurvey() {
         "--severity=info",
         ];
 
-    withSecrets() {     // to talk to slack
+    withSecrets.slackAlertlibOnly() {
         sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
     }
 }
@@ -572,35 +572,35 @@ def _promoteServices() {  // call from webapp-root
     }
 
     cmd += [services.join(",")];
-    exec(cmd);
+    withSecrets.slackAlertlibOnly() { // because we set --slack-channel
+       exec(cmd);
+    }
 }
 
 
 def _promote() {
-   withSecrets() {
-      dir("webapp") {
-         try {
-            _promoteServices();
+   dir("webapp") {
+      try {
+         _promoteServices();
 
-            // Once we finish (successfully) promoting, we tell buildmaster
-            // that the default has been set.  (Currently this information
-            // is only used in status; in the future it may be used for slack
-            // messages as well.)
-            buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
-         } catch (e) {
-            sleep(1);   // give the watchdog a chance to notice an abort
-            if (currentBuild.result == "ABORTED") {
-               // Means that we aborted while running this, which
-               // the watchdog (in vars/notify.groovy) noticed.
-               // We want to continue with the abort process.
-               throw e;
-            }
-            // Failure to promote is not a fatal error: we'll tell
-            // people on slack so they can promote manually.  But
-            // we don't want to abort the deploy, like a FAILURE would.
-            echo("Marking unstable due to promotion failure: ${e}");
-            currentBuild.result = "UNSTABLE";
+         // Once we finish (successfully) promoting, we tell buildmaster
+         // that the default has been set.  (Currently this information
+         // is only used in status; in the future it may be used for slack
+         // messages as well.)
+         buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
+      } catch (e) {
+         sleep(1);   // give the watchdog a chance to notice an abort
+         if (currentBuild.result == "ABORTED") {
+            // Means that we aborted while running this, which
+            // the watchdog (in vars/notify.groovy) noticed.
+            // We want to continue with the abort process.
+            throw e;
          }
+         // Failure to promote is not a fatal error: we'll tell
+         // people on slack so they can promote manually.  But
+         // we don't want to abort the deploy, like a FAILURE would.
+         echo("Marking unstable due to promotion failure: ${e}");
+         currentBuild.result = "UNSTABLE";
       }
    }
 }
@@ -616,8 +616,8 @@ def _monitor() {
           "--monitor=${params.MONITORING_TIME}",
           "--slack-channel=${SLACK_CHANNEL}",
           "--monitor-error-is-fatal"];
-   withSecrets() {
       dir("webapp") {
+      withSecrets.slackAlertlibOnly() { // because we set --slack-channel
          try {
             exec(cmd);
          } catch (e) {
@@ -802,7 +802,7 @@ def finishWithFailure(why) {
          _alert(alertMsgs.ROLLING_BACK,
                 [rollbackToAsVersion: rollbackToAsVersion,
                  gitTag: GIT_TAG]);
-         withSecrets() {
+         withSecrets.slackAlertlibOnly() {  // rollback.py sends to slack
             dir("webapp") {
                // During the rollback, we need the local version of code to be
                // of the good version for some of the rollback operation

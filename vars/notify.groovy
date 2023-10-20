@@ -236,6 +236,7 @@ def sendToGithub(githubOptions, status, extraText='') {
       flags += ["--github-owner=${githubOptions.owner}"];
    }
 
+   // TODO(csilvers): make a withSecrets() call here (for github secrets)
    _sendToAlertlib(subject, severity, body, flags);
 }
 

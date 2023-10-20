@@ -24,6 +24,7 @@ import org.khanacademy.Setup;
 //import vars.clean
 //import vars.kaGit
 //import vars.notify
+//import vars.withSecrets
 //import vars.withTimeout
 
 
@@ -123,7 +124,7 @@ def deploy() {
 
 def setDefault() {
    withTimeout('5m') {
-      withSecrets() { // to report the change to #whats-happening
+      withSecrets.slackAlertlibOnly() { // to report to #whats-happening
          dir("webapp/services/fastly-khanacademy") {
             sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
          }
@@ -142,7 +143,7 @@ def notifyWithVersionInfo(oldActive, newActive) {
        "--severity=info",
        "--summary=${subject}",
    ];
-   withSecrets() {     // to talk to slack
+   withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
    }
 }

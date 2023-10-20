@@ -8,7 +8,6 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.notify
 //import vars.withTimeout
-//import vars.withSecrets
 
 
 new Setup(steps

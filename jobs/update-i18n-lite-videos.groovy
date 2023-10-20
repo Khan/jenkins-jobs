@@ -10,7 +10,6 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
-//import vars.withSecrets
 
 
 new Setup(steps
@@ -33,19 +32,17 @@ def updateRepo() {
 
 def runAndUpload() {
    withTimeout('22h') {
-      withSecrets() {
-         dir("webapp") {
-            sh("mkdir -p ../lite-video-data");
-            // Download the current videos from gcs so we can update them.
-            exec(["gsutil", "-m", "rsync",
-                  "gs://ka-lite-homepage-data/", "../lite-video-data/"]);
+      dir("webapp") {
+         sh("mkdir -p ../lite-video-data");
+         // Download the current videos from gcs so we can update them.
+         exec(["gsutil", "-m", "rsync",
+               "gs://ka-lite-homepage-data/", "../lite-video-data/"]);
 
-            exec(["tools/content/update-i18n-lite-videos.sh", "../lite-video-data"]);
+         exec(["tools/content/update-i18n-lite-videos.sh", "../lite-video-data"]);
 
-            // Now upload the changes
-            exec(["gsutil", "-m", "rsync",
-                  "../lite-video-data/", "gs://ka-lite-homepage-data/"]);
-         }
+         // Now upload the changes
+         exec(["gsutil", "-m", "rsync",
+               "../lite-video-data/", "gs://ka-lite-homepage-data/"]);
       }
    }
 }

@@ -13,9 +13,7 @@ def _secretsPasswordPath() {
    return "${env.HOME}/secrets_py/secrets.py.aes.password";
 }
 
-
-// This must be called from workspace-root.
-def call(Closure body) {
+def _withSecrets(Closure body) {
    try {
       // First, set up secrets.
       // This decryption command was modified from the make target
@@ -30,7 +28,7 @@ def call(Closure body) {
       _activeSecretsBlocks++;
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]){
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]) {
          body();
       }
    } finally {
@@ -43,6 +41,21 @@ def call(Closure body) {
    }
 }
 
+
+// This must be called from workspace-root.
+def call(Closure body) {
+   _withSecrets(body);
+}
+
+def slackAlertlibOnly(Closure body) {
+   // TODO(csilvers): provide another implementation that just gets the
+   // one slack secret from GCS.  But properly promote from this to a
+   // "real" withSecrets call later.  One idea: put these secrets in
+   // workspace root, and set ALERTLIB_SECRETS_DIR to that, and then
+   // have withSecrets override that ALBERTLIB_SECRETS_DIR, but for us
+   // if ALERTLIB_SECRETS_DIR is set it's a noop.
+   _withSecrets(body);
+}
 
 // Only try to decrypt secrets if webapp is checked out
 // and secrets are present.

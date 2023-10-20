@@ -491,7 +491,7 @@ def analyzeResults() {
       // The test-server wrote junit files to this dir as it ran.
       junit("webapp/genfiles/test-reports/*.xml");
 
-      withSecrets() {     // we need secrets to talk to slack!
+      withSecrets.slackAlertlibOnly() {
          dir("webapp") {
             pythonRerunCommand = "tools/runtests.sh";
             summarize_args = [

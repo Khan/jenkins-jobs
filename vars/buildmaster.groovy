@@ -5,6 +5,7 @@ import groovy.transform.Field;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.notify
 //import vars.retry
+//import vars.withSecrets
 
 
 @Field BUILDMASTER_TOKEN = null;
@@ -37,8 +38,7 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
                "--icon-emoji=${EMOJI}",
                "--slack-simple-message"];
 
-   // Secrets required to talk to slack.
-   withSecrets() {
+   withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
    }
 }
