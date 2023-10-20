@@ -51,8 +51,11 @@ def call(Closure body) {
 def slackAlertlibOnly(Closure body) {
    try {
       sh("mkdir -p decrypted_secrets/slack/");
-      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack/secrets.py");
-      sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py");
+      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack/secrets.py.tmp");
+      sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py.tmp");
+      sh("rm -f decrypted_secrets/slack/secrets.py");
+      // Create this file atomically.
+      mv("decrypted_secrets/slack/secrets.py.tmp decrypted_secrets/slack/secrets.py");
       sh("chmod 600 decrypted_secrets/slack/secrets.py");
       _activeSlackSecretsBlocks++;
 
@@ -76,8 +79,11 @@ def slackAlertlibOnly(Closure body) {
 def githubAlertlibOnly(Closure body) {
    try {
       sh("mkdir -p decrypted_secrets/github/");
-      sh("gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Repository_Status___Deployments__repo_status__repo_deployment__ >decrypted_secrets/github/secrets.py");
-      sh("perl -pli -e 's/^/github_repo_status_deployment_pat = \"/; s/\$/\"/' decrypted_secrets/github/secrets.py");
+      sh("gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Repository_Status___Deployments__repo_status__repo_deployment__ >decrypted_secrets/github/secrets.py.tmp");
+      sh("perl -pli -e 's/^/github_repo_status_deployment_pat = \"/; s/\$/\"/' decrypted_secrets/github/secrets.py.tmp");
+      sh("rm -f decrypted_secrets/github/secrets.py");
+      // Create this file atomically.
+      mv("decrypted_secrets/github/secrets.py.tmp decrypted_secrets/github/secrets.py");
       sh("chmod 600 decrypted_secrets/github/secrets.py");
       _activeGithubSecretsBlocks++;
 
@@ -101,11 +107,14 @@ def githubAlertlibOnly(Closure body) {
 def slackAndStackdriverAlertlibOnly(Closure body) {
    try {
       sh("mkdir -p decrypted_secrets/slack_and_stackdriver/");
-      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack_and_stackdriver/secrets.py");
-      sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack_and_stackdriver/secrets.py");
-      sh("echo google_alertlib_service_account = \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py");
-      sh("gcloud --project khan-academy secrets versions access latest --secret google_api_service_account__for_alertlib_ >>decrypted_secrets/slack_and_stackdriver/secrets.py");      
-      sh("echo \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py");
+      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack_and_stackdriver/secrets.py.tmp");
+      sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack_and_stackdriver/secrets.py.tmp");
+      sh("echo google_alertlib_service_account = \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp");
+      sh("gcloud --project khan-academy secrets versions access latest --secret google_api_service_account__for_alertlib_ >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp");
+      sh("echo \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp");
+      sh("rm -f decrypted_secrets/slack_and_stackdriver/secrets.py");
+      // Create this file atomically.
+      mv("decrypted_secrets/slack_and_stackdriver/secrets.py.tmp decrypted_secrets/slack_and_stackdriver/secrets.py");
       sh("chmod 600 decrypted_secrets/slack_and_stackdriver/secrets.py");
       _activeSlackAndStackdriverSecretsBlocks++;
 
