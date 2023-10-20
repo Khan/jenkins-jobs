@@ -56,7 +56,7 @@ def slackAlertlibOnly(Closure body) {
       _activeSecretsBlocks++;
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]) {
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/decrypted_secrets/slack"]) {
          body();
       }
    } finally {
@@ -81,7 +81,7 @@ def githubAlertlibOnly(Closure body) {
       _activeSecretsBlocks++;
 
       // Then, tell alertlib where secrets live, and run the wrapped block.
-      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/webapp/shared"]) {
+      withEnv(["ALERTLIB_SECRETS_DIR=${pwd()}/decrypted_secrets/github"]) {
          body();
       }
    } finally {
