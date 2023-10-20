@@ -572,7 +572,10 @@ def _promoteServices() {  // call from webapp-root
     }
 
     cmd += [services.join(",")];
-    withSecrets.slackAlertlibOnly() { // because we set --slack-channel
+    // We talk to slack (you can tell via the --slack-channel arg above),
+    // but we also talk to stackdriver to tell it monitoring statistics.
+    // So we need both secrets.
+    withSecrets.slackAndStackdriverAlertlibOnly() {
        exec(cmd);
     }
 }
@@ -617,7 +620,10 @@ def _monitor() {
           "--slack-channel=${SLACK_CHANNEL}",
           "--monitor-error-is-fatal"];
       dir("webapp") {
-      withSecrets.slackAlertlibOnly() { // because we set --slack-channel
+      // We talk to slack (you can tell via the --slack-channel arg above),
+      // but we also talk to stackdriver to tell it monitoring statistics.
+      // So we need both secrets.
+      withSecrets.slackAndStackdriverAlertlibOnly() {
          try {
             exec(cmd);
          } catch (e) {
