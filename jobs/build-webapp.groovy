@@ -496,15 +496,13 @@ def uploadGraphqlSafelist() {
    // for uploading its own queries to the safelist.
    if (SERVICES.any { it != 'static'}) {
       echo("Uploading GraphQL queries to the safelist.");
-      withSecrets() {
-         dir("webapp") {
-            exec([
-               "python",
-               "deploy/upload_graphql_safelist.py",
-               NEW_VERSION,
-               "--prod",
-            ])
-         }
+      dir("webapp") {
+         exec([
+            "python",
+            "deploy/upload_graphql_safelist.py",
+            NEW_VERSION,
+            "--prod",
+         ])
       }
    }
 
