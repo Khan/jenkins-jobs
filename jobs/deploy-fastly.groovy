@@ -112,6 +112,7 @@ def ensureUpToDate() {
 
 def deploy() {
    withTimeout('15m') {
+      withSecrets.slackAlertlibOnly() { // to report to #fastly
       dir("webapp/services/fastly-khanacademy") {
          // `make deploy` uses vt100 escape codes to color its diffs,
          // let's make sure they show up properly.
@@ -124,7 +125,7 @@ def deploy() {
 
 def setDefault() {
    withTimeout('5m') {
-      withSecrets.slackAlertlibOnly() { // to report to #whats-happening
+      withSecrets.slackAlertlibOnly() { // report to #fastly, #whats-happening
          dir("webapp/services/fastly-khanacademy") {
             sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
          }
