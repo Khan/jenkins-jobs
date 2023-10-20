@@ -50,7 +50,7 @@ def call(Closure body) {
 // call to withSecrets().
 def slackAlertlibOnly(Closure body) {
    try {
-      def uniqueId = exec.outputOf(["echo", "\$\$"]);
+      def uniqueId = sh(script: "echo \$\$", returnStdout: true).trim();
       sh("mkdir -p decrypted_secrets/slack/");
       sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
@@ -79,7 +79,7 @@ def slackAlertlibOnly(Closure body) {
 // call to withSecrets().
 def githubAlertlibOnly(Closure body) {
    try {
-      def uniqueId = exec.outputOf(["echo", "\$\$"]);
+      def uniqueId = sh(script: "echo \$\$", returnStdout: true).trim();
       sh("mkdir -p decrypted_secrets/github/");
       sh("gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Repository_Status___Deployments__repo_status__repo_deployment__ >decrypted_secrets/github/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/github_repo_status_deployment_pat = \"/; s/\$/\"/' decrypted_secrets/github/secrets.py.tmp.${uniqueId}");
@@ -108,7 +108,7 @@ def githubAlertlibOnly(Closure body) {
 // call to withSecrets().
 def slackAndStackdriverAlertlibOnly(Closure body) {
    try {
-      def uniqueId = exec.outputOf(["echo", "\$\$"]);
+      def uniqueId = sh(script: "echo \$\$", returnStdout: true).trim();
       sh("mkdir -p decrypted_secrets/slack_and_stackdriver/");
       sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
