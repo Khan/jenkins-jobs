@@ -54,9 +54,8 @@ def slackAlertlibOnly(Closure body) {
       sh("mkdir -p decrypted_secrets/slack/");
       sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
-      sh("rm -f decrypted_secrets/slack/secrets.py");
       // Create this file atomically.
-      sh("mv decrypted_secrets/slack/secrets.py.tmp.${uniqueId} decrypted_secrets/slack/secrets.py");
+      sh("mv -f decrypted_secrets/slack/secrets.py.tmp.${uniqueId} decrypted_secrets/slack/secrets.py");
       sh("chmod 600 decrypted_secrets/slack/secrets.py");
       _activeSlackSecretsBlocks++;
 
@@ -83,9 +82,8 @@ def githubAlertlibOnly(Closure body) {
       sh("mkdir -p decrypted_secrets/github/");
       sh("gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Repository_Status___Deployments__repo_status__repo_deployment__ >decrypted_secrets/github/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/github_repo_status_deployment_pat = \"/; s/\$/\"/' decrypted_secrets/github/secrets.py.tmp.${uniqueId}");
-      sh("rm -f decrypted_secrets/github/secrets.py");
       // Create this file atomically.
-      sh("mv decrypted_secrets/github/secrets.py.tmp.${uniqueId} decrypted_secrets/github/secrets.py");
+      sh("mv -f decrypted_secrets/github/secrets.py.tmp.${uniqueId} decrypted_secrets/github/secrets.py");
       sh("chmod 600 decrypted_secrets/github/secrets.py");
       _activeGithubSecretsBlocks++;
 
@@ -115,9 +113,8 @@ def slackAndStackdriverAlertlibOnly(Closure body) {
       sh("echo google_alertlib_service_account = \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("gcloud --project khan-academy secrets versions access latest --secret google_api_service_account__for_alertlib_ >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("echo \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
-      sh("rm -f decrypted_secrets/slack_and_stackdriver/secrets.py");
       // Create this file atomically.
-      sh("mv decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId} decrypted_secrets/slack_and_stackdriver/secrets.py");
+      sh("mv -f decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId} decrypted_secrets/slack_and_stackdriver/secrets.py");
       sh("chmod 600 decrypted_secrets/slack_and_stackdriver/secrets.py");
       _activeSlackAndStackdriverSecretsBlocks++;
 
