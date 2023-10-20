@@ -56,7 +56,7 @@ def slackAlertlibOnly(Closure body) {
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
       sh("rm -f decrypted_secrets/slack/secrets.py");
       // Create this file atomically.
-      mv("decrypted_secrets/slack/secrets.py.tmp.${uniqueId} decrypted_secrets/slack/secrets.py");
+      sh("mv decrypted_secrets/slack/secrets.py.tmp.${uniqueId} decrypted_secrets/slack/secrets.py");
       sh("chmod 600 decrypted_secrets/slack/secrets.py");
       _activeSlackSecretsBlocks++;
 
@@ -85,7 +85,7 @@ def githubAlertlibOnly(Closure body) {
       sh("perl -pli -e 's/^/github_repo_status_deployment_pat = \"/; s/\$/\"/' decrypted_secrets/github/secrets.py.tmp.${uniqueId}");
       sh("rm -f decrypted_secrets/github/secrets.py");
       // Create this file atomically.
-      mv("decrypted_secrets/github/secrets.py.tmp.${uniqueId} decrypted_secrets/github/secrets.py");
+      sh("mv decrypted_secrets/github/secrets.py.tmp.${uniqueId} decrypted_secrets/github/secrets.py");
       sh("chmod 600 decrypted_secrets/github/secrets.py");
       _activeGithubSecretsBlocks++;
 
@@ -117,7 +117,7 @@ def slackAndStackdriverAlertlibOnly(Closure body) {
       sh("echo \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("rm -f decrypted_secrets/slack_and_stackdriver/secrets.py");
       // Create this file atomically.
-      mv("decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId} decrypted_secrets/slack_and_stackdriver/secrets.py");
+      sh("mv decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId} decrypted_secrets/slack_and_stackdriver/secrets.py");
       sh("chmod 600 decrypted_secrets/slack_and_stackdriver/secrets.py");
       _activeSlackAndStackdriverSecretsBlocks++;
 
