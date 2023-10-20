@@ -63,11 +63,7 @@ onMaster('5h') {
    // individually.
    // TODO(csilvers): remove onMaster(), and just allocate
    // the executor in the notify clean-up steps.
-   notify(
-      [slack: [channel: '#1s-and-0s',
-               when: ['STARTED', 'ABORTED']],
-       bugtracker: [project: 'Infrastructure',
-                    when: ['FAILURE']]]) {
+   notify([slack: [channel: '#1s-and-0s', when: ['STARTED', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
       // TODO(csilvers): move those secrets somewhere else instead.

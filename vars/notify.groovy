@@ -88,8 +88,8 @@ def _statusText(status, includeNumConsecutiveFailures=true) {
 
 
 // Returns shared alertlib requirements, including severity, subject,
-// and body text. Individual sendTo functions (slack, bugtracker, email,
-// and alerta) can build upon these, as needed.
+// and body text. Individual sendTo functions (slack, email, github)
+// can build upon these, as needed.
 def _dataForAlertlib(status, extraText) {
    // Potential additions to the subject may include currentBuild.displayName
    // and env.BUILD_URL. These may be added in the individual service's sendTo.
@@ -237,29 +237,6 @@ def sendToGithub(githubOptions, status, extraText='') {
    }
 
    _sendToAlertlib(subject, severity, body, flags);
-}
-
-
-// Supported options:
-// when (required): under what circumstances to send to bugtracker; a list.
-//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-//    (Used in call(), below.)
-// project (required): a string saying what project to send the issue to,
-//    e.g. "Infrastructure".
-// bugTags: a list of tags to add to the issue
-// watchers: a commas-delimited string of email addresses of
-//    who to add to this issue as a watcher.
-// [extraText: if specified, text to add to the issue body.]
-def sendToBugtracker(bugtrackerOptions, status, extraText='') {
-   def arr = _dataForAlertlib(status, extraText);
-   def subject = arr[0];
-   def severity = arr[1];
-   def body = arr[2];
-   def extraFlags = ["--bugtracker=${bugtrackerOptions.project}",
-                     "--cc=${bugtrackerOptions.watchers ?: ''}",
-                     "--bug-tags=${(bugtrackerOptions.bugTags ?: []).join(',')}"];
-
-   _sendToAlertlib(subject, severity, body, extraFlags);
 }
 
 
@@ -546,9 +523,6 @@ def call(options, Closure body) {
       }
       if (options.email && _shouldReport(status, options.email.when)) {
          sendToEmail(options.email, status, failureText);
-      }
-      if (options.bugtracker && _shouldReport(status, options.bugtracker.when)) {
-         sendToBugtracker(options.bugtracker, status, failureText);
       }
    }
 }
