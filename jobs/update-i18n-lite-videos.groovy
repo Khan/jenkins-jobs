@@ -56,9 +56,7 @@ onMaster('23h') {
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
                    extraText: "@cp-support",
-                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
-           email: [to: 'jenkins-admin+builds',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                   when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Updating webapp repo") {
          updateRepo();
       }

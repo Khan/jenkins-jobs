@@ -50,9 +50,7 @@ onMaster('10h') {
    notify([slack: [channel: '#infrastructure',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           email: [to: 'jenkins-admin+builds, csilvers',
-                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       def jobs = [];
       stage("Listing jobs to run") {
          def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);

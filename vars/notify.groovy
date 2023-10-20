@@ -241,31 +241,6 @@ def sendToGithub(githubOptions, status, extraText='') {
 
 
 // Supported options:
-// when (required): under what circumstances to send to email; a list.
-//    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
-//    (Used in call(), below.)
-// to (required): a string saying who to send mail to.  We automatically
-//    append "@khanacademy.org" to each email address in the list.
-//    If you want to send to multiple people, use a comma: "sal, team".
-// cc: a string saying who to cc on the email.  Format is the same as
-//    for `to`.
-// [extraText: if specified, text to add to the email body.]
-def sendToEmail(emailOptions, status, extraText='') {
-   def arr = _dataForAlertlib(status, extraText);
-   def subject = arr[0];
-   def severity = arr[1];
-   def body = arr[2];
-   subject += "${currentBuild.displayName}";
-
-   def extraFlags = ["--mail=${emailOptions.to}",
-                     "--cc=${emailOptions.cc ?: ''}",
-                     "--sender-suffix=${env.JOB_NAME.replace(' ', '_')}"];
-
-   _sendToAlertlib(subject, severity, body, extraFlags);
-}
-
-
-// Supported options:
 // when (required): under what circumstances to send to bugtracker; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 //    (Used in call(), below.)
