@@ -113,11 +113,12 @@ def ensureUpToDate() {
 def deploy() {
    withTimeout('15m') {
       withSecrets.slackAlertlibOnly() { // to report to #fastly
-      dir("webapp/services/fastly-khanacademy") {
-         // `make deploy` uses vt100 escape codes to color its diffs,
-         // let's make sure they show up properly.
-         ansiColor('xterm') {
-            sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+         dir("webapp/services/fastly-khanacademy") {
+            // `make deploy` uses vt100 escape codes to color its diffs,
+            // let's make sure they show up properly.
+            ansiColor('xterm') {
+               sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+            }
          }
       }
    }
