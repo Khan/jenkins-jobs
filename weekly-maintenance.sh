@@ -315,7 +315,7 @@ backup_network_config() {
         make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json
         git add .
     )
-    @: The subshell lists every directory we have a Makefile in.
+    # The subshell lists every directory we have a Makefile in.
     jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of `ls network-config/*/Makefile | xargs -n1 dirname | xargs -n1 basename | xargs`"
 }
 
