@@ -45,24 +45,6 @@ clean_publish_worker() {
 }
 
 
-# Every week, we do a 'partial' clean of genfiles directories that
-# gets rid of certain files that are "probably" obsolete.
-clean_genfiles() {
-    for dir in $HOME/jobs/*/jobs/*/workspace/webapp/genfiles; do
-        (
-        echo "Cleaning genfiles in $dir"
-        cd "$dir"
-
-        # This means that slow-changing languages may get nuked even
-        # though they're up to date, but we'll just redownload them so
-        # no harm done.
-        find translations/pofiles -mtime +7 -a -type f -print0 | xargs -0r rm -v
-        find translations/approved_pofiles -mtime +7 -a -type f -print0 | xargs -0r rm -v
-        )
-    done
-}
-
-
 # Every week, we compress jenkins logs.  Jenkins can read compressed
 # log files but has trouble making them, so we just making them manually.
 compress_jenkins_logs() {
@@ -333,7 +315,7 @@ backup_network_config() {
         make ACCOUNT=storage-read@khanacademy.org CONFIG=$HOME/s3-reader.cfg PROFILE=default GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json
         git add .
     )
-    @: The subshell lists every directory we have a Makefile in.
+    # The subshell lists every directory we have a Makefile in.
     jenkins-jobs/safe_git.sh commit_and_push network-config -a -m "Automatic update of `ls network-config/*/Makefile | xargs -n1 dirname | xargs -n1 basename | xargs`"
 }
 
