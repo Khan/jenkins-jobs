@@ -6,25 +6,10 @@
 # NOTE: We run the functions in the order listed in this file,
 # so if the job times out, stuff at the end is least likely to have
 # gotten run.  So think carefully about where you place new functions!
-# Probably you want to put your new function before `svgcrush`.
+# Probably you want to put your new function before `clean_package_files`.
 #
 # Here are some cleanups we'd like to add:
 #   vacuum unused indexes
-#   store test times to use with the @tiny/@small/@large decorators
-#
-# There are also some cleanups we'd like to run but probably can't
-# because they require manual intervention:
-#   tools/find_nltext_in_js
-#       find places in .js files that need $._(...)
-#   tools/list_unused_images
-#       find images we can delete from the repo entirely
-#   tools/list_unused_api_calls.py
-#       find /api/... routes we can delete from the repo entirely
-#   deploy/list_files_uploaded_to_appengine
-#       find files we can add to skip_files.yaml
-#   clean up translations that download_i18n.py's linter complains about
-#   clean up the bottom of lint_blacklist.txt
-#   move not-commonly-used s3 data to glacier
 
 set -e
 
@@ -325,44 +310,6 @@ clean_unused_graphql_safelist_queries() {
     # Let's back it up first.
     ( cd webapp; tools/datastore-get.sh -prod -format=json GraphQLQuery | gzip | gsutil cp - gs://ka_backups/graphql-safelist/`date +%Y%m%d`.json.gz )
     ( cd webapp; tools/prune_graphql_safelist.sh --prod )
-}
-
-
-svgcrush() {
-    # Note: this can't be combined with the subshell below; we need to
-    # make sure it terminates *before* the pipe starts.
-    ( cd webapp; deploy/svgcrush.py; git add '*.svg' )
-    (
-        cd webapp
-        echo "Automatic compression of webapp svg files via $0"
-        echo
-        echo "| size % | old size | new size | filename"
-        git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:$filename | wc -c`
-            new_size=`cat $filename | wc -c`      # git shell-escapes filename!
-            ratio=`expr $new_size \* 100 / $old_size`
-            echo "| $ratio% | $old_size | $new_size | $filename"
-        done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.svg'
-}
-
-
-pngcrush() {
-    # Note: this can't be combined with the subshell below; we need to
-    # make sure it terminates *before* the pipe starts.
-    ( cd webapp; deploy/pngcrush.py; git add '*.png' '*.jpeg' )
-    (
-        cd webapp
-        echo "Automatic compression of webapp images via $0"
-        echo
-        echo "| size % | old size | new size | filename"
-        git status --porcelain | sort | while read status filename; do
-            old_size=`git show HEAD:$filename | wc -c`
-            new_size=`cat $filename | wc -c`   # git shell-escapes `filename`!
-            ratio=`expr $new_size \* 100 / $old_size`
-            echo "| $ratio% | $old_size | $new_size | $filename"
-        done
-    ) | jenkins-jobs/safe_git.sh commit_and_push webapp -F - '*.png' '*.jpeg' '*.jpg'
 }
 
 
