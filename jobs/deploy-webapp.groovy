@@ -683,13 +683,7 @@ def _promote() {
          // messages as well.)
          buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
       } catch (e) {
-         sleep(1);   // give the watchdog a chance to notice an abort
-         if (currentBuild.result == "ABORTED") {
-            // Means that we aborted while running this, which
-            // the watchdog (in vars/notify.groovy) noticed.
-            // We want to continue with the abort process.
-            throw e;
-         }
+         notify.rethrowIfAborted(e);
          // Failure to promote is not a fatal error: we'll tell
          // people on slack so they can promote manually.  But
          // we don't want to abort the deploy, like a FAILURE would.
@@ -718,13 +712,7 @@ def _monitor() {
          try {
             exec(cmd);
          } catch (e) {
-            sleep(1);   // give the watchdog a chance to notice an abort
-            if (currentBuild.result == "ABORTED") {
-               // Means that we aborted while running this, which
-               // the watchdog (in vars/notify.groovy) noticed.
-               // We want to continue with the abort process.
-               throw e;
-            }
+            notify.rethrowIfAborted(e);
             // Failure to monitor is not a fatal error: we'll tell
             // people on slack so they can monitor manually.  But
             // we don't want to abort the deploy, like a FAILURE would.
@@ -750,6 +738,7 @@ def _waitForSetDefaultStart() {
          }
       }
    } catch (e) {
+      notify.rethrowIfAborted(e);
       echo("Failed to wait for new version: ${e}");
       _alert(alertMsgs.VERSION_NOT_CHANGED, []);
       return;
@@ -928,6 +917,7 @@ def finishWithFailure(why) {
                 [rollbackToAsVersion: rollbackToAsVersion,
                  gitTag: GIT_TAG,
                  rollbackTo: ROLLBACK_TO]);
+         notify.rethrowIfAborted(e);
       }
 
       _alert(alertMsgs.FAILED_WITH_ROLLBACK,

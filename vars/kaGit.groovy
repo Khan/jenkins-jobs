@@ -4,6 +4,7 @@
 
 // We use these user-defined steps from vars/:
 //import vars.exec
+//import vars.notify
 //import vars.withSecrets
 
 // Turn a list of submodules into arguments to pass to safe_git.sh functions.
@@ -82,6 +83,7 @@ def wasSyncedTo(repo, commit, syncFn) {
       actual = readFile(_buildTagFile(repo));
       return actual == "${syncFn} ${commit} ${env.BUILD_TAG}";
    } catch (e) {
+      notify.rethrowIfAborted(e);
       return false;     // build_tag file was just deleted.
    }
 }
@@ -219,6 +221,7 @@ def mergeBranches(gitRevisions, tagName) {
                exec(["git", "merge", branchSha1]);
             }
          } catch (e) {
+            notify.rethrowIfAborted(e);
             // TODO(benkraft): Also send the output of the merge command that
             // failed.
             notify.fail("Failed to merge ${branchSha1} into " +
