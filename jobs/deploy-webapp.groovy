@@ -462,7 +462,9 @@ def _manualSmokeTestCheck(job){
 def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    withTimeout('60m') {
       def status;
-      while (status != "succeeded") {
+        // Sometimes, if a user aborts, we don't notice the abort has
+        // happened.  So we ask notify.groovy each time through this loop.
+      while (status != "succeeded" && !notify.jobIsFinished()) {
          status = buildmaster.pingForStatus(jobName,
                                             params.GIT_REVISION)
 
@@ -522,7 +524,9 @@ def _manualPromptCheck(prompt){
 // TODO(jacqueline): Make this a shared func with verifying smoke tests.
 def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
    def status;
-   while (status != "confirmed") {
+   // Sometimes, if a user aborts, we don't notice the abort has happened.
+   // So we ask notify.groovy each time through this loop.
+   while (status != "confirmed" && !notify.jobIsFinished()) {
       status = buildmaster.pingForPromptStatus(prompt,
                                                params.GIT_REVISION)
 

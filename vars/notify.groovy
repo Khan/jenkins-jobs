@@ -453,9 +453,13 @@ def emitFailureText(e) {
    return failureText;
 }
 
+@Field ABORT_STATE = [complete: false, aborted: false];
+
+def jobIsFinished() {
+    return ABORT_STATE.complete;
+}
 
 def call(options, Closure body) {
-   def abortState = [complete: false, aborted: false];
    def failureText = '';
 
    currentBuild.result = "SUCCESS";
@@ -478,22 +482,22 @@ def call(options, Closure body) {
                // TODO(benkraft): Re-enable the timestamps block around
                // waitUntil once this issue gets fixed:
                //    https://issues.jenkins-ci.org/browse/JENKINS-57163
-               waitUntil({ abortState.complete || abortState.aborted });
+               waitUntil({ ABORT_STATE.complete || ABORT_STATE.aborted });
             } catch (e) {
-               if (!abortState.complete) {
-                  abortState.aborted = true;
+               if (!ABORT_STATE.complete) {
+                  ABORT_STATE.aborted = true;
                   currentBuild.result = "ABORTED";
                }
                throw e;
             } finally {
-               abortState.complete = true;
+               ABORT_STATE.complete = true;
             }
          },
          "main": {
             try {
                body();
             } finally {
-               abortState.complete = true;
+               ABORT_STATE.complete = true;
             }
          },
          "failFast": true,
@@ -501,7 +505,7 @@ def call(options, Closure body) {
    } catch (FailedBuild e) {
       failureText = emitFailureText(e);
    } catch (e) {
-      if (abortState.aborted) {
+      if (ABORT_STATE.aborted) {
          currentBuild.result = "ABORTED";
          ansiColor('xterm') {
             echo("\033[1;33m===== JOB ABORTED =====\033[0m");
