@@ -125,6 +125,7 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
          sh("make deps");
       }
    } catch (e) {
+      rethrowIfAborted(e);
       echo("Unable to install dependencies for alertlib, but continuing...");
    }
 
@@ -278,6 +279,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
       try {
          buildmaster.notifyId(buildmasterOptions.what, buildmasterOptions.sha);
       } catch (e) {
+         rethrowIfAborted(e);
          echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
       }
       return;
@@ -304,6 +306,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
          status: status,
       ])
    } catch (e) {
+      rethrowIfAborted(e);
       echo("Notifying buildmaster failed: ${e.getMessage()}.  Continuing.");
       log("Notifying buildmaster failed", [
          level: "ERROR",
@@ -357,6 +360,7 @@ def log(message, args=[:]) {
       // Put it in a format we can echo to a jenkins log
       paramString = "${args}"
    } catch (e) {
+      rethrowIfAborted(e);
       // Ignore -- we'll just use the default.
    }
 
@@ -367,6 +371,7 @@ def log(message, args=[:]) {
          level = "INFO";
       }
    } catch (e) {
+      rethrowIfAborted(e);
       // Ignore -- we'll just use the default.
       level = "INFO"
    }
@@ -385,6 +390,7 @@ def log(message, args=[:]) {
                           exec.shellEscape(jsonMessage));
       sh(shellCommand);
    } catch (e) {
+      rethrowIfAborted(e);
       // We never want logging itself to cause a build to fail.
       echo("Logging to Google Cloud Logging failed: ${e.getMessage()}.  Continuing.");
    }
@@ -451,6 +457,16 @@ def emitFailureText(e) {
       echo("\033[1;33m===== JOB FAILED =====\033[0m");
    }
    return failureText;
+}
+
+def rethrowIfAborted(e) {
+    sleep(1);   // give the watchdog a chance to notice an abort
+    if (currentBuild.result == "ABORTED") {
+        // Means that we aborted while running this, which the
+        // watchdog noticed.  We want to continue with the abort
+        // process.
+        throw e;
+    }
 }
 
 

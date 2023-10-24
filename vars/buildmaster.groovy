@@ -79,8 +79,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
             return response;
          }
       } catch (e) {
-         // Ideally, we'd just catch hudson.AbortException, but for some reason
-         // it's not being caught properly.
+         notify.rethrowIfAborted(e);
          // httpRequest throws exceptions when buildmaster responds with status
          // code >=400
          echo("Error talking to buildmaster [${resource}]: ${e}");

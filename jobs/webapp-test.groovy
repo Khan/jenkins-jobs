@@ -233,6 +233,7 @@ def runTestServer() {
       unstash(name: "test-info.db before");
       sh("touch test-info.db.lock");   // split_tests.py needs this too
    } catch (e) {
+      notify.rethrowIfAborted(e);
       // Proceed anyway -- perhaps the file doesn't exist yet.
       // Ah well; we'll just serve tests in a slightly sub-optimal order.
       echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
@@ -319,6 +320,7 @@ def runTestServer() {
          unstash(name: "test-info.db after");
       }
    } catch (e) {
+      notify.rethrowIfAborted(e);
       // Oh well; hopefully another job will do better.
       echo("Unable to push test-db back to server: ${e}");
    }
@@ -400,6 +402,7 @@ def runTestWorker(workerId) {
                "--upload-file", "junit.xml",
                "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
       } catch (e) {
+         notify.rethrowIfAborted(e);
          echo("Error sending junit results to /end: ${e}");
          // Better to not pass a junit file than to not /end at all.
          try {

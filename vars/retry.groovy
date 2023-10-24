@@ -1,3 +1,6 @@
+// We use these user-defined steps from vars/:
+//import vars.notify
+
 def call(options=null, Closure body) {
    options = options ?: [:];
    def retryCount = options.retryCount ?: 3;
@@ -6,6 +9,7 @@ def call(options=null, Closure body) {
       try {
          return body();
       } catch (e) {
+         notify.rethrowIfAborted(e);
          def msgStart = "Try #${i}: got ${e}."
          if (i == retryCount) {
             echo("${msgStart} Giving up.");
