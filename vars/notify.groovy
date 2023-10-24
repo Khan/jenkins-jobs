@@ -386,7 +386,7 @@ def log(message, args=[:]) {
       sh(shellCommand);
    } catch (e) {
       // We never want logging itself to cause a build to fail.
-      echo("Logging to Google Cloud Logging failed: ${e.getMessage()}.  Continuing.");
+      echo("Logging to Google Cloud Logging failed: ${e.getClass().getName()} - ${e.getMessage()}.  Continuing.");
    }
 }
 
