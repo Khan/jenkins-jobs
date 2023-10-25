@@ -1,2 +1,2 @@
 # Global owners are automatically requested for review UNLESS a later match takes precedence.
-*   @Khan/devops
+*   @Khan/infra-platform
