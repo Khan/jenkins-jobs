@@ -211,6 +211,9 @@ def getUserIds(def deployUsernameBlob) {
    // W (special users), T (teams), or C (channels).
    def pattern = /<@([UTWC][0-9A-Z]+)>/;
    def match = (deployUsernameBlob =~ pattern);
+   if (match.results().count() == 0) {
+        return ""
+   }
 
    def mainUser = match[0][1];
    def otherUsers = "";
@@ -268,7 +271,7 @@ def analyzeResults() {
 
             // Include the deployer(s) here so they can get DMs when the e2e
             // results are ready.
-            def ccAlways = "#cypress-logs-deploys,${userIds}";
+            def ccAlways = userIds ? "#cypress-logs-deploys,${userIds}" : "#cypress-logs-deploys";
 
             if (params.SLACK_CHANNEL != "#qa-log") {
                ccAlways += ",#qa-log";
