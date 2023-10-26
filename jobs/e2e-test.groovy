@@ -251,9 +251,6 @@ def analyzeResults() {
                "--channel", params.SLACK_CHANNEL,
                // The URL associated to this Jenkins build.
                "--build-url", env.BUILD_URL,
-               // The deployer is the person who triggered the build (this is
-               // only included in the message if the e2e tests fail).
-               "--deployer", params.DEPLOYER_USERNAME,
                // The LambdaTest build name that will be included at the
                // beginning of the message.
                "--label", BUILD_NAME,
@@ -263,6 +260,12 @@ def analyzeResults() {
                "--cc-on-failure", "#deploy-support-log"
             ];
 
+            if (params.DEPLOYER_USERNAME) {
+               // The deployer is the person who triggered the
+               // build (this is only included in the message if
+               // the e2e tests fail).
+               notifyResultsArgs += ["--deployer", params.DEPLOYER_USERNAME];
+            }
             if (params.SLACK_THREAD) {
                notifyResultsArgs += ["--thread", params.SLACK_THREAD];
             }
