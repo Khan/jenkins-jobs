@@ -372,12 +372,15 @@ jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "ma
 ( cd webapp && make deps python_deps )
 
 
+# We have to do things this weird way because you can't modify a
+# variable inside a for/do.
 failed_jobs=""
 for job in $jobs_to_run; do
     (
         echo "--- Starting $job: `date`"
-        $job
+        $job && rc=0 || rc=$?
         echo "--- Finished $job: `date`"
+        exit $rc  # exits the subshell, not the whole job!
     ) || failed_jobs="$failed_jobs $job"
 done
 
