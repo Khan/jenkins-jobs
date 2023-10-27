@@ -18,6 +18,12 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
+).addStringParam(
+    "JOBS",
+    """Comma-separated list of functions from weekly-maintenance.sh to run.
+    Each value should be a function-name.  If empty, run all functions.""",
+    ""
+
 ).addCronSchedule("H H * * 0"
 
 ).apply();
@@ -55,9 +61,13 @@ onMaster('10h') {
                    when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
       def jobs = [];
       stage("Listing jobs to run") {
-         def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
-         echo("Running these jobs:\n${job_str}");
-         jobs = job_str.split("\n");
+         if (params.JOBS) {
+             jobs = params.JOBS.split(",");
+         } else {
+             def job_str = exec.outputOf(["jenkins-jobs/weekly-maintenance.sh", "-l"]);
+             echo("Running these jobs:\n${job_str}");
+             jobs = job_str.split("\n");
+         }
       }
 
       def failed_jobs = [];
