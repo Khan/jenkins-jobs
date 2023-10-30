@@ -114,6 +114,7 @@ clean_ka_translations() {
     for dir in `gsutil ls gs://ka_translations`; do
         # Ignore the "raw" dir, which isn't a language.
         [ "$dir" = "gs://ka_translations/raw/" ] && continue
+        [ "$dir" = "gs://ka_translations/raw_TESTING/" ] && continue
         # Sometimes the `ls` lists the directory itself.  I think that's
         # a bug in gsutil, but let's just work around it.
         versions=`gsutil ls $dir | grep -v "^$dir$" | sort`
