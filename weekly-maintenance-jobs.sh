@@ -108,42 +108,6 @@ gc_all_repos() {
 }
 
 
-# Clean up some gcs directories that have too-complicated cleanup
-# rules to use the gcs lifecycle rules.
-clean_ka_translations() {
-    for dir in `gsutil ls gs://ka_translations`; do
-        # Ignore the "raw" dir, which isn't a language.
-        [ "$dir" = "gs://ka_translations/raw/" ] && continue
-        [ "$dir" = "gs://ka_translations/raw_TESTING/" ] && continue
-        # Sometimes the `ls` lists the directory itself.  I think that's
-        # a bug in gsutil, but let's just work around it.
-        versions=`gsutil ls $dir | grep -v "^$dir$" | sort`
-        # We keep all version-dirs that fit either of these criteria:
-        # 1) One of the last 3 versions
-        # 2) version was created within the last week
-        not_last_three=`echo "$versions" | tac | tail -n+4`
-        week_ago_time_t=`date -d "-7 days" +%s`
-        for version in $not_last_three; do
-            # `basename $version` looks like "2016-04-17-2329",
-            # but `date` wants "2016-04-17 23:29".
-            date="`basename "$version" | cut -b1-10` `basename "$version" | cut -b12-13`:`basename "$version" | cut -b14-15`"
-            # It seems like this file uses UTC dates.
-            time_t=`env TZ=UTC date -d "$date" +%s`
-            if [ "$time_t" -lt "$week_ago_time_t" ]; then
-                # Very basic sanity-check: never delete files from today!
-                if echo "$version" | grep -q `date +%Y-%m-%d-`; then
-                    echo "FATAL ERROR: Why are we trying to delete $version??"
-                    exit 1
-                fi
-                echo "Deleting obsolete directory $version"
-                # TODO(csilvers): make it 'gsutil -m' after we've debugged
-                # why that sometimes fails with 'file not found'.
-                gsutil rm -r "$version"
-            fi
-        done
-    done
-}
-
 clean_ka_content_data() {
     for dir in `gsutil ls gs://ka-content-data gs://ka-revision-data | grep -v :$`; do
         ka_locale=`echo "$dir" | cut -d/ -f4`
