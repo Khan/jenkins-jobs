@@ -553,10 +553,12 @@ def deployToGatewayConfig() {
 
 // This should be called from within a node().
 def deployToService(service) {
-   dir("webapp") {
-      exec(["make", "-C", "services/${service}", "deploy",
-            "ALREADY_RAN_TESTS=1",
-            "DEPLOY_VERSION=${NEW_VERSION}"]);
+   withSecrets.slackAndStackdriverAlertlibOnly() {
+      dir("webapp") {
+         exec(["make", "-C", "services/${service}", "deploy",
+               "ALREADY_RAN_TESTS=1",
+               "DEPLOY_VERSION=${NEW_VERSION}"]);
+      }
    }
 }
 
