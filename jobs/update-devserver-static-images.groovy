@@ -1,4 +1,4 @@
-// The pipeline job to update the dev-server static images in gcloud.
+// The pipeline job to update the dev-server images in gcloud.
 //
 // When called (which we expect to be every day), this job rebuilds
 // all the images that we use for local dev-server -- one for each
@@ -31,7 +31,7 @@ the updated data-file to it.""",
    "#infrastructure"
 
 ).addCronSchedule(
-   '0 2 * * *'
+   '0 22 * * *'
 
 ).apply();
 
@@ -67,7 +67,7 @@ def publishResults() {
 }
 
 
-onMaster('2h') {
+onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Devserver Duck',
                    emoji: ':duck:',
