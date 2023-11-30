@@ -395,7 +395,8 @@ def log(message, args=[:]) {
 
       // TODO(miguel): remove this whole check once we confirm this is the
       // the problem spot.
-      if (currentResult != currentBuild.result) {
+      def newResult = currentBuild.result
+      if (currentResult != newResult && newResult == "ABORTED") {
          // We have been dealing with aborted jobs getting stuck.  Traces point
          // to `sh` calls not throwing exceptions when aborting jobs, so we
          // want to verify that theory.  This particular case we are after is
