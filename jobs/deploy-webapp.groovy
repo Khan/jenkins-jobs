@@ -575,10 +575,7 @@ for details to get information about stuck builds. cc @deploy-support""",
          // things more clear that the job is aborting itself we will
          // throw a different exception.  This exception will (should)
          // be handle by the caller to ensure we clean things up.
-         // TODO(miguel): enable once we are confident this will work.
-         // Let's run it without auto aborting to get some ideas so that
-         // we don't mistakenly start aborting false positives.
-         // throw new AbortDeployJob("Deploy was aborted. " + reason)
+         throw new AbortDeployJob("Deploy was aborted. " + reason)
       }
    }
 }

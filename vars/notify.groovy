@@ -388,11 +388,40 @@ def log(message, args=[:]) {
                           "--severity=${level} " +
                           logName + " " +
                           exec.shellEscape(jsonMessage));
+
+      def currentResult = currentBuild.result
+
       sh(shellCommand);
+
+      // TODO(miguel): remove this whole check once we confirm this is the
+      // the problem spot.
+      if (currentResult != currentBuild.result) {
+         // We have been dealing with aborted jobs getting stuck.  Traces point
+         // to `sh` calls not throwing exceptions when aborting jobs, so we
+         // want to verify that theory.  This particular case we are after is
+         // happening when we are in the webapp-deploy job, jenkin is waiting
+         // on the deployer to set default but instead the deployer aborts
+         // their deploy.  The theory is that `sh` should be throwing an
+         // an exception, but it never does in those situations.  So let's
+         // add extra logging to help us determine that.
+         def subject = "sh didn't abort ${env.JOB_NAME} ${env.BUILD_NUMBER}";
+         def msg = """Deploy aborted but thread is still running. We most 
+likely have a job that is stuck. ${env.BUILD_URL}.\n
+Shell command: ${shellCommand}\n
+See https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/2470543393/Stuck+jenkins+deploy-webapp+builds 
+for details to get information about stuck builds.""";
+
+         def flags = ["--slack=#infrastructure-deploys",
+                      "--chat-sender=Mr Anderson",
+                      "--icon-emoji=:crying-nickcage:",
+                      "--slack-simple-message"];
+
+         _sendToAlertlib(subject, "error", msg, flags);
+      }
    } catch (e) {
-      rethrowIfAborted(e);
       // We never want logging itself to cause a build to fail.
       echo("Logging to Google Cloud Logging failed: ${e.getClass().getName()} - ${e.getMessage()}.  Continuing.");
+      rethrowIfAborted(e);
    }
 }
 
