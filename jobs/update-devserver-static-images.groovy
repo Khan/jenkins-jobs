@@ -48,7 +48,7 @@ def runScript() {
       sh("make fix_deps");  // force a remake of all deps all the time
 
       // Run the script!
-      sh("make -C dev/server upload-all-static-images");
+      sh("dev/server/upload-images.sh");
    }
 }
 
