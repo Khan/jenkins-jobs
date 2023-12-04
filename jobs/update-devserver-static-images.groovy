@@ -67,10 +67,7 @@ def publishResults() {
 }
 
 
-// TODO(csilvers): move back to running this on master after we figure
-// out why, on master, the docker network bridge is so flaky.  See
-// https://khanacademy.slack.com/archives/C3UDL9QN7/p1701536113469519
-onWorker('build-worker', '10h') {
+onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Devserver Duck',
                    emoji: ':duck:',
