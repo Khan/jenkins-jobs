@@ -25,34 +25,27 @@ new Setup(steps
    "#demo-district-logs"
 
 ).addStringParam(
-   "REVISION_DESCRIPTION",
-   """Set by the buildmaster to give a more human-readable description
-of the GIT_REVISION, especially if it is a commit rather than a branch.
-Defaults to GIT_REVISION.""",
-   "master"
-
-).addStringParam(
    "TEST_RETRIES",
    """How many retry attempts to use. By default is 1.""",
    "1"
 
+).addCronSchedule(
+   'H H 1 * *'        // Run on the first day of every month
+
 ).apply()
 
 // We use the build name as a unique identifier for user notifications. 
-BUILD_NAME = "build demo-district-password-update #${env.BUILD_NUMBER} (${params.REVISION_DESCRIPTION})"
+BUILD_NAME = "build demo-district-password-update #${env.BUILD_NUMBER}";
 
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
-   def runPythonTestArgs = 'sudo apt-get install -y python3.10'.split()
-   
    dir("webapp/services/static") {
-      // We need to install Py3 to use google-api-spreadsheet-client
-      sh script: runPythonTestArgs.join(' '), returnStatus: true 
-      sh '/usr/bin/python3 -m pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib'
+      sh("yarn install");
    }
 }
 
 def runScript() {
+   def tempDir = "webapp/services/static/javascript/districts-package/__e2e-tests__";
    def runCypressArgs = ["yarn",
                          "cypress",
                          "run", 
@@ -62,10 +55,16 @@ def runScript() {
                          "-c {\"retries\":${params.TEST_RETRIES}, \
                          \"screenshotOnRunFailure\":false, \"video\":false}"
    ];
+   def dockerBuild = ["docker", "build", "-t", "update-pass", "."];
+   def dockerRun = ["docker", "run", "update-pass"];
 
    dir('webapp/services/static') {        
       exec(runCypressArgs); 
-      sh '/usr/bin/python3 /home/ubuntu/webapp-workspace/webapp/services/static/javascript/districts-package/__e2e-tests__/update-psw.py'
+   }
+
+   dir(tempDir) {
+      exec(dockerBuild); 
+      exec(dockerRun); 
    }
 }
 
