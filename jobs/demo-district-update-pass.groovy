@@ -68,6 +68,7 @@ def runScript() {
    }
 }
 
+// We can't run this on the master because the Jenkins server doesn't have Cypress dependencies installed.
 onWorker("ka-test-ec2", '4d') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Testing Turtle',
