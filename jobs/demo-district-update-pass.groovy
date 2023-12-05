@@ -35,7 +35,7 @@ new Setup(steps
 ).apply()
 
 // We use the build name as a unique identifier for user notifications. 
-BUILD_NAME = "build demo-district-password-update #${env.BUILD_NUMBER}";
+BUILD_NAME = "build demo-district-password-update";
 
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
@@ -45,7 +45,7 @@ def _setupWebapp() {
 }
 
 def runScript() {
-   def tempDir = "webapp/services/static/javascript/districts-package/__e2e-tests__";
+   def workDir = "webapp/services/static/javascript/districts-package/__e2e-tests__";
    def runCypressArgs = ["yarn",
                          "cypress",
                          "run", 
@@ -62,7 +62,7 @@ def runScript() {
       exec(runCypressArgs); 
    }
 
-   dir(tempDir) {
+   dir(workDir) {
       exec(dockerBuild); 
       exec(dockerRun); 
    }
