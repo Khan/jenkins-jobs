@@ -26,6 +26,17 @@ the updated data-file to it.""",
    "automated-commits"
 
 ).addStringParam(
+    "SERVICES",
+    """Comma-separated list of services to update and re-push.
+    If the empty string, run update all services.""",
+    ""
+
+).addBooleanParam(
+    "MERGE_MASTER",
+    """If true, merge master into the branch before working.""",
+    true
+
+).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to send our status info.",
    "#infrastructure"
@@ -36,22 +47,23 @@ the updated data-file to it.""",
 ).apply();
 
 
-def runScript() {
+def _setupWebapp() {
    // We do our work in the automated-commits branch (first pulling in master).
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_BRANCH);
-   kaGit.safeMergeFromMaster("webapp", params.GIT_BRANCH);
-
+   if (params.MERGE_MASTER) {
+      kaGit.safeMergeFromMaster("webapp", params.GIT_BRANCH);
+   }
    dir("webapp") {
       sh("timeout 2m git clean -ffd"); // in case the merge modified .gitignore
       sh("timeout 1m git clean -ffd"); // sometimes we need two runs to clean
-
-      sh("make fix_deps");  // force a remake of all deps all the time
-
-      // Run the script!
-      sh("dev/server/upload-images.sh");
    }
 }
 
+def uploadService(service) {
+   dir("webapp") {
+      exec(["dev/server/upload-images.sh", service]);
+   }
+}
 
 def publishResults() {
    dir("webapp") {
@@ -72,9 +84,29 @@ onMaster('10h') {
                    sender: 'Devserver Duck',
                    emoji: ':duck:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-      stage("Run script") {
-         runScript();
+      stage("Setup webapp") {
+         _setupWebapp();
       }
+
+      def services = [];
+      stage("Listing services to regenerate") {
+         if (params.SERVICES) {
+             services = params.SERVICES.split(",");
+         } else {
+             dir("webapp") {
+                 def services_str = exec.outputOf(["dev/server/upload-images.sh", "--list"]);
+                 echo("Updating these services:\n${services_str}");
+                 services = services_str.split("\n");
+             }
+         }
+      }
+
+      for (def i = 0; i < services.size(); i++) {
+         stage(services[i]) {
+            uploadService(services[i]);
+         }
+      }
+
       stage("Publish results") {
          publishResults();
       }
