@@ -61,7 +61,12 @@ def _setupWebapp() {
 
 def uploadService(service) {
    dir("webapp") {
-      exec(["dev/server/upload-images.sh", service]);
+      // TODO(csilvers): figure out why this periodically (regularly,
+      // but unpredictably) fails with:
+      // ERROR: failed to receive status: rpc error: code = Unavailable desc = error reading from server: EOF
+      retry(5) {
+         exec(["dev/server/upload-images.sh", service]);
+      }
    }
 }
 
