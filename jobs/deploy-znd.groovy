@@ -42,17 +42,16 @@ deploying non-default modules!</i>""",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed.  For example, you might
-specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+specify "users,static" to force a full deploy to the users service and GCS.</p>
 
 <p>Here are some services:</p>
 <ul>
-  <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
   <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
 </ul> """,
-    "dynamic,static"
+    "auto"
 
 ).addBooleanParam(
     "SKIP_I18N",
@@ -175,57 +174,18 @@ def determineVersion() {
    }
 }
 
-
-// This should be called from within a node().
-def deployToGAE() {
-   if (!("dynamic" in SERVICES)) {
-      return;
-   }
-   // strip space
-   def modules = params.MODULES.split(/,/).collect { it.trim() }.join(',');
-   def args = ["deploy/deploy_to_gae.py",
-               "--version=${VERSION}",
-               "--modules=${modules}",
-               "--no-browser", "--no-up",
-               "--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=@${_currentUser()}"];
-   args += params.SKIP_I18N ? ["--no-i18n"] : [];
-   args += params.PRIME ? [] : ["--no-priming"];
-   args +=
-      params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
-
-   withSecrets() {     // we need to deploy secrets.py.
-      dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         // TODO(csilvers): do we need secrets for this part?
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
-      }
-   }
-}
-
-
 // This should be called from within a node().
 def deployToGCS() {
    // We always "deploy" to gcs, even for python-only deploys, though
    // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", VERSION];
+   def args = ["deploy/deploy_to_gcs.py", VERSION,
+               "--slack-channel=${params.SLACK_CHANNEL}",
+               "--deployer-username=@${_currentUser()}"];
+   args += params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
+   args += params.SKIP_I18N ? ["--no-i18n"] : [];
    if (!("static" in SERVICES)) {
       args += ["--copy-from=default"];
    }
-   // We make sure deploy_to_gcs messages slack only if deploy_to_gae won't be.
-   if ("dynamic" in SERVICES) {
-      args += ["--slack-channel=", "--deployer-username="];
-   } else {
-      args += ["--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=@${_currentUser()}"];
-      args +=
-         params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
-   }
-   args += params.SKIP_I18N ? ["--no-i18n"] : [];
 
    withSecrets.slackAlertlibOnly() {  // Because we set --slack-channel
       dir("webapp") {
@@ -404,7 +364,7 @@ def deploy() {
                            "You can likely work around this by setting " +
                            "SERVICES on your deploy by a comma-separated " +
                            "list of services. For instance: " +
-                           "'dynamic,static,donations,kotlin-routes'");
+                           "'static,donations,kotlin-routes'");
             }
          } else {
             SERVICES = params.SERVICES.split(",").collect { it.trim() };
@@ -424,10 +384,6 @@ def deploy() {
 
       for (service in SERVICES) {
          switch (service) {
-            case "dynamic":
-               jobs["deploy-to-gae"] = { deployToGAE(); };
-               break;
-
             case "static":
                jobs["deploy-to-gcs"] = { deployToGCS(); };
                break;

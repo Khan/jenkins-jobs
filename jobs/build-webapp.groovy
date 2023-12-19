@@ -381,7 +381,9 @@ def deployToGCS() {
    def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=${DEPLOYER_USERNAME}",
-               // Same as for deploy_to_gae, we suppress the changelog for now.
+               // We don't send the changelog in a build-only context:
+               // there may be many builds afoot and it is too
+               // confusing.  We'll send it in promote instead.
                "--suppress-changelog",
                // Since we're deploying new static code, we should upload the
                // updated sourcemap files to our error reporting system
@@ -393,11 +395,9 @@ def deployToGCS() {
 
    withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
       dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
+         // We use python -u to get maximally unbuffered output.
+         // TODO(csilvers): remove the ulimit; we don't need it now that
+         // we don't use kake anymore.
          sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
@@ -566,8 +566,6 @@ def deployToDataflow() {
 
    withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
       dir("webapp") {
-         // Unlike our GCS / GAE deploy scripts, this one does not use kake,
-         // and hence doesn't need the additional file descriptors.
          exec(args);
       }
    }

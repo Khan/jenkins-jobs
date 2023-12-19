@@ -102,27 +102,12 @@ def doSetup() {
 // not intended. Someone can run this without the params if they
 // want to rely on the defaults.
 def verifyValidTag(tag) {
-   // A full version tag should always include the dynamic version, which will
-   // be listed first. We strip everything else (e.g. 181217-1330-b18f83d38a3d)
    if (!tag.contains('gae')) {
-      notify.fail("Version tag should always include the " +
-                  "dynamic version. To see all potential tags, " +
-                  "use `git tag -l 'gae-*'.");
+      notify.fail("Version tag should always start with `gae-`. " +
+                  "To see all potential tags, use `git tag -l 'gae-*'.");
    }
-   def dynamic = exec.outputOf(["webapp/deploy/git_tags.py",
-                                "--service=dynamic", "--parse", tag]);
-   // Check that the dynamic version in fact exists on GAE
-   def args = ["gcloud", "app", "versions", "list",
-               "--project=khan-academy", "--service=default",
-               "--filter=version.name:${dynamic}"];
-   def gae_version = exec.outputOf(args);
-   // when a version is not found, gcloud returns "Listed 0 items."
-   if (!gae_version.contains(dynamic)) {
-      notify.fail("Version gae-${dynamic} not found. " +
-                  "Check versions that exist on GAE using: " +
-                  "`${args}`");
-   }
-   _alert("Confirmed that ${dynamic} is a valid version!");
+   // TODO(csilvers): do more.
+   _alert("${tag} seems to be a valid tag");
    return true;
 }
 
