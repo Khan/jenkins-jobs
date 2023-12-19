@@ -1,4 +1,4 @@
-// Upload a new (static or dynamic) version of webapp to App Engine and/or GCS
+// Upload a new version of webapp to App Engine and/or GCS
 
 // Uploading a version is a complex process, and this is a complex script.
 // For more high-level information on deploys, see
@@ -12,10 +12,11 @@
 // that merge commit as our GIT_REVISION.  It's also running tests in parallel
 // (or already has).  Here's what we do, some of it in parallel:
 //
-// 1. Determine what kind of deploy we are running: full, static, dynamic,
-//    or tools-only.  This is determined by whether we have changed any
-//    files that affect the server running on GAE, and whether we have
-//    changed any files (or their dependencies) that are deployed to GCS.
+// 1. Determine what services wer are deploying to, including the 'static'
+//    pseduo-service (which deploys to gcs); or tools-only.  This is
+//    determined by whether we have changed any files that affect the
+//    server running on GAE, and whether we have changed any files (or
+//    their dependencies) that are deployed to GCS.
 //
 // 2. Build all the artifacts to be deployed (differs depending on deploy
 //    kind).
@@ -76,11 +77,10 @@ new Setup(steps
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed.  For example, you might
-specify "dynamic,static" to force a full deploy to GAE and GCS.</p>
+specify "users,static" to force a full deploy to the users service and GCS.</p>
 
 <p>Here are some services:</p>
 <ul>
-  <li> <b>dynamic</b>: Upload dynamic (e.g. py) files to GAE. </li>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
   <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
@@ -115,7 +115,7 @@ revert a bug for instance, you must set this flag.""",
 already been deployed. Likewise, force a copy of <i>all</i> files to
 GCS (Cloud Storage), even those the md5 checksum indicate are already
 present on GCS.  Note that this does not override <code>SERVICES</code>;
-we only force GAE (or GCS) if we're actually deploying to it.""",
+we only force to services we are actually deploying to.""",
     false
 
 ).addBooleanParam(
@@ -342,8 +342,7 @@ def mergeFromMasterAndInitializeGlobals() {
          // Now make the deps we need.  We always need python deps
          // because we ourselves run various python scripts
          // (e.g. current_version.py, below), but we only need other deps
-         // as needed for the services we're deploying.  The python
-         // services (default/etc) only need python deps.  The goliath
+         // as needed for the services we're deploying.  The goliath
          // services build their own deps via their `make deploy` rules.
          // That leaves the static service, which needs js deps.
          // TODO(csilvers): make it so we don't have to do this for
@@ -369,38 +368,6 @@ def mergeFromMasterAndInitializeGlobals() {
          // prod-VERSION URL, for consistency and to make sure the
          // prod-VERSION URL cases in e2e-test get tested.
          DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
-      }
-   }
-}
-
-
-// This should be called from within a node().
-def deployToGAE() {
-   if (!("dynamic" in SERVICES)) {
-      return;
-   }
-   def args = ["deploy/deploy_to_gae.py",
-               "--no-browser", "--no-up",
-               "--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}",
-               // We don't send the changelog in a build-only context -- there
-               // may be many builds afoot and it is too confusing.  We'll send
-               // it in promote instead.
-               "--suppress-changelog"];
-   args += params.SLACK_THREAD ? [
-      "--slack-thread=${params.SLACK_THREAD}"] : [];
-   args += params.FORCE ? ["--force-deploy"] : [];
-   args += params.SKIP_PRIMING ? ["--skip-priming"] : [];
-   args += params.ALLOW_SUBMODULE_REVERTS ? ["--allow-submodule-reverts"] : [];
-
-   withSecrets() {     // we need to deploy secrets.py.
-      dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
       }
    }
 }
@@ -609,8 +576,7 @@ def deployToDataflow() {
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
-      def jobs = ["deploy-to-gae": { deployToGAE(); },
-                  "deploy-to-gcs": { deployToGCS(); },
+      def jobs = ["deploy-to-gcs": { deployToGCS(); },
                   "deploy-to-kotlin-services-and-dataflow": {
                      deployToKotlinServicesAndDataflow();
                   },
@@ -621,15 +587,14 @@ def deployAndReport() {
                   "deploy-cron-yaml": { deployCronYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
-         // 'dynamic', 'static', and 'dataflow-batch' services are a bit more
-         // complex / different and are handled specially in deployToGAE,
-         // deployToGCS, and deployToDataflow. Services with gradlew
+         // The 'static' and 'dataflow-batch' services are a bit more
+         // complex / different and are handled specially in
+         // deployToGCS and deployToDataflow. Services with gradlew
          // dependencies (i.e. Kotlin services / Dataflow) cannot be deployed
          // in parallel, and hence must be handled sequentially. Those
          // deployments are bundled in deployToKotlinServicesAndDataflow().
          if (!(service in [
-               'dynamic', 'static',
-               'course-editing', 'dataflow-batch',
+               'static', 'course-editing', 'dataflow-batch',
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
                'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
