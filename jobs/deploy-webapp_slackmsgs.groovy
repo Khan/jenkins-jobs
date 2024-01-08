@@ -38,7 +38,7 @@
 // Slack teams and channels (copy and paste one of these into your message if
 // you need to link/mention):
 //
-// #infrastructure: <#C8Y4Q1E0J>
+// #infrastructure-platform: <#C01120CNCS0>
 // #release-notes: <#C2RFQGYKU>
 // @deploy-support: <!subteam^S05M3QU7WJE>
 // @dev-support: <!subteam^S41PPSJ21>
@@ -138,7 +138,7 @@ FAILED_MERGE_TO_MASTER = [
    "text": _textWrap("""\
 :ohnoes: Deploy of `%(combinedVersion)s` (branch `%(branch)s`)
 succeeded, but we did not successfully merge `%(branch)s` into
-`master`. <#C8Y4Q1E0J> will need to fix things up, or
+`master`. <#C01120CNCS0> will need to fix things up, or
 see "Advanced Troubleshooting" in the deploy system user guide.
 """)];
 
@@ -175,7 +175,7 @@ BUILDMASTER_OUTAGE = [
 :ohnoes: Jenkins is unable to reach buildmaster right now while trying to verify
 that %(step)s. You'll want to check the <%(logsUrl)s|jenkins logs> directly to
 tell Jenkins to proceed.
-Perhaps buildmaster is down. <#C8Y4Q1E0J> should look into it.
+Perhaps buildmaster is down. <#C01120CNCS0> should look into it.
 """)];
 
 return this;

@@ -314,12 +314,12 @@ def _userIdsFrom(def deployUsernameBlob) {
 // understand why a deployment was aborted. Also sends it to
 // #dev-support-stream so we can follow up on 'missed' surveys.
 //
-// #infrastructure: <#C8Y4Q1E0J>
+// #infrastructure-platform: <#C01120CNCS0>
 def _sendAbortedDeploymentSurvey() {
     def msg = ":robot_hearthands: It looks like you recently aborted a " +
         "deployment. If there is still work to do for monitoring, please do " +
         "that *BEFORE* responding to this message. However, when you have a " +
-        "few minutes <#C8Y4Q1E0J> would appreciate if you could fill out this " +
+        "few minutes <#C01120CNCS0> would appreciate if you could fill out this " +
         "short survey to help us understand what happened. Your response " +
         "helps us refine the deployment system. " +
         "<https://docs.google.com/forms/d/e/1FAIpQLSczr-9iOrdI1kaFNCAamoLMJ1cDGehURFpLV-OMcHSLIa3Rkg/viewform?usp=pp_url&entry.1550451339=${BUILD_NUMBER}|click me>";
@@ -701,7 +701,7 @@ def _monitor() {
           "--monitor=${params.MONITORING_TIME}",
           "--slack-channel=${SLACK_CHANNEL}",
           "--monitor-error-is-fatal"];
-      dir("webapp") {
+   dir("webapp") {
       // We talk to slack (you can tell via the --slack-channel arg above),
       // but we also talk to stackdriver to tell it monitoring statistics.
       // So we need both secrets.
