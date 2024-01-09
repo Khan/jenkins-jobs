@@ -43,7 +43,7 @@ def verifyArgs() {
 
 
 def deleteVersion() {
-   withTimeout('15m') {
+   withTimeout('25m') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
       dir("webapp") {
          sh("make python_deps");
