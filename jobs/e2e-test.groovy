@@ -312,27 +312,30 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
-      // NOTE(juan): This is a temporary hack to notify the buildmaster that
-      // we are done with the first smoke test. This is needed because of some
-      // issues with our E2E testing infrastructure.
       if (E2E_RUN_TYPE == "first-smoke-test") {
-         // send signal to buildmaster.
-         echo("Notifying buildmaster that we are done with first smoke test");
-      } else {
-         stage("Sync webapp") {
-            _setupWebapp();
-         }
+         // NOTE(juan): This is a temporary hack to just not run first
+       // smoke tests.  This is needed because some issues with our E2E testing
+       // infrastructure are causing smoketests to take a very long time to run,
+       // so we can't afford to run two of them for every deploy.  We skip the
+       // first smoke test because it takes the longer of the two (since
+       // pre-default webapp isn't as well primed).
+       echo("Temporarily skipping first smoke tests");
+       return;
+      }
 
-         try {
-            stage("Run e2e tests") {
-               runLambdaTest();
-            }
-         } finally {
-            // We want to analyze results even if -- especially if -- there were
-            // failures; hence we're in the `finally`.
-            stage("Analyzing results") {
-               analyzeResults();
-            }
+      stage("Sync webapp") {
+         _setupWebapp();
+      }
+
+      try {
+         stage("Run e2e tests") {
+            runLambdaTest();
+         }
+      } finally {
+         // We want to analyze results even if -- especially if -- there were
+         // failures; hence we're in the `finally`.
+         stage("Analyzing results") {
+            analyzeResults();
          }
       }
    }
