@@ -300,6 +300,9 @@ def analyzeResults() {
 }
 
 
+// Determines if we are running the first or second smoke test.
+E2E_RUN_TYPE = (E2E_URL == "https://www.khanacademy.org" ? "second-smoke-test" : "first-smoke-test");
+
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
@@ -307,8 +310,18 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
-                         what: (E2E_URL == "https://www.khanacademy.org" ?
-                                'second-smoke-test': 'first-smoke-test')]]) {
+                         what: E2E_RUN_TYPE]]) {
+
+      if (E2E_RUN_TYPE == "first-smoke-test") {
+         // NOTE(juan): This is a temporary hack to just not run first smoke
+         // tests.  This is needed because some issues with our E2E testing
+         // infrastructure are causing smoketests to take a very long time to
+         // run, so we can't afford to run two of them for every deploy.  We
+         // skip the first smoke test because it takes the longer of the two
+         // (since pre-default webapp isn't as well primed).
+         echo("Temporarily skipping first smoke tests");
+         return;
+      }
 
       stage("Sync webapp") {
          _setupWebapp();
@@ -325,6 +338,5 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
             analyzeResults();
          }
       }
-
    }
 }
