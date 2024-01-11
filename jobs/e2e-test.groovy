@@ -312,17 +312,6 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
-      if (E2E_RUN_TYPE == "first-smoke-test") {
-         // NOTE(juan): This is a temporary hack to just not run first smoke
-         // tests.  This is needed because some issues with our E2E testing
-         // infrastructure are causing smoketests to take a very long time to
-         // run, so we can't afford to run two of them for every deploy.  We
-         // skip the first smoke test because it takes the longer of the two
-         // (since pre-default webapp isn't as well primed).
-         echo("Temporarily skipping first smoke tests");
-         return;
-      }
-
       stage("Sync webapp") {
          _setupWebapp();
       }
