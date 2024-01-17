@@ -1,4 +1,4 @@
-// Send live traffic to a new (static or dynamic) version of webapp.
+// Send live traffic to a new version of webapp.
 
 // Sending traffic to a version is a complex process, and this is a complex
 // script.  For more high-level information on deploys, see
@@ -72,13 +72,12 @@ new Setup(steps
     """<p>A comma-separated list of services we wish to change to the new
 version (see below for options), or the special value "auto", which says to
 choose the services to set-default automatically based on what files have
-changed.  For example, you might specify "dynamic,static" to force setting
-default on both GAE and GCS.</p>
+changed.  For example, you might specify "users,static" to force setting
+default on both the users service and GCS.</p>
 
 <p>Here some less-obvious service names:</p>
 <ul>
   <li> <b>static</b>: The static (e.g. browser js) service. </li>
-  <li> <b>dynamic</b>: The dynamic (e.g. python-code) service. </li>
 </ul>
 
 <p>You can specify the empty string to do no version-switching, like if you
