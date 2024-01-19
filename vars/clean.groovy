@@ -28,6 +28,9 @@ def call(howClean) {
       // genfiles is excluded from "git clean" so we need to manually
       // remove artifacts that should not be kept across builds.
       sh("rm -rf genfiles/test-reports genfiles/lint_errors.txt");
+      // This is (well, used to be) our only contentful .pyc file.
+      // If it sticks around when it shouldn't, that could cause problems.
+      sh("rm -rf third_party/__init__.pyc")
 
    } else if (howClean == "none") {
       // No need to do anything!
