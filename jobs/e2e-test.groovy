@@ -183,6 +183,7 @@ def runLambdaTest() {
                             "-p=${params.NUM_WORKER_MACHINES}",
                             "--sync=true",
                             "--bt='jenkins,${e2eEnv}'",
+                            "--tags='jenkins,${e2eEnv}'",
                             "--eof"
    ];
 
@@ -256,8 +257,8 @@ def analyzeResults() {
                "--label", BUILD_NAME,
                // The URL we test against.
                "--url", params.URL,
-               // Notify failures to DevOps
-               "--cc-on-failure", "#deploy-support-log"
+               // Notify failures to DevOps and FEI
+               "--cc-on-failure", "#deploy-support-log,#fei-testing-logs"
             ];
 
             if (params.DEPLOYER_USERNAME) {
