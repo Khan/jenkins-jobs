@@ -12,6 +12,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -75,7 +76,9 @@ onMaster('2h') {
                    emoji: ':turtle:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Run script") {
-         runScript();
+         withVirtualenv.python3() {
+            runScript();
+         }
       }
       stage("Publish results") {
          publishResults();

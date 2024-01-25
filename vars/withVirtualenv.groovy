@@ -12,7 +12,7 @@ def call(Closure body) {
    if (env.VIRTUAL_ENV && fileExists(env.VIRTUAL_ENV)) {
       // we're already in a virtualenv.  The fileExists is necessary
       // because a node can inherit the environment from its parent
-      // and have an inaccuarte VIRTUAL_ENV.
+      // and have an inaccurate VIRTUAL_ENV.
       echo("(Not activating virtualenv; already active at ${env.VIRTUAL_ENV})");
       // Make sure the virtual-env is still first in the path.
       withEnv(["PATH=${env.VIRTUAL_ENV}/bin:${env.PATH}"]) {
@@ -60,6 +60,18 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
    withEnv(["VIRTUAL_ENV=${pwd()}/env",
             "PATH=${pwd()}/env/bin:${env.PATH}"]) {
       _maybeDowngradePip();
+      body();
+   }
+}
+
+// NOTE: it is safe to have both the above and below active at the same
+// time.  `python2` binaries will use the virtualenv from call(), and
+// `python3` binaries will use the virtual from here.
+// This must be called from workspace-root.
+def python3(Closure body) {
+   echo("Activating python3 virtualenv");
+   sh("make -C webapp/deploy deps");
+   withEnv(["PATH=${pwd()}/webapp/deploy/venv/bin:${env.PATH}"]) {
       body();
    }
 }

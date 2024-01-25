@@ -15,6 +15,7 @@ import org.khanacademy.Setup;
 //import vars.onWorker
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -451,7 +452,9 @@ onWorker('znd-worker', '3h') {
                    when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       determineVersion();
       stage("Deploying") {
-         deploy();
+         withVirtualenv.python3() {
+            deploy();
+         }
       }
    }
 }
