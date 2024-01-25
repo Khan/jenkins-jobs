@@ -7,6 +7,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withSecrets
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -31,9 +32,11 @@ onMaster('1h') {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
          sh("make -C webapp python_deps")
          withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
-            dir("webapp") {
-               exec(["dev/tools/failing_taskqueue_tasks.py",
-                     "--slack-channel=${params.SLACK_CHANNEL}"]);
+            withVirtualenv.python3() {
+               dir("webapp") {
+                  exec(["dev/tools/failing_taskqueue_tasks.py",
+                        "--slack-channel=${params.SLACK_CHANNEL}"]);
+               }
             }
          }
       }

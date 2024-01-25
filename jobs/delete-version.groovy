@@ -8,6 +8,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -68,7 +69,9 @@ onMaster('30m') {
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       verifyArgs();
       stage("Deleting") {
-         deleteVersion();
+         withVirtualenv.python3() {
+            deleteVersion();
+         }
       }
    }
 }

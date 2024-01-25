@@ -50,6 +50,7 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 // We do not allow concurrent builds; this should in theory also be enforced by
@@ -940,11 +941,15 @@ onMaster('4h') {
                          what: 'deploy-webapp']]) {
       try {
          stage("Merging in master") {
-            mergeFromMasterAndInitializeGlobals();
+            withVirtualenv.python3() {
+               mergeFromMasterAndInitializeGlobals();
+            }
          }
       } catch (e) {
             echo("FATAL ERROR merging in master: ${e}");
-            finishWithFailure(e.toString());
+            withVirtualenv.python3() {
+               finishWithFailure(e.toString());
+            }
             throw e;
       }
 
@@ -966,7 +971,9 @@ onMaster('4h') {
       if (SERVICES) {
          try {
             stage("Promoting and monitoring") {
-               setDefaultAndMonitor();
+               withVirtualenv.python3() {
+                  setDefaultAndMonitor();
+               }
             }
             // Unlike above, we do not need to verify second smoke tests
             // have finished. Buildmaster does that for us before prompting
@@ -976,7 +983,9 @@ onMaster('4h') {
             }
          } catch (e) {
             echo("FATAL ERROR promoting and monitoring and prompting: ${e}");
-            finishWithFailure(e.toString());
+            withVirtualenv.python3() {
+               finishWithFailure(e.toString());
+            }
             throw e;
          }
       }

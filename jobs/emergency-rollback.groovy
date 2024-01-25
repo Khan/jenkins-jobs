@@ -19,6 +19,7 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 // We try to keep minimal options in this job: you don't want to have to
 // figure out which options are right when the site is down!
@@ -148,12 +149,14 @@ onMaster('1h') {
                    emoji: ':monkey_face:',
                    when: ['BUILD START', 'SUCCESS',
                           'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-       stage("setup") {
-           doSetup();
-       }
-       stage("rollback") {
-           doRollback();
-       }
+      stage("setup") {
+         doSetup();
+      }
+      stage("rollback") {
+         withVirtualenv.python3() {
+            doRollback();
+         }
+      }
    }
    // Let's kick off the e2e tests again to make sure everything is
    // working ok.

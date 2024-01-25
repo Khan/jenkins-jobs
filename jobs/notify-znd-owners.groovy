@@ -18,6 +18,7 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 // The simplest setup ever! -- we only want the defaults.
@@ -44,7 +45,9 @@ onMaster('1h') {
                    emoji: ':monkey_face:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Notifying") {
-         runScript();
+         withVirtualenv.python3() {
+            runScript();
+         }
       }
    }
 }

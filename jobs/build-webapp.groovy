@@ -40,6 +40,7 @@ import org.khanacademy.Setup;
 //import vars.onWorker
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 def formatServicesList(services) {
@@ -674,17 +675,23 @@ onWorker('build-worker', '4h') {
 
       try {
          stage("Merging in master") {
-            mergeFromMasterAndInitializeGlobals();
+            withVirtualenv.python3() {
+               mergeFromMasterAndInitializeGlobals();
+             }
          }
          stage("Deploying") {
             withTimeout('150m') {
-               deployAndReport();
+               withVirtualenv.python3() {
+                  deployAndReport();
+               }
             }
          }
          // TODO(jacqueline): This may get spammy. Is there somewhere we can
          // move this so that it doesn't send for every build?
          stage("Send changelog") {
-            sendChangelog();
+            withVirtualenv.python3() {
+               sendChangelog();
+            }
          }
       } catch (e) {
          echo("FATAL ERROR deploying: ${e}");

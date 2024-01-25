@@ -21,6 +21,7 @@ import org.khanacademy.Setup;
 //import vars.withTimeout
 //import vars.onWorker
 //import vars.withSecrets
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -239,77 +240,79 @@ def runTestServer() {
       echo("Unable to restore test-db from server, won't sort tests by time: ${e}");
    }
 
-   dir("webapp") {
-      if (params.BASE_REVISION) {
-         // Only run the tests that are affected by files that were
-         // changed between BASE_REVISION and GIT_REVISION.  We ignore
-         // files where only sync tags have changed; those can't affect
-         // tests.
-         sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)} ${exec.shellEscape(GIT_SHA1)} > ../trivial_diffs.txt");
-         sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py - > ../files_to_test.txt");
-         // Sometimes we need to run some extra tests for deletd files.
-         sh("git diff --name-only --diff-filter=D ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py --deleted-mode - >> ../files_to_test.txt");
-         // Note that unlike for tests, we consider deleted files for linting.
-         sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | testing/all_lint_for.py - > ../files_to_lint.txt");
-      } else {
-         sh("echo > ../trivial_diffs.txt");
-         sh("echo . > ../files_to_test.txt");
-         sh("echo . > ../files_to_lint.txt");
-         echo("Running all tests.");
-      }
-      sh("cat ../files_to_test.txt");  // to help with debugging
-      sh("cat ../files_to_lint.txt");
-      sh("cat ../trivial_diffs.txt");
-
-      def runtestsArgs = ["--port=5001",
-                          "--timing-db=../test-info.db",
-                          "--file-for-not-run-tests=../not-run-tests.txt",
-                          "--no-find-related",
-                          "--max-size=${params.MAX_SIZE}",
-                          "--lintfile=../files_to_lint.txt",
-                        ];
-
-      // Determine if we actually need to run any tests at all
-      tests = exec.outputOf(["cat", "../files_to_test.txt"]);
-      if (tests.isAllWhitespace()) {
-         echo("No Unit Tests to run!")
-         skipTestAnalysis = true
-         throw new TestsAreDone();
-      }
-
-      // This gets our 10.x.x.x IP address.
-      def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
-      // This unblocks the test-workers to let them know they can connect
-      // to the server.  Note we do this before the server starts up,
-      // since the server is blocking (so we can't do it after), but the
-      // clients know this and will retry when connecting.
-      TEST_SERVER_URL = "http://${serverIP}:5001";
-
-      // Now that we have TEST_SERVER_URL, we can populate TESTS properly.
-      def escapedServer = exec.shellEscape(TEST_SERVER_URL);
-      for (i = 0; i < TESTS.size(); i++ ) {
-         TESTS[i].cmd = TESTS[i].cmd.replace('<server>', escapedServer);
-      }
-
-      // runtests_server.py writes to this directory.  Make sure it's clean
-      // before it does so, so it doesn't read "old" data.
-      sh("rm -rf genfiles/test-reports");
-
-      // START THE SERVER!  Note this blocks.  It will auto-exit when
-      // it's done serving all the tests.
-      // "HOST=..." lets other machines connect to us.
-      try {
-         sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
-      } catch (e) {
-         // Mark all tests as done so the clients stop iterating.  In
-         // theory this isn't necessary: we're about to raise an
-         // exception and we're in a failFast context, which should
-         // cancel the clients.  But it seems Jenkins isn't always so
-         // good at canceling with failFast, so this is a backup.
-         for (def i = 0; i < TESTS.size(); i++) {
-            TESTS[i].done = true;
+   withVirtualenv.python3() {
+      dir("webapp") {
+         if (params.BASE_REVISION) {
+            // Only run the tests that are affected by files that were
+            // changed between BASE_REVISION and GIT_REVISION.  We ignore
+            // files where only sync tags have changed; those can't affect
+            // tests.
+            sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)} ${exec.shellEscape(GIT_SHA1)} > ../trivial_diffs.txt");
+            sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py - > ../files_to_test.txt");
+            // Sometimes we need to run some extra tests for deletd files.
+            sh("git diff --name-only --diff-filter=D ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py --deleted-mode - >> ../files_to_test.txt");
+            // Note that unlike for tests, we consider deleted files for linting.
+            sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | testing/all_lint_for.py - > ../files_to_lint.txt");
+         } else {
+            sh("echo > ../trivial_diffs.txt");
+            sh("echo . > ../files_to_test.txt");
+            sh("echo . > ../files_to_lint.txt");
+            echo("Running all tests.");
          }
-         throw e;
+         sh("cat ../files_to_test.txt");  // to help with debugging
+         sh("cat ../files_to_lint.txt");
+         sh("cat ../trivial_diffs.txt");
+
+         def runtestsArgs = ["--port=5001",
+                             "--timing-db=../test-info.db",
+                             "--file-for-not-run-tests=../not-run-tests.txt",
+                             "--no-find-related",
+                             "--max-size=${params.MAX_SIZE}",
+                             "--lintfile=../files_to_lint.txt",
+                           ];
+
+         // Determine if we actually need to run any tests at all
+         tests = exec.outputOf(["cat", "../files_to_test.txt"]);
+         if (tests.isAllWhitespace()) {
+            echo("No Unit Tests to run!")
+            skipTestAnalysis = true
+            throw new TestsAreDone();
+         }
+
+         // This gets our 10.x.x.x IP address.
+         def serverIP = exec.outputOf(["ip", "route", "get", "10.1.1.1"]).split()[6];
+         // This unblocks the test-workers to let them know they can connect
+         // to the server.  Note we do this before the server starts up,
+         // since the server is blocking (so we can't do it after), but the
+         // clients know this and will retry when connecting.
+         TEST_SERVER_URL = "http://${serverIP}:5001";
+
+         // Now that we have TEST_SERVER_URL, we can populate TESTS properly.
+         def escapedServer = exec.shellEscape(TEST_SERVER_URL);
+         for (i = 0; i < TESTS.size(); i++ ) {
+            TESTS[i].cmd = TESTS[i].cmd.replace('<server>', escapedServer);
+         }
+
+         // runtests_server.py writes to this directory.  Make sure it's clean
+         // before it does so, so it doesn't read "old" data.
+         sh("rm -rf genfiles/test-reports");
+
+         // START THE SERVER!  Note this blocks.  It will auto-exit when
+         // it's done serving all the tests.
+         // "HOST=..." lets other machines connect to us.
+         try {
+            sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
+         } catch (e) {
+            // Mark all tests as done so the clients stop iterating.  In
+            // theory this isn't necessary: we're about to raise an
+            // exception and we're in a failFast context, which should
+            // cancel the clients.  But it seems Jenkins isn't always so
+            // good at canceling with failFast, so this is a backup.
+            for (def i = 0; i < TESTS.size(); i++) {
+               TESTS[i].done = true;
+            }
+            throw e;
+         }
       }
    }
 
@@ -388,27 +391,29 @@ def runTestWorker(workerId) {
    // and the earlier logline tells us that it's worker-5 that ran those tests.
    exec(["curl", "--retry", "240", "--retry-delay", "1", "--retry-connrefused",
          "${TEST_SERVER_URL}/begin?worker=worker-${workerId}"]);
-   try {
-      parallel(jobs);
-   } finally {
+   withVirtualenv.python3() {
       try {
-         // Collect all the junit xml files into one file for uploading.
-         // The "/dev/null" arg is to make sure something happens even
-         // if the `find` returns no files.
-         sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit.xml");
-         // This stores the xml file on the test-server machine at
-         // genfiles/test-reports/junit-<id>.xml.
-         exec(["curl", "--retry", "3",
-               "--upload-file", "junit.xml",
-               "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
-      } catch (e) {
-         notify.rethrowIfAborted(e);
-         echo("Error sending junit results to /end: ${e}");
-         // Better to not pass a junit file than to not /end at all.
+         parallel(jobs);
+      } finally {
          try {
-            exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
-         } catch (e2) {
-            echo("Error sending /end at all: ${e2}");
+            // Collect all the junit xml files into one file for uploading.
+            // The "/dev/null" arg is to make sure something happens even
+            // if the `find` returns no files.
+            sh("find webapp/genfiles/test-reports -name '*.xml' -print0 | xargs -0 cat /dev/null | webapp/testing/junit_cat.sh > junit.xml");
+            // This stores the xml file on the test-server machine at
+            // genfiles/test-reports/junit-<id>.xml.
+            exec(["curl", "--retry", "3",
+                  "--upload-file", "junit.xml",
+                  "${TEST_SERVER_URL}/end?filename=junit-${workerId}.xml"]);
+         } catch (e) {
+            notify.rethrowIfAborted(e);
+            echo("Error sending junit results to /end: ${e}");
+            // Better to not pass a junit file than to not /end at all.
+            try {
+               exec(["curl", "--retry", "3", "${TEST_SERVER_URL}/end"]);
+            } catch (e2) {
+               echo("Error sending /end at all: ${e2}");
+            }
          }
       }
    }
@@ -531,7 +536,7 @@ def analyzeResults() {
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    // TODO(ebrown): Remove: onWorker logs, so not needed here too
-   notify.log("Starting ${env.JOB_NAME} " + 
+   notify.log("Starting ${env.JOB_NAME} " +
               "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
    ]);
 
@@ -562,7 +567,9 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
          // We want to analyze results even if -- especially if --
          // there were failures; hence we're in the `finally`.
          stage("Analyzing results") {
-            analyzeResults();
+            withVirtualenv.python3() {
+               analyzeResults();
+            }
          }
       }
    }
