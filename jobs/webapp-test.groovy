@@ -228,7 +228,7 @@ def runTestServer() {
    // Try to load the server's test-info db.
    try {
       onMaster('1m') {
-         stash(includes: "test-info.db", name: "test-info.db before");
+         stash(includes: "test-info.db*", name: "test-info.db before");
       }
       sh("rm -f test-info.db");
       unstash(name: "test-info.db before");
@@ -318,7 +318,7 @@ def runTestServer() {
 
    // The server updated test-info.db as it ran.  Let's store the updates!
    try {
-      stash(includes: "test-info.db", name: "test-info.db after");
+      stash(includes: "test-info.db*", name: "test-info.db after");
       onMaster('1m') {
          unstash(name: "test-info.db after");
       }
