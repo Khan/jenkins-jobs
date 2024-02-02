@@ -181,8 +181,7 @@ def runLambdaTest() {
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
-                            "--bt='jenkins,${e2eEnv}'",
-                            "--tags='jenkins,${e2eEnv}'"
+                            "--bt='jenkins,${e2eEnv}'"
    ];
 
    dir('webapp/services/static') {
