@@ -49,14 +49,8 @@ deploy-time it can be the revision of the current live deploy, and for
 phabricator diffs it can be the commit `arc land` would land the diff
 being tested.
 
-If the empty string, run *all* tests.  Note that regardless of this
-value, the list of tests to run is limited by MAX_SIZE.""",
+If the empty string, run *all* tests.""",
    "origin/master",
-
-).addChoiceParam(
-   "MAX_SIZE",
-   """The largest size tests to run, as per testing/runtests.py.""",
-   ["medium", "large", "huge", "small", "tiny"]
 
 ).addStringParam(
    "SLACK_CHANNEL",
@@ -151,11 +145,6 @@ WORKERS_RAISING_EXCEPTIONS = 0;
 public class TestFailed extends Exception {}  // for use with the above
 // Used to make sure we finish our job as soon as all tests are run.
 public class TestsAreDone extends Exception {}
-
-// If we're running the large or huge tests, we need a bit more
-// memory, because some of those tests seem to use a lot of memory.
-WORKER_TYPE = (params.MAX_SIZE in ["large", "huge"]
-               ? 'big-test-worker' : 'ka-test-ec2');
 
 // The tests each workers should run.  Each element is a map:
 // cmd: the command to run.  "<server>" is replaced by TEST_SERVER_URL.
@@ -267,7 +256,6 @@ def runTestServer() {
                              "--timing-db=../test-info.db",
                              "--file-for-not-run-tests=../not-run-tests.txt",
                              "--no-find-related",
-                             "--max-size=${params.MAX_SIZE}",
                              "--lintfile=../files_to_lint.txt",
                            ];
 
@@ -534,7 +522,7 @@ def analyzeResults() {
 }
 
 
-onWorker(WORKER_TYPE, '5h') {     // timeout
+onWorker('ka-test-ec2', '5h') {     // timeout
    // TODO(ebrown): Remove: onWorker logs, so not needed here too
    notify.log("Starting ${env.JOB_NAME} " +
               "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
