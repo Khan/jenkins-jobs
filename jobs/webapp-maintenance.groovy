@@ -14,6 +14,7 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -73,11 +74,13 @@ onMaster('10h') {
       def failed_jobs = [];
       for (def i = 0; i < jobs.size(); i++) {
          stage(jobs[i]) {
-            def rc = exec.statusOf(
-               ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
-            if (rc != 0) {
-               echo("${jobs[i]} failed with rc ${rc}");
-               failed_jobs << jobs[i];
+            withVirtualenv.python3() {
+               def rc = exec.statusOf(
+                  ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
+               if (rc != 0) {
+                  echo("${jobs[i]} failed with rc ${rc}");
+                  failed_jobs << jobs[i];
+               }
             }
          }
       }

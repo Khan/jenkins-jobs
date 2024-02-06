@@ -71,7 +71,7 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
 def python3(Closure body) {
    echo("Activating python3 virtualenv");
    sh("make -C webapp/deploy deps");
-   withEnv(["PATH=${pwd()}/webapp/deploy/venv/bin:${env.PATH}"]) {
+   withEnv(["PATH=${pwd()}/webapp/genfiles/deploy/venv/bin:${env.PATH}"]) {
       body();
    }
 }
