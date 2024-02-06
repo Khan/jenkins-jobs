@@ -35,7 +35,6 @@ def runAllTests() {
           parameters: [
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'BASE_REVISION', value: ""),
-             string(name: 'MAX_SIZE', value: "huge"),
              string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
              booleanParam(name: 'FORCE', value: params.FORCE),
              string(name: 'NUM_WORKER_MACHINES', value: "6"),
