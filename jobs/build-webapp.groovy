@@ -396,10 +396,7 @@ def deployToGCS() {
 
    withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
       dir("webapp") {
-         // We use python -u to get maximally unbuffered output.
-         // TODO(csilvers): remove the ulimit; we don't need it now that
-         // we don't use kake anymore.
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+         exec(args);
       }
    }
 }

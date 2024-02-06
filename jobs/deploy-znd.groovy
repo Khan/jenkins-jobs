@@ -190,12 +190,7 @@ def deployToGCS() {
 
    withSecrets.slackAlertlibOnly() {  // Because we set --slack-channel
       dir("webapp") {
-         // Increase the the maximum number of open file descriptors.
-         // This is necessary because kake keeps a lockfile open for
-         // every file it's compiling, and that can easily be
-         // thousands of files.  4096 is as much as linux allows.
-         // We also use python -u to get maximally unbuffered output.
-         sh("ulimit -S -n 4096; python -u ${exec.shellEscapeList(args)}");
+         exec(args)
       }
    }
 }
