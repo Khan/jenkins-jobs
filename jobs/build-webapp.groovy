@@ -463,7 +463,6 @@ def uploadGraphqlSafelist() {
       echo("Uploading GraphQL queries to the safelist.");
       dir("webapp") {
          exec([
-            "python",
             "deploy/upload_graphql_safelist.py",
             NEW_VERSION,
             "--prod",
