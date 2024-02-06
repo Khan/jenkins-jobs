@@ -427,7 +427,7 @@ def runAllTestClients() {
       def workerId = i;  // avoid scoping problems
       jobs["test-${workerId}"] = {
          swallowExceptions({
-            onWorker(WORKER_TYPE, '2h') {
+            onWorker('ka-test-ec2', '2h') {
                 _setupWebapp();
                 // We can go no further until we know the server to connect to.
                 waitUntil({ TEST_SERVER_URL != null });
