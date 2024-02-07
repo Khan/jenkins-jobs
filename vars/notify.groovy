@@ -270,7 +270,7 @@ def sendToBuildmaster(buildmasterOptions, status) {
    // Buildmaster only knows how to handle testing a single (non-abbreviated)
    // git-sha, not one or multiple branch-names.  If the job refers to
    // branches, exit.
-   if (!buildmasterOptions.sha ==~ /[0-9a-fA-F]{40}/) {
+   if (!(buildmasterOptions.sha ==~ /[0-9a-fA-F]{40}/)) {
       return;
    }
    def buildmasterStatus;

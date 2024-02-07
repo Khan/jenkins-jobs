@@ -368,7 +368,7 @@ def mergeFromMasterAndInitializeGlobals() {
          // TODO(benkraft): Verify it's actually a valid sha in this repo.
          // (We could write kaGit.isSha.)  This is a little tricky because
          // we may not yet have cloned the repo.
-         if (!params.GIT_REVISION ==~ /[0-9a-fA-F]{40}/) {
+         if (!(params.GIT_REVISION ==~ /[0-9a-fA-F]{40}/)) {
             notify.fail("GIT_REVISION was not a sha!");
          }
 
