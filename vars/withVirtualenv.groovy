@@ -70,7 +70,7 @@ For more information, see https://wiki.python.org/moin/DebuggingWithGdb
 // This must be called from workspace-root.
 def python3(Closure body) {
    echo("Activating python3 virtualenv");
-   sh("make -C webapp/deploy deps -B");
+   sh("make -C webapp/deploy deps");
    withEnv(["PATH=${pwd()}/webapp/genfiles/deploy/venv/bin:${env.PATH}"]) {
       body();
    }
