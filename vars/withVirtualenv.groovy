@@ -4,12 +4,12 @@
 // we are using an older pip.
 def _maybeDowngradePip() {
   // TODO(csilvers): check if the pip version is actually 20+ first.
-  sh("pip install -U 'pip<20' setuptools");
+  sh("${env.VIRTUAL_ENV}/bin/pip install -U 'pip<20' setuptools");
 }
 
 // This must be called from workspace-root.
 def call(Closure body) {
-   if (env.VIRTUAL_ENV && fileExists(env.VIRTUAL_ENV)) {
+   if (env.VIRTUAL_ENV && fileExists("${env.VIRTUAL_ENV}/bin/pip")) {
       // we're already in a virtualenv.  The fileExists is necessary
       // because a node can inherit the environment from its parent
       // and have an inaccurate VIRTUAL_ENV.
