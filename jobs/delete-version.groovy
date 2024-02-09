@@ -42,9 +42,14 @@ def verifyArgs() {
 }
 
 
-def deleteVersion() {
+def _setupWebapp() {
    withTimeout('25m') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+   }
+}
+
+def deleteVersion() {
+   withTimeout('25m') {
       dir("webapp") {
          sh("make python_deps");
          def args = (["deploy/delete_gae_versions.py"]
@@ -68,6 +73,9 @@ onMaster('30m') {
                 emoji: ':monkey_face:',
                 when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       verifyArgs();
+      stage("Initializing webapp") {
+         _setupWebapp();
+      }
       stage("Deleting") {
          withVirtualenv.python3() {
             deleteVersion();
