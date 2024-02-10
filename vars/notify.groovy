@@ -430,6 +430,11 @@ for details to get information about stuck builds.""";
 // Log that we are starting onWorker() or onMaster()
 def logNodeStart(label, timeoutString) {
    try {
+      echo("Sleep 5 seconds");
+      whoami = sh(script: "whoami", returnStdout: true).trim();
+      echo(whoami)
+      sleep(5);   // give the watchdog a chance to notice an abort
+
       env.STATUS = "starting";
       // The hostname is useful for debugging.
       hostname = sh(script: "hostname", returnStdout: true).trim();
