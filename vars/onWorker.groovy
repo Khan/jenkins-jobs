@@ -37,45 +37,45 @@ def call(def label, def timeoutString, Closure body) {
 
    node(label) {
       start = new Date();
-      notify.logNodeStart(label, timeoutString);
-      timestamps {
-         // We use a shared workspace for all jobs that are run on the
-         // worker machines.
-         dir("/home/ubuntu/webapp-workspace") {
-            kaGit.checkoutJenkinsTools();
-            withTimeout(timeoutString) {
-               // We document what machine we're running on, to help
-               // with debugging.
-               def instanceId = sh(
-                  script: ("curl -s " +
-                           "http://metadata.google.internal/computeMetadata/v1/instance/hostname " +
-                           "-H 'Metadata-Flavor: Google' | cut -d. -f1"),
-                  returnStdout: true).trim();
-               def ip = exec.outputOf(
-                  ["curl", "-s",
-                   "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
-                   "-H", 'Metadata-Flavor: Google']);
-               echo("Running on GCE instance ${instanceId} at ip ${ip}");
-               // TODO(csilvers): figure out how to get the worker
-               // to source the .bashrc like it did before.  Now I
-               // think it's inheriting the PATH from the parent instead.
-               // To export BOTO_CONFIG, for some reason, worker did not
-               // source the .profile or .bashrc anymore.
-               withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
-                        "PATH=" +
-                        "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
-                        "/var/lib/jenkins/repositories/khan-linter/bin" +
-                        "/usr/local/google_appengine:" +
-                        "/home/ubuntu/google-cloud-sdk/bin:" +
-                        "${env.HOME}/go/bin:" +
-                        "${env.PATH}"]) {
-                  withVirtualenv() {
-                     body();
-                  }
-               }
-               notify.logNodeFinish(label, timeoutString, start);
-            }
-         }
+      // TODO(csilvers): figure out how to get the worker
+      // to source the .bashrc like it did before.  Now I
+      // think it's inheriting the PATH from the parent instead.
+      // To export BOTO_CONFIG, for some reason, worker did not
+      // source the .profile or .bashrc anymore.
+      withEnv(["BOTO_CONFIG=/home/ubuntu/.boto",
+               "PATH=" +
+               "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
+               "/var/lib/jenkins/repositories/khan-linter/bin" +
+               "/usr/local/google_appengine:" +
+               "/home/ubuntu/google-cloud-sdk/bin:" +
+               "${env.HOME}/go/bin:" +
+               "${env.PATH}"]) {
+          notify.logNodeStart(label, timeoutString);
+          timestamps {
+             // We use a shared workspace for all jobs that are run on the
+             // worker machines.
+             dir("/home/ubuntu/webapp-workspace") {
+                kaGit.checkoutJenkinsTools();
+                withTimeout(timeoutString) {
+                   // We document what machine we're running on, to help
+                   // with debugging.
+                   def instanceId = sh(
+                      script: ("curl -s " +
+                               "http://metadata.google.internal/computeMetadata/v1/instance/hostname " +
+                               "-H 'Metadata-Flavor: Google' | cut -d. -f1"),
+                      returnStdout: true).trim();
+                   def ip = exec.outputOf(
+                      ["curl", "-s",
+                       "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
+                       "-H", 'Metadata-Flavor: Google']);
+                   echo("Running on GCE instance ${instanceId} at ip ${ip}");
+                   withVirtualenv() {
+                      body();
+                   }
+                   notify.logNodeFinish(label, timeoutString, start);
+                }
+             }
+          }
       }
    }
 }

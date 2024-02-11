@@ -6,30 +6,30 @@
 def call(timeoutString, Closure body) {
    node("master") {
       start = new Date();
-      notify.logNodeStart("master", timeoutString);
-      timestamps {
-         kaGit.checkoutJenkinsTools();
-         withVirtualenv() {
-            withTimeout(timeoutString) {
-                echo("Running on main jenkins-server");
-                // TODO(csilvers): figure out how to get the worker
-                // to source the .bashrc like it did before.  Now I
-                // think it's inheriting the PATH from the parent instead.
-                // To export BOTO_CONFIG, for some reason, worker did not
-                // source the .profile or .bashrc anymore.
-                withEnv(["BOTO_CONFIG=${env.HOME}/.boto",
-                         "PATH=" +
-                         "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
-                         "/var/lib/jenkins/repositories/khan-linter/bin" +
-                         "/usr/local/google_appengine:" +
-                         "/home/ubuntu/google-cloud-sdk/bin:" +
-                         "${env.HOME}/go/bin:" +
-                         "${env.PATH}"]) {
-                     body();
-                }
-            }
-         }
+      // TODO(csilvers): figure out how to get the worker
+      // to source the .bashrc like it did before.  Now I
+      // think it's inheriting the PATH from the parent instead.
+      // To export BOTO_CONFIG, for some reason, worker did not
+      // source the .profile or .bashrc anymore.
+      withEnv(["BOTO_CONFIG=${env.HOME}/.boto",
+               "PATH=" +
+               "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
+               "/var/lib/jenkins/repositories/khan-linter/bin" +
+               "/usr/local/google_appengine:" +
+               "/home/ubuntu/google-cloud-sdk/bin:" +
+               "${env.HOME}/go/bin:" +
+               "${env.PATH}"]) {
+          notify.logNodeStart("master", timeoutString);
+          timestamps {
+             kaGit.checkoutJenkinsTools();
+             withTimeout(timeoutString) {
+                 echo("Running on main jenkins-server");
+                 withVirtualenv() {
+                      body();
+                 }
+                 notify.logNodeFinish("master", timeoutString, start);
+             }
+          }
       }
-      notify.logNodeFinish("master", timeoutString, start);
    }
 }
