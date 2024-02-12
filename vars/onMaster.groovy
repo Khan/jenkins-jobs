@@ -19,16 +19,16 @@ def call(timeoutString, Closure body) {
                "/home/ubuntu/google-cloud-sdk/bin:" +
                "${env.HOME}/go/bin:" +
                "${env.PATH}"]) {
-          notify.logNodeStart("master", timeoutString);
           timestamps {
+             notify.logNodeStart("master", timeoutString);
              kaGit.checkoutJenkinsTools();
              withTimeout(timeoutString) {
                  echo("Running on main jenkins-server");
                  withVirtualenv() {
                       body();
                  }
-                 notify.logNodeFinish("master", timeoutString, start);
              }
+             notify.logNodeFinish("master", timeoutString, start);
           }
       }
    }

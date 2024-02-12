@@ -50,8 +50,8 @@ def call(def label, def timeoutString, Closure body) {
                "/home/ubuntu/google-cloud-sdk/bin:" +
                "${env.HOME}/go/bin:" +
                "${env.PATH}"]) {
-          notify.logNodeStart(label, timeoutString);
           timestamps {
+             notify.logNodeStart(label, timeoutString);
              // We use a shared workspace for all jobs that are run on the
              // worker machines.
              dir("/home/ubuntu/webapp-workspace") {
@@ -72,9 +72,9 @@ def call(def label, def timeoutString, Closure body) {
                    withVirtualenv() {
                       body();
                    }
-                   notify.logNodeFinish(label, timeoutString, start);
                 }
              }
+             notify.logNodeFinish(label, timeoutString, start);
           }
       }
    }
