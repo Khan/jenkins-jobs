@@ -75,20 +75,13 @@ onMaster('10h') {
       for (def i = 0; i < jobs.size(); i++) {
          stage(jobs[i]) {
             withVirtualenv.python3() {
-               def rc = exec.statusOf(
-                  ["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh", jobs[i]]);
-               if (rc != 0) {
-                  echo("${jobs[i]} failed with rc ${rc}");
-                  failed_jobs << jobs[i];
+               catchError(buildResult: "FAILURE", stageResult: "FAILURE",
+                          message: "${jobs[i]} failed") {
+                  exec(["timeout", "10h", "jenkins-jobs/weekly-maintenance.sh",
+                        jobs[i]]);
                }
             }
          }
       }
-
-     stage("Analyzing results") {
-        if (failed_jobs.size() > 0) {
-           notify.fail("These jobs failed: " + failed_jobs.join(" "))
-        }
-     }
    }
 }
