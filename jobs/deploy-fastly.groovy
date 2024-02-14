@@ -26,6 +26,7 @@ import org.khanacademy.Setup;
 //import vars.notify
 //import vars.withSecrets
 //import vars.withTimeout
+//import vars.withVirtualenv
 
 
 new Setup(steps
@@ -92,7 +93,9 @@ def _activeVersion() {
         params.TARGET == "prod" ? "active-version" : "active-version-test",
    ];
    withTimeout('1m') {
-      return exec.outputOf(cmd)
+      withVirtualenv.python3() {
+         return exec.outputOf(cmd)
+      }
    }
 }
 
@@ -112,12 +115,14 @@ def ensureUpToDate() {
 
 def deploy() {
    withTimeout('15m') {
-      withSecrets.slackAlertlibOnly() { // to report to #fastly
-         dir("webapp/services/fastly-khanacademy") {
-            // `make deploy` uses vt100 escape codes to color its diffs,
-            // let's make sure they show up properly.
-            ansiColor('xterm') {
-               sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+      withVirtualenv.python3() {
+         withSecrets.slackAlertlibOnly() { // to report to #fastly
+            dir("webapp/services/fastly-khanacademy") {
+               // `make deploy` uses vt100 escape codes to color its diffs,
+               // let's make sure they show up properly.
+               ansiColor('xterm') {
+                  sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+               }
             }
          }
       }
@@ -126,9 +131,11 @@ def deploy() {
 
 def setDefault() {
    withTimeout('5m') {
-      withSecrets.slackAlertlibOnly() { // report to #fastly, #whats-happening
-         dir("webapp/services/fastly-khanacademy") {
-            sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
+      withVirtualenv.python3() {
+         withSecrets.slackAlertlibOnly() { // report to #fastly, #whats-happening
+            dir("webapp/services/fastly-khanacademy") {
+               sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
+            }
          }
       }
    }
