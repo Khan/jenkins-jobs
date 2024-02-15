@@ -25,9 +25,15 @@ import org.khanacademy.Setup;
 new Setup(steps).apply();
 
 
-def runScript() {
+def _setupWebapp() {
    withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
+   }
+}
+
+
+def runScript() {
+   withTimeout('1h') {
       withSecrets.slackAlertlibOnly() {  // because we pass --notify_slack
          dir("webapp") {
             sh("make clean_pyc");    // in case some .py files went away
@@ -44,6 +50,9 @@ onMaster('1h') {
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+      stage("Initializing webapp") {
+         _setupWebapp();
+      }
       stage("Notifying") {
          withVirtualenv.python3() {
             runScript();
