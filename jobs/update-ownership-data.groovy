@@ -34,6 +34,12 @@ the updated data-file to it.""",
 ).apply();
 
 
+def _setupWebapp() {
+   // We do our work in the automated-commits branch (first pulling in master).
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_BRANCH);
+   kaGit.safeMergeFromMaster("webapp", params.GIT_BRANCH);
+}
+
 def runScript() {
    // We do our work in the automated-commits branch (first pulling in master).
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_BRANCH);
@@ -75,6 +81,9 @@ onMaster('2h') {
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+      stage("Initializing webapp") {
+         _setupWebapp();
+      }
       stage("Run script") {
          withVirtualenv.python3() {
             runScript();
