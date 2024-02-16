@@ -253,9 +253,8 @@ def runTestServer() {
          sh("cat ../trivial_diffs.txt");
 
          def runtestsArgs = ["--port=5001",
-                             "--timing-db=../test-info.db",
+                             "--timing-db=../test-info.db.json",
                              "--file-for-not-run-tests=../not-run-tests.txt",
-                             "--no-find-related",
                              "--lintfile=../files_to_lint.txt",
                            ];
 
@@ -289,7 +288,7 @@ def runTestServer() {
          // it's done serving all the tests.
          // "HOST=..." lets other machines connect to us.
          try {
-            sh("env HOST=${serverIP} testing/runtests_server.py ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
+            sh("env HOST=${serverIP} go run ./dev/testing/cmd/runtests-server ${exec.shellEscapeList(runtestsArgs)} - < ../files_to_test.txt")
          } catch (e) {
             // Mark all tests as done so the clients stop iterating.  In
             // theory this isn't necessary: we're about to raise an
