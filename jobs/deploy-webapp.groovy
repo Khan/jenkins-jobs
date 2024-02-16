@@ -390,7 +390,6 @@ def mergeFromMasterAndInitializeGlobals() {
       withVirtualenv.python3() {
          dir("webapp") {
             clean(params.CLEAN);
-            sh("make python_deps");  // this script only uses python!
 
             // Let's do a sanity check.
             def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);

@@ -51,7 +51,6 @@ def _setupWebapp() {
 def deleteVersion() {
    withTimeout('25m') {
       dir("webapp") {
-         sh("make python_deps");
          def args = (["deploy/delete_gae_versions.py"]
                      // We need to cast because split() returns an Array and
                      // groovy wants a List, apparently.
