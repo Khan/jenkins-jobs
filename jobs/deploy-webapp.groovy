@@ -564,10 +564,10 @@ def _maybeAbortJob(oldBuildResult, newBuildResult, reason) {
       // to keep track of these cases.
       _simpleSlackAlert(
          "#infrastructure-deploys",
-         """Deploy aborted but thread is still running. We most likely have a 
-job that is stuck. ${reason}. prev state ${oldBuildResult}. current state 
-${newBuildResult}. ${env.BUILD_URL}. 
-See https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/2470543393/Stuck+jenkins+deploy-webapp+builds 
+         """Deploy aborted but thread is still running. We most likely have a
+job that is stuck. ${reason}. prev state ${oldBuildResult}. current state
+${newBuildResult}. ${env.BUILD_URL}.
+See https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/2470543393/Stuck+jenkins+deploy-webapp+builds
 for details to get information about stuck builds. cc @deploy-support""",
          "error",
       )
@@ -955,7 +955,10 @@ onMaster('4h') {
 
       try {
          stage("Await first smoke test") {
-            if (SERVICES) {
+            // Only verify smoke tests if we're deploying a non-static service
+            // Static service changes have already had e2e tests run on them
+            // during the PR process, so this is unnecessary.
+            if (SERVICES && SERVICES != "static") {
                verifySmokeTestResults('first-smoke-test');
             }
          }
