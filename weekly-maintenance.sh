@@ -37,6 +37,8 @@ set -x
 jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/webapp" "automated-commits"
 jenkins-jobs/safe_git.sh sync_to_origin "git@github.com:Khan/network-config" "master"
 
+( cd webapp && make deps )
+
 failed_jobs=""
 for job in $jobs_to_run; do
     echo "--- Starting $job: `date`"
