@@ -348,7 +348,6 @@ def deploy() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         sh("make python_deps");
 
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 

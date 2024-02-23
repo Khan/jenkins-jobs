@@ -30,7 +30,6 @@ onMaster('1h') {
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Running script") {
          kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-         sh("make -C webapp python_deps")
          withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
             withVirtualenv.python3() {
                dir("webapp") {

@@ -87,7 +87,6 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
    dir("webapp") {
       sh("make clean_pyc");
-      sh("make python_deps");
    }
 }
 

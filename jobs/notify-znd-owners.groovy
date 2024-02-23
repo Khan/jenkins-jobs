@@ -37,7 +37,6 @@ def runScript() {
       withSecrets.slackAlertlibOnly() {  // because we pass --notify_slack
          dir("webapp") {
             sh("make clean_pyc");    // in case some .py files went away
-            sh("make python_deps");
             sh("deploy/notify_znd_owners.py --notify_slack");
          }
       }

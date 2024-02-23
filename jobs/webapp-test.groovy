@@ -203,7 +203,6 @@ def _setupWebapp() {
 
    dir("webapp") {
       clean(params.CLEAN);
-      sh("make python_deps");
       // We always delete the ka-lint cache so we run all lints every time.
       // In theory we could use the cache, but just to be safe...
       sh("rm -rf genfiles/ka-lint");
