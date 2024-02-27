@@ -314,16 +314,17 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
          _setupWebapp();
       }
 
-      try {
-         stage("Run e2e tests") {
-            runLambdaTest();
-         }
-      } finally {
-         // We want to analyze results even if -- especially if -- there were
-         // failures; hence we're in the `finally`.
-         stage("Analyzing results") {
-            analyzeResults();
-         }
+      stage("Run e2e tests") {
+         // Note: runLambdaTest() succeeds (has an rc of 0) as long as
+         // it succeeded in running all the tests, even if some of those
+         // tests failed.  That is, this will succeed as long as there
+         // are no lambdatest framework errors; it's up to use to look
+         // for actual smoketest-code errors in analyzeResults(), below.
+         runLambdaTest();
+      }
+
+      stage("Analyzing results") {
+         analyzeResults();
       }
    }
 }
