@@ -1,20 +1,11 @@
-This pipeline step runs its body in a python2 virtualenv.
+This pipeline step runs its body in the "deploy" python3 virtualenv.
 
 This means that every python command run inside it will use the
 virtualenv rather than the system python/etc.
 
-It is not typically used manually -- onMaster/etc use it automatically
-as needed.
+This is only needed for our deploy scripts, which include third-party
+deps that are only installed in the virtualenv.
 
-There is also a python3() function which sets up a virtualenv to run
-python3 scripts.  This is webapp-specific, and uses the virtualenv in
-webapp's deploy/Makefile.  This typically *is* used manually, when
-making calls to the deploy and test scripts that use the top-level
-python3 virtualenv in webapp.
-
-Note it is possible to have both the python2 and python3 virtualenvs
-active at the same time!  In that world, running a binary under
-`python2` will use the python2 virtualenv, and `python3` will use the
-python3 virtualenv.  They will fight over the `python` binary, so
-don't use that.  (We are careful that all our webapp scripts
-explicitly say `python2` or `python3` for that reason.)
+This is webapp-specific, and uses the virtualenv in webapp's
+deploy/Makefile -- so you must call this only *after* making sure
+webapp is cloned!

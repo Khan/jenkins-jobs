@@ -2,9 +2,8 @@ Same as `node(<label>)` but does a bunch of executor-specific setup too.
 
 1. It makes sure jenkins-jobs is available in the current workspace
    (almost every node needs jenkins-jobs to do further checkouts).
-2. It enables virtualenv (for python scripts)
-3. It turns on timestamping of all commands run on that node.
-4. It runs all of this in workspace shared across jobs.
+2. It turns on timestamping of all commands run on that node.
+3. It runs all of this in workspace shared across jobs.
 
 If the entire job runs on a worker, you should wrap this around a `notify()`
 call, and put the rest of your job inside.  If only some of the job runs on a
