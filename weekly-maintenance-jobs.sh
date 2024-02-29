@@ -285,26 +285,28 @@ clean_package_files() {
     jenkins-jobs/safe_git.sh commit_and_push webapp -a -m "Automatic cleanup of language package files"
 }
 
-
-update_caniuse() {
-    # The nodejs "caniuse" library starts complaining if it's more
-    # than a few months out of date.  To avoid that, let's auto-update
-    # it every week!  I follow the instructions at
-    #    https://github.com/facebook/create-react-app/issues/6708#issuecomment-488392836
-    (
-        cd webapp
-        for d in `git grep -l caniuse-lite "*yarn.lock" | xargs -n1 dirname`; do
-            (
-                cd "$d"
-                # This deletes everything from the first "caniuse-lite" line
-                # to the following blank line, from yarn.lock.
-                sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
-                yarn upgrade caniuse-lite browserlist
-            )
-        done
-    )
-    jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" '*/yarn.lock'
-}
+# NOTE(john, 2024-02-29): Turned off for now, while the Node 20 upgrade is going on.
+# This should be turned back on once the render-gateway and queryplanner services have
+# been successfully upgraded to Node 20.
+#update_caniuse() {
+#    # The nodejs "caniuse" library starts complaining if it's more
+#    # than a few months out of date.  To avoid that, let's auto-update
+#    # it every week!  I follow the instructions at
+#    #    https://github.com/facebook/create-react-app/issues/6708#issuecomment-488392836
+#    (
+#        cd webapp
+#        for d in `git grep -l caniuse-lite "*yarn.lock" | xargs -n1 dirname`; do
+#            (
+#                cd "$d"
+#                # This deletes everything from the first "caniuse-lite" line
+#                # to the following blank line, from yarn.lock.
+#                sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
+#                yarn upgrade caniuse-lite browserlist
+#            )
+#        done
+#    )
+#    jenkins-jobs/safe_git.sh commit_and_push webapp -m "Automatic update of caniuse, via $0" '*/yarn.lock'
+#}
 
 
 # weekly-maintenance.sh calls this script with exactly one arg, the job
