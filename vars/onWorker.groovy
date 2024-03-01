@@ -1,7 +1,6 @@
 // We use these user-defined steps from vars/:
 //import vars.kaGit
 //import vars.withTimeout
-//import vars.withVirtualenv
 
 // How many test-workers we run in parallel, by default. This no longer needs to
 // be consistent across jobs, but most jobs using the ka-test-ec2 workers use it
@@ -69,9 +68,7 @@ def call(def label, def timeoutString, Closure body) {
                        "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
                        "-H", 'Metadata-Flavor: Google']);
                    echo("Running on GCE instance ${instanceId} at ip ${ip}");
-                   withVirtualenv() {
-                      body();
-                   }
+                   body();
                 }
              }
              notify.logNodeFinish(label, timeoutString, start);

@@ -1,7 +1,6 @@
 // We use these user-defined steps from vars/:
 //import vars.kaGit
 //import vars.withTimeout
-//import vars.withVirtualenv
 
 def call(timeoutString, Closure body) {
    node("master") {
@@ -24,9 +23,7 @@ def call(timeoutString, Closure body) {
              kaGit.checkoutJenkinsTools();
              withTimeout(timeoutString) {
                  echo("Running on main jenkins-server");
-                 withVirtualenv() {
-                      body();
-                 }
+                 body();
              }
              notify.logNodeFinish("master", timeoutString, start);
           }
