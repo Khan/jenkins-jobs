@@ -30,8 +30,8 @@ new Setup(steps
 ).apply();
 
 
-def runScript() {
-   withTimeout('9h') {
+def _setupWebapp() {
+   withTimeout('1h') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
 
       // We do our work in the 'automated-commits' branch.
@@ -47,11 +47,8 @@ def runScript() {
          sh("timeout 2m git clean -ffd");
          sh("timeout 1m git clean -ffd");
       }
-
-      sh("jenkins-jobs/weekly-maintenance.sh");
    }
 }
-
 
 onMaster('10h') {
    notify([slack: [channel: '#infrastructure',
@@ -60,6 +57,10 @@ onMaster('10h') {
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
            email: [to: 'jenkins-admin+builds, csilvers',
                    when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
+      stage("Syncing webapp") {
+         _setupWebapp();
+      }
+
       def jobs = [];
       stage("Listing jobs to run") {
          if (params.JOBS) {
