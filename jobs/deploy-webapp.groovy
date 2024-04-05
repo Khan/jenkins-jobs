@@ -400,15 +400,21 @@ def mergeFromMasterAndInitializeGlobals() {
 
             // TODO(benkraft): Extract the resolution of services into a util
             if (params.SERVICES == "auto") {
-               try {
-                  SERVICES = exec.outputOf(["deploy/should_deploy.py"]).split("\n");
-               } catch(e) {
-                  notify.fail("Automatic detection of what to deploy failed. " +
-                              "You can likely work around this by setting " +
-                              "SERVICES on your deploy; see " +
-                              "${env.BUILD_URL}rebuild for documentation, and " +
-                              "`sun: help flags` for how to set it.  If you " +
-                              "aren't sure, ask dev-support for help!");
+               // Slack is temporarily needed while should_deploy is doing
+               // side-by-side testing of the go_code_analysis.go.
+               // TODO(csilvers): remove this once should_deploy.py does
+               //                 not directly import alertlib anymore.
+               withSecrets.slackAlertlibOnly() {
+                  try {
+                     SERVICES = exec.outputOf(["deploy/should_deploy.py"]).split("\n");
+                  } catch(e) {
+                     notify.fail("Automatic detection of what to deploy failed. " +
+                                 "You can likely work around this by setting " +
+                                 "SERVICES on your deploy; see " +
+                                 "${env.BUILD_URL}rebuild for documentation, and " +
+                                 "`sun: help flags` for how to set it.  If you " +
+                                 "aren't sure, ask dev-support for help!");
+                  }
                }
             } else {
                SERVICES = params.SERVICES.split(",");
