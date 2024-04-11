@@ -272,21 +272,6 @@ def _alert(def slackArgs, def interpolationArgs) {
    }
 }
 
-// TODO(miguel): remove once we are done monitoring hanging deploys.
-def _simpleSlackAlert(def channel, def msg, def severity) {
-   args = ["jenkins-jobs/alertlib/alert.py",
-           "--slack=${channel}",
-           "--chat-sender=Mr Anderson",
-           "--icon-emoji=:crying-nickcage:",
-           "--slack-simple-message",
-           "--severity=${severity}",
-          ];
-   withSecrets.slackAlertlibOnly() {     // to talk to slack
-      echo("sending slack message")
-      sh("echo ${exec.shellEscape(msg)} | ${exec.shellEscapeList(args)}");
-   }
-}
-
 // This method filters a common 'DEPLOYER_USERNAME' into a series of comma
 // seperated slack user id's for the purpose of passing into alert.py's
 // '--slack' argument. For Example:
