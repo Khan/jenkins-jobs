@@ -561,29 +561,12 @@ def _maybeAbortJob(oldBuildResult, newBuildResult, reason) {
    // work like making an HTTP request. If that's the case we are going
    // to cause the job to abort from here to prevent new deploy-webapp
    // jobs from getting stuck.
-   if (oldBuildResult != newBuildResult) {
-      // Because this is a theory that build are getting stuck because the
-      // signal to abort the current thread while we are in an uninterruptible
-      // cycle, we are not 100% sure what the correct things to check are
-      // to make an exact desicion. So we are going to log a message to slack
-      // to keep track of these cases.
-      _simpleSlackAlert(
-         "#infrastructure-deploys",
-         """Deploy aborted but thread is still running. We most likely have a 
-job that is stuck. ${reason}. prev state ${oldBuildResult}. current state 
-${newBuildResult}. ${env.BUILD_URL}. 
-See https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/2470543393/Stuck+jenkins+deploy-webapp+builds 
-for details to get information about stuck builds. cc @deploy-support""",
-         "error",
-      )
-
-      if (newBuildResult == "ABORTED") {
-         // Jenkins would throw a hudson.AbortException.  But to make
-         // things more clear that the job is aborting itself we will
-         // throw a different exception.  This exception will (should)
-         // be handle by the caller to ensure we clean things up.
-         throw new AbortDeployJob("Deploy was aborted. " + reason)
-      }
+   if (oldBuildResult != newBuildResult && newBuildResult == "ABORTED") {
+      // Jenkins would throw a hudson.AbortException.  But to make
+      // things more clear that the job is aborting itself we will
+      // throw a different exception.  This exception will (should)
+      // be handle by the caller to ensure we clean things up.
+      throw new AbortDeployJob("Deploy was aborted. " + reason)
    }
 }
 
