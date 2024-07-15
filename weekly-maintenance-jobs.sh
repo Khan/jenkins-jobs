@@ -102,7 +102,14 @@ gc_all_repos() {
         echo "GC-ing in $dir"
         cd "$dir"
 
-        git gc
+        # Sometimes we get an error like this:
+        #   error: Could not read 1f64cbb3aab35f38a0ba7bf53ea29ae399821dd3
+        #   fatal: Failed to traverse parents of commit d2125172e642444012fc1199df32302195d98eec
+        #   fatal: failed to run repack
+        # I have no idea why -- running the gc manually works fine --
+        # but it's not a big deal if we can't gc everything all the
+        # time, so we just let it be.
+        gc || echo "Failed to GC in $dir, continuing anyway"
         )
     done
 }
