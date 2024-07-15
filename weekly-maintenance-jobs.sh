@@ -102,6 +102,12 @@ gc_all_repos() {
         echo "GC-ing in $dir"
         cd "$dir"
 
+        # We don't need reflogs in jenkins, and they can cause trouble
+        # when gc-ing, so we remove them.  See
+        #    https://feeding.cloud.geek.nz/posts/error-while-running-git-gc/
+        # (We didn't do this above because /mnt/jenkins/repositories isn't
+        # a "working" github dir, just a source of .pack files.)
+        git reflog expire --all --stale-fix
         git gc
         )
     done
