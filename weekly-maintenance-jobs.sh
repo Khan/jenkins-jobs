@@ -296,10 +296,8 @@ update_caniuse() {
         for d in `git grep -l caniuse-lite "*yarn.lock" | xargs -n1 dirname`; do
             (
                 cd "$d"
-                # This deletes everything from the first "caniuse-lite" line
-                # to the following blank line, from yarn.lock.
-                sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
-                yarn upgrade caniuse-lite browserslist
+                # Use the official tool to update the browserslist and caniuse-lite packages.
+                npx update-browserslist-db@latest
             )
         done
     )
