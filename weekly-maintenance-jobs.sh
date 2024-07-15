@@ -176,7 +176,7 @@ clean_graphql_gateway_schemas() {
 }
 
 # TODO(FEI-4154): Fix this logic to be more robust.
-# We're disabling clean_ka_static() for the time 
+# We're disabling clean_ka_static() for the time
 # being to avoid deleting files we need by accident.
 # clean_ka_static() {
 #     # First we ask Fastly for the list of live static versions.
@@ -296,10 +296,8 @@ update_caniuse() {
         for d in `git grep -l caniuse-lite "*yarn.lock" | xargs -n1 dirname`; do
             (
                 cd "$d"
-                # This deletes everything from the first "caniuse-lite" line
-                # to the following blank line, from yarn.lock.
-                sed -i '/^caniuse-lite@/,/^$/d' yarn.lock
-                yarn upgrade caniuse-lite browserlist
+                # Use the official tool to update the browserslist and caniuse-lite packages.
+                npx update-browserslist-db@latest
             )
         done
     )
