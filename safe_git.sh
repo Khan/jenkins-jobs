@@ -83,10 +83,6 @@ _alert() {
 
 # Call this from within the repo that you want to do the fetching.
 _fetch() {
-    # We don't need reflogs in jenkins, and they can cause trouble
-    # when gc-ing, so we remove them.  See
-    #    https://feeding.cloud.geek.nz/posts/error-while-running-git-gc/
-    timeout 120m git reflog expire --all --stale-fix
     timeout 120m git fetch --tags --prune --prune-tags --force --progress origin
 }
 
