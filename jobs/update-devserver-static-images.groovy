@@ -65,7 +65,7 @@ def uploadService(service) {
       // but unpredictably) fails with:
       // ERROR: failed to receive status: rpc error: code = Unavailable desc = error reading from server: EOF
       retry(5) {
-         exec(["dev/server/upload-images.sh", "--no-tags", service]);
+         exec(["ssh-agent", "sh", "-c", "ssh-add; dev/server/upload-images.sh --no-tags " + service]);
       }
    }
 }
