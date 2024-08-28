@@ -324,8 +324,8 @@ def _sendAbortedDeploymentSurvey() {
     }
 }
 
-def mergeFromMasterAndInitializeGlobals() {
-   withTimeout('1h') {    // should_deploy builds files, which can take forever
+def mergeFromMaster() {
+   withTimeout('1h') {
       // In principle we should fetch from workspace@script which is where this
       // script itself is loaded from, but that doesn't exist on build-workers
       // and our checkout of jenkins-jobs will work fine.
@@ -372,78 +372,84 @@ def mergeFromMasterAndInitializeGlobals() {
          }
       }
 
-      withVirtualenv.python3() {
-         dir("webapp") {
-            clean(params.CLEAN);
+      dir("webapp") {
+         clean(params.CLEAN);
+      }
+   }
+}
 
-            // Let's do a sanity check.
-            def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
-            if (params.GIT_REVISION != headSHA1) {
-               notify.fail("Internal error: " +
-                           "HEAD does not point to the deploy-branch");
-            }
+def initializeGlobals() {
+   withTimeout('1h') {    // should_deploy builds files, which can take forever
+      dir("webapp") {
+         clean(params.CLEAN);
 
-            // TODO(benkraft): Extract the resolution of services into a util
-            if (params.SERVICES == "auto") {
-               // Slack is temporarily needed while should_deploy is doing
-               // side-by-side testing of the go_code_analysis.go.
-               // TODO(csilvers): remove this once should_deploy.py does
-               //                 not directly import alertlib anymore.
-               withSecrets.slackAlertlibOnly() {
-                  try {
-                     SERVICES = exec.outputOf(["deploy/should_deploy.py"]).split("\n");
-                  } catch(e) {
-                     notify.fail("Automatic detection of what to deploy failed. " +
-                                 "You can likely work around this by setting " +
-                                 "SERVICES on your deploy; see " +
-                                 "${env.BUILD_URL}rebuild for documentation, and " +
-                                 "`sun: help flags` for how to set it.  If you " +
-                                 "aren't sure, ask dev-support for help!");
-                  }
-               }
-            } else {
-               SERVICES = params.SERVICES.split(",");
-            }
-            if (SERVICES == [""]) {
-               // Either of the above could be [""], if we should
-               // deploy nothing.  We want to use [] instead: [""]
-               // would mean deploying a single nameless service or
-               // something.
-               SERVICES = [];
-            }
-            echo("Deploying to the following services: ${SERVICES.join(', ')}");
+         // Let's do a sanity check.
+         def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
+         if (params.GIT_REVISION != headSHA1) {
+            notify.fail("Internal error: " +
+                        "HEAD does not point to the deploy-branch");
+         }
 
-            NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
-            DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
-            GIT_TAG = "gae-${NEW_VERSION}";
-
-            // Test coverage in webapp/deploy/git_tags_test.py
-            // DeployTagsTest mimics the git tag workflow used
-            // here. If any changes are made to the steps below, make
-            // the same changes there as well so we are testing the
-            // way our deploy git tagging works.
-            def currentVersionTag = exec.outputOf(
-               ["deploy/current_version.py", "--git-tag"]);
-            def currentVersionParts = exec.outputOf(
-               ["deploy/git_tags.py", "--parse", currentVersionTag]).split("\n");
-
-            // If this deploy fails, we want to roll back to the version
-            // that was active when the deploy started.  That's now!
-            ROLLBACK_TO = currentVersionTag;
-
-            // Construct a dict from service to version, using NEW_VERSION
-            // for any service in SERVICES.  We'll emit this in the git tag.
-            for (def i = 0; i < currentVersionParts.size(); i++) {
-               def serviceAndVersion = currentVersionParts[i];
-               if (serviceAndVersion) {
-                  def service = serviceAndVersion.split("=")[0];
-                  def oldVersion = serviceAndVersion.split("=")[1];
-                  VERSION_DICT[service] = oldVersion;
+         // TODO(benkraft): Extract the resolution of services into a util
+         if (params.SERVICES == "auto") {
+            // Slack is temporarily needed while should_deploy is doing
+            // side-by-side testing of the go_code_analysis.go.
+            // TODO(csilvers): remove this once should_deploy.py does
+            //                 not directly import alertlib anymore.
+            withSecrets.slackAlertlibOnly() {
+               try {
+                  SERVICES = exec.outputOf(["deploy/should_deploy.py"]).split("\n");
+               } catch(e) {
+                  notify.fail("Automatic detection of what to deploy failed. " +
+                              "You can likely work around this by setting " +
+                              "SERVICES on your deploy; see " +
+                              "${env.BUILD_URL}rebuild for documentation, and " +
+                              "`sun: help flags` for how to set it.  If you " +
+                              "aren't sure, ask dev-support for help!");
                }
             }
-            for (def i = 0; i < SERVICES.size(); i++) {
-               VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
+         } else {
+            SERVICES = params.SERVICES.split(",");
+         }
+         if (SERVICES == [""]) {
+            // Either of the above could be [""], if we should
+            // deploy nothing.  We want to use [] instead: [""]
+            // would mean deploying a single nameless service or
+            // something.
+            SERVICES = [];
+         }
+         echo("Deploying to the following services: ${SERVICES.join(', ')}");
+
+         NEW_VERSION = exec.outputOf(["make", "gae_version_name"]);
+         DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
+         GIT_TAG = "gae-${NEW_VERSION}";
+
+         // Test coverage in webapp/deploy/git_tags_test.py
+         // DeployTagsTest mimics the git tag workflow used
+         // here. If any changes are made to the steps below, make
+         // the same changes there as well so we are testing the
+         // way our deploy git tagging works.
+         def currentVersionTag = exec.outputOf(
+            ["deploy/current_version.py", "--git-tag"]);
+         def currentVersionParts = exec.outputOf(
+            ["deploy/git_tags.py", "--parse", currentVersionTag]).split("\n");
+
+         // If this deploy fails, we want to roll back to the version
+         // that was active when the deploy started.  That's now!
+         ROLLBACK_TO = currentVersionTag;
+
+         // Construct a dict from service to version, using NEW_VERSION
+         // for any service in SERVICES.  We'll emit this in the git tag.
+         for (def i = 0; i < currentVersionParts.size(); i++) {
+            def serviceAndVersion = currentVersionParts[i];
+            if (serviceAndVersion) {
+               def service = serviceAndVersion.split("=")[0];
+               def oldVersion = serviceAndVersion.split("=")[1];
+               VERSION_DICT[service] = oldVersion;
             }
+         }
+         for (def i = 0; i < SERVICES.size(); i++) {
+            VERSION_DICT[SERVICES[i]] = NEW_VERSION;  // I AM YELLING!
          }
       }
    }
@@ -916,7 +922,12 @@ onMaster('4h') {
                          what: 'deploy-webapp']]) {
       try {
          stage("Merging in master") {
-            mergeFromMasterAndInitializeGlobals();
+            mergeFromMaster();
+         }
+         stage("Initializing globals") {
+            withVirtualenv.python3() {
+               initializeGlobals();
+            }
          }
       } catch (e) {
             echo("FATAL ERROR merging in master: ${e}");
