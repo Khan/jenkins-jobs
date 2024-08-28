@@ -269,7 +269,7 @@ def _alert(def slackArgs, def interpolationArgs) {
 }
 
 
-def mergeFromMasterAndInitializeGlobals() {
+def mergeFromMaster() {
    withTimeout('1h') {    // should_deploy builds files, which can take forever
       // In principle we should fetch from workspace@script which is where this
       // script itself is loaded from, but that doesn't exist on build-workers
@@ -301,8 +301,14 @@ def mergeFromMasterAndInitializeGlobals() {
 
       dir("webapp") {
          clean(params.CLEAN);
+      }
+    }
+}
 
-         // Let's do a sanity check.
+def initializeGlobals() {
+   withTimeout('1h') {
+      dir("webapp") {
+          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
          if (params.GIT_REVISION != headSHA1) {
             notify.fail("Internal error: " +
@@ -670,8 +676,11 @@ onWorker('build-worker', '4h') {
 
       try {
          stage("Merging in master") {
+             mergeFromMaster();
+         }
+         stage("Initializing globals") {
             withVirtualenv.python3() {
-               mergeFromMasterAndInitializeGlobals();
+               initializeGlobals();
              }
          }
          stage("Deploying") {

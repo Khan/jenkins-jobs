@@ -330,6 +330,24 @@ def _sendSimpleInterpolatedMessage(def rawMsg, def interpolationArgs) {
     }
 }
 
+def mergeFromMaster() {
+   withTimeout('1h') {
+      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
+                             params.GIT_REVISION);
+
+      // We merge `master` into the current revision before deploying
+      // the ZND so that the ZND isn't deployed using out of date
+      // processes.  We call this function directly instead of relying
+      // on the merge-branches job because deploy-znd isn't
+      // facilitated by buildmaster.
+      kaGit.mergeBranches("master+" + params.GIT_REVISION, VERSION);
+
+      dir("webapp") {
+         clean(params.CLEAN);
+      }
+   }
+}
+
 def deploy() {
    withTimeout('150m') {
       // In principle we should fetch from workspace@script which is where this
@@ -337,18 +355,7 @@ def deploy() {
       // and our checkout of jenkins-jobs will work fine.
       alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
 
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                             params.GIT_REVISION);
-
-      // We merge `master` into the current revision before deploying the ZND
-      // so that the ZND isn't deployed using out of date processes.  We call this
-      // function directly instead of relying on the merge-branches job because
-      // deploy-znd isn't facilitated by buildmaster.
-      kaGit.mergeBranches("master+" + params.GIT_REVISION, VERSION);
-
       dir("webapp") {
-         clean(params.CLEAN);
-
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
          if (params.SERVICES == "auto") {
@@ -445,6 +452,9 @@ onWorker('znd-worker', '3h') {
                    // We don't need to notify on success because deploy.sh does.
                    when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       determineVersion();
+      stage("Merging in master") {
+         mergeFromMaster();
+      }
       stage("Deploying") {
          withVirtualenv.python3() {
             deploy();
