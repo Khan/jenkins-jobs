@@ -381,8 +381,6 @@ def mergeFromMaster() {
 def initializeGlobals() {
    withTimeout('1h') {    // should_deploy builds files, which can take forever
       dir("webapp") {
-         clean(params.CLEAN);
-
          // Let's do a sanity check.
          def headSHA1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
          if (params.GIT_REVISION != headSHA1) {
