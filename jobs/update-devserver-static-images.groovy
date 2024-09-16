@@ -48,6 +48,11 @@ the updated data-file to it.""",
 
 
 def _setupWebapp() {
+   // We do not allow pushing directly to master.
+   if (params.GIT_BRANCH == "master") {
+      notify.fail("You may not push directly to master.  Try `automated-commits` instead.")
+   }
+
    // We do our work in the automated-commits branch (first pulling in master).
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_BRANCH);
    if (params.MERGE_MASTER) {
