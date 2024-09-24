@@ -50,9 +50,20 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 <ul>
   <li> <b>test</b>: https://www-boxes.khanacademy.org
   <li> <b>prod</b>: https://www.khanacademy.org
+  <li> <b>staging</b>: TODO [compute@edge only]
 </ul>
 """,
-    ["test", "prod"]
+    ["test", "prod", "staging"]
+
+).addChoiceParam(
+    "SERVICE",
+    """\
+<ul>
+  <li> <b>vcl</b>
+  <li> <b>compute@edge</b>
+</ul>
+""",
+    ["vcl", "compute@edge"]
 
 ).addChoiceParam(
     "CLEAN",
@@ -66,6 +77,8 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 
 ).apply();
 
+SERVICE_DIR = params.SERVICE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
+
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.TARGET})");
@@ -78,7 +91,7 @@ def installDeps() {
 
       dir("webapp") {
          clean(params.CLEAN);
-         dir("services/fastly-khanacademy") {
+         dir(SERVICE_DIR) {
              sh("make deps");
          }
       }
@@ -86,12 +99,8 @@ def installDeps() {
 }
 
 def _activeVersion() {
-   def cmd = [
-       "make",
-       "-s",
-       "-C", "webapp/services/fastly-khanacademy",
-        params.TARGET == "prod" ? "active-version" : "active-version-test",
-   ];
+   def cmd = ["make", "-s", "-C", "webapp/${SERVICE_DIR}",
+              "active-version-${params.TARGET}"];
    withTimeout('1m') {
       withVirtualenv.python3() {
          return exec.outputOf(cmd)
@@ -117,11 +126,11 @@ def deploy() {
    withTimeout('15m') {
       withVirtualenv.python3() {
          withSecrets.slackAlertlibOnly() { // to report to #fastly
-            dir("webapp/services/fastly-khanacademy") {
+            dir("webapp/${SERVICE_DIR}") {
                // `make deploy` uses vt100 escape codes to color its diffs,
                // let's make sure they show up properly.
                ansiColor('xterm') {
-                  sh(params.TARGET == "prod" ? "make deploy" : "make deploy-test");
+                  exec(["make", "deploy-${params.TARGET}"]);
                }
             }
          }
@@ -133,8 +142,8 @@ def setDefault() {
    withTimeout('5m') {
       withVirtualenv.python3() {
          withSecrets.slackAlertlibOnly() { // report to #fastly, #whats-happening
-            dir("webapp/services/fastly-khanacademy") {
-               sh(params.TARGET == "prod" ? "make set-default" : "make set-default-test");
+            dir("webapp/${SERVICE_DIR}") {
+               exec(["make", "set-default-${params.TARGET}"]);
             }
          }
       }
@@ -142,8 +151,10 @@ def setDefault() {
 }
 
 def notifyWithVersionInfo(oldActive, newActive) {
-   def subject = "fastly-${params.TARGET} is now at version ${newActive}";
-   def body = "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`";
+   def subject = "fastly-${params.TARGET} (${params.SERVICE}) is now at version ${newActive}";
+   // We don't use fastly-rollback with compute@edge, we use the normal
+   // `emergency-rollback` jenkins job.
+   def body = params.SERVICE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
    def cmd = [
        "jenkins-jobs/alertlib/alert.py",
        "--slack=#fastly",
@@ -154,6 +165,35 @@ def notifyWithVersionInfo(oldActive, newActive) {
    ];
    withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
+   }
+}
+
+def deployToVcl() {
+   stage("Deploying") {
+      if (params.TARGET != "test") {
+         ensureUpToDate();
+      }
+      deploy();
+   }
+
+   echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
+   input("Diff looks good?");
+
+   stage("Setting default") {
+      setDefault();
+   }
+}
+
+def deployToCompute() {
+   // Unlike vcl, we don't have a way to separate "deploy" from "set-default"
+   // in compute@edge.  So the way we do things is we just do two separate
+   // deploys -- that is, two separate deploy-fastly jenkins jobs -- one
+   // to staging and one to prod.
+   stage("Deploying") {
+      if (params.TARGET != "test") {
+         ensureUpToDate();
+      }
+      deploy();
    }
 }
 
@@ -180,11 +220,17 @@ onMaster('30m') {
          deploy();
       }
 
-      echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
-      input("Diff looks good?");
+      // In vcl, you set-default in the same jenkins job.  But compute@edge
+      // doesn't have a set-default mode, so the way we do things is to have
+      // two different jenkins jobs, one to staging and one to prod.  That
+      // means we skip the next part in compute@edge.
+      if (params.SERVICE == "vcl") {
+         echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
+         input("Diff looks good?");
 
-      stage("Setting default") {
-         setDefault();
+         stage("Setting default") {
+            setDefault();
+         }
       }
 
       def newActive = _activeVersion();
