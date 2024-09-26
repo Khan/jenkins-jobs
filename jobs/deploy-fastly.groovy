@@ -56,7 +56,7 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
     ["test", "prod", "staging"]
 
 ).addChoiceParam(
-    "SERVICE",
+    "LANGUAGE",
     """\
 <ul>
   <li> <b>vcl</b>
@@ -77,11 +77,11 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 
 ).apply();
 
-SERVICE_DIR = params.SERVICE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
+SERVICE_DIR = params.LANGUAGE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
 
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.TARGET})");
+                            "(${params.TARGET} ${params.LANGUAGE})");
 
 
 def installDeps() {
@@ -151,10 +151,10 @@ def setDefault() {
 }
 
 def notifyWithVersionInfo(oldActive, newActive) {
-   def subject = "fastly-${params.TARGET} (${params.SERVICE}) is now at version ${newActive}";
+   def subject = "fastly-${params.TARGET} (${params.LANGUAGE}) is now at version ${newActive}";
    // We don't use fastly-rollback with compute@edge, we use the normal
    // `emergency-rollback` jenkins job.
-   def body = params.SERVICE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
+   def body = params.LANGUAGE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
    def cmd = [
        "jenkins-jobs/alertlib/alert.py",
        "--slack=#fastly",
@@ -165,35 +165,6 @@ def notifyWithVersionInfo(oldActive, newActive) {
    ];
    withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
-   }
-}
-
-def deployToVcl() {
-   stage("Deploying") {
-      if (params.TARGET != "test") {
-         ensureUpToDate();
-      }
-      deploy();
-   }
-
-   echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
-   input("Diff looks good?");
-
-   stage("Setting default") {
-      setDefault();
-   }
-}
-
-def deployToCompute() {
-   // Unlike vcl, we don't have a way to separate "deploy" from "set-default"
-   // in compute@edge.  So the way we do things is we just do two separate
-   // deploys -- that is, two separate deploy-fastly jenkins jobs -- one
-   // to staging and one to prod.
-   stage("Deploying") {
-      if (params.TARGET != "test") {
-         ensureUpToDate();
-      }
-      deploy();
    }
 }
 
@@ -220,17 +191,16 @@ onMaster('30m') {
          deploy();
       }
 
-      // In vcl, you set-default in the same jenkins job.  But compute@edge
-      // doesn't have a set-default mode, so the way we do things is to have
-      // two different jenkins jobs, one to staging and one to prod.  That
-      // means we skip the next part in compute@edge.
-      if (params.SERVICE == "vcl") {
+      // In vcl, we can read the diff, because we upload the source code.
+      // So we do this and ask for confirmation as a double-check.  For
+      // compute@edge we upload a binary so there's no diff we can do.
+      if (params.LANGUAGE == "vcl") {
          echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
          input("Diff looks good?");
+      }
 
-         stage("Setting default") {
-            setDefault();
-         }
+      stage("Setting default") {
+         setDefault();
       }
 
       def newActive = _activeVersion();
