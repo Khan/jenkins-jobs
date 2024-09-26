@@ -81,7 +81,7 @@ SERVICE_DIR = params.LANGUAGE == "vcl" ? "services/fastly-khanacademy" : "servic
 
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.TARGET})");
+                            "(${params.TARGET} ${params.LANGUAGE})");
 
 
 def installDeps() {
