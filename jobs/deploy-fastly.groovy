@@ -56,7 +56,7 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
     ["test", "prod", "staging"]
 
 ).addChoiceParam(
-    "SERVICE",
+    "LANGUAGE",
     """\
 <ul>
   <li> <b>vcl</b>
@@ -77,7 +77,7 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 
 ).apply();
 
-SERVICE_DIR = params.SERVICE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
+SERVICE_DIR = params.LANGUAGE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
 
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
@@ -151,10 +151,10 @@ def setDefault() {
 }
 
 def notifyWithVersionInfo(oldActive, newActive) {
-   def subject = "fastly-${params.TARGET} (${params.SERVICE}) is now at version ${newActive}";
+   def subject = "fastly-${params.TARGET} (${params.LANGUAGE}) is now at version ${newActive}";
    // We don't use fastly-rollback with compute@edge, we use the normal
    // `emergency-rollback` jenkins job.
-   def body = params.SERVICE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
+   def body = params.LANGUAGE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
    def cmd = [
        "jenkins-jobs/alertlib/alert.py",
        "--slack=#fastly",
@@ -194,7 +194,7 @@ onMaster('30m') {
       // In vcl, we can read the diff, because we upload the source code.
       // So we do this and ask for confirmation as a double-check.  For
       // compute@edge we upload a binary so there's no diff we can do.
-      if (params.SERVICE == "vcl") {
+      if (params.LANGUAGE == "vcl") {
          echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
          input("Diff looks good?");
       }
