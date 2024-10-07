@@ -107,6 +107,8 @@ gc_all_repos() {
         #    https://feeding.cloud.geek.nz/posts/error-while-running-git-gc/
         # (We didn't do this above because /mnt/jenkins/repositories isn't
         # a "working" github dir, just a source of .pack files.)
+        # We also get rid of stale branches, which can also cause gc issues.
+        git remote prune origin
         git reflog expire --all --stale-fix
         git gc
         )
