@@ -4,6 +4,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
+
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
@@ -13,63 +14,68 @@ import org.khanacademy.Setup;
 // The easiest setup ever! -- we just use the defaults.
 new Setup(steps
 
-).addStringParam(
+).addChoiceParam(
     "SERVICE",
-    """<b>REQUIRED</b>. The service to deploy, such as "buildmaster" or
-    "ingress".""",
-    ""
-
+    ["buildmaster"],
+    """<b>REQUIRED</b>. The service to deploy, such as "buildmaster" or "ingress".""",
+    "buildmaster",
+).addStringParam(
+    "BRANCH",
+    """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
+    "master"
+).addChoiceParam(
+    "GCLOUD_PROJECT",
+    ["khan-test", "khan-internal-services"],
+    """<b>REQUIRED</b>. The Google Cloud project to deploy to."""
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE})";
+currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE} - ${params.BRANCH})";
 
 def installDeps() {
-   withTimeout('60m') { // webapp can take quite a while
-      // Unhappily, we need to clone webapp in this workspace so that we have
-      // secrets for reporting to slack.
-      // TODO(benkraft): just clone the secrets instead of webapp when we have
-      // that ability.
-      kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", "master");
-
-      kaGit.safeSyncToOrigin("git@github.com:Khan/internal-services", "master");
-      // In theory that's all we need; repos that need more deps will install
-      // them themselves.
-   }
+  // may need to install gcloud and docker
+   kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster", "${params.BRANCH}");
 }
 
 def deploy() {
-   withTimeout('15m') {
-      dir("internal-services/${params.SERVICE}") {
-         withEnv([
-            // We install pipenv globally (using pip3, which doesn't use the
-            // virtualenv), so we need to add this to the path.
-            // TODO(benkraft): Do this for every job?  It probably doesn't
-            // hurt.
-            // We also use the jenkins service-account, rather than
-            // prod-deploy, because it has the right permissions.
-            "PATH=${env.PATH}:${env.HOME}/.local/bin",
-            "CLOUDSDK_CORE_ACCOUNT=526011289882-compute@developer.gserviceaccount.com"]) {
-            // This automatically runs any applicable tests before deploying.
-            sh("make deploy");
-         }
+  withTimeout('15m') {
+    // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
+    if (params.BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
+      error("Only 'khan-test' project can be deployed from non-master branches.");
+    }
+
+    dir("internal-services/${params.SERVICE}") {
+      withEnv([
+          // We also use the jenkins service-account, rather than
+          // prod-deploy, because it has the right permissions.
+          "CLOUDSDK_CORE_ACCOUNT=526011289882-compute@developer.gserviceaccount.com",
+          "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
+      ]) {
+        try {
+          // Call make deploy_to_cloud_run with the correct project and branch
+          sh "make deploy"
+          echo "Deployment successful!"
+        } catch (Exception e) {
+          echo "Deployment failed"
+          currentBuild.result = 'FAILURE'
+          throw e
+        }
       }
-   }
+    }
+  }
 }
 
 onMaster('90m') {
-   notify([slack: [channel: '#infrastructure-devops',
-                   sender: 'Mr Meta Monkey', // we may be deploying Mr. Monkey himself!
-                   emoji: ':monkey_face:',
-                   when: ['BUILD START',
-                          'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-      if (params.SERVICE == "") {
-         notify.fail("SERVICE is required!");
-      }
-      stage("Installing deps") {
-         installDeps();
-      }
-      stage("Deploying") {
-         deploy();
-      }
-   }
+  notify([slack: [channel: '#infrastructure-devops', // we may be deploying Mr. Monkey himself!
+                  sender : 'Mr Meta Monkey',
+                  emoji  : ':monkey_face:',
+                  when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+
+    stage("Installing deps") {
+      installDeps();
+    }
+
+    stage("Deploying") {
+      deploy();
+    }
+  }
 }
