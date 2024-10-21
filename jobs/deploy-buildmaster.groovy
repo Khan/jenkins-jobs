@@ -35,7 +35,7 @@ def buildAndDeploy() {
 
     dir("buildmaster2") {
       withEnv([
-          "buildmaster-deploy@${params.GCLOUD_PROJECT}.iam.gserviceaccount.com",
+          "CLOUDSDK_CORE_ACCOUNT=buildmaster-deploy@${params.GCLOUD_PROJECT}.iam.gserviceaccount.com",
           "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
       ]) {
         try {
