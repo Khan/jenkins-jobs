@@ -22,14 +22,12 @@ new Setup(steps
     ["khan-test", "khan-internal-services"],
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH})";
+currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} - ${params.GCLOUD_PROJECT}";
 
-def installDeps() {
-   kaGit.quickClone("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
-}
-
-def deploy() {
+def buildAndDeploy() {
   withTimeout('15m') {
+    kaGit.quickClone("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
+
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
     if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
       error("Only 'khan-test' project can be deployed from non-master branches.");
@@ -37,13 +35,11 @@ def deploy() {
 
     dir("buildmaster2") {
       withEnv([
-          // We also use the jenkins service-account, rather than
-          // prod-deploy, because it has the right permissions.
-          "CLOUDSDK_CORE_ACCOUNT=526011289882-compute@developer.gserviceaccount.com",
+          "CLOUDSDK_CORE_ACCOUNT=buildmaster-deploy@${params.GCLOUD_PROJECT}.iam.gserviceaccount.com",
           "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
       ]) {
         try {
-          // Call make deploy_to_cloud_run with the correct project and branch
+          // Call make deploy with the correct project and branch
           sh "make deploy"
           echo "Deployment successful!"
         } catch (Exception e) {
@@ -62,12 +58,8 @@ onMaster('90m') {
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
 
-    stage("Installing deps") {
-      installDeps();
-    }
-
     stage("Deploying") {
-      deploy();
+      buildAndDeploy();
     }
   }
 }
