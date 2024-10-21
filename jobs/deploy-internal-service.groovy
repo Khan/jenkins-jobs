@@ -31,7 +31,7 @@ new Setup(steps
 currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE} - ${params.BRANCH})";
 
 def installDeps() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster", "${params.BRANCH}");
+   kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", "${params.BRANCH}");
 }
 
 def deploy() {
