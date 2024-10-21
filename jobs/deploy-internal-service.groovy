@@ -32,7 +32,6 @@ new Setup(steps
 currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE} - ${params.BRANCH})";
 
 def installDeps() {
-  // may need to install gcloud and docker
    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster", "${params.BRANCH}");
 }
 
