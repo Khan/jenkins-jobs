@@ -16,17 +16,16 @@ new Setup(steps
 
 ).addChoiceParam(
     "SERVICE",
-    ["buildmaster"],
     """<b>REQUIRED</b>. The service to deploy, such as "buildmaster" or "ingress".""",
-    "buildmaster",
+    ["buildmaster"],
 ).addStringParam(
     "BRANCH",
     """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
     "master"
 ).addChoiceParam(
     "GCLOUD_PROJECT",
+    """<b>REQUIRED</b>. The Google Cloud project to deploy to.""",
     ["khan-test", "khan-internal-services"],
-    """<b>REQUIRED</b>. The Google Cloud project to deploy to."""
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE} - ${params.BRANCH})";
