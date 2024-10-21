@@ -27,6 +27,7 @@ currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} -
 def buildAndDeploy() {
   withTimeout('15m') {
     kaGit.quickClone("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
+    kaGit.safePullInBranch("buildmaster2", params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
     if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
@@ -53,7 +54,7 @@ def buildAndDeploy() {
 }
 
 onMaster('90m') {
-  notify([slack: [channel: '#infrastructure-devops', // we may be deploying Mr. Monkey himself!
+  notify([slack: [channel: '#hack-buildmaster-2024',
                   sender : 'Mr Meta Monkey',
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
