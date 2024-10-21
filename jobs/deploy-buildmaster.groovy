@@ -1,5 +1,4 @@
-// Groovy script to deploy internal-services (well, one specific service).  We
-// always deploy from origin/master.
+// Groovy script to deploy buildmaster2-services
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -13,13 +12,8 @@ import org.khanacademy.Setup;
 
 // The easiest setup ever! -- we just use the defaults.
 new Setup(steps
-
-).addChoiceParam(
-    "SERVICE",
-    """<b>REQUIRED</b>. The service to deploy, such as "buildmaster" or "ingress".""",
-    ["buildmaster"],
 ).addStringParam(
-    "BRANCH",
+    "GIT_BRANCH",
     """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
     "master"
 ).addChoiceParam(
@@ -28,20 +22,20 @@ new Setup(steps
     ["khan-test", "khan-internal-services"],
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} (${params.SERVICE} - ${params.BRANCH})";
+currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH})";
 
 def installDeps() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", "${params.BRANCH}");
+   kaGit.quickClone("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
 }
 
 def deploy() {
   withTimeout('15m') {
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
-    if (params.BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
+    if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
       error("Only 'khan-test' project can be deployed from non-master branches.");
     }
 
-    dir("internal-services/${params.SERVICE}") {
+    dir("buildmaster2") {
       withEnv([
           // We also use the jenkins service-account, rather than
           // prod-deploy, because it has the right permissions.
