@@ -1,4 +1,4 @@
-// Groovy script to deploy buildmaster2-services
+// Groovy script to deploy buildmaster2
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -26,7 +26,7 @@ currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} -
 
 def buildAndDeploy() {
   withTimeout('15m') {
-    kaGit.quickClone("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
     if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
@@ -35,7 +35,6 @@ def buildAndDeploy() {
 
     dir("buildmaster2") {
       withEnv([
-          "CLOUDSDK_CORE_ACCOUNT=buildmaster-deploy@${params.GCLOUD_PROJECT}.iam.gserviceaccount.com",
           "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
       ]) {
         try {
@@ -53,7 +52,7 @@ def buildAndDeploy() {
 }
 
 onMaster('90m') {
-  notify([slack: [channel: '#infrastructure-devops', // we may be deploying Mr. Monkey himself!
+  notify([slack: [channel: '#hack-buildmaster-2024',  // we may be deploying Mr. Monkey himself!
                   sender : 'Mr Meta Monkey',
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
