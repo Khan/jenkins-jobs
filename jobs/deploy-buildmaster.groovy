@@ -1,4 +1,4 @@
-// Groovy script to deploy buildmaster2-services
+// Groovy script to deploy buildmaster2
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -26,7 +26,7 @@ currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} -
 
 def buildAndDeploy() {
   withTimeout('15m') {
-    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", "buildmaster2", params.GIT_BRANCH);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
     if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
