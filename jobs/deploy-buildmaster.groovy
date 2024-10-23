@@ -16,17 +16,20 @@ new Setup(steps
     "GIT_BRANCH",
     """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
     "master"
+
 ).addChoiceParam(
     "GCLOUD_PROJECT",
     """<b>REQUIRED</b>. The Google Cloud project to deploy to.""",
     ["khan-test", "khan-internal-services"],
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} - ${params.GCLOUD_PROJECT}";
 
 def buildAndDeploy() {
   withTimeout('15m') {
-    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2", params.GIT_BRANCH);
+    kaGit.safeSyncToOrigin("git@github.com:Khan/buildmaster2",
+                           params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
     if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
@@ -34,29 +37,20 @@ def buildAndDeploy() {
     }
 
     dir("buildmaster2") {
-      withEnv([
-          "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
-      ]) {
-        try {
-          // Call make deploy with the correct project and branch
-          sh "make deploy"
-          echo "Deployment successful!"
-        } catch (Exception e) {
-          echo "Deployment failed"
-          currentBuild.result = 'FAILURE'
-          throw e
-        }
+      withEnv(["GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"]) {
+        // Call make deploy with the correct project and branch
+        sh("make deploy");
+        echo("Deployment successful!");
       }
     }
   }
 }
 
 onMaster('90m') {
-  notify([slack: [channel: '#hack-buildmaster-2024',  // we may be deploying Mr. Monkey himself!
-                  sender : 'Mr Meta Monkey',
+  notify([slack: [channel: '#hack-buildmaster-2024',
+                  sender : 'Mr Meta Monkey',  // we may be deploying Mr. Monkey himself!
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-
     stage("Deploying") {
       buildAndDeploy();
     }
