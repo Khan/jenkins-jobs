@@ -91,6 +91,7 @@ def publishResults() {
 
 onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
+                   failureChannel: "#infrastructure-platform",
                    sender: 'Devserver Duck',
                    emoji: ':duck:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
