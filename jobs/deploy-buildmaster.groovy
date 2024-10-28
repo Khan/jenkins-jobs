@@ -12,6 +12,7 @@ import org.khanacademy.Setup;
 
 // The easiest setup ever! -- we just use the defaults.
 new Setup(steps
+
 ).addStringParam(
     "GIT_BRANCH",
     """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
@@ -21,10 +22,12 @@ new Setup(steps
     "GCLOUD_PROJECT",
     """<b>REQUIRED</b>. The Google Cloud project to deploy to.""",
     ["khan-test", "khan-internal-services"],
+
 ).addChoiceParam(
     "SERVICE_OR_JOB",
     """<b>REQUIRED</b>. The service or job to deploy. Choose from all, buildmaster, reaper, trigger-reminders, or warm-rollback.""",
     ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job"]
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} - ${params.GCLOUD_PROJECT} - ${params.SERVICE_OR_JOB}";
@@ -40,37 +43,28 @@ def buildAndDeploy() {
     }
 
     dir("buildmaster2") {
-      withEnv([
-          "GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"
-      ]) {
-        try {
-          // Deploy based on the selected service or job
-          def serviceOrJob = params.SERVICE_OR_JOB
-          switch (serviceOrJob) {
-            case "all":
-              sh "make deploy"
-              break
-            case "buildmaster":
-              sh "make deploy_buildmaster"
-              break
-            case "reaper":
-              sh "make deploy_reaper"
-              break
-            case "trigger-reminders":
-              sh "make deploy_trigger_reminders"
-              break
-            case "warm-rollback":
-              sh "make deploy_warm_rollback"
-              break
-            default:
-              error("Invalid service or job selected: ${serviceOrJob}")
-          }
-          echo "Deployment successful!"
-        } catch (Exception e) {
-          echo "Deployment failed"
-          currentBuild.result = 'FAILURE'
-          throw e
+      withEnv(["GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"]) {
+        // Deploy based on the selected service or job
+        switch (params.SERVICE_OR_JOB) {
+          case "all":
+            sh("make deploy");
+            break
+          case "buildmaster":
+            sh("make deploy_buildmaster");
+            break
+          case "reaper":
+            sh("make deploy_reaper");
+            break
+          case "trigger-reminders":
+            sh("make deploy_trigger_reminders");
+            break
+          case "warm-rollback":
+            sh("make deploy_warm_rollback");
+            break
+          default:
+            error("Invalid service or job selected: ${params.SERVICE_OR_JOB}")
         }
+        echo("Deployment successful!");
       }
     }
   }
