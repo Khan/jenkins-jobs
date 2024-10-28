@@ -62,7 +62,7 @@ def buildAndDeploy() {
             sh("make deploy_warm_rollback");
             break
           default:
-            error("Invalid service or job selected: ${params.SERVICE_OR_JOB}")
+            error("Invalid service or job selected: ${params.SERVICE_OR_JOB}");
         }
         echo("Deployment successful!");
       }
