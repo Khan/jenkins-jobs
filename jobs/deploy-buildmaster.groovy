@@ -71,7 +71,7 @@ def buildAndDeploy() {
 }
 
 onMaster('90m') {
-  notify([slack: [channel: '#hack-buildmaster-2024',
+  notify([slack: [channel: '#1s-and-0s',
                   sender : 'Mr Meta Monkey',  // we may be deploying Mr. Monkey himself!
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
