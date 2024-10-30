@@ -12,6 +12,7 @@ import org.khanacademy.Setup;
 
 // The easiest setup ever! -- we just use the defaults.
 new Setup(steps
+
 ).addStringParam(
     "GIT_BRANCH",
     """<b>REQUIRED</b>. The branch to deploy from. Typically "master".""",
@@ -22,9 +23,14 @@ new Setup(steps
     """<b>REQUIRED</b>. The Google Cloud project to deploy to.""",
     ["khan-test", "khan-internal-services"],
 
+).addChoiceParam(
+    "SERVICE_OR_JOB",
+    """<b>REQUIRED</b>. The service or job to deploy. Choose from all, buildmaster, reaper, trigger-reminders, or warm-rollback.""",
+    ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job"]
+
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} - ${params.GCLOUD_PROJECT}";
+currentBuild.displayName = "${currentBuild.displayName} - ${params.GIT_BRANCH} - ${params.GCLOUD_PROJECT} - ${params.SERVICE_OR_JOB}";
 
 def buildAndDeploy() {
   withTimeout('15m') {
@@ -38,8 +44,26 @@ def buildAndDeploy() {
 
     dir("buildmaster2") {
       withEnv(["GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"]) {
-        // Call make deploy with the correct project and branch
-        sh("make deploy");
+        // Deploy based on the selected service or job
+        switch (params.SERVICE_OR_JOB) {
+          case "all":
+            sh("make deploy");
+            break
+          case "buildmaster":
+            sh("make deploy_buildmaster");
+            break
+          case "reaper":
+            sh("make deploy_reaper");
+            break
+          case "trigger-reminders":
+            sh("make deploy_trigger_reminders");
+            break
+          case "warm-rollback":
+            sh("make deploy_warm_rollback");
+            break
+          default:
+            error("Invalid service or job selected: ${params.SERVICE_OR_JOB}");
+        }
         echo("Deployment successful!");
       }
     }
@@ -47,7 +71,7 @@ def buildAndDeploy() {
 }
 
 onMaster('90m') {
-  notify([slack: [channel: '#hack-buildmaster-2024',
+  notify([slack: [channel: '#infrastructure-deploys',
                   sender : 'Mr Meta Monkey',  // we may be deploying Mr. Monkey himself!
                   emoji  : ':monkey_face:',
                   when   : ['BUILD START', 'SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
