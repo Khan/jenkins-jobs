@@ -52,13 +52,13 @@ def buildAndDeploy() {
           case "buildmaster":
             sh("make deploy_buildmaster");
             break
-          case "reaper":
+          case "reaper-job":
             sh("make deploy_reaper");
             break
-          case "trigger-reminders":
+          case "trigger-reminders-job":
             sh("make deploy_trigger_reminders");
             break
-          case "warm-rollback":
+          case "warm-rollback-job":
             sh("make deploy_warm_rollback");
             break
           default:
