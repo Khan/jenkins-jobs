@@ -70,7 +70,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
                                 maskValue: true]],
                httpMode: httpMode,
                requestBody: new JsonBuilder(params).toString(),
-               url: "https://buildmaster.khanacademy.org/${resource}");
+               url: "https://buildmaster-526011289882.us-central1.run.app/${resource}");
             notify.log("Buildmaster request: ${resource}", [
                resource: resource,
                response: response,
