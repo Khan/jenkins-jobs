@@ -144,6 +144,7 @@ def doRollback() {
 
 onMaster('1h') {
    notify([slack: [channel: '#1s-and-0s-deploys',
+                   failureChannel: '#infrastructure-platform',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    when: ['BUILD START', 'SUCCESS',

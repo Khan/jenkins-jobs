@@ -83,6 +83,7 @@ def publishResults() {
 
 onMaster('2h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
+                   failureChannel: "#infrastructure-platform",
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {

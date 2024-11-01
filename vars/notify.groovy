@@ -138,6 +138,8 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 // when (required): under what circumstances to send to slack; a list.
 //    Possible values are SUCCESS, FAILURE, UNSTABLE, or BACK TO NORMAL.
 //    (Used in call(), below.)
+// failureChannel: send to this channel, in addition to `channel`, when
+//    the jobs fails (`when` is FAILURE or UNSTABLE).
 // sender: the name to use for the bot message (e.g. "Jenny Jenkins")
 // emoji: the emoji to use for the bot (e.g. ":crocodile:")
 // emojiOnFailure: the emoji to use for the bot when sending a message that
@@ -186,7 +188,12 @@ def sendToSlack(slackOptions, status, extraText='') {
             extra_text: extraText,
          ]);
       if (_failed(status)) {
-         // Also send all failures to deploy-support-log
+         // Also send to failureChannel, if it's set.
+         if (slackOptions.failureChannel) {
+             def failureChannelFlags = ["--slack=${slackOptions.failureChannel}"];
+             _sendToAlertlib(subject, severity, body, extraFlags + failureChannelFlags);
+         }
+         // Also always send all failures to deploy-support-log.
          def logChannelFlags = ["--slack=CB00L3VFZ"];   // deploy-support-log
          _sendToAlertlib(subject, severity, body, extraFlags + logChannelFlags);
       }
