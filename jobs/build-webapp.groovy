@@ -84,7 +84,6 @@ specify "users,static" to force a full deploy to the users service and GCS.</p>
 <ul>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
-  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
   <li> <b>index_yaml</b>: upload index.yaml to GAE. </li>
 </ul>
 
@@ -531,29 +530,8 @@ def deployToService(service) {
    }
 }
 
-
-// This should be called from within a node().
-// HACK: This is a workaround to manage a bug in our current deploy system,
-// where running gradlew in two services in parallel causes a conflict in
-// the cache dir (See INFRA-3594 for full details). Here we're careful to
-// build kotlin services in series. Once this bug is resolved, we can remove
-// this, and let kotlin services default to the shared deployToService again.
-def deployToKotlinServicesAndDataflow() {
-   for (service in SERVICES) {
-      if (service in ['course-editing']) {
-         deployToService(service);
-      }
-      if (service == 'dataflow-batch') {
-         deployToDataflow();
-      }
-   }
-}
-
-// This should be called from within a node().
-// Similar to Kotlin services which are deployed by gradlew, parallelism is not
-// supported -- we need to ensure that the services are deployed sequentially.
-// Hence this is actually invoked by deployToKotlinServicesAndDataflow() until
-// the gradlew issue (INFRA-3594) is resolved.
+// This should be called from within a node(). Cannot be run in parallel with  
+// another gradlew due to a conflict in the cache dir.
 def deployToDataflow() {
    if (!('dataflow-batch' in SERVICES)) {
       return;
@@ -577,9 +555,7 @@ def deployToDataflow() {
 def deployAndReport() {
    if (SERVICES) {
       def jobs = ["deploy-to-gcs": { deployToGCS(); },
-                  "deploy-to-kotlin-services-and-dataflow": {
-                     deployToKotlinServicesAndDataflow();
-                  },
+                  "deploy-to-dataflow": { deployToDataflow(); },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
@@ -590,11 +566,10 @@ def deployAndReport() {
          // The 'static' and 'dataflow-batch' services are a bit more
          // complex / different and are handled specially in
          // deployToGCS and deployToDataflow. Services with gradlew
-         // dependencies (i.e. Kotlin services / Dataflow) cannot be deployed
-         // in parallel, and hence must be handled sequentially. Those
-         // deployments are bundled in deployToKotlinServicesAndDataflow().
+         // dependencies (i.e. Dataflow) cannot be deployed
+         // in parallel, and hence must be handled sequentially.
          if (!(service in [
-               'static', 'course-editing', 'dataflow-batch',
+               'static', 'dataflow-batch',
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
                'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
