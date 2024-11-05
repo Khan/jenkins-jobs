@@ -530,32 +530,10 @@ def deployToService(service) {
    }
 }
 
-// This should be called from within a node(). Cannot be run in parallel with  
-// another gradlew due to a conflict in the cache dir.
-def deployToDataflow() {
-   if (!('dataflow-batch' in SERVICES)) {
-      return;
-   }
-
-   def args = ["deploy/deploy_to_dataflow.py", NEW_VERSION,
-               "--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}"];
-
-   args += params.SLACK_THREAD ? [
-      "--slack-thread=${params.SLACK_THREAD}"] : [];
-
-   withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
-      dir("webapp") {
-         exec(args);
-      }
-   }
-}
-
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
       def jobs = ["deploy-to-gcs": { deployToGCS(); },
-                  "deploy-to-dataflow": { deployToDataflow(); },
                   "deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
@@ -563,13 +541,10 @@ def deployAndReport() {
                   "deploy-cron-yaml": { deployCronYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
-         // The 'static' and 'dataflow-batch' services are a bit more
-         // complex / different and are handled specially in
-         // deployToGCS and deployToDataflow. Services with gradlew
-         // dependencies (i.e. Dataflow) cannot be deployed
-         // in parallel, and hence must be handled sequentially.
+         // The 'static' service is a bit more complex / different and is
+         // handled specially in deployToGCS.
          if (!(service in [
-               'static', 'dataflow-batch',
+               'static',
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
                'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop

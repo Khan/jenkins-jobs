@@ -45,14 +45,14 @@ is primarily useful for making sure the job has a recent checkout of webapp.
    "ROLLBACK_TO",
    """The version to rollback to. If not provided, we will default to the
    most recent good version on app engine. This is a full version tag name,
-   e.g. gae-181217-1330-b18f83d38a3d-content-editing-181217-0832-789e0227e0ba""",
+   e.g. gae-181217-1330-b18f83d38a3d""",
    ""
 
 ).addStringParam(
    "BAD_VERSION",
    """The version to rollback from and mark `-bad` in git. If not provided, we
    look for the current live version. This is also a full version tag name,
-   e.g. gae-181217-2111-5f05dc51cf56-content-editing-181217-0832-789e0227e0ba""",
+   e.g. gae-181217-2111-5f05dc51cf56""",
    ""
 // NOTE(benkraft): This runs in a cron job started from the buildmaster,
 // instead of a jenkins cron job, because jenkins cron jobs can't pass
