@@ -48,8 +48,6 @@ specify "users,static" to force a full deploy to the users service and GCS.</p>
 <p>Here are some services:</p>
 <ul>
   <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
-  <li> <b>kotlin-routes</b>: webapp's services/kotlin-routes/. </li>
-  <li> <b>course-editing</b>: webapp's services/course-editing/. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
 </ul> """,
     "auto"
@@ -206,21 +204,6 @@ def deployToService(service) {
    }
 }
 
-
-// This should be called from within a node().
-// HACK: This is a workaround to manage a bug in our current deploy system,
-// where running gradlew in two services in parallel causes a conflict in
-// the cache dir (See INFRA-3594 for full details). Here we're careful to
-// build kotlin services in series. Once this bug is resolved, we can remove
-// this, and let kotlin services default to the shared deployToService again.
-def deployToKotlinServices() {
-   for (service in SERVICES) {
-      if (service in ['course-editing', 'kotlin-routes']) {
-         deployToService(service);
-      }
-   }
-}
-
 // This should be called from within a node().
 def deployIndexYaml() {
    if (!("index_yaml" in SERVICES)) {
@@ -366,7 +349,7 @@ def deploy() {
                            "You can likely work around this by setting " +
                            "SERVICES on your deploy by a comma-separated " +
                            "list of services. For instance: " +
-                           "'static,donations,kotlin-routes'");
+                           "'static,donations'");
             }
          } else {
             SERVICES = params.SERVICES.split(",").collect { it.trim() };
@@ -388,12 +371,6 @@ def deploy() {
          switch (service) {
             case "static":
                jobs["deploy-to-gcs"] = { deployToGCS(); };
-               break;
-
-            // These two services are a bit more complex and are handled
-            // specially.
-            case ( "kotlin-routes" || "course-editing" ):
-               jobs["deploy-to-kotlin-services"] = { deployToKotlinServices(); };
                break;
 
             case "index_yaml":
