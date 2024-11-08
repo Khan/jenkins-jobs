@@ -231,7 +231,7 @@ def mergeBranches(gitRevisions, tagName) {
       // We need to at least tag the commit, otherwise github may prune it.
       // (We can skip this step if something already points to the commit; in
       // fact we want to to avoid Phabricator paying attention to this commit.)
-      // TODO(benkraft): Prune these tags eventually.
+      // These tags ar pruned weekly in weekly-maintenance.sh.
       if (exec.outputOf(["git", "tag", "--points-at", "HEAD"]) == "" &&
           exec.outputOf(["git", "branch", "-r", "--points-at", "HEAD"]) == "") {
          exec(["git", "tag", tagName, "HEAD"]);
