@@ -25,8 +25,8 @@ new Setup(steps
 
 ).addChoiceParam(
     "SERVICE_OR_JOB",
-    """<b>REQUIRED</b>. The service or job to deploy. Choose from all, buildmaster, reaper, trigger-reminders, or warm-rollback.""",
-    ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job"]
+    """<b>REQUIRED</b>. The service or job to deploy. Note that "all" will deploy everything other than migrate-db""",
+    ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job", "migrate-db", "generate-db-migration-scripts"]
 
 ).apply();
 
@@ -60,6 +60,15 @@ def buildAndDeploy() {
             break
           case "warm-rollback-job":
             sh("make deploy_warm_rollback");
+            break
+          case "migrate-db":
+            if (params.GIT_BRANCH != "master") {
+              error("Database migrations can only be run from the master branch.");
+            }
+            sh("make run_database_migration");
+            break
+          case "generate-db-migration-scripts":
+            sh("make generate_migration_and_push");
             break
           default:
             error("Invalid service or job selected: ${params.SERVICE_OR_JOB}");
