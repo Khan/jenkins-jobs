@@ -25,7 +25,7 @@ new Setup(steps
    "https://www.khanacademy.org"
 
 ).addChoiceParam(
-    "FASTLY_COMPUTE_SERVICE",
+    "FASTLY_SERVICE",
     """""",
     ["PROD [VCL]", "PROD [COMPUTE]", "STAGING [COMPUTE]", "TEST [COMPUTE]"]
 )
@@ -181,19 +181,19 @@ def runLambdaTest() {
    // in the LambdaTest build.
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
-   // Determine which Fastly Compute service to route requests to.
-   def fastlyComputeServiceID = "" // Default to PROD [VCL].
-   if (params.FASTLY_COMPUTE_SERVICE == "PROD [COMPUTE]") {
-      fastlyComputeServiceID = "XVn2m1dzuB3ebdNAY6UsY1"
-   } else if (params.FASTLY_COMPUTE_SERVICE == "STAGING [COMPUTE]") {
-      fastlyComputeServiceID = "luUUdGK4AEAIz1vqRyQ180"
-   } else if (params.FASTLY_COMPUTE_SERVICE == "TEST [COMPUTE]") {
-      fastlyComputeServiceID = "uz47U4v9JmAHQhlAhnsHr4"
+   // Determine which Fastly service to route requests to.
+   def fastlyServiceID = "" // Default to PROD [VCL].
+   if (params.FASTLY_SERVICE == "PROD [COMPUTE]") {
+      fastlyServiceID = "XVn2m1dzuB3ebdNAY6UsY1"
+   } else if (params.FASTLY_SERVICE == "STAGING [COMPUTE]") {
+      fastlyServiceID = "luUUdGK4AEAIz1vqRyQ180"
+   } else if (params.FASTLY_SERVICE == "TEST [COMPUTE]") {
+      fastlyServiceID = "uz47U4v9JmAHQhlAhnsHr4"
    }
 
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--envs \"FASTLY_COMPUTE_SERVICE_ID=${fastlyComputeServiceID}\""
+                            "--envs \"FASTLY_COMPUTE_SERVICE_ID=${fastlyServiceID}\""
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
