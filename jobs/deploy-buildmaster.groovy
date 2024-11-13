@@ -68,7 +68,7 @@ def buildAndDeploy() {
             sh("make run_database_migration");
             break
           case "generate-db-migration-scripts":
-            sh("make generate_migration_and_push");
+            sh("make generate_db_migration_and_push");
             break
           default:
             error("Invalid service or job selected: ${params.SERVICE_OR_JOB}");
