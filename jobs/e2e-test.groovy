@@ -193,7 +193,7 @@ def runLambdaTest() {
 
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--envs \"FASTLY_COMPUTE_SERVICE_ID=${fastlyServiceID}\""
+                            "--envs \"FASTLY_COMPUTE_SERVICE_ID=${fastlyServiceID}\"",
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
