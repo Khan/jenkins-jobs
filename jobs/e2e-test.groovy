@@ -186,16 +186,16 @@ def runLambdaTest() {
    // https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/3382050914/VCL+to+Fastly+Compute+routing
    def fastlyComputeEnvironmentCookie = "" // Default to PROD [VCL].
    if (params.FASTLY_SERVICE == "PROD [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "XVn2m1dzuB3ebdNAY6UsY1"
+      fastlyComputeEnvironmentCookie = "NmU3ZDYxMmJjNDRkOGMwNDIzODg4ZDkyYTcxZTA4"
    } else if (params.FASTLY_SERVICE == "STAGING [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "luUUdGK4AEAIz1vqRyQ180"
+      fastlyComputeEnvironmentCookie = "ODI5NTIyOGIxZTdmODUxOTEwZjY0ZDM0NjdlYjJi"
    } else if (params.FASTLY_SERVICE == "TEST [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "uz47U4v9JmAHQhlAhnsHr4"
+      fastlyComputeEnvironmentCookie = "ZTM3YmE2YTFjNDZkZjEwMDYxMTM3NzQyM2VlYjgw"
    }
 
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--envs \"FASTLY_COMPUTE_ENVIRONMENT_COOKIE=${fastlyComputeEnvironmentCookie}\"",
+                            "--envs='FASTLY_COMPUTE_ENVIRONMENT_COOKIE=${fastlyComputeEnvironmentCookie}'",
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
