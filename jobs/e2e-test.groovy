@@ -181,19 +181,21 @@ def runLambdaTest() {
    // in the LambdaTest build.
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
-   // Determine which Fastly service to route requests to.
-   def fastlyServiceID = "" // Default to PROD [VCL].
+   // Determine the value of the `ka-fastly-compute-environment` cookie to set
+   // when running the E2E tests.  These cookie values come from:
+   // https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/3382050914/VCL+to+Fastly+Compute+routing
+   def fastlyComputeEnvironmentCookie = "" // Default to PROD [VCL].
    if (params.FASTLY_SERVICE == "PROD [COMPUTE]") {
-      fastlyServiceID = "XVn2m1dzuB3ebdNAY6UsY1"
+      fastlyComputeEnvironmentCookie = "XVn2m1dzuB3ebdNAY6UsY1"
    } else if (params.FASTLY_SERVICE == "STAGING [COMPUTE]") {
-      fastlyServiceID = "luUUdGK4AEAIz1vqRyQ180"
+      fastlyComputeEnvironmentCookie = "luUUdGK4AEAIz1vqRyQ180"
    } else if (params.FASTLY_SERVICE == "TEST [COMPUTE]") {
-      fastlyServiceID = "uz47U4v9JmAHQhlAhnsHr4"
+      fastlyComputeEnvironmentCookie = "uz47U4v9JmAHQhlAhnsHr4"
    }
 
    def runLambdaTestArgs = ["yarn",
                             "lambdatest",
-                            "--envs \"FASTLY_COMPUTE_SERVICE_ID=${fastlyServiceID}\"",
+                            "--envs \"FASTLY_COMPUTE_ENVIRONMENT_COOKIE=${fastlyComputeEnvironmentCookie}\"",
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
                             "--bn='${BUILD_NAME}'",
                             "-p=${params.NUM_WORKER_MACHINES}",
