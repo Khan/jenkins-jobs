@@ -25,8 +25,8 @@ new Setup(steps
 
 ).addChoiceParam(
     "SERVICE_OR_JOB",
-    """<b>REQUIRED</b>. The service or job to deploy. Choose from all, buildmaster, reaper, trigger-reminders, or warm-rollback.""",
-    ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job"]
+    """<b>REQUIRED</b>. The service or job to deploy. Note that "all" will deploy everything other than migrate-db and generate-db-migration-scripts""",
+    ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job", "migrate-db", "generate-db-migration-scripts"]
 
 ).apply();
 
@@ -38,7 +38,7 @@ def buildAndDeploy() {
                            params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
-    if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test") {
+    if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test" && params.SERVICE_OR_JOB != "generate-db-migration-scripts") {
       error("Only 'khan-test' project can be deployed from non-master branches.");
     }
 
@@ -60,6 +60,18 @@ def buildAndDeploy() {
             break
           case "warm-rollback-job":
             sh("make deploy_warm_rollback");
+            break
+          case "migrate-db":
+            if (params.GIT_BRANCH != "master") {
+              error("Database migrations can only be run from the master branch.");
+            }
+            sh("make run_database_migration");
+            break
+          case "generate-db-migration-scripts":
+            if (params.GIT_BRANCH == "master") {
+              error("Database migrations should be generated from PR branches.");
+            }
+            sh("make generate_db_migration_and_push");
             break
           default:
             error("Invalid service or job selected: ${params.SERVICE_OR_JOB}");
