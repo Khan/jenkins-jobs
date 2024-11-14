@@ -25,7 +25,7 @@ new Setup(steps
 
 ).addChoiceParam(
     "SERVICE_OR_JOB",
-    """<b>REQUIRED</b>. The service or job to deploy. Note that "all" will deploy everything other than migrate-db""",
+    """<b>REQUIRED</b>. The service or job to deploy. Note that "all" will deploy everything other than migrate-db and generate-db-migration-scripts""",
     ["all", "buildmaster", "reaper-job", "trigger-reminders-job", "warm-rollback-job", "migrate-db", "generate-db-migration-scripts"]
 
 ).apply();
