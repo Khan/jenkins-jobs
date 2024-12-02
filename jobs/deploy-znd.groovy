@@ -52,21 +52,6 @@ specify "users,static" to force a full deploy to the users service and GCS.</p>
 </ul> """,
     "auto"
 
-).addBooleanParam(
-    "SKIP_I18N",
-    "If set, do not build translated versions of the webapp content.",
-    false
-
-// TODO(benkraft): Modify this script to think in terms of services,
-// like build-webapp does, if we ever have znds for other services.
-
-).addStringParam(
-    "MODULES",
-    """A comma-separated list of modules to upload to appengine. For a list
-of all modules we support, see <code>webapp/modules_util.py</code>.
-The special value 'all' uploads all modules.""",
-    "default"
-
 ).addChoiceParam(
     "CLEAN",
     """\
@@ -181,7 +166,6 @@ def deployToGCS() {
                "--slack-channel=${params.SLACK_CHANNEL}",
                "--deployer-username=@${_currentUser()}"];
    args += params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
-   args += params.SKIP_I18N ? ["--no-i18n"] : [];
    if (!("static" in SERVICES)) {
       args += ["--copy-from=default"];
    }
