@@ -202,7 +202,7 @@ def runE2ETests(workerId) {
 
    // NOTE: We hard-code the values here as it is an experiment that will be
    // removed soon.
-   def runE2ETestsArgs = ["CYPRESS_PROJECT_ID=2c1iwj && CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5 && ./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
+   def runE2ETestsArgs = ["env", "CYPRESS_PROJECT_ID=2c1iwj", "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5", "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
 
    dir('webapp/services/static') {
       exec(runE2ETestsArgs);
