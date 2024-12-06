@@ -112,12 +112,6 @@ for more information.""",
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
-// Used to tell whether all the test-workers raised an exception.
-WORKERS_RAISING_EXCEPTIONS = 0;
-public class TestFailed extends Exception {}  // for use with the above
-// Used to make sure we finish our job as soon as all tests are run.
-public class TestsAreDone extends Exception {}
-
 
 // Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.CYPRESS_GIT_REVISION;
@@ -154,19 +148,6 @@ def _setupWebapp() {
 
 // Run all the test-clients on all the worker machine, in parallel.
 def runAllTestClients() {
-   // We want to swallow any framework exceptions unless *all* the
-   // clients have raised a framework exception.  Our theory is that
-   // if one client dies unexpectedly the others can compensate, but
-   // if they all do, then there's nothing more we can do.
-   def onException = {
-      echo("Worker raised an exception");
-      WORKERS_RAISING_EXCEPTIONS++;
-      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
-         echo("All worker machines failed!");
-         throw new TestFailed("All worker machines failed!");
-      }
-   }
-
    def jobs = [:];
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
@@ -181,17 +162,6 @@ def runAllTestClients() {
    }
    parallel(jobs);
 }
-
-
-def runTests() {
-   try {
-     runAllTestClients();
-    } catch (TestsAreDone e) {
-      // Ignore this "error": it's thrown on successful test completion.
-      echo("Tests are done!");
-    }
-}
-
 
 def runE2ETests(workerId) {
    echo("Starting e2e tests for worker ${workerId}");
@@ -224,7 +194,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
       initializeGlobals();
 
       stage("Run e2e tests") {
-         runTests();
+         runAllTestClients();
       }
    }
 }
