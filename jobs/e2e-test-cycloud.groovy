@@ -172,10 +172,20 @@ def runE2ETests(workerId) {
 
    // NOTE: We hard-code the values here as it is an experiment that will be
    // removed soon.
-   def runE2ETestsArgs = ["env", "CYPRESS_PROJECT_ID=2c1iwj", "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5", "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
+   def runE2ETestsArgs = [
+      "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts",
+      "--cyConfig baseUrl=\"${E2E_URL}\""
+   ];
 
    dir('webapp/services/static') {
-      exec(runE2ETestsArgs);
+      // We build the secrets first, so that we can create test users in our
+      // tests.
+      sh("yarn cypress:secrets");
+
+      withEnv(["CYPRESS_PROJECT_ID=2c1iwj",
+               "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5"]) {
+         exec(runE2ETestsArgs);
+      }
    }
 }
 
