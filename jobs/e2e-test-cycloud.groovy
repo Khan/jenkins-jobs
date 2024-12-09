@@ -152,12 +152,12 @@ def runAllTestClients() {
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
       jobs["e2e-test-${workerId}"] = {
-         swallowExceptions({
-            onWorker(WORKER_TYPE, '2h') {
-                _setupWebapp();
-                runE2ETests(workerId);
-            }
-         }, onException);
+
+         onWorker(WORKER_TYPE, '2h') {
+               _setupWebapp();
+               runE2ETests(workerId);
+         }
+
       };
    }
    parallel(jobs);
