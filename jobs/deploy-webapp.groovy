@@ -523,7 +523,7 @@ def verifySmokeTestResults(jobName, buildmasterFailures=0) {
          // if we improve the flakiness of smoke tests in the future
          // this should be changed to only allow the deploy job to
          // continue if a job has succeeded.
-         if (status in ["succeeded", "aborted", "failed", "killed"]) {
+         if (status in ["succeeded", "aborted", "failed", "killed", "skipped"]) {
             return;
          } else {
            // continue pinging once a minute until smoke tests succeed
