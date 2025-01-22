@@ -40,13 +40,13 @@ BUILD_NAME = "build demo-district-password-update";
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.CYPRESS_GIT_REVISION);
    dir("webapp/services/static") {
-      sh("yarn install");
+      sh("make npm_deps");
    }
 }
 
 def runScript() {
    def workDir = "webapp/services/static/javascript/districts-package/__e2e-tests__";
-   def runCypressArgs = ["yarn",
+   def runCypressArgs = ["./dev/tools/run_pkg_script.sh",
                          "cypress",
                          "run", 
                          "--spec",
