@@ -166,15 +166,25 @@ def runAllTestClients() {
 def runE2ETests(workerId) {
    echo("Starting e2e tests for worker ${workerId}");
 
-   // Determine which environment we're running against, so we can provide a tag
-   // in the LambdaTest build.
+   // Define which environment we're running against, and setting up junit report
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
+   def resultsDir = "results"; // Directory to store results
+   def junitFile = "${resultsDir}/junit-${workerId}.xml";
 
-   // NOTE: We hard-code the values here as it is an experiment that will be
-   // removed soon.
-   def runE2ETestsArgs = ["env", "CYPRESS_PROJECT_ID=2c1iwj", "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5", "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
+   // Ensure the results directory exists
+   sh("mkdir -p ${resultsDir}");
+   
+   def runE2ETestsArgs = [
+      "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts",
+      "--cyConfig baseUrl=\"${E2E_URL}\"",
+      "--reporter mocha-junit-reporter",
+      "--reporter-options mochaFile=${junitFile}"
+   ];
 
    dir('webapp/services/static') {
+      // We build the secrets first, so that we can create test users in our
+      // tests.
+      sh("yarn cypress:secrets");
       exec(runE2ETestsArgs);
    }
 }
