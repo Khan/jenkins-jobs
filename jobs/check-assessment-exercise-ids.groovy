@@ -7,7 +7,9 @@
 import org.khanacademy.Setup;
 
 
-new Setup(steps).apply();
+new Setup(steps).addCronSchedule(
+   '0 * * * *' // Run every hour
+).apply();
 
 
 def _setupWebapp() {
@@ -20,7 +22,7 @@ def _setupWebapp() {
 def runScript() {
    withTimeout('1h') {
       dir("webapp") {
-         sh("go run services/assessments/cmd/check_assessments_exercise_ids/main.go");
+         exec(["go", "run", "services/assessments/cmd/check_assessments_exercise_ids/main.go"]);
       }
    }
 }
