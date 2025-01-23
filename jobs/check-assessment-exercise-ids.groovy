@@ -34,7 +34,7 @@ onMaster('1h') {
       stage("Initializing webapp") {
          _setupWebapp();
       }
-      stage("Notifying") {
+      stage("Running script") {
          runScript();
       }
    }
