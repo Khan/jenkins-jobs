@@ -125,6 +125,8 @@ BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.
 
 // GIT_SHA1 is the sha1 for CYPRESS_GIT_REVISION.
 GIT_SHA1 = null;
+REPORT_DIR = "webapp/services/static/cypress/results/mochawesome"
+REPORT_NAME = "mochawesome-combined.json"
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
@@ -132,13 +134,11 @@ WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+           params.CYPRESS_GIT_REVISION);
 }
 
-
 def _setupWebapp() {
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        params.CYPRESS_GIT_REVISION);
-
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
@@ -152,14 +152,17 @@ def runAllTestClients() {
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
       jobs["e2e-test-${workerId}"] = {
-         swallowExceptions({
+         stage("e2e-worker-${workerId}") {
             onWorker(WORKER_TYPE, '2h') {
-                _setupWebapp();
-                runE2ETests(workerId);
+               _setupWebapp()
+               runE2ETests(workerId)
+               dir("${REPORT_DIR}") {
+                  stash includes: "*.json", name: "worker-${workerId}-reports"
+               }
             }
-         }, onException);
-      };
-   }
+         }
+      }
+   };
    parallel(jobs);
 }
 
@@ -170,12 +173,20 @@ def runE2ETests(workerId) {
    // in the LambdaTest build.
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
-   // NOTE: We hard-code the values here as it is an experiment that will be
-   // removed soon.
-   def runE2ETestsArgs = ["env", "CYPRESS_PROJECT_ID=2c1iwj", "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5", "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
+   def runE2ETestsArgs = [
+      "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts",
+      "--cyConfig reporter=mochawesome"
+   ];
 
    dir('webapp/services/static') {
-      exec(runE2ETestsArgs);
+      // We build the secrets first, so that we can create test users in our
+      // tests.
+      sh("yarn cypress:secrets");
+
+      withEnv(["CYPRESS_PROJECT_ID=2c1iwj",
+               "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5"]) {
+         exec(runE2ETestsArgs);
+      }
    }
 }
 
@@ -192,9 +203,57 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                          what: E2E_RUN_TYPE]]) {
 
       initializeGlobals();
-
       stage("Run e2e tests") {
          runAllTestClients();
       }
+
+      stage('Merge Reports') {
+         script {
+            dir("${REPORT_DIR}") {
+               def jsonFolders = []
+               for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+                  sh "mkdir -p ./${i}"
+                  jsonFolders.add("./${i}/*.json")
+                  dir("./${i}") {
+                     sh "pwd"
+                     try {
+                        unstash "worker-${i}-reports"
+                     } catch (Exception e) {
+                        echo "Failed to unstash worker-${i}-reports: ${e.getMessage()}"
+                     }
+                  }
+               }
+               // Verify unstashed files
+               echo "Displaying unstahed files"
+               sh "ls -R ."
+
+               // Merge the reports
+               try {
+                  // will look like ./1/*.json ./2/*.json etc.
+                  echo "json folder string"
+                  def jsonFiles = jsonFolders.join(" ")
+                  echo "${jsonFiles}"
+                  sh "npx mochawesome-merge --yes $jsonFiles > mochawesome_combined.json"
+                  echo "Merging reports succeeded."
+                  sh "cat mochawesome_combined.json"
+               } catch (Exception e) {
+                  echo "Merging reports failed: ${e.getMessage()}"
+                  throw e // Re-throw to fail the pipeline if needed
+               }
+//               // Generate the HTML report
+//               sh "npx mochawesome-report-generator --reportFilename ${REPORT_NAME} --reportDir ${REPORT_DIR}"
+            }
+         }
+      }
+
+//      stage('Publish Report') {
+//         steps {
+//            publishHTML(target: [
+//                    reportDir: "${REPORT_DIR}",
+//                    reportFiles: "${REPORT_NAME}",
+//                    reportName: 'Combined Cypress Result'
+//            ])
+//         }
+//      }
    }
 }
