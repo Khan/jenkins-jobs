@@ -162,7 +162,7 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
-      sh("yarn install --frozen-lockfile");
+      sh("make npm_deps");
    }
 }
 
@@ -193,7 +193,7 @@ def runLambdaTest() {
       fastlyComputeEnvironmentCookie = "ZTM3YmE2YTFjNDZkZjEwMDYxMTM3NzQyM2VlYjgw"
    }
 
-   def runLambdaTestArgs = ["yarn",
+   def runLambdaTestArgs = ["./dev/tools/run_pkg_script.sh",
                             "lambdatest",
                             "--envs='FASTLY_COMPUTE_ENVIRONMENT_COOKIE=${fastlyComputeEnvironmentCookie}'",
                             "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",

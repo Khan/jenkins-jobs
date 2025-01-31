@@ -142,7 +142,7 @@ def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
-      sh("yarn install --frozen-lockfile");
+      sh("make npm_deps");
    }
 }
 
