@@ -89,9 +89,10 @@ def publishResults() {
 }
 
 
-// TODO(csilvers): move back to running this on master after we figure
-// out why, on master, the docker network bridge is so flaky.  See
-// https://khanacademy.slack.com/archives/C3UDL9QN7/p1701536113469519
+// NOTE: it would be nice to run this on jenkins-server, so we could
+// re-use our caches from run to run.  But the job uses so much CPU
+// that it can bring down our server!  See
+// https://khanacademy.slack.com/archives/C096UP7D0/p1738681917185069
 onWorker('build-worker', '10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    failureChannel: "#local-devserver",
