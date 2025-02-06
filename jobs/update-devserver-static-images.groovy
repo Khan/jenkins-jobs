@@ -89,7 +89,11 @@ def publishResults() {
 }
 
 
-onMaster('10h') {
+// NOTE: it would be nice to run this on jenkins-server, so we could
+// re-use our caches from run to run.  But the job uses so much CPU
+// that it can bring down our server!  See
+// https://khanacademy.slack.com/archives/C096UP7D0/p1738681917185069
+onWorker('build-worker', '10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    failureChannel: "#local-devserver",
                    sender: 'Devserver Duck',
