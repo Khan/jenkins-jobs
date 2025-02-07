@@ -2,10 +2,6 @@
 //
 // cypress e2e tests are the smoketests run in the webapp/feature/cypress repo,
 // that hit a live website using lambdatest cli.
-
-// The Jenkins "interrupt" exception: for failFast and user interrupt
-//import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -207,8 +203,6 @@ def runE2ETests(workerId) {
            "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
            "--url=${E2E_URL}",
            "--name=${BUILD_NAME}",
-           "targets",
-           "mm-test-flaky"
    ];
 
    dir('webapp/services/static') {
@@ -224,13 +218,12 @@ def unstashReports() {
          exec(["mkdir", "-p", "${i}"]);
          jsonFolders.add("${i}")
          dir("./${i}") {
-            sh("pwd");
             unstash "worker-${i}-reports"
             sh("ls");
          }
       }
    }
-   return jsonFolders
+   return jsonFolders;
 }
 
 def analyzeResults(foldersList) {
