@@ -248,8 +248,6 @@ def analyzeResults(foldersList) {
       sh("ls ./dev/cypress/e2e/tools");
       catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
               message: "There were test failures!") {
-//         exec(["./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
-//         sh "npx --yes tsx ./dev/cypress/e2e/tools/report-merged-results.ts ${foldersList.join(' ')}"
          exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
       }
    }
