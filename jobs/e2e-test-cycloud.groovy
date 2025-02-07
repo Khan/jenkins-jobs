@@ -3,6 +3,9 @@
 // cypress e2e tests are the smoketests run in the webapp/feature/cypress repo,
 // that hit a live website using lambdatest cli.
 
+// The Jenkins "interrupt" exception: for failFast and user interrupt
+//import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
+
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -18,94 +21,93 @@ new Setup(steps
 // We do a lot of e2e-test runs, and QA would like to be able to see details
 // for a bit longer.
 ).resetNumBuildsToKeep(
-        350,
+   350,
 
 ).addStringParam(
-        "URL",
-        "The url-base to run these tests against.",
-        "https://www.khanacademy.org"
+   "URL",
+   "The url-base to run these tests against.",
+   "https://www.khanacademy.org"
 
-)
-        .addChoiceParam(
-                "TEST_TYPE",
-                """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+).addChoiceParam(
+   "TEST_TYPE",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
-                ["all", "deploy", "custom"]
+   ["all", "deploy", "custom"]
 
-        ).addStringParam(
-        "TESTS_TO_RUN",
-        """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+).addStringParam(
+   "TESTS_TO_RUN",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
-        ""
+   ""
 
 ).addStringParam(
-        "SLACK_CHANNEL",
-        "The slack channel to which to send failure alerts.",
-        "#cypress-logs-next-test"
+   "SLACK_CHANNEL",
+   "The slack channel to which to send failure alerts.",
+   "#cypress-logs-next-test"
 
 ).addStringParam(
-        "SLACK_THREAD",
-        """The slack thread (must be in SLACK_CHANNEL) to which to send failure
+   "SLACK_THREAD",
+   """The slack thread (must be in SLACK_CHANNEL) to which to send failure
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
 API.""",
-        ""
+    ""
 
 ).addStringParam(
-        "NUM_WORKER_MACHINES",
-        """How many worker machines to use in LambdaTest. Max available is 30.""",
-        "30"
+   "NUM_WORKER_MACHINES",
+   """How many worker machines to use in LambdaTest. Max available is 30.""",
+   "30"
 
 ).addBooleanParam(
-        "USE_FIRSTINQUEUE_WORKERS",
-        """If true, use the jenkins workers that are set aside for the
+   "USE_FIRSTINQUEUE_WORKERS",
+   """If true, use the jenkins workers that are set aside for the
 currently active deploy.  Obviously, this should only be set if you
 are, indeed, the currently active deploy.  We reserve these machines
 so the currently active deploy never has to wait for smoketest workers
 to spin up.""",
-        false
+   false
 
 ).addStringParam(
-        "CYPRESS_GIT_REVISION",
-        """A commit-ish to check out.  This only affects the version of the
+   "CYPRESS_GIT_REVISION",
+   """A commit-ish to check out.  This only affects the version of the
 E2E test used; it will probably match the tested version's code,
 but it doesn't need to.""",
-        "master"
+   "master"
 
 ).addStringParam(
-        "REVISION_DESCRIPTION",
-        """Set by the buildmaster to give a more human-readable description
+   "REVISION_DESCRIPTION",
+   """Set by the buildmaster to give a more human-readable description
 of the CYPRESS_GIT_REVISION, especially if it is a commit rather than a branch.
 Defaults to CYPRESS_GIT_REVISION.""",
-        ""
+   ""
 
 ).addStringParam(
-        "BUILDMASTER_DEPLOY_ID",
-        """Set by the buildmaster, can be used by scripts to associate jobs
+   "BUILDMASTER_DEPLOY_ID",
+   """Set by the buildmaster, can be used by scripts to associate jobs
 that are part of the same deploy.  Write-only; not used by this script.""",
-        ""
+   ""
 
 ).addBooleanParam(
-        "SET_SPLIT_COOKIE",
-        """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   "SET_SPLIT_COOKIE",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
-        false
+   false
 
 ).addStringParam(
-        "JOB_PRIORITY",
-        """The priority of the job to be run (a lower priority means it is run
+   "JOB_PRIORITY",
+   """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
 in the queue accordingly. Should be set to 3 if the job is depended on by
 the currently deploying branch, otherwise 6. Legal values are 1
 through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
-        "6"
+   "6"
 
 ).addStringParam(
-        "SKIP_TESTS",
-        """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   "SKIP_TESTS",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
-        ""
+   ""
 
 ).apply();
 
@@ -119,7 +121,7 @@ REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.CYPRESS_GIT_REVISIO
 E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-        "(${REVISION_DESCRIPTION})");
+                            "(${REVISION_DESCRIPTION})");
 
 // We use the build name as a unique identifier for user notifications.
 BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.REVISION_DESCRIPTION})"
@@ -131,13 +133,25 @@ REPORT_NAME = "results-combined.json"
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
-        ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
+               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
+
+// Used to tell whether all the test-workers raised an exception.
+public class TestFailed extends Exception {}
+
+def swallowExceptions(Closure body, Closure onException = {}) {
+   try {
+      body();
+   } catch (e) {
+      echo("Swallowing exception: ${e}");
+      onException();
+   }
+}
 
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-           params.CYPRESS_GIT_REVISION);
+                                        params.CYPRESS_GIT_REVISION);
 }
 
 def _setupWebapp() {
@@ -150,18 +164,33 @@ def _setupWebapp() {
 
 // Run all the test-clients on all the worker machine, in parallel.
 def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
+   }
+
    def jobs = [:];
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
       jobs["e2e-test-${workerId}"] = {
          stage("e2e-worker-${workerId}") {
-            onWorker(WORKER_TYPE, '2h') {
-               _setupWebapp()
-               runE2ETests(workerId)
-               dir("${REPORT_DIR}") {
-                  stash includes: "e2e-test-results.json", name: "worker-${workerId}-reports"
+            swallowExceptions({
+               onWorker(WORKER_TYPE, '2h') {
+                  _setupWebapp()
+                  runE2ETests(workerId)
+                  dir("${REPORT_DIR}") {
+                     stash includes: "e2e-test-results.json", name: "worker-${workerId}-reports"
+                  }
                }
-            }
+            }, onException);
          }
       }
    };
@@ -178,27 +207,26 @@ def runE2ETests(workerId) {
            "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
            "--url=${E2E_URL}",
            "--name=${BUILD_NAME}",
+           "targets",
+           "mm-test-flaky"
    ];
 
    dir('webapp/services/static') {
-      exec(runE2ETestsArgs);}
+      exec(runE2ETestsArgs);
    }
 }
 
 def unstashReports() {
-   def jsonFolders = []
+   def jsonFolders = [];
    dir("${REPORT_DIR}") {
       for (i = 0; i < NUM_WORKER_MACHINES; i++) {
-         sh "mkdir -p ./${i}"
+         exec(["rm", "-rf", "${i}"]);
+         exec(["mkdir", "-p", "${i}"]);
          jsonFolders.add("${i}")
          dir("./${i}") {
-            sh "pwd"
-            try {
-               unstash "worker-${i}-reports"
-            } catch (Exception e) {
-               echo "Failed to unstash worker-${i}-reports: ${e.getMessage()}"
-            }
-            sh "ls"
+            sh("pwd");
+            unstash "worker-${i}-reports"
+            sh("ls");
          }
       }
    }
@@ -217,10 +245,12 @@ def analyzeResults(foldersList) {
    kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.CYPRESS_GIT_REVISION);
 
    dir ('webapp/services/static') {
-      sh "ls ./dev/cypress/e2e/tools"
+      sh("ls ./dev/cypress/e2e/tools");
       catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
               message: "There were test failures!") {
-         sh "npx --yes tsx ./dev/cypress/e2e/tools/report-merged-results.ts ${foldersList.join(' ')}"
+//         exec(["./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
+//         sh "npx --yes tsx ./dev/cypress/e2e/tools/report-merged-results.ts ${foldersList.join(' ')}"
+         exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
       }
    }
 }
