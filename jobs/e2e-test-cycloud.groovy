@@ -24,8 +24,7 @@ new Setup(steps
    "The url-base to run these tests against.",
    "https://www.khanacademy.org"
 
-)
-.addChoiceParam(
+).addChoiceParam(
    "TEST_TYPE",
    """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
@@ -125,22 +124,35 @@ BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.
 
 // GIT_SHA1 is the sha1 for CYPRESS_GIT_REVISION.
 GIT_SHA1 = null;
+REPORT_DIR = "webapp/genfiles"
+REPORT_NAME = "results-combined.json"
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
-def initializeGlobals() {
-   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+// Used to tell whether all the test-workers raised an exception.
+public class TestFailed extends Exception {}
+
+def swallowExceptions(Closure body, Closure onException = {}) {
+   try {
+      body();
+   } catch (e) {
+      echo("Swallowing exception: ${e}");
+      onException();
+   }
 }
 
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
-def _setupWebapp() {
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
                                         params.CYPRESS_GIT_REVISION);
+}
+
+def _setupWebapp() {
 
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
-
    dir("webapp/services/static") {
       sh("make npm_deps");
    }
@@ -148,34 +160,89 @@ def _setupWebapp() {
 
 // Run all the test-clients on all the worker machine, in parallel.
 def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
+   }
+
    def jobs = [:];
    for (i = 0; i < NUM_WORKER_MACHINES; i++) {
       def workerId = i;  // avoid scoping problems
       jobs["e2e-test-${workerId}"] = {
-         swallowExceptions({
-            onWorker(WORKER_TYPE, '2h') {
-                _setupWebapp();
-                runE2ETests(workerId);
-            }
-         }, onException);
-      };
-   }
+         stage("e2e-worker-${workerId}") {
+            swallowExceptions({
+               onWorker(WORKER_TYPE, '2h') {
+                  _setupWebapp()
+                  runE2ETests(workerId)
+                  dir("${REPORT_DIR}") {
+                     stash includes: "e2e-test-results.json", name: "worker-${workerId}-reports"
+                  }
+               }
+            }, onException);
+         }
+      }
+   };
    parallel(jobs);
 }
 
 def runE2ETests(workerId) {
    echo("Starting e2e tests for worker ${workerId}");
 
-   // Determine which environment we're running against, so we can provide a tag
-   // in the LambdaTest build.
+   // Define which environment we're running against, and setting up junit report
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
-   // NOTE: We hard-code the values here as it is an experiment that will be
-   // removed soon.
-   def runE2ETestsArgs = ["env", "CYPRESS_PROJECT_ID=2c1iwj", "CYPRESS_RECORD_KEY=4c530cf3-79e5-44b5-aedb-f6f017f38cb5", "./dev/cypress/e2e/tools/start-cypress-cloud-run.ts"];
+   def runE2ETestsArgs = [
+           "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
+           "--url=${E2E_URL}",
+           "--name=${BUILD_NAME}",
+   ];
 
    dir('webapp/services/static') {
       exec(runE2ETestsArgs);
+   }
+}
+
+def unstashReports() {
+   def jsonFolders = [];
+   dir("${REPORT_DIR}") {
+      for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+         exec(["rm", "-rf", "${i}"]);
+         exec(["mkdir", "-p", "${i}"]);
+         jsonFolders.add("${i}")
+         dir("./${i}") {
+            unstash "worker-${i}-reports"
+            sh("ls");
+         }
+      }
+   }
+   return jsonFolders;
+}
+
+def analyzeResults(foldersList) {
+   if (currentBuild.result == 'ABORTED') {
+      // No need to report the results in the case of abort!  They will
+      // likely be more confusing than useful.
+      echo('We were aborted; no need to report results.');
+      return;
+   }
+
+   // report-merged-results.ts is a new file
+   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.CYPRESS_GIT_REVISION);
+
+   dir ('webapp/services/static') {
+      sh("ls ./dev/cypress/e2e/tools");
+      catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
+              message: "There were test failures!") {
+         exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
+      }
    }
 }
 
@@ -192,9 +259,13 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                          what: E2E_RUN_TYPE]]) {
 
       initializeGlobals();
-
       stage("Run e2e tests") {
          runAllTestClients();
+      }
+
+      stage("Analyzing Results") {
+         def folders = unstashReports();
+         analyzeResults(folders);
       }
    }
 }
