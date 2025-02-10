@@ -218,7 +218,7 @@ def runLambdaTest() {
 }
 
 def runCypressCloud(){
-   build(job: 'e2e-test-cycloud',
+   build(job: '../misc/e2e-test-cycloud',
           parameters: [
              string(name: 'SLACK_CHANNEL', value: "#cypress-testing"),
              string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
