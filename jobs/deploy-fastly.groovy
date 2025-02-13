@@ -48,22 +48,23 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
     "TARGET",
     """\
 <ul>
-  <li> <b>test</b>: https://www-boxes.khanacademy.org
+  <li> <b>test</b>: https://www-test.khanacademy.org, www-boxes.khanacademy.org
   <li> <b>prod</b>: https://www.khanacademy.org
-  <li> <b>staging</b>: TODO [compute@edge only]
+  <li> <b>staging</b>: https://www-staging.khanacademy.org [compute@edge only]
 </ul>
 """,
     ["test", "prod", "staging"]
 
 ).addChoiceParam(
-    "LANGUAGE",
+    "SERVICE",
     """\
 <ul>
-  <li> <b>vcl</b>
-  <li> <b>compute@edge</b>
+  <li> <b>fastly-vcl</b>
+  <li> <b>fastly-compute</b>
+  <li> <b>kastatic</b>
 </ul>
 """,
-    ["vcl", "compute@edge"]
+    ["fastly-vcl", "fastly-compute", "kastatic"]
 
 ).addChoiceParam(
     "CLEAN",
@@ -77,11 +78,14 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 
 ).apply();
 
-SERVICE_DIR = params.LANGUAGE == "vcl" ? "services/fastly-khanacademy" : "services/fastly-khanacademy-compute";
-
+SERVICE_DIR = [
+    "fastly-vcl": "services/fastly-khanacademy",
+    "fastly-compute": "services/fastly-khanacademy-compute",
+    "kastatic": "services/fastly-kastatic",
+][params.SERVICE];
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.TARGET} ${params.LANGUAGE})");
+                            "(${params.TARGET} ${params.SERVICE})");
 
 
 def installDeps() {
@@ -151,10 +155,10 @@ def setDefault() {
 }
 
 def notifyWithVersionInfo(oldActive, newActive) {
-   def subject = "fastly-${params.TARGET} (${params.LANGUAGE}) is now at version ${newActive}";
+   def subject = "fastly-${params.TARGET} (${params.SERVICE}) is now at version ${newActive}";
    // We don't use fastly-rollback with compute@edge, we use the normal
    // `emergency-rollback` jenkins job.
-   def body = params.LANGUAGE == "vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
+   def body = params.SERVICE == "fastly-vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
    def cmd = [
        "jenkins-jobs/alertlib/alert.py",
        "--slack=#fastly",
@@ -194,7 +198,7 @@ onMaster('30m') {
       // In vcl, we can read the diff, because we upload the source code.
       // So we do this and ask for confirmation as a double-check.  For
       // compute@edge we upload a binary so there's no diff we can do.
-      if (params.LANGUAGE == "vcl") {
+      if (params.SERVICE != "fastly-compute") {
          echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
          input("Diff looks good?");
       }
