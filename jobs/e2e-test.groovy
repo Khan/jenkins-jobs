@@ -147,7 +147,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${REVISION_DESCRIPTION})");
 
 // We use the build name as a unique identifier for user notifications.
-BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.REVISION_DESCRIPTION})"
+BUILD_NAME = "${params.REVISION_DESCRIPTION} ${E2E_URL} #${env.BUILD_NUMBER}"
 
 // At this time removing @ before username.
 DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
@@ -236,7 +236,13 @@ def runE2ETests(workerId) {
    ];
 
    dir('webapp/services/static') {
-      exec(runE2ETestsArgs);
+      // start-cy-cloud-run.ts returns non-zero rc if it detects test
+      // failures. We set the job to UNSTABLE in that case because we
+      // report failures later.
+      catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
+            message: "There were test failures!") {
+         exec(runE2ETestsArgs);
+      }
    }
 }
 
@@ -269,8 +275,10 @@ def analyzeResults(foldersList) {
 
    dir ('webapp/services/static') {
       sh("ls ./dev/cypress/e2e/tools");
-      // This script analyzes results and returns the correct error code on failure (1)
-      exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
+      catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
+            message: "There were test failures!") {
+         exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
+      }
    }
 }
 
