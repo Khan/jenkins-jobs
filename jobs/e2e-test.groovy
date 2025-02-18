@@ -166,57 +166,6 @@ def _setupWebapp() {
    }
 }
 
-def runLambdaTest() {
-   // We need login creds for LambdaTest Cli
-   def lt_username = sh(script: """\
-      gcloud --project khan-academy secrets describe \
-      lambdatest_admin_account --format json | jq -r .annotations.login \
-      """, returnStdout:true).trim();
-   def lt_access_key = sh(script: """\
-      gcloud --project khan-academy secrets versions access latest \
-      --secret lambdatest_admin_account \
-      """, returnStdout:true).trim();
-
-   // Determine which environment we're running against, so we can provide a tag
-   // in the LambdaTest build.
-   def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
-
-   // Determine the value of the `ka-fastly-compute-environment` cookie to set
-   // when running the E2E tests.  These cookie values come from:
-   // https://khanacademy.atlassian.net/wiki/spaces/INFRA/pages/3382050914/VCL+to+Fastly+Compute+routing
-   def fastlyComputeEnvironmentCookie = "" // Default to PROD [VCL].
-   if (params.FASTLY_SERVICE == "PROD [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "NmU3ZDYxMmJjNDRkOGMwNDIzODg4ZDkyYTcxZTA4"
-   } else if (params.FASTLY_SERVICE == "STAGING [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "ODI5NTIyOGIxZTdmODUxOTEwZjY0ZDM0NjdlYjJi"
-   } else if (params.FASTLY_SERVICE == "TEST [COMPUTE]") {
-      fastlyComputeEnvironmentCookie = "ZTM3YmE2YTFjNDZkZjEwMDYxMTM3NzQyM2VlYjgw"
-   }
-
-   def runLambdaTestArgs = ["./dev/tools/run_pkg_script.sh",
-                            "lambdatest",
-                            "--envs='FASTLY_COMPUTE_ENVIRONMENT_COOKIE=${fastlyComputeEnvironmentCookie}'",
-                            "--cy='--config baseUrl=\"${E2E_URL}\",retries=${params.TEST_RETRIES}'",
-                            "--bn='${BUILD_NAME}'",
-                            "-p=${params.NUM_WORKER_MACHINES}",
-                            "--bt='jenkins,${e2eEnv}'"
-   ];
-
-   dir('webapp/services/static') {
-      withEnv(["LT_USERNAME=${lt_username}",
-               "LT_ACCESS_KEY=${lt_access_key}"]) {
-         // NOTE: We include this Slack token in case we need to notify the
-         // FEI team when we are going to hit a `queue_timeout` error in the
-         // LambdaTest platform.
-         withCredentials([
-            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
-         ]) {
-            exec(runLambdaTestArgs);
-         }
-      }
-   }
-}
-
 def runCypressCloud(){
    build(job: 'e2e-test-cycloud',
           parameters: [
@@ -233,109 +182,10 @@ def runCypressCloud(){
           ],
           propagate: false,
           // The pipeline will NOT wait for this job to complete to avoid
-          // blocking the main pipeline (runLambdaTest).
+          // blocking the main pipeline (runCypressCloud).
           wait: false,
           );
 }
-
-// This method filters a common 'DEPLOYER_USERNAME' into a series of comma
-// seperated slack user id's. For Example:
-// DEPLOYER_USERNAME: <@UMZGEUH09> (cc <@UN5UC0EM6>)
-// becomes: UMZGEUH09,UN5UC0EM6,
-def getUserIds(def deployUsernameBlob) {
-   // Regex to specifically grab the ids, which should start with U and be
-   // some number of capital letters and numbers. Ids can also start with
-   // W (special users), T (teams), or C (channels).
-   def pattern = /<@([UTWC][0-9A-Z]+)>/;
-   def match = (deployUsernameBlob =~ pattern);
-   if (match.results().count() == 0) {
-        return ""
-   }
-
-   def mainUser = match[0][1];
-   def otherUsers = "";
-
-   for (n in match) {
-      // We look for possible duplicates as we don't want to notify the main
-      // user twice.
-      // NOTE: This can happen when the deployer includes their name in the
-      // deploy command (e.g. `@foo` types: `sun queue foo`).
-      if (n[1] != mainUser) {
-         otherUsers += ",${n[1]}";
-      }
-   }
-
-   // Return the list of unique ids
-   return mainUser + otherUsers;
-}
-
-def analyzeResults() {
-   withTimeout('5m') {
-      if (currentBuild.result == 'ABORTED') {
-         // No need to report the results in the case of abort!  They will
-         // likely be more confusing than useful.
-         echo('We were aborted; no need to report results.');
-         return;
-      }
-
-      dir('webapp/services/static') {
-         // Get the SLACK_TOKEN from global credentials (env vars).
-         withCredentials([
-            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
-         ]) {
-            def notifyResultsArgs = [
-               "./dev/cypress/e2e/tools/notify-e2e-results.ts",
-               "--channel", params.SLACK_CHANNEL,
-               // The URL associated to this Jenkins build.
-               "--build-url", env.BUILD_URL,
-               // The LambdaTest build name that will be included at the
-               // beginning of the message.
-               "--label", BUILD_NAME,
-               // The URL we test against.
-               "--url", params.URL,
-               // Notify failures to DevOps and FEI
-               "--cc-on-failure", "#deploy-support-log,#fei-testing-logs"
-            ];
-
-            if (params.DEPLOYER_USERNAME) {
-               // The deployer is the person who triggered the
-               // build (this is only included in the message if
-               // the e2e tests fail).
-               notifyResultsArgs += ["--deployer", params.DEPLOYER_USERNAME];
-            }
-            if (params.SLACK_THREAD) {
-               notifyResultsArgs += ["--thread", params.SLACK_THREAD];
-            }
-
-            def userIds = getUserIds(params.DEPLOYER_USERNAME);
-
-            // Include the deployer(s) here so they can get DMs when the e2e
-            // results are ready.
-            def ccAlways = userIds ? "#cypress-logs-deploys,${userIds}" : "#cypress-logs-deploys";
-
-            if (params.SLACK_CHANNEL != "#qa-log") {
-               ccAlways += ",#qa-log";
-            }
-
-            notifyResultsArgs += ["--cc-always", ccAlways];
-
-            // notify-e2e-results returns a non-zero rc if it detects test
-            // failures. We set the job to UNSTABLE in that case (since we don't
-            // consider smoketest failures to be blocking). But we still keep on
-            // running the rest of this script!
-            catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
-                        message: "There were test failures!") {
-               exec(notifyResultsArgs);
-            }
-
-            // Let notify() know not to send any messages to slack, because we
-            // just did it here.
-            env.SENT_TO_SLACK = '1';
-         }
-      }
-   }
-}
-
 
 // Determines if we are running the first or second smoke test.
 E2E_RUN_TYPE = (E2E_URL == "https://www.khanacademy.org" ? "second-smoke-test" : "first-smoke-test");
@@ -354,20 +204,10 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
       }
 
       stage("Run e2e tests") {
-         // Note: runLambdaTest() succeeds (has an rc of 0) as long as
-         // it succeeded in running all the tests, even if some of those
-         // tests failed.  That is, this will succeed as long as there
-         // are no lambdatest framework errors; it's up to use to look
-         // for actual smoketest-code errors in analyzeResults(), below.
-         parallel([
-               "run-lambdatest": { runLambdaTest(); },
-               "test-cycloud": { runCypressCloud(); },
-            ]);
-         // runLambdaTest();
-      }
-
-      stage("Analyzing results") {
-         analyzeResults();
+         // Note: runCypressCloud() analyzes the results so it will post the correct RC
+         // The slack notificaiton is done via the Cypress Cloud integration and
+         // is no longer needed here, also
+         runCypressCloud();
       }
    }
 }
