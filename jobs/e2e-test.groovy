@@ -236,13 +236,7 @@ def runE2ETests(workerId) {
    ];
 
    dir('webapp/services/static') {
-      // start-cy-cloud-run.ts returns non-zero rc if it detects test
-      // failures. We set the job to UNSTABLE in that case because we
-      // report failures later.
-      catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
-            message: "There were test failures!") {
-         exec(runE2ETestsArgs);
-      }
+      exec(runE2ETestsArgs);
    }
 }
 
