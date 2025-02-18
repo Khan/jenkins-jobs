@@ -135,6 +135,10 @@ for more information.""",
 
 ).apply();
 
+// We set these to real values first thing below; but we do it within
+// the notify() so if there's an error setting them we notify on slack.
+NUM_WORKER_MACHINES = null;
+
 // Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
@@ -150,10 +154,31 @@ DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
+REPORT_DIR = "webapp/genfiles"
+REPORT_NAME = "results-combined.json"
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
+
+// Used to tell whether all the test-workers raised an exception.
+public class TestFailed extends Exception {}
+
+def swallowExceptions(Closure body, Closure onException = {}) {
+   try {
+      body();
+   } catch (e) {
+      echo("Swallowing exception: ${e}");
+      onException();
+   }
+}
+
+def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+
+   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
+         params.CYPRESS_GIT_REVISION);
+}
 
 def _setupWebapp() {
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -166,25 +191,90 @@ def _setupWebapp() {
    }
 }
 
-def runCypressCloud(){
-   build(job: 'e2e-test-cycloud',
-          parameters: [
-             string(name: 'SLACK_CHANNEL', value: "#cypress-testing"),
-             string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
-             string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
-             string(name: 'URL', value: E2E_URL),
-             string(name: 'NUM_WORKER_MACHINES', value: params.NUM_WORKER_MACHINES),
-             string(name: 'TEST_RETRIES', value: "1"),
-            // It takes about 5-10 minutes to run all the Cypress e2e tests when
-            // using the default of 20 workers. This build is running in parallel
-            // with Lambda tests. During this test run we don't want to disturb our 
-            // mainstream e2e pipeline, so set propagate to false.
-          ],
-          propagate: false,
-          // The pipeline will NOT wait for this job to complete to avoid
-          // blocking the main pipeline (runCypressCloud).
-          wait: false,
-          );
+// Run all the test-clients on all the worker machine, in parallel.
+def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
+   }
+
+   def jobs = [:];
+   for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+      def workerId = i;  // avoid scoping problems
+      jobs["e2e-test-${workerId}"] = {
+         stage("e2e-worker-${workerId}") {
+            swallowExceptions({
+               onWorker(WORKER_TYPE, '2h') {
+                  _setupWebapp()
+                  runE2ETests(workerId)
+                  dir("${REPORT_DIR}") {
+                     stash includes: "e2e-test-results.json", name: "worker-${workerId}-reports"
+                  }
+               }
+            }, onException);
+         }
+      }
+   };
+   parallel(jobs);
+}
+
+def runE2ETests(workerId) {
+   echo("Starting e2e tests for worker ${workerId}");
+
+   // Define which environment we're running against, and setting up junit report
+   def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
+
+   def runE2ETestsArgs = [
+         "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
+         "--url=${E2E_URL}",
+         "--name=${BUILD_NAME}",
+   ];
+
+   dir('webapp/services/static') {
+      exec(runE2ETestsArgs);
+   }
+}
+
+def unstashReports() {
+   def jsonFolders = [];
+   dir("${REPORT_DIR}") {
+      for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+         exec(["rm", "-rf", "${i}"]);
+         exec(["mkdir", "-p", "${i}"]);
+         jsonFolders.add("${i}")
+         dir("./${i}") {
+            unstash "worker-${i}-reports"
+            sh("ls");
+         }
+      }
+   }
+   return jsonFolders;
+}
+
+def analyzeResults(foldersList) {
+   if (currentBuild.result == 'ABORTED') {
+      // No need to report the results in the case of abort!  They will
+      // likely be more confusing than useful.
+      echo('We were aborted; no need to report results.');
+      return;
+   }
+
+   // report-merged-results.ts is a new file
+   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.CYPRESS_GIT_REVISION);
+
+   dir ('webapp/services/static') {
+      sh("ls ./dev/cypress/e2e/tools");
+      // This script analyzes results and returns the correct error code on failure (1)
+      exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
+   }
 }
 
 // Determines if we are running the first or second smoke test.
@@ -196,18 +286,17 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
+           buildmaster: [sha: params.CYPRESS_GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
-      stage("Sync webapp") {
-         _setupWebapp();
+      initializeGlobals();
+      stage("Run e2e tests") {
+         runAllTestClients();
       }
 
-      stage("Run e2e tests") {
-         // Note: runCypressCloud() analyzes the results so it will post the correct RC
-         // The slack notificaiton is done via the Cypress Cloud integration and
-         // is no longer needed here, also
-         runCypressCloud();
+      stage("Analyzing Results") {
+         def folders = unstashReports();
+         analyzeResults(folders);
       }
    }
 }
