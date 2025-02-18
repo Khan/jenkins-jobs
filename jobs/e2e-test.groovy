@@ -177,13 +177,10 @@ def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-         params.CYPRESS_GIT_REVISION);
+         params.GIT_REVISION);
 }
 
 def _setupWebapp() {
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        params.GIT_REVISION);
-
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
    dir("webapp/services/static") {
@@ -268,7 +265,7 @@ def analyzeResults(foldersList) {
    }
 
    // report-merged-results.ts is a new file
-   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.CYPRESS_GIT_REVISION);
+   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.GIT_REVISION);
 
    dir ('webapp/services/static') {
       sh("ls ./dev/cypress/e2e/tools");
@@ -286,7 +283,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.CYPRESS_GIT_REVISION,
+           buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
       initializeGlobals();
