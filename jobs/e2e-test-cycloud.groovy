@@ -140,8 +140,10 @@ for more information.""",
 NUM_WORKER_MACHINES = null;
 
 // Override the build name by the info that is passed in (from buildmaster).
-REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
-E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
+GIT_REVISION = params.GIT_REVISION;
+REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: GIT_REVISION;
+BASE_URL = params.URL;
+E2E_URL = BASE_URL[-1] == '/' ? BASE_URL.substring(0, BASE_URL.length() - 1): BASE_URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
       "(${REVISION_DESCRIPTION})");
@@ -177,7 +179,7 @@ def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-         params.GIT_REVISION);
+         GIT_REVISION);
 }
 
 def _setupWebapp() {
@@ -265,7 +267,7 @@ def analyzeResults(foldersList) {
    }
 
    // report-merged-results.ts is a new file
-   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.GIT_REVISION);
+   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", GIT_REVISION);
 
    dir ('webapp/services/static') {
       sh("ls ./dev/cypress/e2e/tools");
@@ -285,7 +287,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
+           buildmaster: [sha: GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
       initializeGlobals();
