@@ -33,7 +33,7 @@ new Setup(steps
       "TEST_TYPE",
       """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
-      ["all", "deploy", "custom"]
+   ["all", "deploy", "custom"]
 
 ).addStringParam(
    "TESTS_TO_RUN",
