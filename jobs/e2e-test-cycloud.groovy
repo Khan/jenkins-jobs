@@ -28,14 +28,14 @@ new Setup(steps
    "FASTLY_SERVICE",
    """""",
    ["PROD [VCL]", "PROD [COMPUTE]", "STAGING [COMPUTE]", "TEST [COMPUTE]"]
-)
-   .addChoiceParam(
+
+).addChoiceParam(
       "TEST_TYPE",
       """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
       ["all", "deploy", "custom"]
 
-   ).addStringParam(
+).addStringParam(
    "TESTS_TO_RUN",
    """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
