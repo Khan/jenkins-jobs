@@ -277,16 +277,18 @@ def analyzeResults(foldersList) {
 }
 
 // Determines if we are running the first or second smoke test.
-E2E_RUN_TYPE = (E2E_URL == "https://www.khanacademy.org" ? "second-smoke-test" : "first-smoke-test");
+// E2E_RUN_TYPE = (E2E_URL == "https://www.khanacademy.org" ? "second-smoke-test" : "first-smoke-test");
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: E2E_RUN_TYPE]]) {
+                   when: ['FAILURE', 'UNSTABLE']]]) {
+      // TODO(nathanjd): Restore notify to buildmaster once this replaces
+      // e2e-test.groovy.
+      // buildmaster: [sha: params.GIT_REVISION,
+      //                   what: E2E_RUN_TYPE]
       echo("GIT_REVISION: ${params.GIT_REVISION}");
       initializeGlobals();
       stage("Run e2e tests") {
