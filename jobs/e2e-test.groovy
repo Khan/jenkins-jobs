@@ -261,7 +261,7 @@ def analyzeResults(foldersList) {
    }
 
    // report-merged-results.ts is a new file
-   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.GIT_REVISION);
+   kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
 
    dir ('webapp/services/static') {
       sh("ls ./dev/cypress/e2e/tools");
