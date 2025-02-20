@@ -287,7 +287,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    when: ['FAILURE', 'UNSTABLE']],
            buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
-
+      echo("GIT_REVISION: ${params.GIT_REVISION}");
       initializeGlobals();
       stage("Run e2e tests") {
          runAllTestClients();
