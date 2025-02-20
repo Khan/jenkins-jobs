@@ -220,6 +220,7 @@ def runLambdaTest() {
 def runCypressCloud(){
    build(job: 'e2e-test-cycloud',
           parameters: [
+             string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'SLACK_CHANNEL', value: "#cypress-testing"),
              string(name: 'REVISION_DESCRIPTION', value: REVISION_DESCRIPTION),
              string(name: 'DEPLOYER_USERNAME', value: params.DEPLOYER_USERNAME),
