@@ -25,8 +25,13 @@ new Setup(steps
    "https://www.khanacademy.org"
 
 ).addChoiceParam(
-   "TEST_TYPE",
-   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   "FASTLY_SERVICE",
+   """""",
+   ["PROD [VCL]", "PROD [COMPUTE]", "STAGING [COMPUTE]", "TEST [COMPUTE]"]
+
+).addChoiceParam(
+      "TEST_TYPE",
+      """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
    ["all", "deploy", "custom"]
 
@@ -39,7 +44,7 @@ new Setup(steps
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#cypress-logs-next-test"
+   "#1s-and-0s-deploys"
 
 ).addStringParam(
    "SLACK_THREAD",
@@ -47,7 +52,7 @@ new Setup(steps
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
 API.""",
-    ""
+   ""
 
 ).addStringParam(
    "NUM_WORKER_MACHINES",
@@ -64,17 +69,23 @@ to spin up.""",
    false
 
 ).addStringParam(
-   "CYPRESS_GIT_REVISION",
+   "GIT_REVISION",
    """A commit-ish to check out.  This only affects the version of the
 E2E test used; it will probably match the tested version's code,
 but it doesn't need to.""",
    "master"
 
 ).addStringParam(
+   "DEPLOYER_USERNAME",
+   """Who asked to run this job, used to ping on slack.
+Typically not set manually, but rather by other jobs that call this one.""",
+   ""
+
+).addStringParam(
    "REVISION_DESCRIPTION",
    """Set by the buildmaster to give a more human-readable description
-of the CYPRESS_GIT_REVISION, especially if it is a commit rather than a branch.
-Defaults to CYPRESS_GIT_REVISION.""",
+of the GIT_REVISION, especially if it is a commit rather than a branch.
+Defaults to GIT_REVISION.""",
    ""
 
 ).addStringParam(
@@ -88,6 +99,18 @@ that are part of the same deploy.  Write-only; not used by this script.""",
    """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
    false
+
+).addStringParam(
+   "EXPECTED_VERSION",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
+   ""
+
+).addStringParam(
+   "EXPECTED_VERSION_SERVICES",
+   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
+   communication with buildmaster""",
+   ""
 
 ).addStringParam(
    "JOB_PRIORITY",
@@ -107,29 +130,33 @@ for more information.""",
 
 ).apply();
 
-
 // We set these to real values first thing below; but we do it within
 // the notify() so if there's an error setting them we notify on slack.
 NUM_WORKER_MACHINES = null;
 
 // Override the build name by the info that is passed in (from buildmaster).
-REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.CYPRESS_GIT_REVISION;
-E2E_URL = params.URL[-1] == '/' ? params.URL.substring(0, params.URL.length() - 1): params.URL;
+GIT_REVISION = params.GIT_REVISION;
+REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: GIT_REVISION;
+BASE_URL = params.URL;
+E2E_URL = BASE_URL[-1] == '/' ? BASE_URL.substring(0, BASE_URL.length() - 1): BASE_URL;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${REVISION_DESCRIPTION})");
+   "(${REVISION_DESCRIPTION})");
 
 // We use the build name as a unique identifier for user notifications.
-BUILD_NAME = "build e2e-cypress-test #${env.BUILD_NUMBER} (${E2E_URL}: ${params.REVISION_DESCRIPTION})"
+BUILD_NAME = "${params.REVISION_DESCRIPTION} ${E2E_URL} #${env.BUILD_NUMBER}"
 
-// GIT_SHA1 is the sha1 for CYPRESS_GIT_REVISION.
+// At this time removing @ before username.
+DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
+
+// GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
 REPORT_DIR = "webapp/genfiles"
 REPORT_NAME = "results-combined.json"
 
 // We have a dedicated set of workers for the second smoke test.
 WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
-               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
+   ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 // Used to tell whether all the test-workers raised an exception.
 public class TestFailed extends Exception {}
@@ -147,12 +174,12 @@ def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
 
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                        params.CYPRESS_GIT_REVISION);
+      GIT_REVISION);
 }
 
 def _setupWebapp() {
-
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
+
    dir("webapp/services/static") {
       sh("make npm_deps");
    }
@@ -200,9 +227,9 @@ def runE2ETests(workerId) {
    def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
 
    def runE2ETestsArgs = [
-           "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
-           "--url=${E2E_URL}",
-           "--name=${BUILD_NAME}",
+      "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
+      "--url=${E2E_URL}",
+      "--name=${BUILD_NAME}",
    ];
 
    dir('webapp/services/static') {
@@ -235,12 +262,16 @@ def analyzeResults(foldersList) {
    }
 
    // report-merged-results.ts is a new file
-   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", params.CYPRESS_GIT_REVISION);
+   kaGit.safePullInBranch("webapp/services/static/dev/cypress/e2e/tools", GIT_REVISION);
 
    dir ('webapp/services/static') {
       sh("ls ./dev/cypress/e2e/tools");
+      // report-merged-results returns a non-zero rc if it detects test
+      // failures. We set the job to UNSTABLE in that case (since we don't
+      // consider smoketest failures to be blocking). But we still keep on
+      // running the rest of this script!
       catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
-              message: "There were test failures!") {
+         message: "There were test failures!") {
          exec(["npx", "--yes", "tsx", "./dev/cypress/e2e/tools/report-merged-results.ts", *foldersList]);
       }
    }
@@ -255,7 +286,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           buildmaster: [sha: params.CYPRESS_GIT_REVISION,
+           buildmaster: [sha: GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
 
       initializeGlobals();
