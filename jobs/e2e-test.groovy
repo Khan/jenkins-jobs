@@ -282,10 +282,9 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    thread: params.SLACK_THREAD,
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']]]) {
-       buildmaster: [sha: params.GIT_REVISION,
-                         what: E2E_RUN_TYPE]
-      echo("GIT_REVISION: ${params.GIT_REVISION}");
+                   when: ['FAILURE', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: E2E_RUN_TYPE]]) {
       initializeGlobals();
       stage("Run e2e tests") {
          runAllTestClients();
