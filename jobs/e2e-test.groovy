@@ -283,7 +283,6 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']]]) {
-       e2e-test.groovy.
        buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]
       echo("GIT_REVISION: ${params.GIT_REVISION}");
