@@ -25,11 +25,6 @@ new Setup(steps
    "https://www.khanacademy.org"
 
 ).addChoiceParam(
-   "FASTLY_SERVICE",
-   """""",
-   ["PROD [VCL]", "PROD [COMPUTE]", "STAGING [COMPUTE]", "TEST [COMPUTE]"]
-
-).addChoiceParam(
    "TEST_TYPE",
    """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
