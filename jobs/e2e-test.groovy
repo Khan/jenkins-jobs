@@ -56,7 +56,9 @@ API.""",
 
 ).addBooleanParam(
    "USE_FIRSTINQUEUE_WORKERS",
-   """If true, use the jenkins workers that are set aside for the
+   """IGNORE: Using ka-firstinqueue-ec2 currently breaks Cypress Cloud's
+ability to run in parallel. It is hardcoded to use ka-test-ec2 for now.
+If true, use the jenkins workers that are set aside for the
 currently active deploy.  Obviously, this should only be set if you
 are, indeed, the currently active deploy.  We reserve these machines
 so the currently active deploy never has to wait for smoketest workers
@@ -148,7 +150,9 @@ GIT_SHA1 = null;
 REPORT_DIR = "webapp/genfiles"
 REPORT_NAME = "results-combined.json"
 
-// We have a dedicated set of workers for the second smoke test.
+// We have a dedicated set of workers for the second smoke test. (ka-firstinqueue-ec2)
+// But using them breaks our ability to run e2e in parallel
+// because Cypress complains about the environments being too different
 WORKER_TYPE = 'ka-test-ec2';
 
 // Used to tell whether all the test-workers raised an exception.
