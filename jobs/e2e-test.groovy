@@ -227,7 +227,7 @@ def runE2ETests(workerId) {
    def runE2ETestsArgs = [
       "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
       "--url=${E2E_URL}",
-      "--name=${BUILD_NAME}",
+      "--name=${BUILD_NAME}"
    ];
 
    dir('webapp/services/static') {
