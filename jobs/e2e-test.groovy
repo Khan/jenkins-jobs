@@ -140,7 +140,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
    "(${REVISION_DESCRIPTION})");
 
 // We use the build name as a unique identifier for user notifications.
-BUILD_NAME = "${params.REVISION_DESCRIPTION} ${E2E_URL} #${env.BUILD_NUMBER}"
+BUILD_NAME = "${E2E_URL} #${env.BUILD_NUMBER}"
 
 // At this time removing @ before username.
 DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
@@ -226,7 +226,7 @@ def runE2ETests(workerId) {
    def runE2ETestsArgs = [
       "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
       "--url=${E2E_URL}",
-      "--name=${BUILD_NAME}",
+      "--name=${BUILD_NAME}"
    ];
 
    dir('webapp/services/static') {
@@ -287,7 +287,11 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                          what: E2E_RUN_TYPE]]) {
       initializeGlobals();
       stage("Run e2e tests") {
-         runAllTestClients();
+         withEnv(["COMMIT_INFO_AUTHOR=${DEPLOYER_USER}",
+                  "COMMIT_INFO_BRANCH=${REVISION_DESCRIPTION}"
+         ]) {
+            runAllTestClients();
+         }
       }
 
       stage("Analyzing Results") {
