@@ -289,9 +289,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                          what: E2E_RUN_TYPE]]) {
       initializeGlobals();
       stage("Run e2e tests") {
-         withEnv(["COMMIT_INFO_AUTHOR=${DEPLOYER_USER}",
-                  "COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}"
-         ]) {
+         withEnv(["COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}"]) {
             runAllTestClients();
          }
       }
