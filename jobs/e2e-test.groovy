@@ -133,6 +133,8 @@ NUM_WORKER_MACHINES = null;
 
 // Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
+// Drop this part so the branches can be grouped in Cypress Cloud
+SHORT_REVISION_DESCRIPTION = REVISION_DESCRIPTION.replaceAll(/\s*\((now live|currently deploying)\)/, '');
 BASE_URL = params.URL;
 E2E_URL = BASE_URL[-1] == '/' ? BASE_URL.substring(0, BASE_URL.length() - 1): BASE_URL;
 
@@ -226,7 +228,9 @@ def runE2ETests(workerId) {
    def runE2ETestsArgs = [
       "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
       "--url=${E2E_URL}",
-      "--name=${BUILD_NAME}"
+      "--name=${BUILD_NAME}",
+      "--targets",
+      "mm-test-flaky"
    ];
 
    dir('webapp/services/static') {
@@ -288,7 +292,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
       initializeGlobals();
       stage("Run e2e tests") {
          withEnv(["COMMIT_INFO_AUTHOR=${DEPLOYER_USER}",
-                  "COMMIT_INFO_BRANCH=${REVISION_DESCRIPTION}"
+                  "COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}"
          ]) {
             runAllTestClients();
          }
