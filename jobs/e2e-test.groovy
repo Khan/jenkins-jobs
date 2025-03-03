@@ -9,6 +9,17 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.notify
 //import vars.withTimeout
+//import vars.withVirtualenv
+//import vars.exec
+//import vars.notify
+//import vars.singleton
+//import vars.withTimeout
+//import vars.kaGit
+//import vars.onWorker
+//import vars.withSecrets
+//import vars.buildmaster
+//import vars.onMaster
+//import vars.clean
 
 new Setup(steps
 
@@ -232,6 +243,8 @@ def runE2ETests(workerId) {
    ];
 
    dir('webapp/services/static') {
+      unstash "e2e-skipped-list";
+      sh("cat skipped_e2e_tests.json");
       exec(runE2ETestsArgs);
    }
 }
@@ -288,8 +301,18 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
       initializeGlobals();
+      stage("Generate skipped list") {
+         dir("webapp/services/static") {
+            sh("pnpm cypress:clean");
+            exec(["./dev/cypress/e2e/tools/gen-skipped-e2e-tests.js", "${E2E_URL}"]);
+            stash includes: "skipped_e2e_tests.json", name: "e2e-skipped-list";
+         };
+      }
       stage("Run e2e tests") {
-         withEnv(["COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}"]) {
+         withEnv([
+            "COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}",
+            "KA_SKIP_GEN=1",
+         ]) {
             runAllTestClients();
          }
       }
