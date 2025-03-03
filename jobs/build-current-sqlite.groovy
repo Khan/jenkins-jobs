@@ -1,5 +1,7 @@
-// Pipeline job that creates current.sqlite from the sync snapshot
-// (on gcs) and uploads the resulting current.sqlite to gcs.
+// Pipeline job that creates the dev datastore and uploads it to gcs.
+// This is the file that is then downloaded by `make current.sqlite`.
+// (It is also downloaded by the `datstore-emulator` in
+// dev/server/docker-compose.backend.yml.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -13,15 +15,7 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-// TODO(csilvers): re-enable this cronjob after building current.sqlite
-// has moved entirely to Go, including fetching the content data.
-//).addCronSchedule("H 21 * * *"
-
-).addStringParam(
-    "SNAPSHOT_NAMES",
-    """We assume that the locale name is the part of the bucket name that
-follows that last underscore character.""",
-    "snapshot_en snapshot_es"
+).addCronSchedule("H H * * 0"
 
 ).addStringParam(
     "CURRENT_SQLITE_BUCKET",
@@ -36,12 +30,6 @@ reason to use a different branch is to test changes to the sync process
 that haven't yet been merged to master.""",
     "master"
 
-).addStringParam(
-    "DEV_APPSERVER_ARGS",
-    """Extra arguments that will be provided to dev_appserver.py.  Must be
-    shell-quoted (as necessary).""",
-    ""
-
 ).apply();
 
 
@@ -50,25 +38,28 @@ def runScript() {
                           params.GIT_REVISION);
 
    dir("webapp") {
-       sh("make clean_pyc");    // in case some .py files went away
-       sh("make fix_deps");  // force a remake of all deps all the time
-   }
-
-   // We need secrets to talk to gcs, prod.
-   withSecrets() {
-      withEnv(
-         ["CURRENT_SQLITE_BUCKET=${params.CURRENT_SQLITE_BUCKET}",
-          "DEV_APPSERVER_ARGS=${params.DEV_APPSERVER_ARGS}",
-          "SNAPSHOT_NAMES=${params.SNAPSHOT_NAMES}"]) {
-         sh("jenkins-jobs/build_current_sqlite.sh");
-      }
+        try {
+            // First, we need to get a local webserver running.
+            sh("ssh-agent make start-dev-server-backend WORKING_ON=NONE")
+            sh("rm -rf datastore")
+            sh("mkdir -p datastore")
+            sh("go run ./services/users/cmd/create_dev_users")
+            sh("go run ./services/admin/cmd/make_admin -username testadmin")
+            sh("gsutil cp gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak")
+            // A rare case we *don't* want the `-t` flag to docker:
+            // if we include it, tar refuses to emit output to a terminmal.
+            sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c WEB-INF | gsutil cp - gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
+        } finally {
+            // No matter what, we stop the local webserver.
+            sh("make stop-server")
+        }
    }
 }
 
 
-// We run on a special worker machine because this job uses so much
-// memory.
-onWorker("ka-content-sync-ec2", "8h") {
+// We run on a special worker machine because starting up all the
+// dev backends requires hefty resources.
+onWorker("build-worker", "1h") {
    notify([slack: [channel: '#infrastructure',
                    when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
       stage("Running script") {
