@@ -6,9 +6,17 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.withVirtualenv
 //import vars.exec
 //import vars.notify
+//import vars.singleton
 //import vars.withTimeout
+//import vars.kaGit
+//import vars.onWorker
+//import vars.withSecrets
+//import vars.buildmaster
+//import vars.onMaster
+//import vars.clean
 
 new Setup(steps
 
@@ -149,8 +157,10 @@ DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
-REPORT_DIR = "webapp/genfiles"
-REPORT_NAME = "results-combined.json"
+REPORT_DIR = "webapp/genfiles";
+
+SKIPPED_E2E_FILENAME = "skipped_e2e_tests.json";
+SKIPPED_STASH_ID = "e2e-skipped-list";
 
 // We have a dedicated set of workers for the second smoke test. (ka-firstinqueue-ec2)
 // But using them breaks our ability to run e2e in parallel
@@ -232,6 +242,8 @@ def runE2ETests(workerId) {
    ];
 
    dir('webapp/services/static') {
+      unstash SKIPPED_STASH_ID;
+      sh("cat ${SKIPPED_E2E_FILENAME}");
       exec(runE2ETestsArgs);
    }
 }
@@ -288,8 +300,18 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
            buildmaster: [sha: params.GIT_REVISION,
                          what: E2E_RUN_TYPE]]) {
       initializeGlobals();
+      stage("Generate skipped list") {
+         dir("webapp/services/static") {
+            sh("pnpm cypress:clean");
+            exec(["./dev/cypress/e2e/tools/gen-skipped-e2e-tests.js", "${E2E_URL}"]);
+            stash includes: SKIPPED_E2E_FILENAME, name: SKIPPED_STASH_ID;
+         };
+      }
       stage("Run e2e tests") {
-         withEnv(["COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}"]) {
+         withEnv([
+            "COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}",
+            "KA_SKIP_GEN=1",
+         ]) {
             runAllTestClients();
          }
       }
