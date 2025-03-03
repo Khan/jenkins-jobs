@@ -38,9 +38,9 @@ def runScript() {
                           params.GIT_REVISION);
 
    dir("webapp") {
-        // First, we need to get a local webserver running.
-        sh("ssh-agent make start-dev-server-backend WORKING_ON=NONE")
         try {
+            // First, we need to get a local webserver running.
+            sh("ssh-agent make start-dev-server-backend WORKING_ON=NONE")
             sh("rm -rf datastore")
             sh("mkdir -p datastore")
             sh("go run ./services/users/cmd/create_dev_users")
