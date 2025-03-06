@@ -40,7 +40,10 @@ def runScript() {
    dir("webapp") {
         try {
             // First, we need to get a local webserver running.
-            sh("ssh-agent make start-dev-server-backend WORKING_ON=NONE")
+            // We need the `env` because otherwise jenkins's
+            // BUILD_TAG takes precedence over our own.
+            // TODO(csilvers): clear more of env?
+            sh("ssh-agent env -u BUILD_TAG make start-dev-server-backend WORKING_ON=NONE")
             sh("rm -rf datastore")
             sh("mkdir -p datastore")
             sh("go run ./services/users/cmd/create_dev_users")
