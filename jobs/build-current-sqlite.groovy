@@ -54,7 +54,7 @@ def runScript() {
             sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c WEB-INF | gsutil cp - gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
         } finally {
             // No matter what, we stop the local webserver.
-            sh("make stop-server")
+            sh("ssh-agent make stop-server")
         }
    }
 }
