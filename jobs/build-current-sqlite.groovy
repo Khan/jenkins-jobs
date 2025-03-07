@@ -57,16 +57,15 @@ def runScript() {
             sh("ssh-agent env -u BUILD_TAG make start-dev-server-backend WORKING_ON=NONE")
 
             updateDatabase()
-
-            // Now upload the new database to gcs.
-            sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak")
-            // A rare case we *don't* want the `-t` flag to docker:
-            // if we include it, tar refuses to emit output to a terminmal.
-            sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c . | gsutil cp - ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
         } finally {
             // No matter what, we stop the local webserver.
             sh("ssh-agent make stop-server")
         }
+        // Now upload the new database to gcs.
+        sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak")
+        // A rare case we *don't* want the `-t` flag to docker:
+        // if we include it, tar refuses to emit output to a terminmal.
+        sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c . | gsutil cp - ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
    }
 }
 
