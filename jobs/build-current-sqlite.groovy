@@ -33,32 +33,41 @@ that haven't yet been merged to master.""",
 ).apply();
 
 
+// This runs in webapp/.
+def updateDatabase() {
+   sh("go run ./services/users/cmd/create_dev_users")
+   sh("go run ./services/admin/cmd/make_admin -username testadmin")
+}
+
 def runScript() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                           params.GIT_REVISION);
 
    dir("webapp") {
+        // Let's make sure we have a recent version of the datastore first.
+        sh("rm -rf datastore")
+        sh("make current.sqlite")
         try {
-            // First, we need to get a local webserver running.
-            // We need the `env` because otherwise jenkins's
-            // BUILD_TAG takes precedence over our own.
+            // First, we need to get a local webserver running.  We
+            // need the `ssh-agent` because apparently jenkins don't
+            // have one by default, and our docker rules use it.  We
+            // need the `env` because otherwise jenkins's BUILD_TAG
+            // takes precedence over our own.
             // TODO(csilvers): clear more of env?
             sh("ssh-agent env -u BUILD_TAG make start-dev-server-backend WORKING_ON=NONE")
-            sh("rm -rf datastore")
-            sh("mkdir -p datastore")
-            sh("go run ./services/users/cmd/create_dev_users")
-            sh("go run ./services/admin/cmd/make_admin -username testadmin")
-            sh("gsutil cp gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak")
-            // A rare case we *don't* want the `-t` flag to docker:
-            // if we include it, tar refuses to emit output to a terminmal.
-            sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c WEB-INF | gsutil cp - gs://${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
+
+            updateDatabase()
         } finally {
             // No matter what, we stop the local webserver.
             sh("ssh-agent make stop-server")
         }
+        // Now upload the new database to gcs.
+        sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak")
+        // A rare case we *don't* want the `-t` flag to docker:
+        // if we include it, tar refuses to emit output to a terminmal.
+        sh("docker exec -i webapp-datastore-emulator-1 tar -C /var/datastore -c . | gsutil cp - ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar")
    }
 }
-
 
 // We run on a special worker machine because starting up all the
 // dev backends requires hefty resources.
