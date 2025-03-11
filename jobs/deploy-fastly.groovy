@@ -45,26 +45,34 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
     ""
 
 ).addChoiceParam(
-    "TARGET",
-    """\
-<ul>
-  <li> <b>test</b>: https://www-test.khanacademy.org, www-boxes.khanacademy.org
-  <li> <b>prod</b>: https://www.khanacademy.org
-  <li> <b>staging</b>: https://www-staging.khanacademy.org [compute@edge only]
-</ul>
-""",
-    ["test", "prod", "staging"]
-
-).addChoiceParam(
     "SERVICE",
     """\
 <ul>
-  <li> <b>fastly-vcl</b>
-  <li> <b>fastly-compute</b>
+  <li> <b>khanacademy.org (vcl)</b>
+  <li> <b>khanacademy.org (compute)</b>
+  <li> <b>blog</b>
+  <li> <b>content-property</b>
+  <li> <b>international</b>
+  <li> <b>kasandbox</b>
   <li> <b>kastatic</b>
+  <li> <b>khan.co</b>
+  <li> <b>sendgrid</b>
 </ul>
 """,
-    ["fastly-vcl", "fastly-compute", "kastatic"]
+    ["khanacademy-org-vcl", "khanacdemy-org-compute",
+     "blog", "content-property", "international", "kasandbox", "kastatic",
+     "khan-co", "sendgrid"],
+
+).addChoiceParam(
+    "TARGET",
+    """\
+<ul>
+  <li> <b>test</b>: khanacademy-org-vcl and khanacademy-org-compute <b>only</b>
+  <li> <b>staging</b>: khanacademy-org-compute <b>only</b>
+  <li> <b>prod</b>: all services
+</ul>
+""",
+    ["test", "staging", "prod"]
 
 ).addChoiceParam(
     "CLEAN",
@@ -79,10 +87,10 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 ).apply();
 
 SERVICE_DIR = [
-    "fastly-vcl": "services/fastly-khanacademy",
-    "fastly-compute": "services/fastly-khanacademy-compute",
-    "kastatic": "services/fastly-kastatic",
-][params.SERVICE];
+    // The special cases (that aren't "services/fastly/<service>") go here.
+    "khanacdemy-org-vcl": "services/fastly-khanacademy",
+    "khanacademy-org-compute": "services/fastly-khanacademy-compute",
+].get(params.SERVICE, "services/fastly/${params.SERVICE}")
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
                             "(${params.TARGET} ${params.SERVICE})");
