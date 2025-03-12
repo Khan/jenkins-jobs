@@ -190,6 +190,16 @@ onMaster('30m') {
          notify.fail("Must specify a GIT_REVISION");
       }
 
+      if (params.TARGET == "test" &&
+          params.SERVICE != "khanacademy-org-vcl" &&
+          params.SERVICE != "khanacademy-org-compute") {
+         notify.fail("'test' mode is only supported for khanacademy-org services");
+      }
+      if (params.TARGET == "staging" &&
+          params.SERVICE != "khanacademy-org-compute") {
+         notify.fail("'test' mode is only supported for khanacademy-org-compute");
+      }
+
       stage("Installing deps") {
          installDeps();
       }
