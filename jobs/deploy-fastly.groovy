@@ -46,20 +46,8 @@ phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab o
 
 ).addChoiceParam(
     "SERVICE",
-    """\
-<ul>
-  <li> <b>khanacademy.org (vcl)</b>
-  <li> <b>khanacademy.org (compute)</b>
-  <li> <b>blog</b>
-  <li> <b>content-property</b>
-  <li> <b>international</b>
-  <li> <b>kasandbox</b>
-  <li> <b>kastatic</b>
-  <li> <b>khan.co</b>
-  <li> <b>sendgrid</b>
-</ul>
-""",
-    ["khanacademy-org-vcl", "khanacdemy-org-compute",
+    """The fastly service to deploy to.""",
+    ["khanacademy-org-vcl", "khanacademy-org-compute",
      "blog", "content-property", "international", "kasandbox", "kastatic",
      "khan-co", "sendgrid"],
 
