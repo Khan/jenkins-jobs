@@ -38,10 +38,7 @@ deploying to prod, <b>this must be ahead of master</b>: use the commit from
 your build (e.g. if the version is yymmdd-hhmm-ssssssssssss just use the
 ssssssssssss).
 
-Deploying to test, you can use any branch/commit.  Also possible: a tag like
-phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab or
-<code>revisionid-to-diffid.sh D#####</code>).  Basically, this is passed to
-<code>git checkout GIT_REVISION</code>.""",
+Deploying to test, you can use any branch/commit.""",
     ""
 
 ).addChoiceParam(
