@@ -201,7 +201,7 @@ onMaster('30m') {
       // In vcl, we can read the diff, because we upload the source code.
       // So we do this and ask for confirmation as a double-check.  For
       // compute@edge we upload a binary so there's no diff we can do.
-      if (params.SERVICE != "fastly-compute") {
+      if (params.SERVICE != "khanacademy-org-compute") {
          echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
          input("Diff looks good?");
       }
