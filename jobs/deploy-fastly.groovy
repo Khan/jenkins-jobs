@@ -38,28 +38,13 @@ deploying to prod, <b>this must be ahead of master</b>: use the commit from
 your build (e.g. if the version is yymmdd-hhmm-ssssssssssss just use the
 ssssssssssss).
 
-Deploying to test, you can use any branch/commit.  Also possible: a tag like
-phabricator/diff/&lt;id&gt; (using the latest ID from the diff's "history" tab or
-<code>revisionid-to-diffid.sh D#####</code>).  Basically, this is passed to
-<code>git checkout GIT_REVISION</code>.""",
+Deploying to test, you can use any branch/commit.""",
     ""
 
 ).addChoiceParam(
     "SERVICE",
-    """\
-<ul>
-  <li> <b>khanacademy.org (vcl)</b>
-  <li> <b>khanacademy.org (compute)</b>
-  <li> <b>blog</b>
-  <li> <b>content-property</b>
-  <li> <b>international</b>
-  <li> <b>kasandbox</b>
-  <li> <b>kastatic</b>
-  <li> <b>khan.co</b>
-  <li> <b>sendgrid</b>
-</ul>
-""",
-    ["khanacademy-org-vcl", "khanacdemy-org-compute",
+    """The fastly service to deploy to.""",
+    ["khanacademy-org-vcl", "khanacademy-org-compute",
      "blog", "content-property", "international", "kasandbox", "kastatic",
      "khan-co", "sendgrid"],
 
