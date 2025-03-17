@@ -292,7 +292,7 @@ def analyzeResults(foldersList) {
                "--label", BUILD_NAME,
                // The URL we test against.
                "--url", params.URL,
-               // Notify failures to DevOps and FEI
+               // folders with e2e results
                "--folders",
                *foldersList
             ];
