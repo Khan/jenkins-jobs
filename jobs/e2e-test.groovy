@@ -239,8 +239,6 @@ def runE2ETests(workerId) {
       "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
       "--url=${E2E_URL}",
       "--name=${BUILD_NAME}",
-      "--targets",
-      "mm-test-pass",
    ];
 
    dir('webapp/services/static') {
