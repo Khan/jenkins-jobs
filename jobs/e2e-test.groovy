@@ -287,7 +287,7 @@ def analyzeResults(foldersList) {
                "--channel", params.SLACK_CHANNEL,
                // The URL associated to this Jenkins build.
                "--build-url", env.BUILD_URL,
-               // The LambdaTest build name that will be included at the
+               // The Cypress Cloud build name that will be included at the
                // beginning of the message.
                "--label", BUILD_NAME,
                // The URL we test against.
