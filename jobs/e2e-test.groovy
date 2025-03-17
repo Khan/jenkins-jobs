@@ -239,6 +239,8 @@ def runE2ETests(workerId) {
       "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
       "--url=${E2E_URL}",
       "--name=${BUILD_NAME}",
+      "--targets",
+      "mm-test-pass",
    ];
 
    dir('webapp/services/static') {
@@ -274,7 +276,7 @@ def analyzeResults(foldersList) {
 
    withTimeout('5m') {
       // several new files in util and tools
-      kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
+      kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
       kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
 
       dir('webapp/services/static') {
