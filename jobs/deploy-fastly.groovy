@@ -73,7 +73,7 @@ Deploying to test, you can use any branch/commit.""",
 
 SERVICE_DIR = [
     // The special cases (that aren't "services/fastly/<service>") go here.
-    "khanacdemy-org-vcl": "services/fastly-khanacademy",
+    "khanacademy-org-vcl": "services/fastly-khanacademy",
     "khanacademy-org-compute": "services/fastly-khanacademy-compute",
 ].get(params.SERVICE, "services/fastly/${params.SERVICE}")
 
