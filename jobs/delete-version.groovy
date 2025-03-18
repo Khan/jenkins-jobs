@@ -3,6 +3,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
+import groovy.json.JsonSlurper
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
@@ -19,15 +20,10 @@ new Setup(steps
    9000,
 
 ).addStringParam(
-    "VERSION",
-    """<b>REQUIRED</b>. The names of the versions to delete, separated by
-spaces. Must exactly match the name of an existing version (e.g.
-"znd-170101-sean-znd-test 170101-1200-deadbeef1234")""",
-    ""
-
-).addStringParam(
-    "MODULES",
-    """The modules to delete, comma-separated.  Must not be empty.""",
+    "SERVICE_VERSIONS",
+    """<b>REQUIRED</b>. A JSON object where each key is a service name and
+the value is a list of versions to delete for that service.
+Example: {"serviceA": ["version1", "version2"], "serviceB": ["version3"]}""",
     ""
 
 ).apply();
@@ -36,11 +32,28 @@ currentBuild.displayName = "${currentBuild.displayName} (${params.VERSION})";
 
 
 def verifyArgs() {
-   if (!params.VERSION) {
-      notify.fail("The VERSION parameter is required.");
+   if (!params.SERVICE_VERSIONS) {
+      notify.fail("The SERVICE_VERSIONS parameter is required.");
+   }
+   try {
+      def parsed = new JsonSlurper().parseText(params.SERVICE_VERSIONS);
+      if (!(parsed instanceof Map)) {
+         notify.fail("SERVICE_VERSIONS must be a JSON object.");
+      }
+      parsed.each { service, versions ->
+         if (!(versions instanceof List)) {
+            notify.fail("Each service entry must be a list of versions.");
+         }
+         versions.each { version ->
+            if (!(version instanceof String)) {
+               notify.fail("Versions must be strings.");
+            }
+         }
+      }
+   } catch (Exception e) {
+      notify.fail("Invalid JSON format in SERVICE_VERSIONS: ${e.message}");
    }
 }
-
 
 def _setupWebapp() {
    withTimeout('25m') {
@@ -51,20 +64,17 @@ def _setupWebapp() {
 def deleteVersion() {
    withTimeout('25m') {
       dir("webapp") {
-         def args = (["deploy/delete_gae_versions.py"]
-                     // We need to cast because split() returns an Array and
-                     // groovy wants a List, apparently.
-                     + (params.VERSION.split(" ") as List));
-         if (params.MODULES) {
-            args += ["--modules",
-                     params.MODULES.split(/,/).collect { it.trim() }.join(',')
-                     ];
+         def serviceVersions = new JsonSlurper().parseText(params.SERVICE_VERSIONS);
+
+         serviceVersions.each { service, versions ->
+            def args = ["deploy/delete_gae_versions.py"]
+            args += versions  // Add all versions for this service
+            args += ["--modules", service]
+            exec(args);
          }
-         exec(args);
       }
    }
 }
-
 
 onMaster('30m') {
    notify([slack: [channel: '#1s-and-0s-deploys',
