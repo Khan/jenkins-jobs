@@ -70,7 +70,7 @@ def deleteVersion() {
 }
 
 
-onWorker('30m') {
+onMaster('30m') {
    notify([slack: [channel: '#1s-and-0s-deploys',
                 sender: 'Mr Monkey',
                 emoji: ':monkey_face:',
