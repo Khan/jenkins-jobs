@@ -13,10 +13,6 @@ import org.khanacademy.Setup;
 
 new Setup(steps
 
-// Buildmaster triggers this job once for each service every 15 minutes.
-// If we disallow concurrent builds, the job queue can get backed up.
-).allowConcurrentBuilds(
-
 // We run this job once every few minutes; 100 builds covers about
 // 30 minutes.  Let's keep at least a days' around, for debugging.
 ).resetNumBuildsToKeep(
