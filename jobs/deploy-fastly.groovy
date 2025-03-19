@@ -163,6 +163,35 @@ def notifyWithVersionInfo(oldActive, newActive) {
    withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
    }
+
+   // Let's tell #whats-happening as well, at least for prod deploys.
+   // But we don't alert for fastly-compute, since that is deployed
+   // automatically as part of the normal deploy process, and gets
+   // alerted on #whats-happening via that mechanism.
+   if (params.TARGET == "prod" && params.SERVICE != "khanacademy-org-compute") {
+      subject = "Fastly service ${params.SERVICE} was modified.";
+      body = "New version: ${newActive}";
+      cmd = [
+          "jenkins-jobs/alertlib/alert.py",
+          "--slack=#fastly",
+          "--chat-sender=fastly",
+          "--icon-emoji=:fastly:",
+          "--severity=info",
+          "--summary=${subject}",
+      ];
+      withSecrets.slackAlertlibOnly() {
+         sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
+      }
+
+      // Let's also keep track of what deploys we handled, to make it
+      // easier to find changes to fastly that did not go through this
+      // script.  Note that `>>` uses a buffered write so is safe even
+      // if two deploy scripts are running in parallel.  However, this
+      // does depend on this job only having one workspace, so we don't
+      // have to worry about jobs running in parallel in any case.
+      // (and note we do not enable concurrent builds in our setup call.)
+      sh("echo '${params.SERVICE}:${params.TARGET}:${newActive}' >> '${env.WORKSPACE}/deployed_versions.txt'");
+   }
 }
 
 onMaster('30m') {
