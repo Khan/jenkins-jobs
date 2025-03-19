@@ -36,7 +36,7 @@ def verifyArgs() {
       notify.fail("The SERVICE_VERSIONS parameter is required.");
    }
    try {
-      def parsed = new JsonSlurper().parseText(params.SERVICE_VERSIONS);
+      def parsed = new JsonSlurperClassic().parseText(params.SERVICE_VERSIONS);
       if (!(parsed instanceof Map)) {
          notify.fail("SERVICE_VERSIONS must be a JSON object.");
       }
