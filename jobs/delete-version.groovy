@@ -3,7 +3,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurper;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
