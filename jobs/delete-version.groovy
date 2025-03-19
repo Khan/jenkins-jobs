@@ -68,7 +68,7 @@ def deleteVersion() {
 
          serviceVersions.each { service, versions ->
             def args = ["deploy/delete_gae_versions.py"]
-            args += (versions as List)  // Ensure Groovy treats it as a list
+            args += (versions as List);  // Ensure Groovy treats it as a list
             args += ["--modules", service.trim()];
             exec(args);
          }
