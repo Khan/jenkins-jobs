@@ -163,6 +163,26 @@ def notifyWithVersionInfo(oldActive, newActive) {
    withSecrets.slackAlertlibOnly() {
       sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
    }
+
+   // Let's tell #whats-happening as well, at least for prod deploys.
+   // But we don't alert for fastly-compute, since that is deployed
+   // automatically as part of the normal deploy process, and gets
+   // alerted on #whats-happening via that mechanism.
+   if (params.TARGET == "prod" && params.SERVICE != "khanacademy-org-compute") {
+      def subject = "Fastly service ${params.SERVICE} was modified.";
+      def body = "New version: ${newActive}";
+      def cmd = [
+          "jenkins-jobs/alertlib/alert.py",
+          "--slack=#fastly",
+          "--chat-sender=fastly",
+          "--icon-emoji=:fastly:",
+          "--severity=info",
+          "--summary=${subject}",
+      ];
+      withSecrets.slackAlertlibOnly() {
+         sh("echo ${exec.shellEscape(body)} | ${exec.shellEscapeList(cmd)}");
+      }
+   }
 }
 
 onMaster('30m') {
