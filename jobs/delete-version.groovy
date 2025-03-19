@@ -3,7 +3,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-import groovy.json.JsonSlurper;
+import groovy.json.JsonSlurperClassic;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.exec
 //import vars.kaGit
@@ -64,7 +64,9 @@ def _setupWebapp() {
 def deleteVersion() {
    withTimeout('25m') {
       dir("webapp") {
-         def serviceVersions = new JsonSlurper().parseText(params.SERVICE_VERSIONS);
+         // See https://issues.apache.org/jira/browse/GROOVY-6934
+         // JsonSlurper is not thread safe or serializable. Let's use JsonSlurperClassic instead.
+         def serviceVersions = new JsonSlurperClassic().parseText(params.SERVICE_VERSIONS);
 
          serviceVersions.each { service, versions ->
             def args = ["deploy/delete_gae_versions.py"]
