@@ -169,9 +169,9 @@ def notifyWithVersionInfo(oldActive, newActive) {
    // automatically as part of the normal deploy process, and gets
    // alerted on #whats-happening via that mechanism.
    if (params.TARGET == "prod" && params.SERVICE != "khanacademy-org-compute") {
-      def subject = "Fastly service ${params.SERVICE} was modified.";
-      def body = "New version: ${newActive}";
-      def cmd = [
+      subject = "Fastly service ${params.SERVICE} was modified.";
+      body = "New version: ${newActive}";
+      cmd = [
           "jenkins-jobs/alertlib/alert.py",
           "--slack=#fastly",
           "--chat-sender=fastly",
