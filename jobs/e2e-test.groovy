@@ -277,42 +277,48 @@ def analyzeResults(foldersList) {
       kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
       kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
 
+      def notifyResultsArgs = [
+         "./dev/cypress/e2e/tools/notify-e2e-results.ts",
+         "--channel", params.SLACK_CHANNEL,
+         // The URL associated to this Jenkins build.
+         "--build-url", env.BUILD_URL,
+         // The Cypress Cloud build name that will be included at the
+         // beginning of the message.
+         "--label", BUILD_NAME,
+         // The URL we test against.
+         "--url", params.URL,
+         // folders with e2e results
+         "--folders",
+         *foldersList
+      ];
+
+      if (params.DEPLOYER_USERNAME) {
+         // The deployer is the person who triggered the
+         // build (this is only included in the message if
+         // the e2e tests fail).
+         notifyResultsArgs += ["--deployer", params.DEPLOYER_USERNAME];
+      }
+      if (params.SLACK_THREAD) {
+         notifyResultsArgs += ["--thread", params.SLACK_THREAD];
+      }
+
+      // TODO(csilvers): services/static/dev/tools/slack/slack-client.ts
+      // should get the secret directly from gsm, not via an envvar.
+      def slackToken = exec.outputOf([
+          "gcloud", "--project", "khan-academy",
+          "secrets", "versions", "access", "latest",
+          "--secret", "Slack_api_token_for_slack_owl",
+      ]);
+
       dir('webapp/services/static') {
-         // Get the SLACK_TOKEN from global credentials (env vars).
-         withCredentials([
-            string(credentialsId: "SLACK_BOT_TOKEN", variable: "SLACK_TOKEN")
-         ]) {
-            def notifyResultsArgs = [
-               "./dev/cypress/e2e/tools/notify-e2e-results.ts",
-               "--channel", params.SLACK_CHANNEL,
-               // The URL associated to this Jenkins build.
-               "--build-url", env.BUILD_URL,
-               // The Cypress Cloud build name that will be included at the
-               // beginning of the message.
-               "--label", BUILD_NAME,
-               // The URL we test against.
-               "--url", params.URL,
-               // folders with e2e results
-               "--folders",
-               *foldersList
-            ];
-
-            if (params.DEPLOYER_USERNAME) {
-               // The deployer is the person who triggered the
-               // build (this is only included in the message if
-               // the e2e tests fail).
-               notifyResultsArgs += ["--deployer", params.DEPLOYER_USERNAME];
-            }
-            if (params.SLACK_THREAD) {
-               notifyResultsArgs += ["--thread", params.SLACK_THREAD];
-            }
-
-            // notify-e2e-results returns a non-zero rc if it detects test
-            // failures. We set the job to UNSTABLE in that case (since we don't
-            // consider smoketest failures to be blocking). But we still keep on
-            // running the rest of this script!
+         withEnv(["SLACK_TOKEN=${slackToken}"]) {
+            // notify-e2e-results returns a non-zero rc if it detects
+            // test failures. We set the job to UNSTABLE in that case
+            // (since we don't consider smoketest failures to be
+            // blocking).  But we still keep on running the rest of
+            // this script!
             catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
-               message: "There were test failures!") {
+                       message: "There were test failures!") {
                exec(notifyResultsArgs);
             }
 
