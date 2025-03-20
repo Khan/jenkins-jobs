@@ -28,9 +28,6 @@ Example: {"serviceA": ["version1", "version2"], "serviceB": ["version3"]}""",
 
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName}";
-
-
 def verifyArgs() {
    if (!params.SERVICE_VERSIONS) {
       notify.fail("The SERVICE_VERSIONS parameter is required.");
