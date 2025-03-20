@@ -128,8 +128,11 @@ def send_to_slack(slack_channel, service_infos_to_warn):
                'not the deploy-fastly jenkins job.*  Make sure the fastly '
                'yaml files are up to date with these changes!')
     for service_info in service_infos_to_warn:
-        message += '\n* `%s`: version %s' % (service_info.service_name,
-                                             service_info.version)
+        message += ('\n* `%s`: version %s%s (%s)'
+                    % (service_info.service_name,
+                       service_info.version,
+                       ' *LIVE*' if service_info.is_active else '',
+                       service_info.description))
     alertlib.Alert(message, severity=logging.INFO).send_to_slack(
         slack_channel,
         sender='fastly',
