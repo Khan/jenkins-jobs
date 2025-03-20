@@ -28,7 +28,7 @@ Example: {"serviceA": ["version1", "version2"], "serviceB": ["version3"]}""",
 
 ).apply();
 
-currentBuild.displayName = "${currentBuild.displayName} (${params.VERSION})";
+currentBuild.displayName = "${currentBuild.displayName}";
 
 
 def verifyArgs() {
