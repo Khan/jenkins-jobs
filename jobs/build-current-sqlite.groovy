@@ -58,6 +58,10 @@ def runScript() {
 
          updateDatabase();
 
+         // I don't know a better way to flush the datastore
+         // changes to disk, than to just kill it.
+         sh("docker exec -it webapp-datastore-emulator-1 dash -c 'kill `ls -l /proc/*/exe | grep java- | cut -d/ -f3`'")
+
          // Now upload the new database to gcs.
          sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak");
          // A rare case we *don't* want the `-t` flag to docker:
