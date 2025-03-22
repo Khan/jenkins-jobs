@@ -344,6 +344,17 @@ def initializeGlobals() {
             SERVICES = [];
          }
 
+         // If we're deploying static and other services at the same time,
+         // we want to disallow this as we're going to be moving the static
+         // service out of webapp. It can be overridden with the FORCE flag.
+         if ("static" in SERVICES && SERVICES.size() > 1 && !params.FORCE) {
+            notify.fail("You cannot deploy static and other services at " +
+                        "the same time. Please split apart your backend " +
+                        "and frontend changes into separate deploy branches. " +
+                        "If you must deploy them together, you can use the " +
+                        "'FORCE' flag.");
+         }
+
          // Now make the deps we need.  We always need python deps
          // because we ourselves run various python scripts
          // (e.g. current_version.py, below), but we only need other deps
