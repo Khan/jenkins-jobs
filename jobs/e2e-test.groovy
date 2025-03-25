@@ -343,6 +343,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                          what: E2E_RUN_TYPE]]) {
       initializeGlobals();
       stage("Generate skipped list") {
+         _setupWebapp();
          dir("webapp/services/static") {
             sh("pnpm cypress:clean");
             exec(["./dev/cypress/e2e/tools/gen-skipped-e2e-tests.js", "${E2E_URL}"]);
