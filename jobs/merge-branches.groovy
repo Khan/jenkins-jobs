@@ -26,6 +26,13 @@ new Setup(steps
    ""
 
 ).addStringParam(
+   "BASE_REVISION",
+   """Compute services that would be deployed by the merged commit since this 
+   revision based on the the commits between BASE_REVISION..MERGED_SHA1. 
+   This only matters if params.SERVICES is 'auto'.""",
+   ""
+
+).addStringParam(
    "COMMIT_ID",
    """<b>REQUIRED</b>. The buildmaster's commit ID for the commit we will
 create.""",
@@ -60,6 +67,15 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.""",
    ""
 
 ).addStringParam(
+   "SERVICES",
+   """A comma-separated list of services this commit would deploy, or the  
+   special value 'auto', which says to choose the services to deploy 
+   automatically based on what files have changed.  For example, you might 
+   specify "users,static" to force a full deploy to the users service and GCS.
+   """,
+   "auto"
+
+).addStringParam(
    "BUILDMASTER_DEPLOY_ID",
    """Set by the buildmaster, can be used by scripts to associate jobs
 that are part of the same deploy.  Write-only; not used by this script.""",
@@ -68,7 +84,6 @@ that are part of the same deploy.  Write-only; not used by this script.""",
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS}) (${params.REVISION_DESCRIPTION})";
-
 
 def checkArgs() {
    if (!params.GIT_REVISIONS) {
@@ -79,11 +94,54 @@ def checkArgs() {
 }
 
 
-def getGaeVersionName() {
+String getGaeVersionName() {
    dir('webapp') {
-     def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
+     String gae_version_name = exec.outputOf(["make", "gae_version_name"]);
      echo("Found gae version name: ${gae_version_name}");
      return gae_version_name;
+   }
+}
+
+
+String[] computeServicesToDeploy() {
+   withVirtualenv.python3() {
+      dir("webapp") {
+         echo("Computing services that should be deployed.")
+         String[] services = []
+
+         if (params.SERVICES == "auto") {
+            try {
+               def shouldDeployArgs = ["deploy/should_deploy.py"];
+               // Diff against BASE_REVISION if set. We only allow this when
+               // merging: for promotion the only correct thing to do is to
+               // diff against the currently live version, and the consequences
+               // of doing something else are greater, so we prohibit the
+               // dangerous thing.
+               if (params.BASE_REVISION) {
+                  shouldDeployArgs += ["--from-commit", params.BASE_REVISION]
+               }
+               services = exec.outputOf(shouldDeployArgs).split("\n");
+            } catch(e) {
+               notify.fail("Automatic detection of what to deploy failed. " +
+                           "You can likely work around this by setting " +
+                           "services on your deploy; see " +
+                           "${env.BUILD_URL}rebuild for documentation, and " +
+                           "`sun: help flags` for how to set it.  If you " +
+                           "aren't sure, ask deploy-support for help!");
+            }
+         } else {
+            services = params.SERVICES.split(",").collect { it.trim() };
+         }
+         if (services == [""]) {
+            // Either of the above could be [""], if we should deploy nothing.
+            // We want to use [] instead: [""] would mean deploying a single
+            // nameless service or something.
+            services = [];
+         }
+
+         echo("Should deploy to the following services: ${services.join(', ')}");
+         return services
+      }
    }
 }
 
@@ -96,18 +154,31 @@ onMaster('1h') {
                    when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
+
+         // Merge branches and push to origin.
          tag_name = ("buildmaster-${params.COMMIT_ID}-" +
                      "${new Date().format('yyyyMMdd-HHmmss')}");
-         def sha1 = kaGit.mergeBranches(params.GIT_REVISIONS, tag_name);
-         def gae_version_name = getGaeVersionName();
-         buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
-                                       sha1, gae_version_name);
+         String sha1 = kaGit.mergeBranches(params.GIT_REVISIONS, tag_name);
+         String gae_version_name = getGaeVersionName();
+
+         // Compute list of services the merged commit would deploy.
+         String[] services = []
+         stage("Computing services") {
+            services = computeServicesToDeploy();
+         }
+
+         // Phone home to buildmaster that our merge was successful.
+         buildmaster.notifyMergeResult(params.COMMIT_ID, 
+                                       'success',
+                                       sha1, 
+                                       gae_version_name, 
+                                       services.join(', ') ?: "tools-only");
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
          // without all the things notify does it's hard to tell the difference
          // between aborted and failed.  So we don't bother.
-         buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null, null);
+         buildmaster.notifyMergeResult(params.COMMIT_ID, 'failed', null, null, null);
          throw e;
       }
    }

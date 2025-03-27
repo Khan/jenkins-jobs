@@ -123,13 +123,22 @@ def notifyStatus(job, result, sha1) {
    return _makeHttpRequestAndAlert("commits", "PATCH", params);
 }
 
-def notifyMergeResult(commitId, result, sha1, gae_version_name) {
+def notifyMergeResult(
+   String commitId,
+   String result,
+   String sha1 = null,
+   String gae_version_name = null,
+   String services = null
+) {
    echo("Marking commit #${commitId} as ${result}: ${sha1}");
    def params = [
       commit_id: commitId,
       result: result,
       git_sha: sha1,
       gae_version_name: gae_version_name
+      // TODO(INFRA-10586): Send services to buildmaster after it starts sending
+      // the correct params.BASE_REVISION and params.SERVICES to merge-branches.
+      // services: services
    ];
    return _makeHttpRequestAndAlert("commits/merge", "PATCH", params);
 }
