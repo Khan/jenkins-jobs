@@ -133,6 +133,26 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 }
 
 
+// Return the deployer username, ensuring it begins with @ and falling back to
+// the jenkins build user ID if no username is passed.
+String getDeployerUsername(String deployerUsernameParam) {
+   String deployerUsername = null
+   if (deployerUsernameParam) {
+      deployerUsername = deployerUsernameParam;
+   } else {
+      wrap([$class: 'BuildUser']) {
+         // It seems like BUILD_USER_ID is typically an email address.
+         deployerUsername = env.BUILD_USER_ID.split("@")[0];
+      }
+   }
+
+   if (!deployerUsername.startsWith("@") &&
+       !deployerUsername.startsWith("<@")) {
+      deployerUsername = "@${deployerUsername}";
+   }
+   return deployerUsername
+}
+
 // Supported options:
 // channel (required): what slack channel to send to
 // when (required): under what circumstances to send to slack; a list.
