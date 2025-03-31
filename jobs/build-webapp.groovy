@@ -275,6 +275,9 @@ def mergeFromMaster() {
       // and our checkout of jenkins-jobs will work fine.
       alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
 
+      // TODO(nathanjd): Replace with `DEPLOYER_USERNAME =
+      // notify.getDeployerUsername()` once it has been successfully tested in
+      // determine-webapp-services.
       if (params.DEPLOYER_USERNAME) {
          DEPLOYER_USERNAME = params.DEPLOYER_USERNAME;
       } else {
