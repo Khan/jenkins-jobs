@@ -11,7 +11,6 @@ def call(timeoutString, Closure body) {
       // To export BOTO_CONFIG, for some reason, worker did not
       // source the .profile or .bashrc anymore.
       withEnv(["BOTO_CONFIG=${env.HOME}/.boto",
-               "GOOGLE_APPLICATION_CREDENTIALS=${env.HOME}/jenkins-deploy-gcloud-service-account.json",
                "PATH=" +
                "/home/ubuntu/webapp-workspace/devtools/khan-linter/bin:" +
                "/var/lib/jenkins/repositories/khan-linter/bin" +
