@@ -133,10 +133,10 @@ def _sendToAlertlib(subject, severity, body, extraFlags) {
 }
 
 
-// Return the deployer username, ensuring it begins with @ and falling back to
-// the jenkins build user ID if no username is passed.
-String getDeployerUsername(String deployerUsernameParam) {
-   String deployerUsername = null
+// Return the deployer username, ensuring it begins with @ or <@ and falling
+// back to the jenkins build user ID if no username is passed.
+def getDeployerUsername(def deployerUsernameParam) {
+   def deployerUsername = null
    if (deployerUsernameParam) {
       deployerUsername = deployerUsernameParam;
    } else {
