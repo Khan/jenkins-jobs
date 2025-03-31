@@ -95,15 +95,15 @@ def checkoutWebapp() {
    }
 }
 
-String[] determineServicesToDeploy() {
+def determineServicesToDeploy() {
    withVirtualenv.python3() {
       withTimeout('15m') {
          dir('webapp') {
             echo('Determining services that should be deployed.')
-            String[] services = []
+            def services = []
 
             try {
-               String[] shouldDeployArgs = ['deploy/should_deploy.py'];
+               def shouldDeployArgs = ['deploy/should_deploy.py'];
                // Diff against BASE_REVISION if set.
                if (params.BASE_REVISION) {
                      shouldDeployArgs += [
@@ -150,7 +150,7 @@ onWorker('build-worker', '1h') {
          checkoutWebapp()
       }
 
-      String[] services = []
+      def services = []
       stage('Determine services') {
          services = determineServicesToDeploy();
       }
