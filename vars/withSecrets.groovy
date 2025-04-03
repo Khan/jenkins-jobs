@@ -18,7 +18,8 @@ def slackAlertlibOnly(Closure body) {
    try {
       def uniqueId = sh(script: "echo \$\$", returnStdout: true).trim();
       sh("mkdir -p decrypted_secrets/slack/");
-      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
+      // It's called "districts_slack_token" but really it's for everyone.
+      sh("gcloud --project khan-academy secrets versions access latest --secret districts_slack_token >decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack/secrets.py.tmp.${uniqueId}");
       // Create this file atomically.
       sh("mv -f decrypted_secrets/slack/secrets.py.tmp.${uniqueId} decrypted_secrets/slack/secrets.py");
@@ -74,7 +75,7 @@ def slackAndStackdriverAlertlibOnly(Closure body) {
    try {
       def uniqueId = sh(script: "echo \$\$", returnStdout: true).trim();
       sh("mkdir -p decrypted_secrets/slack_and_stackdriver/");
-      sh("gcloud --project khan-academy secrets versions access latest --secret Slack__API_token_for_alertlib >decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
+      sh("gcloud --project khan-academy secrets versions access latest --secret districts_slack_token >decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("perl -pli -e 's/^/slack_alertlib_api_token = \"/; s/\$/\"/' decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("echo google_alertlib_service_account = \\'\\'\\' >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
       sh("gcloud --project khan-academy secrets versions access latest --secret google_api_service_account__for_alertlib_ >>decrypted_secrets/slack_and_stackdriver/secrets.py.tmp.${uniqueId}");
