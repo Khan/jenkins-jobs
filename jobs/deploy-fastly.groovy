@@ -190,7 +190,22 @@ def notifyWithVersionInfo(oldActive, newActive) {
       // does depend on this job only having one workspace, so we don't
       // have to worry about jobs running in parallel in any case.
       // (and note we do not enable concurrent builds in our setup call.)
-      sh("echo '${params.SERVICE}:${params.TARGET}:${newActive}' >> '${env.WORKSPACE}/deployed_versions.txt'");
+
+      // For this we need the id of the service.  This is in the yaml file.
+      // Because we know we are prod-only, we know the yaml file to use is
+      // <service-dir-basename>.yaml (and not <basename>-test.yaml).
+      // If we ever wanted to support this for staging or test, we'd have
+      // to modify the filename to add `-${params.TARGET}` to the filename
+      // below.
+      dir("webapp/${SERVICE_DIR}") {
+         def serviceId = sh(
+            script: "grep service_id: \"`pwd | xargs basename`\".yaml | cut -d: -f2 | tr -cd 0-9A-Za-z",
+            returnStdout: true,
+         ).trim();
+         // sync-start:fastly-deploys-file fastly_notifier.py
+         sh("echo '${serviceId}:${newActive}' >> '${env.WORKSPACE}/deployed_versions.txt'");
+         // sync-end:fastly-deploys-file
+      }
    }
 }
 
