@@ -175,7 +175,9 @@ if __name__ == '__main__':
         with open(args.bad_deploys_file) as f:
             bad_deploys_by_service_id = _parse_deploys_file(f)
     else:
-        logging.warning("No history file found at %s", args.bad_deploys_file)
+        # It's expected this will be empty if nobody has ever done
+        # anything wrong!
+        logging.debug("No history file found at %s", args.bad_deploys_file)
         bad_deploys_by_service_id = {}
 
     service_info = get_service_info(api_key)
