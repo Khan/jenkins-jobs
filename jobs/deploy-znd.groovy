@@ -362,6 +362,17 @@ def deploy() {
                jobs["deploy-cron-yaml"] = { deployCronYaml(); };
                break;
 
+            case "fastly-khanacademy-compute":
+               // We don't have the ability to deploy to a "staging"
+               // fastly-ka-compute service at this time; if we _did_
+               // deploy this here it would deploy to prod, where it
+               // would just sit there, ignored.  (At least, I _hope_
+               // we would never call set-default on it!)  That's
+               // a waste of time and space, so let's just skip the
+               // deploy.
+               echo("WARNING: not deploying to fastly-ka-compute, we don't support znds for that service");
+               break;
+
             default:
                // We need to define a new variable so that we don't
                // pass the loop variable into the closure: it may have
