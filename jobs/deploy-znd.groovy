@@ -364,8 +364,12 @@ def deploy() {
 
            case "fastly-khanacademy-compute":
                // We don't have the ability to deploy to a "staging"
-               // fastly-ka-compute service at this time, so we just
-               // refuse to deploy at all.
+               // fastly-ka-compute service at this time; if we _did_
+               // deploy this here it would deploy to prod, where it
+               // would just sit there, ignored.  (At least, I _hope_
+               // we would never call set-default on it!)  That's
+               // a waste of time and space, so let's just skip the
+               // deploy.
                echo("WARNING: not deploying to fastly-ka-compute, we don't support znds for that service");
                break;
 
