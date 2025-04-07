@@ -362,7 +362,7 @@ def deploy() {
                jobs["deploy-cron-yaml"] = { deployCronYaml(); };
                break;
 
-           case "fastly-khanacademy-compute":
+            case "fastly-khanacademy-compute":
                // We don't have the ability to deploy to a "staging"
                // fastly-ka-compute service at this time; if we _did_
                // deploy this here it would deploy to prod, where it
