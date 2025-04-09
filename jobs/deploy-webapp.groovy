@@ -878,7 +878,8 @@ def finishWithFailure(why) {
          _alert(alertMsgs.ROLLING_BACK,
                 [rollbackToAsVersion: rollbackToAsVersion,
                  gitTag: GIT_TAG]);
-         withSecrets.slackAlertlibOnly() {  // rollback.py sends to slack
+         // rollback.py sends to slack and also to stackdriver for monitoring.
+         withSecrets.slackAndStackdriverAlertlibOnly() {
             dir("webapp") {
                // During the rollback, we need the local version of code to be
                // of the good version for some of the rollback operation
