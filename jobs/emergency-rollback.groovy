@@ -114,7 +114,8 @@ def verifyValidTag(tag) {
 
 def doRollback() {
    withTimeout('30m') {
-      withSecrets.slackAlertlibOnly() {  // rollback.py talks to slack
+      // rollback.py sends to slack and also to stackdriver for monitoring.
+      withSecrets.slackAndStackdriverAlertlibOnly() {
          cmd = ["deploy/rollback.py"];
          if (params.DRY_RUN) {
             cmd += ["-n"];
