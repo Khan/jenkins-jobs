@@ -172,7 +172,7 @@ def notifyWithVersionInfo(oldActive, newActive) {
       body = "New version: ${newActive}";
       cmd = [
           "jenkins-jobs/alertlib/alert.py",
-          "--slack=#fastly",
+          "--slack=#whats-happening",
           "--chat-sender=fastly",
           "--icon-emoji=:fastly:",
           "--severity=info",
