@@ -386,24 +386,29 @@ def deployToGCS() {
    if (!("static" in SERVICES)) {
       return;
    }
-   def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
-               "--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=${DEPLOYER_USERNAME}",
-               // We don't send the changelog in a build-only context:
-               // there may be many builds afoot and it is too
-               // confusing.  We'll send it in promote instead.
-               "--suppress-changelog",
-               // Since we're deploying new static code, we should upload the
-               // updated sourcemap files to our error reporting system
-               "--upload-sourcemaps"];
 
-   args += params.SLACK_THREAD ? [
-      "--slack-thread=${params.SLACK_THREAD}"] : [];
-   args += params.FORCE ? ["--force"] : [];
+   // on github the full build + deploy step frequently takes < 4min:
+   // https://github.com/Khan/webapp/actions/runs/14456823218/job/40541817846
+   withTimeout('15m') {
+      def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
+                  "--slack-channel=${params.SLACK_CHANNEL}",
+                  "--deployer-username=${DEPLOYER_USERNAME}",
+                  // We don't send the changelog in a build-only context:
+                  // there may be many builds afoot and it is too
+                  // confusing.  We'll send it in promote instead.
+                  "--suppress-changelog",
+                  // Since we're deploying new static code, we should upload the
+                  // updated sourcemap files to our error reporting system
+                  "--upload-sourcemaps"];
 
-   withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
-      dir("webapp") {
-         exec(args);
+      args += params.SLACK_THREAD ? [
+         "--slack-thread=${params.SLACK_THREAD}"] : [];
+      args += params.FORCE ? ["--force"] : [];
+
+      withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
+         dir("webapp") {
+            exec(args);
+         }
       }
    }
 }
