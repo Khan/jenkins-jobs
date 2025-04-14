@@ -922,7 +922,7 @@ def finishWithFailure(why) {
 
 // We do promotes on master, to ease debugging and such.  Promote isn't
 // CPU-bound, and we can have only one at a time, so it's not a problem.
-onMaster('4h') {
+onMaster('1h') {
    notify([slack: [channel: '#1s-and-0s-deploys',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
