@@ -529,8 +529,7 @@ def deployToService(service) {
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
-      def jobs = ["deploy-to-gcs": { deployToGCS(); },
-                  "deploy-to-gateway-config": { deployToGatewayConfig(); },
+      def jobs = ["deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
                   "deploy-pubsub-yaml": { deployPubsubYaml(); },
@@ -552,6 +551,12 @@ def deployAndReport() {
          }
       }
       parallel(jobs);
+
+      // Run static build and deploy by itself. This is to avoid intermittent
+      // OOM issues during the rspack i18n build.
+      parallel([
+         "deploy-to-gcs": { deployToGCS(); }
+      ])
 
       parallel([
          "update-graphql-safelist": { uploadGraphqlSafelist(); }
