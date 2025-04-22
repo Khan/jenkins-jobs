@@ -86,7 +86,7 @@ onMaster('2h') {
                    failureChannel: "#infrastructure-platform",
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Initializing webapp") {
          _setupWebapp();
       }

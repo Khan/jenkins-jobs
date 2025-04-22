@@ -39,7 +39,7 @@ the updated data-file to it.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to send our status info.",
-   "#infrastructure"
+   "#local-devserver"
 
 ).addCronSchedule(
    '0 22 * * *'
@@ -95,10 +95,9 @@ def publishResults() {
 // https://khanacademy.slack.com/archives/C096UP7D0/p1738681917185069
 onWorker('build-worker', '10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
-                   failureChannel: "#local-devserver",
                    sender: 'Devserver Duck',
                    emoji: ':duck:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+                   when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
       stage("Setup webapp") {
          _setupWebapp();
       }
