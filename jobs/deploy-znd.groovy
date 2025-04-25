@@ -272,7 +272,7 @@ def uploadGraphqlSafelist() {
       dir("webapp") {
          exec([
             "deploy/upload_graphql_safelist.py",
-            NEW_VERSION,
+            VERSION,
             "--prod",
          ])
       }
