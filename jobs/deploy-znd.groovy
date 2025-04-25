@@ -256,6 +256,29 @@ def deployToGatewayConfig() {
    }
 }
 
+// Updates the safelist so that znds with changes to queries can make our
+// secutiry/permissions checks happy.
+//
+// We do not however, prime the queryplan caches for znds.  Most often folks
+// creating znds need to access a small number of queries so queryplan priming
+// can be left as a dynamic thing the graphql gateway does for znds.
+def uploadGraphqlSafelist() {
+   // We don't upload queries from the static service here becuase
+   // services/static/deploy/deploy.js is responsible for that.
+   // TODO(kevinb): update deploy scripts for each service to be responsible
+   // for uploading its own queries to the safelist.
+   if (SERVICES.any { it != 'static'}) {
+      echo("Uploading GraphQL queries to the safelist.");
+      dir("webapp") {
+         exec([
+            "deploy/upload_graphql_safelist.py",
+            VERSION,
+            "--prod",
+         ])
+      }
+   }
+}
+
 // TODO(colin): these messaging functions are mostly duplicated from
 // deploy-webapp.groovy and deploy-history.groovy.  We should probably set up
 // an alertlib (or perhaps just slack messaging) wrapper, since similar
@@ -387,6 +410,10 @@ def deploy() {
       jobs["failFast"] = true;
 
       parallel(jobs);
+
+      parallel([
+         "update-graphql-safelist": { uploadGraphqlSafelist(); }
+      ])
 
       _sendSimpleInterpolatedMessage(
          alertMsgs.JUST_DEPLOYED.text,
