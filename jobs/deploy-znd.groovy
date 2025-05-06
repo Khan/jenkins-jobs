@@ -351,6 +351,17 @@ def deploy() {
             SERVICES = params.SERVICES.split(",").collect { it.trim() };
          }
 
+         // If we're deploying static and other services at the same time,
+         // we want to disallow this as we're going to be moving the static
+         // service out of webapp. It can be overridden with the FORCE flag.
+         if ("static" in SERVICES && SERVICES.size() > 1 && !params.FORCE) {
+            notify.fail("You cannot deploy static and other services at " +
+                        "the same time. Please split apart your backend " +
+                        "and frontend changes into separate deploy branches. " +
+                        "If you must deploy them together, you can use the " +
+                        "'FORCE' flag.");
+         }
+
          // Make the deps we need based on what we're deploying.  The
          // python services (default/etc) only need python deps.  The
          // goliath services build their own deps via their `make deploy`
