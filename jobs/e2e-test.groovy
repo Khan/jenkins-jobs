@@ -168,6 +168,7 @@ SKIPPED_STASH_ID = "e2e-skipped-list";
 WORKER_TYPE = 'ka-test-ec2';
 
 // Used to tell whether all the test-workers raised an exception.
+WORKERS_RAISING_EXCEPTIONS = 0;
 public class TestFailed extends Exception {}
 
 def swallowExceptions(Closure body, Closure onException = {}) {
