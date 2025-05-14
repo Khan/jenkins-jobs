@@ -57,19 +57,19 @@ def runScript() {
            script: "env ZND_NAME=${params.ZND_NAME} services/content-editing/publish/tools/build_publish_image.sh",
            returnStdout: true
        )
-       def publishVersionMatch = buildOutput =~ /gcr\.io\/khan-internal-services\/publish-worker:([\w.-]+)/
-       def publishVersion = publishVersionMatch ? publishVersionMatch[0][1] : null
-       if (!publishVersion) {
-           error("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
-       }
-
-       echo("For how to use this image, see");
-       echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
        if (!params.DEPLOY_TO_PROD) {
            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.")
            return
+       }	   
+       def publishVersionMatch = buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/
+       def publishVersion = publishVersionMatch ? publishVersionMatch[0][1] : null
+       if (!publishVersion) {
+           error("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
        }
+       echo("For how to use this image, see");
+       echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
+
        def deployerEmail = env.BUILD_USER_ID
        if (!deployerEmail || deployerEmail.endsWith("@khanacademy.org")) {
            error("Could not determine a valid deployer email. BUILD_USER_ID is missing or is a @khanacademy.org address: ${deployerEmail}")
