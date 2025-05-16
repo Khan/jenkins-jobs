@@ -58,10 +58,7 @@ def runScript() {
        if (params.VALIDATE_COMMIT) {
           sh("services/content-editing/publish/tools/validate_commit_for_publish.sh");
        }
-       def buildOutput = sh(
-           script: "env ZND_NAME=${params.ZND_NAME} services/content-editing/publish/tools/build_publish_image.sh",
-           returnStdout: true
-       )
+       def buildOutput = exec.outputOf(["env", "ZND_NAME=${params.ZND_NAME}", "services/content-editing/publish/tools/build_publish_image.sh"]);
 
        if (!params.DEPLOY_TO_PROD) {
            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.")
