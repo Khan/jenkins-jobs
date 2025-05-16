@@ -63,6 +63,8 @@ def runScript() {
           sh("services/content-editing/publish/tools/validate_commit_for_publish.sh");
        }
        def buildOutput = exec.outputOf(["env", "ZND_NAME=${params.ZND_NAME}", "services/content-editing/publish/tools/build_publish_image.sh"]);
+       echo("For how to use this image, see");
+       echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
        if (!params.DEPLOY_TO_PROD) {
            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.")
@@ -73,13 +75,11 @@ def runScript() {
        matcher = null
        if (!publishVersion) {
            notify.fail("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
-       }
-       echo("For how to use this image, see");
-       echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
+       }	   
 
        def deployerEmail = params.DEPLOYER_EMAIL
        if (!deployerEmail || !deployerEmail.endsWith("@khanacademy.org")) {
-           error("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}")
+           notify.fail("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}")
        }
        def goArgs = [
            "go", "run", "services/content-editing/cmd/update-publish-worker/main.go",
