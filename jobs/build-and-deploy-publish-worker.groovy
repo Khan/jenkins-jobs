@@ -37,71 +37,71 @@ someone else's publish-deploy on purpose.""",
     "DEPLOY_TO_PROD",
     """If set, actually deploy the new publish-worker image to production. If not set, the job will stop after building the image.""",
     false
-
+// TODO(jackz): Consider using input here
 ).addStringParam(
     "DEPLOYER_EMAIL",
-    """The email address of the deployer. This will be used for deployment tracking and auditing purposes.""",
+    """Your @khanacademy.org email address is required if deploying the newly built publish-worker image to production.""",
     ""
-	
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
 
-def _setupWebapp() {
-   withTimeout('1h') {
-   		kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", 
-			params.GIT_REVISION);
-	}
+def setupWebapp() {
+    withTimeout('1h') {
+        kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", 
+            params.GIT_REVISION);
+    }
 }
 
 def runScript() {
-   // Prune docker images before building if under 1.5GB of disk space.
-   sh('[ $(df -BM --output=avail . | tr -cd 0-9) -gt 1500 ] || docker image prune -af');
+    // Prune docker images before building if under 1.5GB of disk space.
+    sh('[ $(df -BM --output=avail . | tr -cd 0-9) -gt 1500 ] || docker image prune -af');
 
-   dir("webapp") {
-       if (params.VALIDATE_COMMIT) {
-          sh("services/content-editing/publish/tools/validate_commit_for_publish.sh");
-       }
-       def buildOutput = exec.outputOf(["env", "ZND_NAME=${params.ZND_NAME}", "services/content-editing/publish/tools/build_publish_image.sh"]);
+    dir("webapp") {
+        if (params.VALIDATE_COMMIT) {
+            sh("services/content-editing/publish/tools/validate_commit_for_publish.sh");
+        }
+        def buildOutput = exec.outputOf(["env", "ZND_NAME=${params.ZND_NAME}", "services/content-editing/publish/tools/build_publish_image.sh"]);
+        echo("For how to use this image, see");
+        echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
-       if (!params.DEPLOY_TO_PROD) {
-           echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.")
-           return
-       }	   
-       def matcher = (buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/)
-       def publishVersion = matcher ? matcher[0][1] : null
-       matcher = null
-       if (!publishVersion) {
-           notify.fail("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
-       }
-       echo("For how to use this image, see");
-       echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
+        if (!params.DEPLOY_TO_PROD) {
+            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.");
+            return;
+        }
+        def matcher = (buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/);
+        def publishVersion = matcher ? matcher[0][1] : null;
+        matcher = null;
+        if (!publishVersion) {
+            notify.fail("Could not extract PUBLISH_VERSION from build_publish_image.sh output");
+        }
 
-       def deployerEmail = params.DEPLOYER_EMAIL
-       if (!deployerEmail || !deployerEmail.endsWith("@khanacademy.org")) {
-           error("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}")
-       }
-       def goArgs = [
-           "go", "run", "services/content-editing/cmd/update-publish-worker/main.go",
-           "--publish-image-version=${publishVersion}",
-           "--publish-image-version-including-master",
-           "--yes-really-update-publish-worker-in-production",
-           "--deployer-email=${deployerEmail}"
-       ]
-       exec(goArgs)
-	   echo("For additional information about the publish worker deploy script, see")
-	   echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/3566764137/Publish+Worker+Automated+Deploy");
-   }
+        def deployerEmail = params.DEPLOYER_EMAIL;
+        if (!deployerEmail || !deployerEmail.endsWith("@khanacademy.org")) {
+            notify.fail("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}");
+        }
+        def goArgs = [
+            "go", "run", "services/content-editing/cmd/update-publish-worker/main.go",
+            "--publish-image-version=${publishVersion}",
+            "--publish-image-version-including-master",
+            "--yes-really-update-publish-worker-in-production",
+            "--deployer-email=${deployerEmail}"
+        ];
+        ansiColor('xterm') {
+            exec(goArgs);
+        }
+        echo("For additional information about the publish worker deploy script, see");
+        echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/3566764137/Publish+Worker+Automated+Deploy");
+    }
 }
 
 onWorker("build-worker", "60m") {
-   notify([slack: [channel: '#cp-eng',
-                   when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      stage("Initializing webapp") {
-         _setupWebapp();
-      }      
-stage("Running script") {
-         runScript();
-      }
-   }
+    notify([slack: [channel: '#cp-eng', when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+        stage("Initializing webapp") {
+            setupWebapp();
+        }
+        stage("Running script") {
+            runScript();
+        }
+    }
 }
