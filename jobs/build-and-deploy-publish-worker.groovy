@@ -38,6 +38,11 @@ someone else's publish-deploy on purpose.""",
     """If set, actually deploy the new publish-worker image to production. If not set, the job will stop after building the image.""",
     false
 
+).addStringParam(
+    "DEPLOYER_EMAIL",
+    """The email address of the deployer. This will be used for deployment tracking and auditing purposes.""",
+    ""
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
@@ -70,9 +75,9 @@ def runScript() {
        echo("For how to use this image, see");
        echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
-       def deployerEmail = env.BUILD_USER_ID
+       def deployerEmail = params.DEPLOYER_EMAIL
        if (!deployerEmail || deployerEmail.endsWith("@khanacademy.org")) {
-           error("Could not determine a valid deployer email. BUILD_USER_ID is missing or is a @khanacademy.org address: ${deployerEmail}")
+           error("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}")
        }
        def goArgs = [
            "go", "run", "services/content-editing/cmd/update-publish-worker/main.go",
