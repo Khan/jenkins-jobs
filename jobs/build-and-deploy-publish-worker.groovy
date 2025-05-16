@@ -70,7 +70,7 @@ def runScript() {
            error("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
        }
        echo("For how to use this image, see");
-       echo ("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
+       echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
        def deployerEmail = params.DEPLOYER_EMAIL
        if (!deployerEmail || deployerEmail.endsWith("@khanacademy.org")) {
