@@ -42,15 +42,19 @@ someone else's publish-deploy on purpose.""",
     "DEPLOYER_EMAIL",
     """The email address of the deployer. This will be used for deployment tracking and auditing purposes.""",
     ""
-
+	
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})";
 
-def runScript() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                          params.GIT_REVISION);
+def _setupWebapp() {
+   withTimeout('1h') {
+   		kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", 
+			params.GIT_REVISION);
+	}
+}
 
+def runScript() {
    // Prune docker images before building if under 1.5GB of disk space.
    sh('[ $(df -BM --output=avail . | tr -cd 0-9) -gt 1500 ] || docker image prune -af');
 
@@ -67,7 +71,7 @@ def runScript() {
        def publishVersionMatch = buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/
        def publishVersion = publishVersionMatch ? publishVersionMatch[0][1] : null
        if (!publishVersion) {
-           error("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
+           notify.fail("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
        }
        echo("For how to use this image, see");
        echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
@@ -88,10 +92,13 @@ def runScript() {
    }
 }
 
-onWorker("build-worker", "30m") {
+onWorker("build-worker", "60m") {
    notify([slack: [channel: '#cp-eng',
                    when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
-      stage("Running script") {
+      stage("Initializing webapp") {
+         _setupWebapp();
+      }      
+	  stage("Running script") {
          runScript();
       }
    }
