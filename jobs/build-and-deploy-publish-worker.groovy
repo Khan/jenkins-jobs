@@ -100,7 +100,7 @@ onWorker("build-worker", "60m") {
       stage("Initializing webapp") {
          _setupWebapp();
       }      
-	  stage("Running script") {
+stage("Running script") {
          runScript();
       }
    }
