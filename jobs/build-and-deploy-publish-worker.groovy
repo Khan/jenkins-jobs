@@ -82,7 +82,8 @@ def runScript() {
        }
        def goArgs = [
            "go", "run", "services/content-editing/cmd/update-publish-worker/main.go",
-           "--publish-image-version-including-master=${publishVersion}",
+           "--publish-image-version=${publishVersion}",
+           "--publish-image-version-including-master",
            "--yes-really-update-publish-worker-in-production",
            "--deployer-email=${deployerEmail}"
        ]
