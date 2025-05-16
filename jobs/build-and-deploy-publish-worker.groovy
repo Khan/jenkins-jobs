@@ -73,7 +73,7 @@ def runScript() {
        echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
        def deployerEmail = params.DEPLOYER_EMAIL
-       if (!deployerEmail || deployerEmail.endsWith("@khanacademy.org")) {
+       if (!deployerEmail || !deployerEmail.endsWith("@khanacademy.org")) {
            error("Could not determine a valid deployer email. DEPLOYER_EMAIL is missing or is a @khanacademy.org address: ${deployerEmail}")
        }
        def goArgs = [
