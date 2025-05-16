@@ -68,8 +68,9 @@ def runScript() {
            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.")
            return
        }	   
-       def publishVersionMatch = buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/
-       def publishVersion = publishVersionMatch ? publishVersionMatch[0][1] : null
+       def matcher = (buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/)
+       def publishVersion = matcher ? matcher[0][1] : null
+       matcher = null
        if (!publishVersion) {
            notify.fail("Could not extract PUBLISH_VERSION from build_publish_image.sh output")
        }
