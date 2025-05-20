@@ -321,11 +321,11 @@ update_caniuse() {
     #    https://github.com/facebook/create-react-app/issues/6708#issuecomment-488392836
     (
         cd webapp
-        for d in `git grep -l caniuse-lite "*yarn.lock" "*pnpm-lock.yaml" | xargs -n1 dirname`; do
+        for d in `git grep -l caniuse-lite "*pnpm-lock.yaml" | xargs -n1 dirname`; do
             (
                 cd "$d"
                 # Use the official tool to update the browserslist and caniuse-lite packages.
-                npx update-browserslist-db@latest
+                pnpm up caniuse-lite --no-save
             )
         done
     )
