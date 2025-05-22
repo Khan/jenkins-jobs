@@ -21,6 +21,7 @@ production system.
 This is meant to be run every minute or so, via cron.
 """
 import collections
+import datetime
 import json
 import http.client
 import logging
@@ -116,10 +117,21 @@ def get_deploys_to_warn(service_info,
         first_good_deploy = min(
             good_deploys_by_service_id.get(service_id, {sys.maxsize}))
 
+        now = datetime.datetime.now(datetime.UTC)
         retval = []
         for v in versions:
-            if v.version not in to_ignore and v.version >= first_good_deploy:
-                retval.append(v)
+            if v.version in to_ignore:
+                continue
+            if v.version < first_good_deploy:
+                continue
+            # Ignore all deploys that took place within the last 2
+            # minutes.  They are probably still ongoing and we just
+            # haven't updated the to-ignore list to include them yet.
+            when_deployed = datetime.datetime.strptime(v.updated_at,
+                                                       '%Y-%m-%dT%H:%M:%S%z')
+            if now - when_deployed < datetime.timedelta(seconds=120):
+                continue
+            retval.append(v)
         return retval
 
 
