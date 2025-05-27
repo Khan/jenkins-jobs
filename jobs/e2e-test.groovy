@@ -190,6 +190,9 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
+   dir("webapp/testing/e2e") {
+      sh("make npm_deps");
+   }
    dir("webapp/services/static") {
       sh("make npm_deps");
    }
@@ -275,11 +278,11 @@ def analyzeResults(foldersList) {
 
    withTimeout('5m') {
       // several new files in util and tools
-      kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
-      kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
+      kaGit.safePull("webapp/testing/e2e/tools");
+      kaGit.safePull("webapp/testing/e2e/util");
 
       def notifyResultsArgs = [
-         "./dev/cypress/e2e/tools/notify-e2e-results.ts",
+         "./util/notify-e2e-results.ts",
          "--channel", params.SLACK_CHANNEL,
          // The URL associated to this Jenkins build.
          "--build-url", env.BUILD_URL,
@@ -303,7 +306,7 @@ def analyzeResults(foldersList) {
          notifyResultsArgs += ["--thread", params.SLACK_THREAD];
       }
 
-      // TODO(csilvers): services/static/dev/tools/slack/slack-client.ts
+      // TODO(csilvers): testing/e2e/tools/slack/slack-client.ts
       // should get the secret directly from gsm, not via an envvar.
       def slackToken = exec.outputOf([
           "gcloud", "--project", "khan-academy",
@@ -311,7 +314,7 @@ def analyzeResults(foldersList) {
           "--secret", "Slack_api_token_for_slack_owl",
       ]);
 
-      dir('webapp/services/static') {
+      dir('webapp/testing/e2e') {
          withEnv(["SLACK_TOKEN=${slackToken}"]) {
             // notify-e2e-results returns a non-zero rc if it detects
             // test failures. We set the job to UNSTABLE in that case
