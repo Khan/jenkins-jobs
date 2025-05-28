@@ -2,10 +2,8 @@
 //
 // cypress e2e tests are the smoketests run in the webapp/feature/cypress repo,
 // that hit a live website using lambdatest cli.
-
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
-import groovy.json.JsonBuilder;
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.withVirtualenv
