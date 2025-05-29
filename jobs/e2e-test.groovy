@@ -164,24 +164,148 @@ WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
 def initializeGlobals() {
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
       params.GIT_REVISION);
-   // for security, use only with withGithubToken!
-   GITHUB_TOKEN = exec.outputOf([
-         "gcloud", "--project", "khan-academy",
-         "secrets", "versions", "access", "latest",
-         "--secret", "jenkins_github_webapp_e2e_workflow_runner_token",
-   ]);
+}
 
-   SLACK_TOKEN = exec.outputOf([
+def _setupWebapp() {
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
+
+   dir("webapp/services/static") {
+      sh("make npm_deps");
+   }
+}
+
+// Run all the test-clients on all the worker machine, in parallel.
+def runAllTestClients() {
+   // We want to swallow any framework exceptions unless *all* the
+   // clients have raised a framework exception.  Our theory is that
+   // if one client dies unexpectedly the others can compensate, but
+   // if they all do, then there's nothing more we can do.
+   def onException = {
+      echo("Worker raised an exception");
+      WORKERS_RAISING_EXCEPTIONS++;
+      if (WORKERS_RAISING_EXCEPTIONS == NUM_WORKER_MACHINES) {
+         echo("All worker machines failed!");
+         throw new TestFailed("All worker machines failed!");
+      }
+   }
+
+   def jobs = [:];
+   for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+      def workerId = i;  // avoid scoping problems
+      jobs["e2e-test-${workerId}"] = {
+         stage("e2e-worker-${workerId}") {
+            swallowExceptions({
+               onWorker(WORKER_TYPE, '2h') {
+                  _setupWebapp()
+                  runE2ETests(workerId)
+                  dir("${REPORT_DIR}") {
+                     stash includes: "e2e-test-results.json", name: "worker-${workerId}-reports"
+                  }
+               }
+            }, onException);
+         }
+      }
+   };
+   parallel(jobs);
+}
+
+def runE2ETests(workerId) {
+   echo("Starting e2e tests for worker ${workerId}");
+
+   // Define which environment we're running against, and setting up junit report
+   def e2eEnv = E2E_URL == "https://www.khanacademy.org" ? "prod" : "preprod";
+
+   def runE2ETestsArgs = [
+      "./dev/cypress/e2e/tools/start-cy-cloud-run.ts",
+      "--url=${E2E_URL}",
+      "--name=${BUILD_NAME}",
+   ];
+
+   dir('webapp/services/static') {
+      unstash SKIPPED_STASH_ID;
+      sh("cat ${SKIPPED_E2E_FILENAME}");
+      exec(runE2ETestsArgs);
+   }
+}
+
+def unstashReports() {
+   def jsonFolders = [];
+   dir("${REPORT_DIR}") {
+      for (i = 0; i < NUM_WORKER_MACHINES; i++) {
+         exec(["rm", "-rf", "${i}"]);
+         exec(["mkdir", "-p", "${i}"]);
+         jsonFolders.add("${i}")
+         dir("./${i}") {
+            unstash "worker-${i}-reports"
+            sh("ls");
+         }
+      }
+   }
+   return jsonFolders;
+}
+
+def analyzeResults(foldersList) {
+   if (currentBuild.result == 'ABORTED') {
+      // No need to report the results in the case of abort!  They will
+      // likely be more confusing than useful.
+      echo('We were aborted; no need to report results.');
+      return;
+   }
+
+   withTimeout('5m') {
+      // several new files in util and tools
+      kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
+      kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
+
+      def notifyResultsArgs = [
+         "./dev/cypress/e2e/tools/notify-e2e-results.ts",
+         "--channel", params.SLACK_CHANNEL,
+         // The URL associated to this Jenkins build.
+         "--build-url", env.BUILD_URL,
+         // The Cypress Cloud build name that will be included at the
+         // beginning of the message.
+         "--label", BUILD_NAME,
+         // The URL we test against.
+         "--url", params.URL,
+         // folders with e2e results
+         "--folders",
+         *foldersList
+      ];
+
+      if (params.DEPLOYER_USERNAME) {
+         // The deployer is the person who triggered the
+         // build (this is only included in the message if
+         // the e2e tests fail).
+         notifyResultsArgs += ["--deployer", params.DEPLOYER_USERNAME];
+      }
+      if (params.SLACK_THREAD) {
+         notifyResultsArgs += ["--thread", params.SLACK_THREAD];
+      }
+
+      // TODO(csilvers): services/static/dev/tools/slack/slack-client.ts
+      // should get the secret directly from gsm, not via an envvar.
+      def slackToken = exec.outputOf([
           "gcloud", "--project", "khan-academy",
           "secrets", "versions", "access", "latest",
           "--secret", "Slack_api_token_for_slack_owl",
-   ]);
-}
+      ]);
 
-def withGitHubToken(body) {
-   wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: [[password: GITHUB_TOKEN]]]) {
-      withEnv(["GITHUB_TOKEN=${GITHUB_TOKEN}"]) {
-         body()
+      dir('webapp/services/static') {
+         withEnv(["SLACK_TOKEN=${slackToken}"]) {
+            // notify-e2e-results returns a non-zero rc if it detects
+            // test failures. We set the job to UNSTABLE in that case
+            // (since we don't consider smoketest failures to be
+            // blocking).  But we still keep on running the rest of
+            // this script!
+            catchError(buildResult: "UNSTABLE", stageResult: "UNSTABLE",
+                       message: "There were test failures!") {
+               exec(notifyResultsArgs);
+            }
+
+            // Let notify() know not to send any messages to slack, because we
+            // just did it here.
+            env.SENT_TO_SLACK = '1';
+         }
       }
    }
 }
