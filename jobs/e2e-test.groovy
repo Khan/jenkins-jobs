@@ -157,8 +157,9 @@ GITHUB_TOKEN = null;
 
 SLACK_TOKEN = null;
 
-// Use first worker available
-WORKER_TYPE = "ka-firstinqueue-ec2";
+// We have a dedicated set of workers for the second smoke test.
+WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
+               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 def initializeGlobals() {
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
@@ -191,7 +192,9 @@ def _pullWebapp() {
 }
 
 // Determines if we are running the first or second smoke test.
-E2E_RUN_TYPE = (E2E_URL == "https://www.khanacademy.org" ? "second-smoke-test" : "first-smoke-test");
+IS_PRODUCTION = (E2E_URL == "https://www.khanacademy.org");
+E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
+E2E_MODE = IS_PRODUCTION ? "production" : "non-default";
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
@@ -221,7 +224,8 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   "--label=${params.REVISION_DESCRIPTION ?: params.GIT_REVISION}",
                   "--url=${params.URL}",
                   "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
-                  "--thread=${params.SLACK_THREAD}"
+                  "--thread=${params.SLACK_THREAD}",
+                  "--ka-e2e-mode=${E2E_MODE}"
                ];
                dir("webapp/testing/e2e") {
                   exec(["pnpm", "install"]);
