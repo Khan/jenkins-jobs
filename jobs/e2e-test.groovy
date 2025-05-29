@@ -135,6 +135,10 @@ for more information.""",
 
 ).apply();
 
+// We set these to real values first thing below; but we do it within
+// the notify() so if there's an error setting them we notify on slack.
+NUM_WORKER_MACHINES = null;
+
 // Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 // Drop this part so the branches can be grouped in Cypress Cloud
@@ -153,15 +157,32 @@ DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
-GITHUB_TOKEN = null;
+REPORT_DIR = "webapp/genfiles";
 
-SLACK_TOKEN = null;
+SKIPPED_E2E_FILENAME = "skipped_e2e_tests.json";
+SKIPPED_STASH_ID = "e2e-skipped-list";
 
-// We have a dedicated set of workers for the second smoke test.
-WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
-               ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
+// We have a dedicated set of workers for the second smoke test. (ka-firstinqueue-ec2)
+// But using them breaks our ability to run e2e in parallel
+// because Cypress complains about the environments being too different
+WORKER_TYPE = 'ka-test-ec2';
+
+// Used to tell whether all the test-workers raised an exception.
+WORKERS_RAISING_EXCEPTIONS = 0;
+public class TestFailed extends Exception {}
+
+def swallowExceptions(Closure body, Closure onException = {}) {
+   try {
+      body();
+   } catch (e) {
+      echo("Swallowing exception: ${e}");
+      onException();
+   }
+}
 
 def initializeGlobals() {
+   NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
+
    GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
       params.GIT_REVISION);
 }
@@ -169,6 +190,9 @@ def initializeGlobals() {
 def _setupWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1);
 
+   dir("webapp/testing/e2e") {
+      sh("make npm_deps");
+   }
    dir("webapp/services/static") {
       sh("make npm_deps");
    }
@@ -254,11 +278,11 @@ def analyzeResults(foldersList) {
 
    withTimeout('5m') {
       // several new files in util and tools
-      kaGit.safePull("webapp/services/static/dev/cypress/e2e/tools");
-      kaGit.safePull("webapp/services/static/dev/cypress/e2e/util");
+      kaGit.safePull("webapp/testing/e2e/tools");
+      kaGit.safePull("webapp/testing/e2e/util");
 
       def notifyResultsArgs = [
-         "./dev/cypress/e2e/tools/notify-e2e-results.ts",
+         "./util/notify-e2e-results.ts",
          "--channel", params.SLACK_CHANNEL,
          // The URL associated to this Jenkins build.
          "--build-url", env.BUILD_URL,
@@ -282,7 +306,7 @@ def analyzeResults(foldersList) {
          notifyResultsArgs += ["--thread", params.SLACK_THREAD];
       }
 
-      // TODO(csilvers): services/static/dev/tools/slack/slack-client.ts
+      // TODO(csilvers): testing/e2e/tools/slack/slack-client.ts
       // should get the secret directly from gsm, not via an envvar.
       def slackToken = exec.outputOf([
           "gcloud", "--project", "khan-academy",
@@ -290,7 +314,7 @@ def analyzeResults(foldersList) {
           "--secret", "Slack_api_token_for_slack_owl",
       ]);
 
-      dir('webapp/services/static') {
+      dir('webapp/testing/e2e') {
          withEnv(["SLACK_TOKEN=${slackToken}"]) {
             // notify-e2e-results returns a non-zero rc if it detects
             // test failures. We set the job to UNSTABLE in that case
@@ -310,11 +334,6 @@ def analyzeResults(foldersList) {
    }
 }
 
-def _pullWebapp() {
-   // need script to start the workflow
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1, [], force=true);
-}
-
 // Determines if we are running the first or second smoke test.
 IS_PRODUCTION = (E2E_URL == "https://www.khanacademy.org");
 E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
@@ -322,41 +341,33 @@ E2E_MODE = IS_PRODUCTION ? "production" : "non-default";
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
-                  thread: params.SLACK_THREAD,
-                  sender: 'Testing Turtle',
-                  emoji: ':turtle:',
-                  when: ['FAILURE', 'UNSTABLE']],
-          buildmaster: [sha: params.GIT_REVISION,
-                        what: E2E_RUN_TYPE]]) {
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: E2E_RUN_TYPE]]) {
       initializeGlobals();
-      _pullWebapp();
+      stage("Generate skipped list") {
+         _setupWebapp();
+         dir("webapp/services/static") {
+            sh("pnpm cypress:clean");
+            exec(["./dev/cypress/e2e/tools/gen-skipped-e2e-tests.js", "${E2E_URL}"]);
+            stash includes: SKIPPED_E2E_FILENAME, name: SKIPPED_STASH_ID;
+         };
+      }
       stage("Run e2e tests") {
-         withGitHubToken {
-            withEnv(["SLACK_TOKEN=${SLACK_TOKEN}"]) {
-               def githubWorkflowArgs = [
-                  "npx",
-                  "--yes",
-                  "tsx",
-                  "./tools/notify-workflow-status.ts",
-                  // E2EWorkflowConfig params
-                  "--checkout-ref=${params.GIT_REVISION}",
-                  "--build-name=${BUILD_NAME}",
-                  "--base-url=${params.URL}",
-                  // SummarizeOptions params
-                  "--channel=${params.SLACK_CHANNEL}",
-                  "--build-url=${BUILD_URL}",  // This would be the Jenkins build URL
-                  "--label=${params.REVISION_DESCRIPTION ?: params.GIT_REVISION}",
-                  "--url=${params.URL}",
-                  "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
-                  "--thread=${params.SLACK_THREAD}",
-                  "--ka-e2e-mode=${E2E_MODE}"
-               ];
-               dir("webapp/testing/e2e") {
-                  exec(["pnpm", "install"]);
-                  exec(githubWorkflowArgs);
-               }
-            }
+         withEnv([
+            "COMMIT_INFO_BRANCH=${SHORT_REVISION_DESCRIPTION}",
+            "KA_SKIP_GEN=1",
+         ]) {
+            runAllTestClients();
          }
+      }
+
+      stage("Analyzing Results") {
+         def folders = unstashReports();
+         analyzeResults(folders);
       }
    }
 }
