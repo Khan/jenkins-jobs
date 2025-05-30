@@ -215,7 +215,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   "tsx",
                   "./tools/notify-workflow-status.ts",
                   // E2EWorkflowConfig params
-                  "--checkout-ref=${params.GIT_REVISION}",
+                  "--checkout-ref=${GIT_SHA1}",
                   "--build-name=${BUILD_NAME}",
                   "--base-url=${params.URL}",
                   // SummarizeOptions params
