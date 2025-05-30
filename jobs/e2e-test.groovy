@@ -157,7 +157,7 @@ DEPLOYER_USER = params.DEPLOYER_USERNAME.replace("@", "")
 
 // GIT_SHA1 is the sha1 for GIT_REVISION.
 GIT_SHA1 = null;
-REPORT_DIR = "webapp/genfiles";
+REPORT_DIR = "webapp/services/static/genfiles";
 
 SKIPPED_E2E_FILENAME = "skipped_e2e_tests.json";
 SKIPPED_STASH_ID = "e2e-skipped-list";
