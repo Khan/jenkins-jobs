@@ -53,7 +53,16 @@ def resolveCommitish(repo, commit) {
       timeout(1) {
          def lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
                                              repo, commit]);
-         sha1 = lsRemoteOutput.split("\t")[0];
+         // There could be more than one match: e.g. searching for `john`
+         // matches both `refs/head/john` and `refs/head/deploy/john`.
+         // We take the shortest match, which is the most exact match.
+         // TODO(csilvers): verify that the shortest match is actually
+         // what was asked for, if the input is a tag or branch.  Otherwise
+         // if you have two branches named `foo/suffix` and `bar/suffix`
+         // but no branch named `suffix`, this will silently return
+         // `bar/suffix` rather than giving a "branch not found" error.
+         lines = lsRemoteOutput.split("\n").sort { it.size() };
+         sha1 = lines[0].split("\t")[0];
       }
    }
    if (sha1) {
