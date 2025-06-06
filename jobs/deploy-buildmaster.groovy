@@ -38,9 +38,9 @@ def buildAndDeploy() {
                            params.GIT_BRANCH);
 
     // Enforce branch restriction: If the branch is not "master", only allow deployment to "khan-test"
-    if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test" && params.SERVICE_OR_JOB != "generate-db-migration-scripts") {
-      error("Only 'khan-test' project can be deployed from non-master branches.");
-    }
+    // if (params.GIT_BRANCH != "master" && params.GCLOUD_PROJECT != "khan-test" && params.SERVICE_OR_JOB != "generate-db-migration-scripts") {
+    //   error("Only 'khan-test' project can be deployed from non-master branches.");
+    // }
 
     dir("buildmaster2") {
       withEnv(["GCLOUD_PROJECT=${params.GCLOUD_PROJECT}"]) {
