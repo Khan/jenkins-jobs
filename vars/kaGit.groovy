@@ -71,7 +71,7 @@ def resolveCommitish(repo, commit) {
          // if you have two branches named `foo/suffix` and `bar/suffix`
          // but no branch named `suffix`, this will silently return
          // `bar/suffix` rather than giving a "branch not found" error.
-         lines = sortBySize(lsRemoteOutput.split("\n"));
+         lines = _sortBySize(lsRemoteOutput.split("\n"));
          sha1 = lines[0].split("\t")[0];
       }
    }
