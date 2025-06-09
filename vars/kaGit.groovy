@@ -43,6 +43,16 @@ def checkoutJenkinsTools() {
    }
 }
 
+// Helper function that sorts a list of string by their length.
+// This is needed to correctly figure the branch name from a
+// hash.  See resolveCommitish for more details.
+// https://stackoverflow.com/questions/78348144/how-to-sort-array-with-values-property-in-jenkins-groovy
+// https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
+@NonCPS  // for list.sort
+def _sortBySize(l) {
+    l.sort { it.size() }
+}
+
 // Turn a commit-ish into a sha1.  If a branch name, we assume the
 // branch exists on the remote and get the sha1 from there.  Otherwise
 // if the input looks like a sha1 we just return it verbatim.
@@ -61,7 +71,7 @@ def resolveCommitish(repo, commit) {
          // if you have two branches named `foo/suffix` and `bar/suffix`
          // but no branch named `suffix`, this will silently return
          // `bar/suffix` rather than giving a "branch not found" error.
-         lines = lsRemoteOutput.split("\n").sort { it.size() };
+         lines = sortBySize(lsRemoteOutput.split("\n"));
          sha1 = lines[0].split("\t")[0];
       }
    }
