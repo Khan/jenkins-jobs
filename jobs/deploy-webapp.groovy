@@ -170,7 +170,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 // the notify() so if there's an error setting them we notify on slack.
 
 // We purposefully hard-code this so people can't do secret deploys. :-)
-SLACK_CHANNEL = "#1s-and-0s-deploys";
+SLACK_CHANNEL = "#eng-deploys-backend";
 
 // The `@<name>` we ping on slack as we go through the deploy.
 DEPLOYER_USERNAME = null;
@@ -924,7 +924,7 @@ def finishWithFailure(why) {
 // We do promotes on master, to ease debugging and such.  Promote isn't
 // CPU-bound, and we can have only one at a time, so it's not a problem.
 onMaster('4h') {
-   notify([slack: [channel: '#1s-and-0s-deploys',
+   notify([slack: [channel: '#eng-deploys-backend',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    // We don't need to notify on start because the buildmaster

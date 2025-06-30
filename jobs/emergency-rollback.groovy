@@ -8,7 +8,7 @@
 // even while a deploy is going on.
 //
 // You can run this from slack by saying <code>sun: emergency rollback</code>
-// in the <code>1s-and-0s-deploys</code> channel.</p>
+// in the <code>eng-deploys-backend</code> channel.</p>
 
 @Library("kautils")
 
@@ -66,7 +66,7 @@ if (params.DRY_RUN) {
 
 
 // We purposefully hard-code this so people can't do secret deploys. :-)
-SLACK_CHANNEL = "#1s-and-0s-deploys";
+SLACK_CHANNEL = "#eng-deploys-backend";
 
 
 def _alert(def msg) {
@@ -144,7 +144,7 @@ def doRollback() {
 
 
 onMaster('1h') {
-   notify([slack: [channel: '#1s-and-0s-deploys',
+   notify([slack: [channel: '#eng-deploys-backend',
                    failureChannel: '#infrastructure-platform',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
@@ -164,7 +164,7 @@ onMaster('1h') {
    if (!params.DRY_RUN) {
       build(job: '../deploy/e2e-test',
             parameters: [
-               string(name: 'SLACK_CHANNEL', value: "#1s-and-0s-deploys"),
+               string(name: 'SLACK_CHANNEL', value: "#eng-deploys-backend"),
                string(name: 'TEST_TYPE', value: "deploy"),
             ]);
    } else {

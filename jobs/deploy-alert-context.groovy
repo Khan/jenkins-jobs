@@ -52,7 +52,7 @@ def deploy() {
 
 
 onMaster('2h') {
-   notify([slack: [channel: '#1s-and-0s-deploys',
+   notify([slack: [channel: '#eng-deploys-backend',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    when: ['BUILD START',
