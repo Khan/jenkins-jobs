@@ -75,7 +75,7 @@ people will be accessing this deploy.""",
    "SLACK_CHANNEL",
    """The slack channel to which to send failure alerts.  Set to
 @yourusername to send a Slack DM (from Slackbot).""",
-   "#1s-and-0s-deploys"
+   "#eng-deploys-backend"
 
 ).addStringParam(
    "SLACK_THREAD",
@@ -133,7 +133,7 @@ def determineVersion() {
    }
 
    def date = new Date().format("yyMMdd");
-   // Interns and contractors might have a period in their username. 
+   // Interns and contractors might have a period in their username.
    // Since periods are invalid characters, they need to be replaced.
    def user = _currentUser().replace(".", "-");
    // VERSION parameter needs to be lowercased.
