@@ -133,9 +133,10 @@ def determineVersion() {
    }
 
    def date = new Date().format("yyMMdd");
-   // Interns and contractors might have a period in their username. 
-   // Since periods are invalid characters, they need to be replaced.
-   def user = _currentUser().replace(".", "-");
+   // Interns and contractors might non-alnums in their username.
+   // Make sure the username consists only of lowercase letters,
+   // numbers, and hyphens, just like we constrain VERSION.
+   def user = _currentUser().toLowerCase().replaceAll(/[^a-z0-9-]/, "-");
    // VERSION parameter needs to be lowercased.
    // Otherwise Fastly will have issue looking up the static version as it expects
    // lowercase hostname.
