@@ -33,11 +33,6 @@ WITH CAUTION!</b> -- only for situations where you are overwriting
 someone else's publish-deploy on purpose.""",
     true
 
-).addBooleanParam(
-    "DEPLOY_TO_PROD",
-    """If set, actually deploy the new publish-worker image to production. If not set, the job will stop after building the image.""",
-    false
-// TODO(jackz): Consider using input here
 ).addStringParam(
     "DEPLOYER_EMAIL",
     """Your @khanacademy.org email address is required if deploying the newly built publish-worker image to production.""",
@@ -48,7 +43,7 @@ currentBuild.displayName = "${currentBuild.displayName} (${params.GIT_REVISION})
 
 def setupWebapp() {
     withTimeout('1h') {
-        kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", 
+        kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
             params.GIT_REVISION);
     }
 }
@@ -65,10 +60,10 @@ def runScript() {
         echo("For how to use this image, see");
         echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
-        if (!params.DEPLOY_TO_PROD) {
-            echo("DEPLOY_TO_PROD is not set. Skipping deployment to production.");
-            return;
-        }
+        // If they say 'no' to this, it aborts the rest of the job.
+        // If they say 'yes', then control flow continues.
+        input("Deploy to production?");
+
         def matcher = (buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/);
         def publishVersion = matcher ? matcher[0][1] : null;
         matcher = null;
