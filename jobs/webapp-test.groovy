@@ -55,7 +55,7 @@ If the empty string, run *all* tests.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "#eng-deploys-backend"
 
 ).addStringParam(
    "SLACK_THREAD",

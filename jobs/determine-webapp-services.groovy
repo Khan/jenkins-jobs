@@ -23,7 +23,7 @@ new Setup(steps
 
 ).addStringParam(
    "BASE_REVISION",
-   """Compute services that would be deployed by the commit since this 
+   """Compute services that would be deployed by the commit since this
    revision based on the the commits between BASE_REVISION..GIT_REVISION.""",
    ""
 
@@ -38,14 +38,14 @@ such as sun.  You can, but need not, include the leading `@`.""",
 ).addStringParam(
    "SLACK_CHANNEL",
    "The slack channel to which to send failure alerts.",
-   "#1s-and-0s-deploys"
+   "#eng-deploys-backend"
 
 ).addStringParam(
    "SLACK_THREAD",
    """The slack thread (must be in SLACK_CHANNEL) to which to send failure
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
-API.""", 
+API.""",
    ""
 
 ).addStringParam(
@@ -83,8 +83,8 @@ def checkArgs() {
 
 def checkoutWebapp() {
    deployer_username = notify.getDeployerUsername(params.DEPLOYER_USERNAME)
-    
-   // TODO(csilvers): have these return an error message instead of alerting 
+
+   // TODO(csilvers): have these return an error message instead of alerting
    // themselves, so we can use notify.fail().
    withEnv(["SLACK_CHANNEL=${params.SLACK_CHANNEL}",
             "SLACK_THREAD=${params.SLACK_THREAD}",
@@ -116,12 +116,12 @@ def determineServicesToDeploy() {
                            'by setting services on your deploy; ' +
                            "see ${env.BUILD_URL}rebuild for " +
                            'documentation, and `sun: help flags` ' +
-                           "for how to set it. If you aren't sure, " + 
+                           "for how to set it. If you aren't sure, " +
                            'ask deploy-support for help!');
             }
 
             if (services == [""]) {
-               // The above could be [""] if we should deploy nothing. We want 
+               // The above could be [""] if we should deploy nothing. We want
                // to use [] instead of [""].
                services = [];
             }
@@ -134,7 +134,7 @@ def determineServicesToDeploy() {
 }
 
 
-// We use a build worker, because this is a CPU-heavy job and want to run 
+// We use a build worker, because this is a CPU-heavy job and want to run
 // several at a time.
 onWorker('build-worker', '1h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
