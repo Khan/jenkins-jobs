@@ -40,8 +40,8 @@ def updateDatabase() {
 }
 
 def runScript() {
-   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
-                          params.GIT_REVISION);
+   kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", params.GIT_REVISION);
+   kaGit.safeSyncToOrigin("git@github.com:Khan/frontend", "main");
 
    dir("webapp") {
       // Let's make sure we have a recent version of the datastore first.
