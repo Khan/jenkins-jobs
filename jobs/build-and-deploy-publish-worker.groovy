@@ -1,6 +1,9 @@
 // Pipeline job that creates a new dockerfile image for the publish-worker,
 // and uploads it to our docker container-registry.
 
+// The Jenkins "interrupt" exception: for failFast and user interrupt
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
+
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
@@ -60,9 +63,22 @@ def runScript() {
         echo("For how to use this image, see");
         echo("https://khanacademy.atlassian.net/wiki/spaces/CP/pages/299204611/Publish+Process+Technical+Documentation");
 
-        // If they say 'no' to this, it aborts the rest of the job.
-        // If they say 'yes', then control flow continues.
-        input("Deploy to production?");
+        // Handle input with graceful abort handling
+        def shouldDeploy = false;
+        try {
+            // If they say 'no' to this, it aborts the rest of the job.
+            // If they say 'yes', then control flow continues.
+            input("Deploy to production?");
+            shouldDeploy = true;
+        } catch (FlowInterruptedException e) {
+            echo("Deploy to production was cancelled by user.");
+            echo("Image was built successfully but not deployed to production.");
+            return; // Exit gracefully without deploying
+        }
+
+        if (!shouldDeploy) {
+            return; // This shouldn't happen, but just in case
+        }
 
         def matcher = (buildOutput =~ /export PUBLISH_VERSION=([\w.-]+)/);
         def publishVersion = matcher ? matcher[0][1] : null;
