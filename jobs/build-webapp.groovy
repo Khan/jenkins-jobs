@@ -1,4 +1,4 @@
-// Upload a new version of webapp to App Engine and/or GCS
+// Upload a new version of webapp to App Engine, Cloud Run and/or GCS.
 
 // Uploading a version is a complex process, and this is a complex script.
 // For more high-level information on deploys, see
@@ -7,25 +7,24 @@
 // buildmaster (github.com/Khan/buildmaster) and its design docs:
 //     https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
 
-// By the time we are run, the buildmaster has already merged master, the
-// branch to be deployed, and perhaps some translations updates, and passed
-// that merge commit as our GIT_REVISION.  It's also running tests in parallel
-// (or already has).  Here's what we do, some of it in parallel:
+// By the time this job is run, buildmaster has already merged master, the
+// branch to be deployed, and perhaps some translations updates, then passed
+// that merge commit as our GIT_REVISION. It's also running tests in parallel
+// (or already has). Here's what this job does, some of it in parallel:
 //
-// 1. Determine what services wer are deploying to, including the 'static'
-//    pseduo-service (which deploys to gcs); or tools-only.  This is
-//    determined by whether we have changed any files that affect the
-//    server running on GAE, and whether we have changed any files (or
-//    their dependencies) that are deployed to GCS.
+// 1. Determine what services we're are deploying to (or tools-only if no
+//    services will be deployed). This is determined by whether we have changed
+//    any files that affect a server running on GAE or Cloud Run, and whether we
+//    have any GraphQL schema updates to be deployed to GCS.
 //
-// 2. Build all the artifacts to be deployed (differs depending on deploy
-//    kind).
+// 2. Build all the artifacts to be deployed (differs depending on deploy kind).
 //
-// 3. Deploy new server-related code to GAE, if appropriate.
+// 3. Deploy new server-related code to GAE and Cloud Run, if appropriate.
 //
-// 4. Deploy new statically-served files to GCS, if appropriate.
+// 4. Upload new GraphQL Schema to GCS.
 //
-// 5. Kick off end-to-end tests on the newly deployed version.
+// Once this job reports success to buildmaster, buildmaster then kicks off
+// end-to-end tests on the newly deployed version.
 
 @Library("kautils")
 // Standard classes we use.
@@ -68,8 +67,7 @@ new Setup(steps
     "BASE_REVISION",
     """<p>Deploy everything that has happened since this revision.</p>
 
-    <p>This only matters if SERVICES is "auto".  In that case, we deploy to
-    static if there have been changes to static files since this revision.
+    <p>This only matters if SERVICES is "auto".
     (So it must be a successfully built revision.)</p>""",
     ""
 
@@ -77,12 +75,12 @@ new Setup(steps
     "SERVICES",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
-deploy automatically based on what files have changed.  For example, you might
-specify "users,static" to force a full deploy to the users service and GCS.</p>
+deploy automatically based on what files have changed. For example, you might
+specify "ai-guide,users" to force a full deploy to the ai-guide and users 
+services.</p>
 
 <p>Here are some services:</p>
 <ul>
-  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
   <li> <b>index_yaml</b>: upload index.yaml to GAE. </li>
 </ul>
@@ -347,27 +345,15 @@ def initializeGlobals() {
             SERVICES = [];
          }
 
-         // If we're deploying static and other services at the same time,
-         // we want to disallow this as we're going to be moving the static
-         // service out of webapp. It can be overridden with the FORCE flag.
-         if ("static" in SERVICES && SERVICES.size() > 1 && !params.FORCE) {
-            notify.fail("You cannot deploy static and other services at " +
-                        "the same time. Please split apart your backend " +
-                        "and frontend changes into separate deploy branches. " +
-                        "If you must deploy them together, you can use the " +
-                        "'FORCE' flag.");
-         }
-
          // Now make the deps we need.  We always need python deps
          // because we ourselves run various python scripts
          // (e.g. current_version.py, below), but we only need other deps
          // as needed for the services we're deploying.  The goliath
          // services build their own deps via their `make deploy` rules.
-         // That leaves the static service, which needs js deps.
          // TODO(csilvers): make it so we don't have to do this for
          //                 graphql-gateway deploys, right now they call
          //                 `make genfiles/gateway_config.json` which runs js.
-         if ("static" in SERVICES || "graphql-gatway" in SERVICES) {
+         if ("graphql-gatway" in SERVICES) {
              sh("make npm_deps");
          }
 
@@ -387,39 +373,6 @@ def initializeGlobals() {
          // prod-VERSION URL, for consistency and to make sure the
          // prod-VERSION URL cases in e2e-test get tested.
          DEPLOY_URL = "https://prod-${NEW_VERSION}.khanacademy.org";
-      }
-   }
-}
-
-
-// This should be called from within a node().
-def deployToGCS() {
-   if (!("static" in SERVICES)) {
-      return;
-   }
-
-   // on github the full build + deploy step frequently takes < 4min:
-   // https://github.com/Khan/webapp/actions/runs/14456823218/job/40541817846
-   withTimeout('15m') {
-      def args = ["deploy/deploy_to_gcs.py", NEW_VERSION,
-                  "--slack-channel=${params.SLACK_CHANNEL}",
-                  "--deployer-username=${DEPLOYER_USERNAME}",
-                  // We don't send the changelog in a build-only context:
-                  // there may be many builds afoot and it is too
-                  // confusing.  We'll send it in promote instead.
-                  "--suppress-changelog",
-                  // Since we're deploying new static code, we should upload the
-                  // updated sourcemap files to our error reporting system
-                  "--upload-sourcemaps"];
-
-      args += params.SLACK_THREAD ? [
-         "--slack-thread=${params.SLACK_THREAD}"] : [];
-      args += params.FORCE ? ["--force"] : [];
-
-      withSecrets.slackAlertlibOnly() {  // because we pass --slack-channel
-         dir("webapp") {
-            exec(args);
-         }
       }
    }
 }
@@ -478,11 +431,11 @@ def deployCronYaml() {
 
 // This should be called from within a node().
 def uploadGraphqlSafelist() {
-   // We don't upload queries from the static service here becuase
-   // services/static/deploy/deploy.js is responsible for that.
+   // We don't upload queries from the frontend apps because their deployments
+   // are handled by the frontend repo: https://github.com/Khan/frontend.
    // TODO(kevinb): update deploy scripts for each service to be responsible
    // for uploading its own queries to the safelist.
-   if (SERVICES.any { it != 'static'}) {
+   if (SERVICES.size() >= 1) {
       echo("Uploading GraphQL queries to the safelist.");
       dir("webapp") {
          exec([
@@ -494,8 +447,7 @@ def uploadGraphqlSafelist() {
    }
 
    // Pre-generate query plans for everything on the new safelist, at
-   // the new version.  This depends on the static deploy having
-   // finished, since that updates the safelist.
+   // the new version.
    echo("Pre-computing the query-plans for the latest safelist queries.");
    echo("NOTE: this command will give a lot of errors like");
    echo("- Error getting query plan");
@@ -514,9 +466,8 @@ def uploadGraphqlSafelist() {
 // stored on GCS.
 //
 // We only _really_ need to do this if the schema changed, so we could skip it
-// for static deploys or for service deploys that don't change the schema, but
-// uploading the schema here takes less than a second, so it doesn't hurt to
-// just do it always.
+// for service deploys that don't change the schema, but uploading the schema
+// here takes less than a second, so it doesn't hurt to just do it always.
 def deployToGatewayConfig() {
    dir("webapp") {
       exec(["make", "-C", "services/queryplanner",
@@ -547,10 +498,7 @@ def deployAndReport() {
                   "deploy-cron-yaml": { deployCronYaml(); },
                   "failFast": true];
       for (service in SERVICES) {
-         // The 'static' service is a bit more complex / different and is
-         // handled specially in deployToGCS.
          if (!(service in [
-               'static',
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
                'cron_yaml'])) {
             // We need to define a new variable so that we don't pass the loop
@@ -562,12 +510,6 @@ def deployAndReport() {
          }
       }
       parallel(jobs);
-
-      // Run static build and deploy by itself. This is to avoid intermittent
-      // OOM issues during the rspack i18n build.
-      parallel([
-         "deploy-to-gcs": { deployToGCS(); }
-      ])
 
       parallel([
          "update-graphql-safelist": { uploadGraphqlSafelist(); }
