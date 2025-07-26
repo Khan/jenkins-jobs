@@ -124,7 +124,8 @@ def notifyStatus(job, result, sha1) {
 }
 
 def notifyMergeResult(commitId, result, sha1, gae_version_name) {
-   echo("Marking commit #${commitId} as ${result}: ${sha1}");
+   String shaToLog = sha1 ? sha1 : "No merged SHA"
+   echo("Marking buildmaster commit #${commitId} as ${result}: ${shaToLog}");
    def params = [
       commit_id: commitId,
       result: result,
