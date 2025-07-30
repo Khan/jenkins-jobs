@@ -22,7 +22,8 @@ new Setup(steps
 ).addStringParam(
    "GIT_REVISIONS",
    """<b>REQUIRED</b>. A plus-separated list of commit-ishes to merge, like
-"master + yourbranch + mybranch + sometag + deadbeef1234".""",
+"master + yourbranch + mybranch + sometag + deadbeef1234". Branches will be 
+preferred over tags with the same name.""",
    ""
 
 ).addStringParam(
