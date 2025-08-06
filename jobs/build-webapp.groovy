@@ -1,4 +1,4 @@
-// Upload a new version of webapp to App Engine, Cloud Run and/or GCS.
+// Upload a new version of (backend) webapp code to App Engine and/or Cloud Run.
 
 // Uploading a version is a complex process, and this is a complex script.
 // For more high-level information on deploys, see
