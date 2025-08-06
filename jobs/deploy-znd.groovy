@@ -42,13 +42,14 @@ deploying non-default modules!</i>""",
     "SERVICES",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
-deploy automatically based on what files have changed.  For example, you might
-specify "users,static" to force a full deploy to the users service and GCS.</p>
+deploy automatically based on what files have changed. For example, you might
+specify "ai-guide,users" to force a full deploy to the ai-guide and users 
+services.</p>
 
 <p>Here are some services:</p>
 <ul>
-  <li> <b>static</b>: Upload static (e.g. js) files to GCS. </li>
   <li> <b>donations</b>: webapp's services/donations/. </li>
+  <li> <b>index_yaml</b>: upload index.yaml to GAE. </li>
 </ul> """,
     "auto"
 
@@ -137,9 +138,8 @@ def determineVersion() {
    // Make sure the username consists only of lowercase letters,
    // numbers, and hyphens, just like we constrain VERSION.
    def user = _currentUser().toLowerCase().replaceAll(/[^a-z0-9-]/, "-");
-   // VERSION parameter needs to be lowercased.
-   // Otherwise Fastly will have issue looking up the static version as it expects
-   // lowercase hostname.
+   // VERSION parameter needs to be lowercased. Otherwise Fastly will have issue
+   // looking up the static version as it expects lowercase hostname.
    VERSION = "znd-${date}-${user}-${params.VERSION}".toLowerCase();
 
    // DNS has a limit of 63 bytes per hostname-component.  This
@@ -156,25 +156,6 @@ def determineVersion() {
    if ("${VERSION}-dot-progress-reports-dot-khan-academy".length() > 63) {
       notify.fail("Your version-name is too long for DNS! " +
                   "Pick a shorter VERSION");
-   }
-}
-
-// This should be called from within a node().
-def deployToGCS() {
-   // We always "deploy" to gcs, even for python-only deploys, though
-   // for python-only deploys the gcs-deploy is very simple.
-   def args = ["deploy/deploy_to_gcs.py", VERSION,
-               "--slack-channel=${params.SLACK_CHANNEL}",
-               "--deployer-username=@${_currentUser()}"];
-   args += params.SLACK_THREAD ? ["--slack-thread=${params.SLACK_THREAD}"] : [];
-   if (!("static" in SERVICES)) {
-      args += ["--copy-from=default"];
-   }
-
-   withSecrets.slackAlertlibOnly() {  // Because we set --slack-channel
-      dir("webapp") {
-         exec(args)
-      }
    }
 }
 
@@ -246,9 +227,8 @@ def deployCronYaml() {
 // stored on GCS.
 //
 // We only _really_ need to do this if the schema changed, so we could skip it
-// for static deploys or for service deploys that don't change the schema, but
-// uploading the schema here takes less than a second, so it doesn't hurt to
-// just do it always.
+// for service deploys that don't change the schema, but uploading the schema
+// here takes less than a second, so it doesn't hurt to just do it always.
 def deployToGatewayConfig() {
    dir("webapp") {
        exec(["make", "-C", "services/queryplanner",
@@ -264,11 +244,11 @@ def deployToGatewayConfig() {
 // creating znds need to access a small number of queries so queryplan priming
 // can be left as a dynamic thing the graphql gateway does for znds.
 def uploadGraphqlSafelist() {
-   // We don't upload queries from the static service here becuase
-   // services/static/deploy/deploy.js is responsible for that.
+   // We don't upload queries from the frontend apps because their deployments
+   // are handled by the frontend repo: https://github.com/Khan/frontend.
    // TODO(kevinb): update deploy scripts for each service to be responsible
    // for uploading its own queries to the safelist.
-   if (SERVICES.any { it != 'static'}) {
+   if (SERVICES) {
       echo("Uploading GraphQL queries to the safelist.");
       dir("webapp") {
          exec([
@@ -346,29 +326,10 @@ def deploy() {
                            "You can likely work around this by setting " +
                            "SERVICES on your deploy by a comma-separated " +
                            "list of services. For instance: " +
-                           "'static,donations'");
+                           "'ai-guide,donations'");
             }
          } else {
             SERVICES = params.SERVICES.split(",").collect { it.trim() };
-         }
-
-         // If we're deploying static and other services at the same time,
-         // we want to disallow this as we're going to be moving the static
-         // service out of webapp. It can be overridden with the FORCE flag.
-         if ("static" in SERVICES && SERVICES.size() > 1 && !params.FORCE) {
-            notify.fail("You cannot deploy static and other services at " +
-                        "the same time. Please split apart your backend " +
-                        "and frontend changes into separate deploy branches. " +
-                        "If you must deploy them together, you can use the " +
-                        "'FORCE' flag.");
-         }
-
-         // Make the deps we need based on what we're deploying.  The
-         // python services (default/etc) only need python deps.  The
-         // goliath services build their own deps via their `make deploy`
-         // rules.  That leaves the static service, which needs js deps.
-         if ("static" in SERVICES) {
-             sh("make npm_deps");
          }
       }
 
@@ -377,10 +338,6 @@ def deploy() {
 
       for (service in SERVICES) {
          switch (service) {
-            case "static":
-               jobs["deploy-to-gcs"] = { deployToGCS(); };
-               break;
-
             case "index_yaml":
                jobs["deploy-index-yaml"] = { deployIndexYaml(); };
                break;

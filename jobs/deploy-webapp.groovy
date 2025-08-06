@@ -19,10 +19,6 @@
 //
 // 3. Tell google to make our new version the default-serving version.
 //
-// 2-3b. Alternately to 9 and 10, for a static-only deploy, tell
-//    our existing prod server about the new static content we've
-//    deployed.
-//
 // 4. Run end-to-end tests again on now that our new version is default.
 //    This can catch errors that only occur on a khanacdemy.org domain.
 //
@@ -73,13 +69,8 @@ new Setup(steps
     """<p>A comma-separated list of services we wish to change to the new
 version (see below for options), or the special value "auto", which says to
 choose the services to set-default automatically based on what files have
-changed.  For example, you might specify "users,static" to force setting
-default on both the users service and GCS.</p>
-
-<p>Here some less-obvious service names:</p>
-<ul>
-  <li> <b>static</b>: The static (e.g. browser js) service. </li>
-</ul>
+changed.  For example, you might specify "ai-guide,users" to force setting
+default on both the ai-guide and users services.</p>
 
 <p>You can specify the empty string to do no version-switching, like if you
 just change the Makefile.  (Do not do this lightly!)  You may wonder: why do

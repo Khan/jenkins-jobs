@@ -1,5 +1,9 @@
 // Automate monthly change for PL sandbox account passwords
 // https://khanacademy.atlassian.net/browse/DIST-4092
+//
+// TODO(nathanjd): This job is broken due to the removal of services/static. It
+// will need to be updated to interface with the frontend repo instead of webapp
+// so might be better as a GitHub Action.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
