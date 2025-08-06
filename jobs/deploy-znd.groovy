@@ -248,7 +248,7 @@ def uploadGraphqlSafelist() {
    // are handled by the frontend repo: https://github.com/Khan/frontend.
    // TODO(kevinb): update deploy scripts for each service to be responsible
    // for uploading its own queries to the safelist.
-   if (SERVICES.size() >= 1) {
+   if (SERVICES) {
       echo("Uploading GraphQL queries to the safelist.");
       dir("webapp") {
          exec([

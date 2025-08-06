@@ -345,18 +345,6 @@ def initializeGlobals() {
             SERVICES = [];
          }
 
-         // Now make the deps we need.  We always need python deps
-         // because we ourselves run various python scripts
-         // (e.g. current_version.py, below), but we only need other deps
-         // as needed for the services we're deploying.  The goliath
-         // services build their own deps via their `make deploy` rules.
-         // TODO(csilvers): make it so we don't have to do this for
-         //                 graphql-gateway deploys, right now they call
-         //                 `make genfiles/gateway_config.json` which runs js.
-         if ("graphql-gatway" in SERVICES) {
-             sh("make npm_deps");
-         }
-
          echo("Deploying to the following services: ${SERVICES.join(', ')}");
 
          // Phone home to buildmaster about the services we're deploying to.
@@ -435,7 +423,7 @@ def uploadGraphqlSafelist() {
    // are handled by the frontend repo: https://github.com/Khan/frontend.
    // TODO(kevinb): update deploy scripts for each service to be responsible
    // for uploading its own queries to the safelist.
-   if (SERVICES.size() >= 1) {
+   if (SERVICES) {
       echo("Uploading GraphQL queries to the safelist.");
       dir("webapp") {
          exec([
