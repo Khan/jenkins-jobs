@@ -25,7 +25,8 @@ new Setup(steps
     """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also possible:
 a commit-sha1 to deploy, or a tag like phabricator/diff/&lt;id&gt; (using the latest ID
 from the diff's "history" tab or <code>revisionid-to-diffid.sh D#####</code>).
-Basically, this is passed to <code>git checkout GIT_REVISION</code>.""",
+Basically, this is passed to <code>git checkout GIT_REVISION</code>. Branches 
+will be preferred over tags with the same name.""",
     ""
 
 ).addStringParam(
