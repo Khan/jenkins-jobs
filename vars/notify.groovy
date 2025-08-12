@@ -14,13 +14,13 @@ import java.util.concurrent.TimeUnit
 //import vars.withSecrets
 
 
-// Used to set status to FAILURE and emit the failure reason to slack/email.
+// Used to emit the failure reason to slack/email.
 class FailedBuild extends Exception {
-   def statusToSet;
-
-   FailedBuild(def msg, def statusToSet="FAILURE") {
-      super(msg);
-      this.statusToSet = statusToSet;
+   FailedBuild(String msg, Throwable cause) {
+      // Requires approval of the following:
+      // new java.lang.Exception java.lang.String java.lang.Throwable
+      // https://jenkins.khanacademy.org/manage/scriptApproval/
+      super(msg, cause);
    }
 };
 
@@ -499,14 +499,18 @@ def logNodeFinish(label, timeoutString, start) {
 }
 
 
-def fail(def msg, def statusToSet="FAILURE") {
-   env.STATUS = statusToSet + ":" + msg;
-   throw new FailedBuild(msg, statusToSet);
+// Mark the jenkins build as FAILURE and throw a FailedBuild error.
+def fail(String msg, Throwable cause = null) {
+   env.STATUS = "FAILURE:" + msg;
+   throw new FailedBuild(msg, cause);
 }
 
 def emitFailureText(e) {
-   currentBuild.result = e.getStatusToSet();
-   failureText = e.getMessage();
+   currentBuild.result = "FAILURE";
+   // Requires approval of the following:
+   // method java.lang.Throwable getStackTrace
+   // https://jenkins.khanacademy.org/manage/scriptApproval/
+   failureText = e.getMessage() + "\n\nstack trace:\n" + e.getStackTrace();
    echo("Failure message: ${failureText}");
    // Log a message to help us ignore this post-build action when
    // analyzing the logs for errors.

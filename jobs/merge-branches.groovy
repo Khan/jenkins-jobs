@@ -96,9 +96,10 @@ onMaster('1h') {
                    when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
-         tag_name = ("buildmaster-${params.COMMIT_ID}-" +
+         tagName = ("buildmaster-${params.COMMIT_ID}-" +
                      "${new Date().format('yyyyMMdd-HHmmss')}");
-         def sha1 = kaGit.mergeBranches(params.GIT_REVISIONS, tag_name);
+         def sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName, 
+                                         params.REVISION_DESCRIPTION);
          def gae_version_name = getGaeVersionName();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
                                        sha1, gae_version_name);

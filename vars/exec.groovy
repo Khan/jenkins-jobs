@@ -33,3 +33,38 @@ def outputOf(arglist) {
 def statusOf(arglist) {
    return sh(script: shellEscapeList(arglist), returnStatus: true);
 }
+
+// Result of executing a shell command.
+class ExecResult {
+   // Escaped command that was run.
+   String command
+
+   // Resulting exit code.
+   Integer exitCode
+
+   // Combined output of stdout and stderr.
+   String output
+}
+
+// Execute a list of args as a shell command, then return the exit code, the
+// combined stdout + stderr, and the escaped command that was run.
+ExecResult runCommand(List<String> arglist) {
+   String cmd = shellEscapeList(arglist)
+   // Redirecting cmd stderr to stdout, in order to return it if cmd failed
+   def output = ""
+   def rc = 0
+   withEnv(["RC=0"]) {
+      output = sh(script: """
+         set +x
+         (${cmd}) 2>&1 || RC=\$?
+         echo "EXIT_CODE:\$RC"
+      """, returnStdout: true).trim()
+   }
+   // Extracting exit code from the last line of output
+   def exitCodeMatch = output =~ /(?s)(.*)EXIT_CODE:(\d+)$/
+   if (exitCodeMatch) {
+      rc = exitCodeMatch[0][2].toInteger()
+      output = exitCodeMatch[0][1].trim()
+   }
+   return new ExecResult(exitCode: rc, output: output, command: cmd)
+}

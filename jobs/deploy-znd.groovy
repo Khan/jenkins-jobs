@@ -300,8 +300,11 @@ def mergeFromMaster() {
       // processes.  We call this function directly instead of relying
       // on the merge-branches job because deploy-znd isn't
       // facilitated by buildmaster.
-      kaGit.mergeBranches("master+" + params.GIT_REVISION, VERSION);
-
+      description = "ZND for git revision: ${params.GIT_REVISION}\n" +
+                    "Version: ${VERSION}\n" +
+                    "URL: https://prod-${VERSION}.khanacademy.org";
+      kaGit.mergeRevisions("master+" + params.GIT_REVISION, VERSION,
+                           description);
       dir("webapp") {
          clean(params.CLEAN);
       }
