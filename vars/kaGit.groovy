@@ -220,7 +220,7 @@ String mergeRevisions(gitRevisions, tagName, description) {
    if (allRevisions.size() == 1) {
       echo("Only one git revision passed, looking up and returning its SHA.")
       String sha1 = resolveCommitish("git@github.com:Khan/webapp", 
-                                  allRevisions[i]);
+                                  allRevisions[0]);
       echo("Resolved ${gitRevisions} --> ${sha1}");
       return sha1;
    }
