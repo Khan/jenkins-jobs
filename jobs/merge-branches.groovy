@@ -79,11 +79,11 @@ def checkArgs() {
 }
 
 
-def getGaeVersionName() {
+String getGaeVersionName() {
    dir('webapp') {
-     def gae_version_name = exec.outputOf(["make", "gae_version_name"]);
-     echo("Found gae version name: ${gae_version_name}");
-     return gae_version_name;
+     String gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
+     echo("Found gae version name: ${gaeVersionName}");
+     return gaeVersionName;
    }
 }
 
@@ -98,11 +98,11 @@ onMaster('1h') {
          checkArgs();
          tagName = ("buildmaster-${params.COMMIT_ID}-" +
                      "${new Date().format('yyyyMMdd-HHmmss')}");
-         def sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName, 
+         String sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName, 
                                          params.REVISION_DESCRIPTION);
-         def gae_version_name = getGaeVersionName();
+         String gaeVersionName = getGaeVersionName();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
-                                       sha1, gae_version_name);
+                                       sha1, gaeVersionName);
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
