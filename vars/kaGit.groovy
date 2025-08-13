@@ -199,19 +199,38 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 }
 
 
-// Merges multiple branches together into a single commit.
+// Merge multiple webapp git revisions together and return the resulting commit
+// SHA.
 //
 // Arguments:
-// - gitRevisions: string containing one or more branche names separated by "+"
-// - tagName: string to tag the resulting commit with.  We need to tag the
-//   result of the merge so git doesn't prune it.
+// - gitRevisions: String containing one or more branch name, tag name, or
+//   commit SHA separated by "+".
+// - tagName: String to tag the resulting commit with. We need to tag the result
+//   of the merge so git doesn't prune it.
+// - description: Human-readable description to aid in debugging. Added to new
+//   commit message.
 //
 // Notes:
 // - Used by merge-granches.groovy and deploy-znd.groovy.
-def mergeBranches(gitRevisions, tagName) {
-   def allBranches = gitRevisions.split(/\+/);
-   quickClone("git@github.com:Khan/webapp", "webapp",
-                    allBranches[0].trim());
+String mergeRevisions(gitRevisions, tagName, description) {
+   List<String> allRevisions = gitRevisions.split(/\+/);
+
+   // If there's only one revision, skip checkout and tag, return sha1
+   // immediately.
+   if (allRevisions.size() == 1) {
+      echo("Only one git revision passed, looking up and returning its SHA.")
+      String sha1 = resolveCommitish("git@github.com:Khan/webapp", 
+                                  allRevisions[0]);
+      echo("Resolved ${gitRevisions} --> ${sha1}");
+      return sha1;
+   }
+
+   // Trim passed revisions for consistent ouput formatting.
+   for (Integer i = 0; i < allRevisions.size(); i++) {
+      allRevisions[i] = allRevisions[i].trim();
+   }
+
+   quickClone("git@github.com:Khan/webapp", "webapp", allRevisions[0]);
    dir('webapp') {
       // We need to reset before fetching, because if a previous incomplete
       // merge left .gitmodules in a weird state, git will fail to read its
@@ -220,43 +239,83 @@ def mergeBranches(gitRevisions, tagName) {
       // as you might think.
       exec(["git", "reset", "--hard"]);
    }
+
    // Get rid of all old branches; if they were dangling they'd break fetch.
    exec(["jenkins-jobs/safe_git.sh", "clean_branches", "webapp"]);
    quickFetch("webapp");
+
+   // Do the merge(s)!
    dir('webapp') {
-      for (def i = 0; i < allBranches.size(); i++) {
-         def branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
-                                           allBranches[i].trim());
-         try {
-            if (i == 0) {
-               // TODO(benkraft): If there's only one branch, skip the checkout
-               // and tag/return sha1 immediately.
+      for (Integer i = 0; i < allRevisions.size(); i++) {
+         String branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
+                                              allRevisions[i]);
+         if (i == 0) {
+            // First, checkout the base revision.
+            try {
                // Note that this is a no-op when we did a fresh clone above.
-               exec(["git", "checkout", "-f", branchSha1]);
-            } else {
-               // TODO(benkraft): This puts the sha in the commit message
-               // instead of the branch; we should just write our own commit
-               // message.
-               exec(["git", "merge", branchSha1]);
+               ExecResult result = exec.runCommand([
+                  "git", "checkout", "-f", branchSha1
+               ]);
+               if (result.exitCode != 0) {
+                  echo "Checkout failure command: ${result.command}";
+                  echo "Checkout failure exitCode: ${result.exitCode}";
+                  echo "Checkout failure ouput: ${result.output}";
+                  notify.fail("Failed to checkout ${branchSha1}:\n" +
+                           "${result.output}");
+               }
+            } catch(FailedBuild e) {
+               // Error from git checkout thrown by notify.fail().
+               throw e;
+            } catch (e) {
+               // Error from inability to call git checkout.
+               notify.rethrowIfAborted(e);
+               notify.fail("Failed to call checkout ${branchSha1}: " +
+                           "${e.getMessage()}", e);
             }
-         } catch (e) {
-            notify.rethrowIfAborted(e);
-            // TODO(benkraft): Also send the output of the merge command that
-            // failed.
-            notify.fail("Failed to merge ${branchSha1} into " +
-                        "${allBranches[0..<i].join(' + ')}: ${e}");
+         } else {
+            // Then, merge the next successive revision.
+
+            // Write our own commit message so it's not just the SHA.
+            String previousRevisions = allRevisions[0..<i].join(' + ');
+            String commitMessage = [
+               "Merge '${allRevisions[i]}' into '${previousRevisions}' " +
+                  "for tag '${tagName}'",
+               "",
+               "${description}"
+            ].join("\n");
+
+            try {
+               ExecResult result = exec.runCommand([
+                  "git", "merge", branchSha1, "-m", commitMessage
+               ]);
+               if (result.exitCode != 0) {
+                  echo "Merge failure command: ${result.command}";
+                  echo "Merge failure exitCode: ${result.exitCode}";
+                  echo "Merge failure ouput: ${result.output}";
+                  notify.fail("Failed to merge ${branchSha1} into " +
+                              "${previousRevisions}:\n${result.output}");
+               }
+            } catch(FailedBuild e) {
+               // Error from git merge thrown by notify.fail().
+               throw e;
+            } catch (e) {
+               // Error from inability to call git merge.
+               notify.rethrowIfAborted(e);
+               notify.fail("Failed to call merge ${branchSha1} into " +
+                           "${previousRevisions}: ${e.getMessage()}", e);
+            }
          }
       }
+
       // We need to at least tag the commit, otherwise github may prune it.
-      // (We can skip this step if something already points to the commit; in
-      // fact we want to to avoid Phabricator paying attention to this commit.)
+      // (We can skip this step if something already points to the commit.)
       // These tags ar pruned weekly in weekly-maintenance.sh.
       if (exec.outputOf(["git", "tag", "--points-at", "HEAD"]) == "" &&
           exec.outputOf(["git", "branch", "-r", "--points-at", "HEAD"]) == "") {
          exec(["git", "tag", tagName, "HEAD"]);
          exec(["git", "push", "--tags", "origin"]);
       }
-      def sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
+      String sha1 = exec.outputOf(["git", "rev-parse", "HEAD"]);
       echo("Resolved ${gitRevisions} --> ${sha1}");
       return sha1;
    }
