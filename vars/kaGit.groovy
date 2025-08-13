@@ -215,16 +215,6 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 String mergeRevisions(gitRevisions, tagName, description) {
    List<String> allRevisions = gitRevisions.split(/\+/);
 
-   // If there's only one revision, skip checkout and tag, return sha1
-   // immediately.
-   if (allRevisions.size() == 1) {
-      echo("Only one git revision passed, looking up and returning its SHA.")
-      String sha1 = resolveCommitish("git@github.com:Khan/webapp", 
-                                  allRevisions[0]);
-      echo("Resolved ${gitRevisions} --> ${sha1}");
-      return sha1;
-   }
-
    // Trim passed revisions for consistent ouput formatting.
    for (Integer i = 0; i < allRevisions.size(); i++) {
       allRevisions[i] = allRevisions[i].trim();
@@ -250,7 +240,9 @@ String mergeRevisions(gitRevisions, tagName, description) {
          String branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
                                               allRevisions[i]);
          if (i == 0) {
-            // First, checkout the base revision.
+            // First, checkout the base revision. Even if there aren't
+            // subsequent revisions to merge, we still want the correct revision
+            // checked out after we return.
             try {
                // Note that this is a no-op when we did a fresh clone above.
                ExecResult result = exec.runCommand([
