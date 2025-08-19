@@ -43,105 +43,106 @@ def checkoutJenkinsTools() {
    }
 }
 
-// https://stackoverflow.com/questions/78348144/how-to-sort-array-with-values-property-in-jenkins-groovy
-// https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
-@NonCPS  // for list.sort
-void _sortBranchesFirst(String[] lsRemoteOutputLines) {
-   lsRemoteOutputLines.sort { it.contains("refs/heads") ? 0 : 1 }
+// Represents a single ref from `git ls-remote ...` command output.
+// https://git-scm.com/book/ms/v2/Git-Internals-Git-References
+class Ref {
+   // Ref name that was returned from ls-remote. Points to hash.
+   String name
+
+   // The commit hash (sha1) this ref points to. Also known as commit ID.
+   String hash
 }
 
-@NonCPS // to allow calling from _findExactMatchFromLsRemote
-Boolean _refIsBranchOrTag(String ref) {
-   return ref.startsWith("refs/heads/") || ref.startsWith("refs/tags/");
+String _refNameFromLsRemoteLine(String lsRemoteLine) {
+   return lsRemoteLine.split("\t")[1].trim();
 }
 
-@NonCPS // to allow calling from _findExactMatchFromLsRemote
-String _branchOrTagNameFromRef(String ref) {
-   return ref.split("refs\\/(heads|tags)\\/")[1]
+String _commitHashFromLsRemoteLine(String lsRemoteLine) {
+   return lsRemoteLine.split("\t")[0].trim();
 }
 
-@NonCPS // to allow calling from _findExactMatchFromLsRemote
-String _refFromLsRemoteLine(String lsRemoteLine) {
-   return lsRemoteLine.split("\t")[1].trim()
-}
-
-String _shaFromLsRemoteLine(String lsRemoteLine) {
-   return lsRemoteLine.split("\t")[0].trim()
-}
-
-// Returns an exact match for a commit-ish from ls-remote output. Returns null
-// if no exact match.
+// Return each ref that was output by ls-remote for a given commit-ish.
+// ls-remote does not return any results when commit hashes are queried
+// directly.
 //
-// Example output:
+// Example output: 
 // $ git ls-remote origin foo
-// 0670bc5a1c0bab364dfb981f7854b6b17bdd49db	refs/heads/deploy/foo
-// df49834270ad034ecf776590908d429a8140c485	refs/heads/foo
-// 2998fe06daa988757b847afd5a99022334b90d4d	refs/tags/foo
-@NonCPS // for list.find
-String _findExactMatchFromLsRemote(String lsRemoteOutput, String commitish) {
-   String[] lines = lsRemoteOutput.split("\n")
-
-   // There could be more than one match: e.g. searching for `john` matches
-   // `refs/head/john`, `refs/head/deploy/john` and `refs/tags/john`. 
-   //
-   // We want an exact match to `john`, which rules out `refs/head/deploy/john`
-   // but is still ambiguous between `refs/head/john` and `refs/tags/john`. By
-   // preferring branches over tags, we can fully disambigulate to
-   // `refs/head/john`.
-   _sortBranchesFirst(lines)
-   return lines.find {
-      // We're expecting a branch, tag or commit sha. However, commit shas are
-      // not returned by ls-remote.
-      if (!_refIsBranchOrTag(_refFromLsRemoteLine(it))) {
-         echo("'${it}' is not a branch or tag")
-         return false
-      }
-      String branchOrTagName = _branchOrTagNameFromRef(it)
-      echo("checking for exact match of '${commitish}' to '${branchOrTagName}' in '${it}'")
-      return branchOrTagName == commitish
+// 0670bc5a1c0bab364dfb981f7854b6b17bdd49db  refs/heads/deploy/foo
+// df49834270ad034ecf776590908d429a8140c485  refs/heads/foo
+// 2998fe06daa988757b847afd5a99022334b90d4d  refs/tags/foo
+Ref[] lsRemote(String repo, String committish) {
+   // https://git-scm.com/docs/git-ls-remote
+   String lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q", repo,
+                                          committish]);
+   return lsRemoteOutput.split("\n").collect {
+      return new Ref(hash: _commitHashFromLsRemoteLine(it),
+                     name: _refNameFromLsRemoteLine(it));
    }
 }
 
-// Turn a commit-ish into a sha1. If a branch or tag name, we assume the branch
-// exists on the remote and get the sha1 from there, preferring branches over
-// tags. Otherwise, if the input looks like a sha1 we check for it in origin
-// before returning it verbatim if it exists. Otherwise, we error.
+// Return commit hash from a ls-remote result if any refs names are an exact
+// match to the branch name. A partial match is not performed here because we
+// don't want to return the hash for `deploy/foo` when the user requested just
+// `foo`.
+String _findCommitHashFromBranchRef(Ref[] refs, String branchName) {
+   Ref found = refs.find { it.name == "refs/heads/${branchName}" }
+   if (found) {
+      return found.hash;
+   }
+   return null;
+}
+
+// Return commit hash from a ls-remote result if any ref names are an exact
+// match to the tag name. A partial match is not performed here because we don't
+// want to return the hash for `deploy/foo` when the user requested just `foo`.
+String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
+   Ref found = refs.find { it.name == "refs/tags/${tagName}" }
+   if (found) {
+      return found.hash;
+   }
+   return null;
+}
+
+// Return a commit ID (sha1 hash) from a commit-ish. If a branch or tag name, we
+// assume the branch exists on the remote and get the hash from there,
+// preferring branches over tags. Otherwise, if the input looks like a hash we
+// check for it in origin before returning it verbatim if it exists. Otherwise,
+// we error.
 // https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
-String resolveCommitish(repo, commitish) {
-   String sha1 = null
+String resolveCommitish(String repo, String committish) {
    stage("Resolving commit-ish") {
       timeout(1) {
-         // https://git-scm.com/docs/git-ls-remote
-         String lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
-                                             repo, commitish])
-         echo("lsRemoteOutput:\n${lsRemoteOutput}")
-         exactMatchLine = _findExactMatchFromLsRemote(lsRemoteOutput, commitish)
-         if (exactMatchLine) {
-            sha1 = _shaFromLsRemoteLine(exactMatchLine)
+         Ref[] lsRemoteRefs = lsRemote(repo, committish);
+
+         // First, check for branch as we prefer branches over tags.
+         String hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
+         if (hash) {
+            echo("'${committish}' is a branch that resolves to ${hash}");
+            return hash;
          }
-      }
-   }
 
-   if (sha1) {
-      echo("'${commitish}' resolves to ${sha1}")
-      return sha1
-   }
+         // No branch found, check for tag.
+         hash = _findCommitHashFromTagRef(lsRemoteRefs, committish);
+         if (hash) {
+            echo("'${committish}' is a tag that resolves to ${hash}");
+            return hash;
+         }
 
-   // ls-remote does not return any lines when sha1s are queried directly.
-   stage("Fetching commit sha") {
-      timeout(1) {
-         // If this looks like a sha1 already, see if it exists in origin.
-         if (commitish ==~ /[0-9a-fA-F]{5,}/) {
-            Integer exitCode = sh(script: "git fetch origin ${commitish}", returnStatus: true)
+         // No branch or tag found. If this looks like a sha1 hash already, see
+         // if it exists as a commit hash in origin.
+         if (committish ==~ /[0-9a-fA-F]{5,}/) {
+            Integer exitCode = sh(script: "git fetch origin ${committish}", 
+                                  returnStatus: true);
             // A 0 exit code means the commit exists in origin.
             if (exitCode == 0) {
-               return commitish
+               echo("'${committish}' is a commit hash in origin.");
+               return committish;
             }
          }
       }
    }
 
-   error("Cannot find '${commitish}' in repo '${repo}'")
+   error("Cannot find '${committish}' in repo '${repo}'");
 }
 
 def _buildTagFile(repo) {
