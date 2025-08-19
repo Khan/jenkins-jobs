@@ -74,10 +74,14 @@ Ref[] lsRemote(String repo, String committish) {
    // https://git-scm.com/docs/git-ls-remote
    String lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q", repo,
                                           committish]);
-   return lsRemoteOutput.split("\n").collect {
-      return new Ref(hash: _commitHashFromLsRemoteLine(it),
-                     name: _refNameFromLsRemoteLine(it));
+   if (lsRemoteOutput == "") {
+      return [];
    }
+   
+   return lsRemoteOutput.split("\n").collect {
+      new Ref(hash: _commitHashFromLsRemoteLine(it),
+              name: _refNameFromLsRemoteLine(it));
+   };
 }
 
 // Return commit hash from a ls-remote result if any refs names are an exact
@@ -110,36 +114,44 @@ String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
 // we error.
 // https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
 String resolveCommitish(String repo, String committish) {
+   String hash = null
    stage("Resolving commit-ish") {
-      timeout(1) {
+      timeout(time: 1, unit: "HOURS") {
          Ref[] lsRemoteRefs = lsRemote(repo, committish);
 
          // First, check for branch as we prefer branches over tags.
-         String hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
+         hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
          if (hash) {
             echo("'${committish}' is a branch that resolves to ${hash}");
-            return hash;
+            return;
          }
 
          // No branch found, check for tag.
          hash = _findCommitHashFromTagRef(lsRemoteRefs, committish);
          if (hash) {
             echo("'${committish}' is a tag that resolves to ${hash}");
-            return hash;
+            return;
          }
 
          // No branch or tag found. If this looks like a sha1 hash already, see
          // if it exists as a commit hash in origin.
          if (committish ==~ /[0-9a-fA-F]{5,}/) {
+            echo ("'${committish}' looks like a commit hash, " +
+                  "checking for it in origin.")
             Integer exitCode = sh(script: "git fetch origin ${committish}", 
                                   returnStatus: true);
             // A 0 exit code means the commit exists in origin.
             if (exitCode == 0) {
                echo("'${committish}' is a commit hash in origin.");
-               return committish;
+               hash = committish;
+               return;
             }
          }
       }
+   }
+
+   if (hash) {
+      return hash;
    }
 
    error("Cannot find '${committish}' in repo '${repo}'");
