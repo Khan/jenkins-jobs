@@ -136,7 +136,7 @@ String resolveCommitish(String repo, String committish) {
          // No branch or tag found. If this looks like a sha1 hash already, see
          // if it exists as a commit hash in origin.
          if (committish ==~ /[0-9a-fA-F]{5,}/) {
-            echo ("'${committish}' looks like a commit hash, " +
+            echo("'${committish}' looks like a commit hash, " +
                   "checking for it in origin.")
             Integer exitCode = sh(script: "git fetch origin ${committish}", 
                                   returnStatus: true);
