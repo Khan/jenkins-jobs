@@ -43,118 +43,48 @@ def checkoutJenkinsTools() {
    }
 }
 
-// Represents a single ref from `git ls-remote ...` command output.
-// https://git-scm.com/book/ms/v2/Git-Internals-Git-References
-class Ref {
-   // Ref name that was returned from ls-remote. Points to hash.
-   String name
-
-   // The commit hash (sha1) this ref points to. Also known as commit ID.
-   String hash
+// Helper function that sorts a list of string by their length.
+// This is needed to correctly figure the branch name from a
+// hash.  See resolveCommitish for more details.
+// https://stackoverflow.com/questions/78348144/how-to-sort-array-with-values-property-in-jenkins-groovy
+// https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
+@NonCPS  // for list.sort
+def _sortBySize(l) {
+    l.sort { it.size() }
 }
 
-String _refNameFromLsRemoteLine(String lsRemoteLine) {
-   return lsRemoteLine.split("\t")[1].trim();
-}
-
-String _commitHashFromLsRemoteLine(String lsRemoteLine) {
-   return lsRemoteLine.split("\t")[0].trim();
-}
-
-// Return each ref that was output by ls-remote for a given commit-ish.
-// ls-remote does not return any results when commit hashes are queried
-// directly.
-//
-// Example output: 
-// $ git ls-remote origin foo
-// 0670bc5a1c0bab364dfb981f7854b6b17bdd49db  refs/heads/deploy/foo
-// df49834270ad034ecf776590908d429a8140c485  refs/heads/foo
-// 2998fe06daa988757b847afd5a99022334b90d4d  refs/tags/foo
-Ref[] lsRemote(String repo, String committish) {
-   // https://git-scm.com/docs/git-ls-remote
-   String lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q", repo,
-                                          committish]);
-   if (lsRemoteOutput == "") {
-      return [];
-   }
-   
-   return lsRemoteOutput.split("\n").collect {
-      new Ref(hash: _commitHashFromLsRemoteLine(it),
-              name: _refNameFromLsRemoteLine(it));
-   };
-}
-
-// Return commit hash from a ls-remote result if any refs names are an exact
-// match to the branch name. A partial match is not performed here because we
-// don't want to return the hash for `deploy/foo` when the user requested just
-// `foo`.
-String _findCommitHashFromBranchRef(Ref[] refs, String branchName) {
-   Ref found = refs.find { it.name == "refs/heads/${branchName}" }
-   if (found) {
-      return found.hash;
-   }
-   return null;
-}
-
-// Return commit hash from a ls-remote result if any ref names are an exact
-// match to the tag name. A partial match is not performed here because we don't
-// want to return the hash for `deploy/foo` when the user requested just `foo`.
-String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
-   Ref found = refs.find { it.name == "refs/tags/${tagName}" }
-   if (found) {
-      return found.hash;
-   }
-   return null;
-}
-
-// Return a commit ID (sha1 hash) from a commit-ish. If a branch or tag name, we
-// assume the branch exists on the remote and get the hash from there,
-// preferring branches over tags. Otherwise, if the input looks like a hash we
-// check for it in origin before returning it verbatim if it exists. Otherwise,
-// we error.
-// https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
-String resolveCommitish(String repo, String committish) {
-   String hash = null
-   stage("Resolving commit-ish") {
-      timeout(time: 1, unit: "HOURS") {
-         Ref[] lsRemoteRefs = lsRemote(repo, committish);
-
-         // First, check for branch as we prefer branches over tags.
-         hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
-         if (hash) {
-            echo("'${committish}' is a branch that resolves to ${hash}");
-            return;
-         }
-
-         // No branch found, check for tag.
-         hash = _findCommitHashFromTagRef(lsRemoteRefs, committish);
-         if (hash) {
-            echo("'${committish}' is a tag that resolves to ${hash}");
-            return;
-         }
-
-         // No branch or tag found. If this looks like a sha1 hash already, see
-         // if it exists as a commit hash in origin.
-         if (committish ==~ /[0-9a-fA-F]{5,}/) {
-            echo("'${committish}' looks like a commit hash, " +
-                  "checking for it in origin.")
-            Integer exitCode = sh(script: "git fetch origin ${committish}", 
-                                  returnStatus: true);
-            // A 0 exit code means the commit exists in origin.
-            if (exitCode == 0) {
-               echo("'${committish}' is a commit hash in origin.");
-               hash = committish;
-               return;
-            }
-         }
+// Turn a commit-ish into a sha1.  If a branch name, we assume the
+// branch exists on the remote and get the sha1 from there.  Otherwise
+// if the input looks like a sha1 we just return it verbatim.
+// Otherwise we error.
+def resolveCommitish(repo, commit) {
+   def sha1 = null;
+   stage("Resolving commit") {
+      timeout(1) {
+         def lsRemoteOutput = exec.outputOf(["git", "ls-remote", "-q",
+                                             repo, commit]);
+         // There could be more than one match: e.g. searching for `john`
+         // matches both `refs/head/john` and `refs/head/deploy/john`.
+         // We take the shortest match, which is the most exact match.
+         // TODO(csilvers): verify that the shortest match is actually
+         // what was asked for, if the input is a tag or branch.  Otherwise
+         // if you have two branches named `foo/suffix` and `bar/suffix`
+         // but no branch named `suffix`, this will silently return
+         // `bar/suffix` rather than giving a "branch not found" error.
+         lines = _sortBySize(lsRemoteOutput.split("\n"));
+         sha1 = lines[0].split("\t")[0];
       }
    }
-
-   if (hash) {
-      return hash;
+   if (sha1) {
+      echo("'${commit}' resolves to ${sha1}");
+      return sha1;
    }
-
-   error("Cannot find '${committish}' in repo '${repo}'");
+   // If this looks like a sha1 already, return it.
+   // TODO(csilvers): complain to slack?
+   if (commit ==~ /[0-9a-fA-F]{5,}/) {
+      return commit;
+   }
+   error("Cannot find '${commit}' in repo '${repo}'");
 }
 
 def _buildTagFile(repo) {
