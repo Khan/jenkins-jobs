@@ -108,10 +108,12 @@ String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
 }
 
 // Return a commit ID (sha1 hash) from a commit-ish. If a branch or tag name, we
-// assume the branch exists on the remote and get the hash from there,
-// preferring branches over tags. Otherwise, if the input looks like a hash we
-// check for it in origin before returning it verbatim if it exists. Otherwise,
-// we error.
+// check if it exists on the remote and get the hash from there, preferring
+// branches over tags. Otherwise, if the input looks like a hash we return it
+// verbatim. Otherwise, we error.
+//
+// To be called before checking out the repo to determine which commit to 
+// checkout.
 // https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
 String resolveCommitish(String repo, String committish) {
    String hash = null
@@ -137,15 +139,9 @@ String resolveCommitish(String repo, String committish) {
          // if it exists as a commit hash in origin.
          if (committish ==~ /[0-9a-fA-F]{5,}/) {
             echo("'${committish}' looks like a commit hash, " +
-                  "checking for it in origin.")
-            Integer exitCode = sh(script: "git fetch origin ${committish}", 
-                                  returnStatus: true);
-            // A 0 exit code means the commit exists in origin.
-            if (exitCode == 0) {
-               echo("'${committish}' is a commit hash in origin.");
-               hash = committish;
-               return;
-            }
+                  "assuming it exists in origin.")
+            hash = committish;
+            return;
          }
       }
    }
