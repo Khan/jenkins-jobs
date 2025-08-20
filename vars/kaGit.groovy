@@ -89,7 +89,7 @@ Ref[] lsRemote(String repo, String committish) {
 // don't want to return the hash for `deploy/foo` when the user requested just
 // `foo`.
 String _findCommitHashFromBranchRef(Ref[] refs, String branchName) {
-   Ref found = refs.find { it.name == "refs/heads/${branchName}" }
+   Ref found = refs.find { it.name == "refs/heads/${branchName}" };
    if (found) {
       return found.hash;
    }
@@ -100,7 +100,7 @@ String _findCommitHashFromBranchRef(Ref[] refs, String branchName) {
 // match to the tag name. A partial match is not performed here because we don't
 // want to return the hash for `deploy/foo` when the user requested just `foo`.
 String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
-   Ref found = refs.find { it.name == "refs/tags/${tagName}" }
+   Ref found = refs.find { it.name == "refs/tags/${tagName}" };
    if (found) {
       return found.hash;
    }
@@ -116,7 +116,7 @@ String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
 // checkout.
 // https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
 String resolveCommitish(String repo, String committish) {
-   String hash = null
+   String hash = null;
    stage("Resolving commit-ish") {
       timeout(time: 1, unit: "HOURS") {
          Ref[] lsRemoteRefs = lsRemote(repo, committish);
@@ -139,7 +139,7 @@ String resolveCommitish(String repo, String committish) {
          // assume the commit exists in origin and return it.
          if (committish ==~ /[0-9a-fA-F]{5,}/) {
             echo("'${committish}' looks like a commit hash, " +
-                  "assuming it exists in origin.")
+                  "assuming it exists in origin.");
             hash = committish;
             return;
          }
