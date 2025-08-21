@@ -162,8 +162,11 @@ WORKER_TYPE = (params.USE_FIRSTINQUEUE_WORKERS
                ? 'ka-firstinqueue-ec2' : 'ka-test-ec2');
 
 def initializeGlobals() {
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-      params.GIT_REVISION);
+   withTimeout('5m') {
+      GIT_SHA1 = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                         params.GIT_REVISION);
+   }
+   
    // for security, use only with withGithubToken!
    GITHUB_TOKEN = exec.outputOf([
          "gcloud", "--project", "khan-academy",

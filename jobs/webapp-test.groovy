@@ -191,10 +191,13 @@ def swallowExceptions(Closure body, Closure onException = {}) {
 def initializeGlobals() {
    NUM_WORKER_MACHINES = params.NUM_WORKER_MACHINES.toInteger();
    CLIENTS_PER_WORKER = params.CLIENTS_PER_WORKER.toInteger();
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
+
+   withTimeout('5m') {
+      // We want to make sure all nodes below work at the same sha1,
+      // so we resolve our input commit to a sha1 right away.
+      GIT_SHA1 = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                         params.GIT_REVISION);
+   }
 }
 
 

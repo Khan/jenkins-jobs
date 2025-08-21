@@ -115,39 +115,29 @@ String _findCommitHashFromTagRef(Ref[] refs, String tagName) {
 // To be called before checking out the repo to determine which commit to 
 // checkout.
 // https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-commit-ishalsocommittish
-String resolveCommitish(String repo, String committish) {
-   String hash = null;
-   stage("Resolving commit-ish") {
-      timeout(time: 1, unit: "HOURS") {
-         Ref[] lsRemoteRefs = lsRemote(repo, committish);
+String resolveCommittish(String repo, String committish) {
+   Ref[] lsRemoteRefs = lsRemote(repo, committish);
 
-         // First, check for branch as we prefer branches over tags.
-         hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
-         if (hash) {
-            echo("'${committish}' is a branch that resolves to ${hash}");
-            return;
-         }
-
-         // No branch found, check for tag.
-         hash = _findCommitHashFromTagRef(lsRemoteRefs, committish);
-         if (hash) {
-            echo("'${committish}' is a tag that resolves to ${hash}");
-            return;
-         }
-
-         // No branch or tag found. If this looks like a sha1 hash already,
-         // assume the commit exists in origin and return it.
-         if (committish ==~ /[0-9a-fA-F]{5,}/) {
-            echo("'${committish}' looks like a commit hash, " +
-                  "assuming it exists in origin.");
-            hash = committish;
-            return;
-         }
-      }
+   // First, check for branch as we prefer branches over tags.
+   String hash = _findCommitHashFromBranchRef(lsRemoteRefs, committish);
+   if (hash) {
+      echo("'${committish}' is a branch that resolves to ${hash}");
+      return hash;
    }
 
+   // No branch found, check for tag.
+   hash = _findCommitHashFromTagRef(lsRemoteRefs, committish);
    if (hash) {
+      echo("'${committish}' is a tag that resolves to ${hash}");
       return hash;
+   }
+
+   // No branch or tag found. If this looks like a sha1 hash already,
+   // assume the commit exists in origin and return it.
+   if (committish ==~ /[0-9a-fA-F]{5,}/) {
+      echo("'${committish}' looks like a commit hash, assuming it exists in " +
+           "origin.");
+      return committish;
    }
 
    error("Cannot find '${committish}' in repo '${repo}'");
@@ -303,8 +293,8 @@ String mergeRevisions(gitRevisions, tagName, description) {
    // Do the merge(s)!
    dir('webapp') {
       for (Integer i = 0; i < allRevisions.size(); i++) {
-         String branchSha1 = resolveCommitish("git@github.com:Khan/webapp",
-                                              allRevisions[i]);
+         String branchSha1 = resolveCommittish("git@github.com:Khan/webapp",
+                                               allRevisions[i]);
          if (i == 0) {
             // First, checkout the base revision. Even if there aren't
             // subsequent revisions to merge, we still want the correct revision

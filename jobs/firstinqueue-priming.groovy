@@ -77,10 +77,12 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 GIT_SHA1 = null;
 
 def initializeGlobals() {
-   // We want to make sure all nodes below work at the same sha1,
-   // so we resolve our input commit to a sha1 right away.
-   GIT_SHA1 = kaGit.resolveCommitish("git@github.com:Khan/webapp",
-                                     params.GIT_REVISION);
+   withTimeout('5m') {
+      // We want to make sure all nodes below work at the same sha1,
+      // so we resolve our input commit to a sha1 right away.
+      GIT_SHA1 = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                         params.GIT_REVISION);
+   }
 }
 
 def _setupWebapp() {
