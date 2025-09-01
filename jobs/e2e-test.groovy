@@ -127,12 +127,6 @@ through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
 
-).addStringParam(
-   "SKIP_TESTS",
-   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
-   communication with buildmaster""",
-   ""
-
 ).apply();
 
 // Override the build name by the info that is passed in (from buildmaster).
