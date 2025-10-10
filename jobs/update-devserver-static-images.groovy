@@ -94,11 +94,13 @@ def publishResults() {
 // that it can bring down our server!  See
 // https://khanacademy.slack.com/archives/C096UP7D0/p1738681917185069
 onWorker('build-worker', '10h') {
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                   failureChannel: "#local-devserver",
-                   sender: 'Devserver Duck',
-                   emoji: ':duck:',
-                   when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
+   def notifyParams = params.GIT_BRANCH == "automated-commits" || params.GIT_BRANCH == "master" || params.GIT_BRANCH == "main" ? 
+      [slack: [channel: params.SLACK_CHANNEL,
+               failureChannel: "#local-devserver",
+               sender: 'Devserver Duck',
+               emoji: ':duck:',
+               when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']]] : [:];
+   notify(notifyParams) {
       stage("Setup webapp") {
          _setupWebapp();
       }
