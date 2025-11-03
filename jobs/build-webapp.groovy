@@ -35,6 +35,7 @@ import org.khanacademy.Setup;
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
+//import vars.logs
 //import vars.notify
 //import vars.onWorker
 //import vars.withSecrets
@@ -508,13 +509,7 @@ def deployAndReport() {
               version: NEW_VERSION,
               services: formatServicesList(SERVICES),
               branches: REVISION_DESCRIPTION,
-              // TODO: perhaps we start using java.net.URLEncoder.encode()?
-              logsUrl: ("https://console.cloud.google.com/logs/query;" +
-                        "query=" +
-                          "resource.type%3D%22gae_app%22" + "%20OR%20" +
-                          "resource.type%3D%22cloud_run_revision%22" +
-                          "%0Aresource.labels.version_id%3D%22" + VERSION + "%22" +
-                        "?project=khan-academy")]);
+              logsUrl: logs.logViewerUrl(VERSION)]);
    }
 }
 
