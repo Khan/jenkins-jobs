@@ -29,7 +29,6 @@
 @Library("kautils")
 // Standard classes we use.
 import groovy.json.JsonBuilder;
-
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
