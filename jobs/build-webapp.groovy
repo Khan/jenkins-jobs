@@ -29,6 +29,7 @@
 @Library("kautils")
 // Standard classes we use.
 import groovy.json.JsonBuilder;
+
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
@@ -76,7 +77,7 @@ new Setup(steps
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed. For example, you might
-specify "ai-guide,users" to force a full deploy to the ai-guide and users 
+specify "ai-guide,users" to force a full deploy to the ai-guide and users
 services.</p>
 
 <p>Here are some services:</p>
@@ -508,9 +509,13 @@ def deployAndReport() {
               version: NEW_VERSION,
               services: formatServicesList(SERVICES),
               branches: REVISION_DESCRIPTION,
-              logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
-                        "project=khan-academy&resource=gae_app%2F" +
-                        "version_id%2F" + NEW_VERSION)]);
+              // TODO: perhaps we start using java.net.URLEncoder.encode()?
+              logsUrl: ("https://console.cloud.google.com/logs/query;" +
+                        "query=" +
+                          "resource.type%3D%22gae_app%22" + "%20OR%20" +
+                          "resource.type%3D%22cloud_run_revision%22" +
+                          "%0Aresource.labels.version_id%3D%22" + VERSION + "%22" +
+                        "?project=khan-academy")]);
    }
 }
 

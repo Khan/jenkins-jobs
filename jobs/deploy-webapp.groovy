@@ -736,8 +736,13 @@ def setDefaultAndMonitor() {
       _alert(alertMsgs.SETTING_DEFAULT,
              [combinedVersion: GIT_TAG,
               abortUrl: "${env.BUILD_URL}stop",
-              logsUrl: ("https://console.cloud.google.com/logs/viewer?project=khan-academy" +
-                       "&resource=gae_app%2Fversion_id%2F" + NEW_VERSION)]);
+              // TODO: perhaps we start using java.net.URLEncoder.encode()?
+              logsUrl: ("https://console.cloud.google.com/logs/query;" +
+                        "query=" +
+                          "resource.type%3D%22gae_app%22" + "%20OR%20" +
+                          "resource.type%3D%22cloud_run_revision%22" +
+                          "%0Aresource.labels.version_id%3D%22" + VERSION + "%22" +
+                        "?project=khan-academy")]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the
