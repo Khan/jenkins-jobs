@@ -43,6 +43,7 @@ import org.khanacademy.Setup;
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
+//import vars.logs
 //import vars.notify
 //import vars.withSecrets
 //import vars.withTimeout
@@ -736,8 +737,7 @@ def setDefaultAndMonitor() {
       _alert(alertMsgs.SETTING_DEFAULT,
              [combinedVersion: GIT_TAG,
               abortUrl: "${env.BUILD_URL}stop",
-              logsUrl: ("https://console.cloud.google.com/logs/viewer?project=khan-academy" +
-                       "&resource=gae_app%2Fversion_id%2F" + NEW_VERSION)]);
+              logsUrl: logs.logViewerUrl(VERSION)]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the

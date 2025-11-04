@@ -11,6 +11,7 @@ import org.khanacademy.Setup;
 //import vars.clean
 //import vars.exec
 //import vars.kaGit
+//import vars.logs
 //import vars.notify
 //import vars.onWorker
 //import vars.withSecrets
@@ -25,7 +26,7 @@ new Setup(steps
     """<b>REQUIRED</b>. Usually: the name of a branch to deploy.  Also possible:
 a commit-sha1 to deploy, or a tag like phabricator/diff/&lt;id&gt; (using the latest ID
 from the diff's "history" tab or <code>revisionid-to-diffid.sh D#####</code>).
-Basically, this is passed to <code>git checkout GIT_REVISION</code>. Branches 
+Basically, this is passed to <code>git checkout GIT_REVISION</code>. Branches
 will be preferred over tags with the same name.""",
     ""
 
@@ -44,7 +45,7 @@ deploying non-default modules!</i>""",
     """<p>A comma-separated list of services we wish to deploy (see below for
 options), or the special value "auto", which says to choose the services to
 deploy automatically based on what files have changed. For example, you might
-specify "ai-guide,users" to force a full deploy to the ai-guide and users 
+specify "ai-guide,users" to force a full deploy to the ai-guide and users
 services.</p>
 
 <p>Here are some services:</p>
@@ -394,9 +395,7 @@ def deploy() {
           version: VERSION,
           branches: params.GIT_REVISION,
           services: SERVICES.join(', ') ?: 'nothing (?!)',
-          logsUrl: ("https://console.cloud.google.com/logs/viewer?" +
-                    "project=khan-academy&resource=gae_app%2F" +
-                    "version_id%2F" + VERSION)]);
+          logsUrl: logs.logViewerUrl(VERSION)]);
    }
 }
 

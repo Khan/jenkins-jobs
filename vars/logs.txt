@@ -1,0 +1,2 @@
+A small utility for safely and correctly building deep links to Google Cloud's
+Log Viewer.
