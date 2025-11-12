@@ -3,8 +3,9 @@ String logViewerUrl(String version_id) {
     // This query is a bit tricky. It contains newlines and double quotes
     // intentionally and uses a multiline string (the 3 quotation marks
     // delimiters)
-    def query = """resource.type="gae_app" OR resource.type="cloud_run_revision"
-                  |resource.labels.version_id="${version_id}\"""".stripMargin();
+    def query = """(resource.type="gae_app" AND resource.labels.version_id="${version_id})"
+                  |OR
+                  |(resource.type="cloud_run_revision" AND resource.labels.revision_name="progress-rev-${version_id}"))""".stripMargin();
 
     // URLEncoder encodes spaces as "+", but Google doesn't like that so we
     // manually replace them with a URL-encoded space (ie. "%20").
