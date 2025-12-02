@@ -509,7 +509,7 @@ def deployAndReport() {
               version: NEW_VERSION,
               services: formatServicesList(SERVICES),
               branches: REVISION_DESCRIPTION,
-              logsUrl: logs.logViewerUrl(NEW_VERSION)]);
+              logsUrl: logs.logViewerUrl(NEW_VERSION, SERVICES)]);
    }
 }
 
