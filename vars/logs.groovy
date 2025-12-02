@@ -3,8 +3,13 @@ String _buildServiceFilter(String version_id, String service) {
 }
 
 // Returns the Google Cloud Log Viewer URL for the given Version ID
-String logViewerUrl(String version_id, java.util.ArrayList services) {
-
+//
+// CAUTION(nathanjd): ideally we'd type `services` here as some sort of list,
+// but we construct the value that we pass in here in different ways which
+// yields different types. If we pass a value of the wrong type, Java/Groovy
+// will throw an error saying it couldn't find this method, which is
+// catastrophic especially during in deploy-webapp.
+String logViewerUrl(String version_id, def services) {
     // This query is a bit tricky. It contains newlines and double quotes
     // intentionally and uses a multiline string (the 3 quotation marks
     // delimiters)
