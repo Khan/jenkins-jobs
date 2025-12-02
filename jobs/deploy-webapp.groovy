@@ -737,7 +737,7 @@ def setDefaultAndMonitor() {
       _alert(alertMsgs.SETTING_DEFAULT,
              [combinedVersion: GIT_TAG,
               abortUrl: "${env.BUILD_URL}stop",
-              logsUrl: logs.logViewerUrl(NEW_VERSION)]);
+              logsUrl: logs.logViewerUrl(NEW_VERSION, SERVICES)]);
 
       // Note that while we start these jobs at the same time, the
       // monitor script has code to wait until well after the
