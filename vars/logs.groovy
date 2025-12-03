@@ -1,7 +1,3 @@
-String _buildServiceRevisionName(String version_id, String service) {
-  return "\"${service}-rev-${version_id}\""
-}
-
 // Returns the Google Cloud Log Viewer URL for the given Version ID
 //
 // CAUTION(nathanjd): ideally we'd type `services` here as some sort of list,
@@ -16,7 +12,7 @@ String logViewerUrl(String version_id, def services) {
     def query = """resource.type="cloud_run_revision"
                   |resource.labels.revision_name=(
                   |  ${services
-                        .collect { _buildServiceRevisionName(version_id, it) }
+                        .collect { "\"${it}-rev-${version_id}\"" }
                         .join(" OR\n  ") }
                   |)""".stripMargin();
 
