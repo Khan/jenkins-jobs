@@ -1,5 +1,5 @@
-String _buildServiceFilter(String version_id, String service) {
-  return "(resource.labels.service_name=\"${service}\" AND resource.labels.revision_name=\"${service}-rev-${version_id}\")"
+String _buildServiceRevisionName(String version_id, String service) {
+  return "\"${service}-rev-${version_id}\""
 }
 
 // Returns the Google Cloud Log Viewer URL for the given Version ID
@@ -14,9 +14,9 @@ String logViewerUrl(String version_id, def services) {
     // intentionally and uses a multiline string (the 3 quotation marks
     // delimiters)
     def query = """resource.type="cloud_run_revision"
-                  |(
+                  |resource.labels.revision_name=(
                   |  ${services
-                        .collect { _buildServiceFilter(version_id, it) }
+                        .collect { _buildServiceRevisionName(version_id, it) }
                         .join(" OR\n  ") }
                   |)""".stripMargin();
 
