@@ -395,7 +395,7 @@ def deploy() {
           version: VERSION,
           branches: params.GIT_REVISION,
           services: SERVICES.join(', ') ?: 'nothing (?!)',
-          logsUrl: logs.logViewerUrl(VERSION, SERVICES)]);
+          logsUrl: logs.logViewerUrl(VERSION)]);
    }
 }
 

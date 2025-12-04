@@ -1,20 +1,10 @@
 // Returns the Google Cloud Log Viewer URL for the given Version ID
-//
-// CAUTION(nathanjd): ideally we'd type `services` here as some sort of list,
-// but we construct the value that we pass in here in different ways which
-// yields different types. If we pass a value of the wrong type, Java/Groovy
-// will throw an error saying it couldn't find this method, which is
-// catastrophic especially during in deploy-webapp.
-String logViewerUrl(String version_id, def services) {
+String logViewerUrl(String version_id) {
     // This query is a bit tricky. It contains newlines and double quotes
     // intentionally and uses a multiline string (the 3 quotation marks
     // delimiters)
     def query = """resource.type="cloud_run_revision"
-                  |resource.labels.revision_name=(
-                  |  ${services
-                        .collect { "\"${it}-rev-${version_id}\"" }
-                        .join(" OR\n  ") }
-                  |)""".stripMargin();
+                  |resource.labels.revision_name:\"rev-${version_id}\"""".stripMargin();
 
     // URLEncoder encodes spaces as "+", but Google doesn't like that so we
     // manually replace them with a URL-encoded space (ie. "%20").
