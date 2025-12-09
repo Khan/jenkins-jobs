@@ -37,7 +37,7 @@ This must consist of only lowercase letters, numbers, and hyphens.
 The "znd-", date, and your username will be automatically prepended,
 so don't include those.  <i>Due to DNS limitations, please keep this
 extremely short, especially if your username is long and/or you are
-deploying non-default modules!</i>""",
+deploying non-default services!</i>""",
     ""
 
 ).addStringParam(

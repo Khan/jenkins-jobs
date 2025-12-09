@@ -84,7 +84,7 @@ deploy that just merges to master.</p>
 ).addStringParam(
     "MONITORING_TIME",
     """How many minutes to monitor after the new version is set as default on
-all modules.""",
+all services.""",
     "5"
 
 ).addBooleanParam(
