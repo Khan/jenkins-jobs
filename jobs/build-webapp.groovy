@@ -83,7 +83,7 @@ services.</p>
 <p>Here are some services:</p>
 <ul>
   <li> <b>donations</b>: webapp's services/donations/. </li>
-  <li> <b>index_yaml</b>: upload index.yaml to GAE. </li>
+  <li> <b>index_yaml</b>: upload all index.yaml files to Google Cloud. </li>
 </ul>
 
 <p>You can specify the empty string to deploy to none of these services, like
@@ -373,13 +373,18 @@ def deployIndexYaml() {
    }
    // Apparently we need APPENGINE_RUNTIME= to get the imports working right.
    dir("webapp") {
+      // NOTE: we always deploy all index.yaml files when any of them
+      // have changed, which is excess work but keeps us from having to have
+      // a ton of pseudo-services: one for every index.yaml file.
+      def indexYamls = exec.outputOf(["git", "ls-files",
+                                      "index.yaml", "*/index.yaml"]);
       // NOTE: appengine treats deploying index.yaml as a "create"
       // operation: even if you remove entries from index.yaml appengine
       // doesn't delete those indexes from datastore (you have to do a
       // separate "index vacuum" command for that).  Thus, it's safe
       // to call pre-set-default, here in build-webapp.groovy.
       exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
-            "app", "deploy", "index.yaml"]);
+            "app", "deploy"] + indexYamls);
    }
 }
 
