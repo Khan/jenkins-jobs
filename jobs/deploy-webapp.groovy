@@ -470,20 +470,6 @@ def _manualSmokeTestCheck(job){
 }
 
 
-def deployFastlyStaging() {
-   withTimeout('10m') {
-      withSecrets.slackAndStackdriverAlertlibOnly() {
-         exec(["make", "-C", "webapp/services/fastly-khanacademy-compute",
-               "deploy-staging",
-               "ALREADY_RAN_TESTS=1",
-               "DEPLOY_VERSION=${NEW_VERSION}"]);
-         exec(["make", "-C", "webapp/services/fastly-khanacademy-compute",
-               "set-default-staging",
-               "DEPLOY_VERSION=${NEW_VERSION}"]);
-      }
-   }
-}
-
 def verifySmokeTestResults(jobName, buildmasterFailures=0) {
    withTimeout('60m') {
       def status;
@@ -942,16 +928,6 @@ onMaster('4h') {
       }
 
       try {
-         stage("Deploy fastly-staging if needed") {
-            // We only ever do this in this job, which applies to the
-            // first deploy in the queue exclusively (rather than in
-            // build-webapp.groovy, which happens in parallel to
-            // every(ish) deploy in the queue), since we only have one
-            // staging service in fastly.
-            if ('fastly-khanacademy-compute' in SERVICES) {
-               deployFastlyStaging();
-            }
-         }
          stage("Await first smoke test") {
             // NOTE: the first-smoke-test run has been going on for a
             // while, and until now it will have hit old code in the
@@ -959,8 +935,7 @@ onMaster('4h') {
             // deployed above.  This is unavoidable because we can run
             // multiple first-smoke-test runs at the same time (one
             // for every deploy in the deploy queue), but we only have
-            // one "staging" fastly service, which we reserve for the
-            // deploy at the front of the deploy queue.
+            // one "staging" fastly service.
             // TODO(csilvers): figure out a way to handle this better.
             if (SERVICES) {
                verifySmokeTestResults('first-smoke-test');
