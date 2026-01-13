@@ -485,12 +485,16 @@ def deployToService(service) {
 // This should be called from within a node().
 def deployAndReport() {
    if (SERVICES) {
+      // TODO(csilvers): add back in failfast=True if/when we resolve
+      // the problem where an interrupted `gcloud run deploy` command
+      // can leave the service's yaml file in an inconsistent state.
+      // https://console.cloud.google.com/support/cases/detail/v2/66871849?project=khan-academy
       def jobs = ["deploy-to-gateway-config": { deployToGatewayConfig(); },
                   "deploy-index-yaml": { deployIndexYaml(); },
                   "deploy-queue-yaml": { deployQueueYaml(); },
                   "deploy-pubsub-yaml": { deployPubsubYaml(); },
                   "deploy-cron-yaml": { deployCronYaml(); },
-                  "failFast": true];
+                 ];
       for (service in SERVICES) {
          if (!(service in [
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
