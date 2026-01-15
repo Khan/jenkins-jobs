@@ -377,7 +377,7 @@ def deployIndexYaml() {
       // have changed, which is excess work but keeps us from having to have
       // a ton of pseudo-services: one for every index.yaml file.
       def indexYamls = exec.outputOf(["git", "ls-files",
-                                      "index.yaml", "*/index.yaml"]);
+                                      "index.yaml", "*/index.yaml"]).split("\n");
       // NOTE: appengine treats deploying index.yaml as a "create"
       // operation: even if you remove entries from index.yaml appengine
       // doesn't delete those indexes from datastore (you have to do a
