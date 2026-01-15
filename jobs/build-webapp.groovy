@@ -384,7 +384,7 @@ def deployIndexYaml() {
       // separate "index vacuum" command for that).  Thus, it's safe
       // to call pre-set-default, here in build-webapp.groovy.
       exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
-            "app", "deploy"] + indexYamls);
+            "app", "deploy"] + indexYamls.toList());
    }
 }
 
