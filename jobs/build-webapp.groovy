@@ -383,8 +383,10 @@ def deployIndexYaml() {
       // doesn't delete those indexes from datastore (you have to do a
       // separate "index vacuum" command for that).  Thus, it's safe
       // to call pre-set-default, here in build-webapp.groovy.
-      exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
-            "app", "deploy"] + indexYamls.toList());
+      for (yaml in indexYamls) {
+         exec(["env", "APPENGINE_RUNTIME=", "gcloud", "--project=khan-academy",
+               "app", "deploy", yaml]);
+      }
    }
 }
 
