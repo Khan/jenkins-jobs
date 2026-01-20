@@ -81,7 +81,7 @@ currentBuild.displayName = ("${currentBuild.displayName} " +
 
 
 def installDeps() {
-   withTimeout('15m') {
+   withTimeout('60m') {
       kaGit.safeSyncToOrigin("git@github.com:Khan/webapp",
                              params.GIT_REVISION);
 
