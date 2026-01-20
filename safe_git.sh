@@ -199,15 +199,20 @@ clone() {
             timeout 60m git clone "$repo" "$repo_dir"
         fi
         # Now clone locally as well.
-        # TODO(csilvers): figure out how to use `git clone -s` but still
-        # have our version point to the correct remote.
-        timeout 60m git clone "$repo" "$repo_workspace"
+        # To make this as fast as possible, we do a minimal possible
+        # clone, then do the magic to make our repo share the global
+        # "objects" dir, and then do a "real" checkout that should
+        # now be fast due to all the objects being local.
+        timeout 60m git clone --depth 1 --no-checkout  "$repo" "$repo_workspace"
 
         cd "$repo_workspace"
         # This is the magic that makes all our repos share an "objects" dir.
         echo "$repo_dir/.git/objects" > .git/objects/info/alternates
-        # Force our new repo to share the objects too.
-        timeout 60m git gc
+        # Now we need to "unshallow".
+        timeout 60m git gc                  # not sure if this is necessary
+        git remote set-branches origin '*'  # needed to see remote branches
+        timeout 60m git fetch --all         # fetch remote branches and tags
+        # And finally check out what we wanted to check out!
         timeout 10m git checkout -f "$commit"
     fi
     )
