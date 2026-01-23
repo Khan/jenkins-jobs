@@ -203,7 +203,7 @@ clone() {
         # clone, then do the magic to make our repo share the global
         # "objects" dir, and then do a "real" checkout that should
         # now be fast due to all the objects being local.
-        timeout 60m git clone --depth 1 --no-checkout  "$repo" "$repo_workspace"
+        timeout 60m git clone --depth 1 --no-checkout "$repo" "$repo_workspace"
 
         cd "$repo_workspace"
         # This is the magic that makes all our repos share an "objects" dir.
