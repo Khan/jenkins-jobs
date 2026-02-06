@@ -70,7 +70,7 @@ def uploadService(service) {
       // but unpredictably) fails with:
       // ERROR: failed to receive status: rpc error: code = Unavailable desc = error reading from server: EOF
       retry(5) {
-         exec(["ssh-agent", "sh", "-c", "ssh-add; dev/server/upload-images.sh --no-tags " + service]);
+         exec(["ssh-agent", "sh", "-c", "ssh-add; go run ./dev/deploy/cmd/upload-images --no-tags " + service]);
       }
    }
 }
@@ -109,7 +109,8 @@ onWorker('build-worker', '10h') {
              services = params.SERVICES.split(",");
          } else {
              dir("webapp") {
-                 def services_str = exec.outputOf(["dev/server/upload-images.sh", "--list"]);
+                 def services_str = exec.outputOf(
+                     ["go", "run", "./dev/deploy/cmd/upload-images", "--list"]);
                  echo("Updating these services:\n${services_str}");
                  services = services_str.split("\n");
              }
