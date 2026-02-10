@@ -64,13 +64,17 @@ def _setupWebapp() {
    }
 }
 
-def uploadService(service) {
+def uploadServices(servicesString) {
    dir("webapp") {
       // TODO(csilvers): figure out why this periodically (regularly,
       // but unpredictably) fails with:
       // ERROR: failed to receive status: rpc error: code = Unavailable desc = error reading from server: EOF
       retry(5) {
-         exec(["ssh-agent", "sh", "-c", "ssh-add; go run ./dev/deploy/cmd/upload-images --tag-all-images=false " + service]);
+         exec([
+            "ssh-agent",
+            "sh", "-c",
+            "ssh-add; go run ./dev/deploy/cmd/upload-images " + servicesString.replace(",", " ")
+         ]);
       }
    }
 }
@@ -89,11 +93,7 @@ def publishResults() {
 }
 
 
-// NOTE: it would be nice to run this on jenkins-server, so we could
-// re-use our caches from run to run.  But the job uses so much CPU
-// that it can bring down our server!  See
-// https://khanacademy.slack.com/archives/C096UP7D0/p1738681917185069
-onWorker('build-worker', '10h') {
+onMaster('10h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    failureChannel: "#local-devserver",
                    sender: 'Devserver Duck',
@@ -103,24 +103,8 @@ onWorker('build-worker', '10h') {
          _setupWebapp();
       }
 
-      def services = [];
-      stage("Listing services to regenerate") {
-         if (params.SERVICES) {
-             services = params.SERVICES.split(",");
-         } else {
-             dir("webapp") {
-                 def services_str = exec.outputOf(
-                     ["go", "run", "./dev/deploy/cmd/upload-images", "--list"]);
-                 echo("Updating these services:\n${services_str}");
-                 services = services_str.split("\n");
-             }
-         }
-      }
-
-      for (def i = 0; i < services.size(); i++) {
-         stage(services[i]) {
-            uploadService(services[i]);
-         }
+      stage("Upload services") {
+         uploadServices(params.SERVICES);
       }
 
       stage("Publish results") {
