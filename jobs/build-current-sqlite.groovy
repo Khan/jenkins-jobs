@@ -44,9 +44,8 @@ def runScript() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/frontend", "main");
 
    dir("webapp") {
-      // Let's make sure we have a recent version of the datastore first.
       sh("rm -rf datastore");
-      sh("make current.sqlite");
+      sh("mkdir -p datastore")
       try {
          // First, we need to get a local webserver running.  We
          // need the `ssh-agent` because apparently jenkins don't
@@ -54,19 +53,36 @@ def runScript() {
          // need the `env` because otherwise jenkins's BUILD_TAG
          // takes precedence over our own.
          // TODO(csilvers): clear more of env?
-         sh("ssh-agent env -u BUILD_TAG make start-dev-server-backend WORKING_ON=NONE");
+         sh("ssh-agent env -u BUILD_TAG USE_FIRESTORE_EMULATOR=true SKIP_FIRESTORE_SNAPSHOT_DOWNLOAD=true make start-dev-server-backend WORKING_ON=NONE");
 
          updateDatabase();
 
-         // I don't know a better way to flush the datastore
-         // changes to disk, than to just kill it.
-         sh("docker exec webapp-datastore-emulator-1 dash -c 'kill `ls -l /proc/*/exe | grep java- | cut -d/ -f3`'")
+         // Send SIGTERM to the firestore emulator to have it write out its
+         // backing file.
+         //
+         // TODO(marksandstrom) Is there a better, more direct way to do this?
+         // We want to send SIGTERM to the process running the command
+         // /usr/bin/firestore-emulator-plus.
+         //
+         // The command works as follows:
+         // - list the command lines of the running processes
+         //       ls /proc/*/cmdline
+         // - echo the /proc/ entry and the command line on the same line
+         //       echo -n "$cmd " | cat - $cmd
+         // - replace the \0 characters (from cmdline) with spaces
+         // - add a newline to the end of the cmdline output
+         //       awk '{ print }'
+         // - find the /usr/bin/firestore-emulator-plus process using grep
+         // - extract the pid from the /proc/ entry -- cut -f/ -d3
+         // - then, if there's output -- while read pid
+         // - send SIGTERM to the pid -- kill $pid
+         sh("docker exec webapp-datastore-emulator-1 dash -c 'ls /proc/*/cmdline | while read cmd; do echo -n \"$cmd \" | cat - \"$cmd\" 2>/dev/null | tr \"\\0\" \" \" | awk \"{ print }\" | grep \"/usr/bin/qemu-x86_64 /usr/bin/firestore-emulator-plus\" | grep -v dash | cut -d/ -f3 | while read pid; do kill $pid; done; done'")
 
          // Now upload the new database to gcs.
-         sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak");
+         sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak");
          // A rare case we *don't* want the `-t` flag to docker:
          // if we include it, tar refuses to emit output to a terminmal.
-         sh("docker exec -i webapp-datastore-emulator-1 tar --exclude dev_datastore.tar -C /var/datastore -c . | gsutil cp - ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar");
+         sh("docker exec -i webapp-datastore-emulator-1 gsutil cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz");
       } finally {
           // No matter what, we stop the local webserver.
          sh("ssh-agent make stop-server");
