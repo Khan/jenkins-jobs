@@ -73,7 +73,7 @@ def runScript() {
          // - add a newline to the end of the cmdline output
          //       awk '{ print }'
          // - find the /usr/bin/firestore-emulator-plus process using grep
-         // - extract the pid from the /proc/ entry -- cut -f/ -d3
+         // - extract the pid from the /proc/ entry -- cut -d/ -f3
          // - then, if there's output -- while read pid
          // - send SIGTERM to the pid -- kill $pid
          sh("docker exec webapp-datastore-emulator-1 dash -c 'ls /proc/*/cmdline | while read cmd; do echo -n \"$cmd \" | cat - \"$cmd\" 2>/dev/null | tr \"\\0\" \" \" | awk \"{ print }\" | grep \"/usr/bin/qemu-x86_64 /usr/bin/firestore-emulator-plus\" | grep -v dash | cut -d/ -f3 | while read pid; do kill $pid; done; done'")
