@@ -57,26 +57,9 @@ def runScript() {
 
          updateDatabase();
 
-         // Send SIGTERM to the firestore emulator to have it write out its
-         // backing file.
-         //
-         // TODO(marksandstrom) Is there a better, more direct way to do this?
-         // We want to send SIGTERM to the process running the command
-         // /usr/bin/firestore-emulator-plus.
-         //
-         // The command works as follows:
-         // - list the command lines of the running processes
-         //       ls /proc/*/cmdline
-         // - echo the /proc/ entry and the command line on the same line
-         //       echo -n "$cmd " | cat - $cmd
-         // - replace the \0 characters (from cmdline) with spaces
-         // - add a newline to the end of the cmdline output
-         //       awk '{ print }'
-         // - find the /usr/bin/firestore-emulator-plus process using grep
-         // - extract the pid from the /proc/ entry -- cut -d/ -f3
-         // - then, if there's output -- while read pid
-         // - send SIGTERM to the pid -- kill $pid
-         sh("docker exec webapp-datastore-emulator-1 dash -c 'ls /proc/*/cmdline | while read cmd; do echo -n \"$cmd \" | cat - \"$cmd\" 2>/dev/null | tr \"\\0\" \" \" | awk \"{ print }\" | grep \"/usr/bin/qemu-x86_64 /usr/bin/firestore-emulator-plus\" | grep -v dash | cut -d/ -f3 | while read pid; do kill $pid; done; done'")
+         // Send SIGTERM to the firestore-emulator-plus wrapper to have
+         // Firestore write out its backing file. The wrapper runs as PID 1.
+         sh("docker exec webapp-datastore-emulator-1 dash -c 'kill 1'")
 
          // Now upload the new database to gcs.
          sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak");
