@@ -53,7 +53,7 @@ def runScript() {
          // need the `env` because otherwise jenkins's BUILD_TAG
          // takes precedence over our own.
          // TODO(csilvers): clear more of env?
-         sh("ssh-agent env -u BUILD_TAG USE_FIRESTORE_EMULATOR=true make start-dev-server-backend WORKING_ON=NONE");
+         sh("ssh-agent env -u BUILD_TAG make start-dev-server-backend WORKING_ON=NONE");
 
          updateDatabase();
 
