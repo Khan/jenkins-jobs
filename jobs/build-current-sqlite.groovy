@@ -44,9 +44,8 @@ def runScript() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/frontend", "main");
 
    dir("webapp") {
-      // Let's make sure we have a recent version of the datastore first.
       sh("rm -rf datastore");
-      sh("make current.sqlite");
+      sh("mkdir -p datastore")
       try {
          // First, we need to get a local webserver running.  We
          // need the `ssh-agent` because apparently jenkins don't
@@ -58,15 +57,13 @@ def runScript() {
 
          updateDatabase();
 
-         // I don't know a better way to flush the datastore
-         // changes to disk, than to just kill it.
-         sh("docker exec webapp-datastore-emulator-1 dash -c 'kill `ls -l /proc/*/exe | grep java- | cut -d/ -f3`'")
+         // Send SIGTERM to the firestore-emulator-plus wrapper to have
+         // Firestore write out its backing file. The wrapper runs as PID 1.
+         sh("docker exec webapp-datastore-emulator-1 dash -c 'kill 1'")
 
          // Now upload the new database to gcs.
-         sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.bak");
-         // A rare case we *don't* want the `-t` flag to docker:
-         // if we include it, tar refuses to emit output to a terminmal.
-         sh("docker exec -i webapp-datastore-emulator-1 tar --exclude dev_datastore.tar -C /var/datastore -c . | gsutil cp - ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar");
+         sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak");
+         sh("docker exec -it webapp-datastore-emulator-1 gsutil cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz");
       } finally {
           // No matter what, we stop the local webserver.
          sh("ssh-agent make stop-server");
