@@ -954,7 +954,21 @@ onMaster('4h') {
          try {
             stage("Promoting and monitoring") {
                withVirtualenv.python3() {
-                  setDefaultAndMonitor();
+                  // Wait for a concurrent delete-version delete stage to finish
+                  // before performing any traffic migrations. Use high priority
+                  // to jump in front of any lock-queued but not-yet-in-progress
+                  // delete stages.
+                  //
+                  // We do this because the update-traffic command creates a
+                  // LongRunningOperation that expects a specific target traffic
+                  // allocation across all revisions with traffic tags and/or a
+                  // traffic % higher than 0%. If a revision is deleted while
+                  // the traffic migration is in-progress, the target state will
+                  // never be achieved so the operation will wait until its full
+                  // 60 minute timeout.
+                  lock(resource: 'update-traffic-lock', priority: 20) {
+                     setDefaultAndMonitor();
+                  }
                }
             }
             // Unlike above, we do not need to verify second smoke tests
