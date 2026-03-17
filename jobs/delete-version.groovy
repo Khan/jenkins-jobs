@@ -107,9 +107,10 @@ onMaster('30m') {
       // 0%. If a revision is deleted while the traffic migration is
       // in-progress, the target state will never be achieved so the operation
       // will wait until its full 60 minute timeout.
-      lock(resource: 'update-traffic-lock', priority: 10) {
-         stage("Deleting") {
-            withVirtualenv.python3() {
+      
+      stage("Deleting") {
+         withVirtualenv.python3() {
+            lock(resource: 'update-traffic-lock', priority: 10) {
                deleteVersion();
             }
          }
