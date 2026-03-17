@@ -89,7 +89,32 @@ onMaster('30m') {
       }
       stage("Deleting") {
          withVirtualenv.python3() {
-            deleteVersion();
+            // Acquire the shared mutex with deploy-webapp's set default step.
+            // If set default takes a long time, we may get multiple
+            // delete-version jobs queued for the same version(s). This should
+            // no-op just fine.
+            //
+            // While we would like to prioritize deploy-webapp over
+            // delete-versions by skipping this job when locked, we also don't
+            // want to lose any delete requests that wouldn't be automatically
+            // retried, such as ZND deletion requests from users. Since GCP
+            // support has advised us to keep our traffic tag count as low as
+            // possible, we really don't want to miss any ZND deletions. Setting
+            // lock priority lower than in the set default step should be a good
+            // middle ground.
+            //
+            // https://plugins.jenkins.io/lockable-resources/#plugin-content-lock-queue-priority
+            //
+            // We do this because the update-traffic command creates a
+            // LongRunningOperation that expects a specific target traffic
+            // allocation across all revisions with traffic tags and/or a
+            // traffic % higher than 0%. If a revision is deleted while the
+            // traffic migration is in-progress, the target state will never be
+            // achieved so the operation will wait until its full 60 minute
+            // timeout.
+            lock(resource: 'update-traffic-lock', priority: 10) {
+               deleteVersion();
+            }
          }
       }
    }
