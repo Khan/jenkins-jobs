@@ -318,7 +318,7 @@ pull() {
 push() {
     (
     cd "$1"
-    branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
+    branch=`git rev-parse --symbolic-full-name HEAD | sed -e 's,^refs/heads/,,' -e 's,^refs/remotes/,,' -e 's,^refs/tags/,,'`
     # In case there have been any changes since the script began, we
     # do 'pull; push'.  On failure, we undo all our work.
     _fetch
@@ -346,7 +346,7 @@ update_submodule_pointer_to_master() {
     shift
     dir="$1"
     shift
-    branch=`git rev-parse --symbolic-full-name HEAD | sed 's,^.*/,,'`
+    branch=`git rev-parse --symbolic-full-name HEAD | sed -e 's,^refs/heads/,,' -e 's,^refs/remotes/,,' -e 's,^refs/tags/,,'`
     pull_in_branch . "$branch"
     ( cd "$dir" && timeout 10m git checkout master )
     timeout 10m git add "$dir"
