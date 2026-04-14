@@ -35,7 +35,7 @@ def runAllTests() {
           parameters: [
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'BASE_REVISION', value: ""),
-             string(name: 'SLACK_CHANNEL', value: "#1s-and-0s"),
+             string(name: 'SLACK_CHANNEL', value: "#backend"),
              booleanParam(name: 'FORCE', value: params.FORCE),
              string(name: 'NUM_WORKER_MACHINES', value: "6"),
              string(name: 'CLIENTS_PER_WORKER', value: "2"),
@@ -62,7 +62,7 @@ onMaster('5h') {
    // individually.
    // TODO(csilvers): remove onMaster(), and just allocate
    // the executor in the notify clean-up steps.
-   notify([slack: [channel: '#1s-and-0s', when: ['STARTED', 'ABORTED']]]) {
+   notify([slack: [channel: '#backend', when: ['STARTED', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
 
