@@ -59,11 +59,14 @@ def runScript() {
 
          // Send SIGTERM to the firestore-emulator-plus wrapper to have
          // Firestore write out its backing file. The wrapper runs as PID 1.
+         // NOTE: we can't use `docker exec -it` since we are not attached
+         // a terminal and are not interactive.  But we can run dash instead
+         // and get the same effect.
          sh("docker exec webapp-datastore-emulator-1 dash -c 'kill 1'")
 
          // Now upload the new database to gcs.
          sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak");
-         sh("docker exec -it webapp-datastore-emulator-1 gsutil cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz");
+         sh("docker exec webapp-datastore-emulator-1 dash -c 'gsutil cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz"');
       } finally {
           // No matter what, we stop the local webserver.
          sh("ssh-agent make stop-server");
