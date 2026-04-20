@@ -322,7 +322,8 @@ def initializeGlobals() {
          // against the currently live version, and the consequences of doing
          // something else are greater, so we prohibit the dangerous thing.
          if (params.BASE_REVISION) {
-            shouldDeployArgs += ["--from-commit", params.BASE_REVISION]
+            shouldDeployArgs += [
+               "--commit-range", "${params.BASE_REVISION}...HEAD"]
          }
 
          if (params.SERVICES == "auto") {
