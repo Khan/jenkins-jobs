@@ -238,7 +238,7 @@ def runTestServer() {
             // changed between BASE_REVISION and GIT_REVISION.  We ignore
             // files where only sync tags have changed; those can't affect
             // tests.
-            sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)} ${exec.shellEscape(GIT_SHA1)} > ../trivial_diffs.txt");
+            sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} > ../trivial_diffs.txt");
             sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py - > ../files_to_test.txt");
             // Sometimes we need to run some extra tests for deletd files.
             sh("git diff --name-only --diff-filter=D ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py --deleted-mode - >> ../files_to_test.txt");

@@ -106,8 +106,8 @@ def determineServicesToDeploy() {
                def shouldDeployArgs = ['deploy/should_deploy.py'];
                // Diff against BASE_REVISION if set.
                if (params.BASE_REVISION) {
-                     shouldDeployArgs += [
-                        '--from-commit', params.BASE_REVISION]
+                  shouldDeployArgs += [
+                     '--commit-range', "${params.BASE_REVISION}...HEAD"]
                }
                services = exec.outputOf(shouldDeployArgs).split('\n');
             } catch(e) {
