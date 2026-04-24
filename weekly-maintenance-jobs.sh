@@ -111,7 +111,9 @@ gc_all_repos() {
         echo "Fetching in $dir"
         cd "$dir"
 
-        git fetch --progress origin
+        # I'm not sure if it's actually useful to have tags in these
+        # "canonical" repos, but I figure it can't hurt.
+        git fetch --tags --prune --prune-tags --force --progress origin
         git gc
         )
     done
