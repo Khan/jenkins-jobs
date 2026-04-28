@@ -81,6 +81,10 @@ def checkArgs() {
 
 
 String getGaeVersionName() {
+   if (env.GAE_VERSION_NAME) {
+     echo("Using GAE_VERSION_NAME from env: ${env.GAE_VERSION_NAME}");
+     return env.GAE_VERSION_NAME;
+   }
    dir('webapp') {
      String gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
      echo("Found gae version name: ${gaeVersionName}");

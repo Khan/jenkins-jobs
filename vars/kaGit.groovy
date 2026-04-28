@@ -269,6 +269,7 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 // Notes:
 // - Used by merge-granches.groovy and deploy-znd.groovy.
 String mergeRevisions(gitRevisions, tagName, description) {
+   String repoUrl = env.KA_WEBAPP_REPO_URL ?: "git@github.com:Khan/webapp";
    List<String> allRevisions = gitRevisions.split(/\+/);
 
    // Trim passed revisions for consistent ouput formatting.
@@ -276,7 +277,7 @@ String mergeRevisions(gitRevisions, tagName, description) {
       allRevisions[i] = allRevisions[i].trim();
    }
 
-   quickClone("git@github.com:Khan/webapp", "webapp", allRevisions[0]);
+   quickClone(repoUrl, "webapp", allRevisions[0]);
    dir('webapp') {
       // We need to reset before fetching, because if a previous incomplete
       // merge left .gitmodules in a weird state, git will fail to read its
@@ -293,7 +294,7 @@ String mergeRevisions(gitRevisions, tagName, description) {
    // Do the merge(s)!
    dir('webapp') {
       for (Integer i = 0; i < allRevisions.size(); i++) {
-         String branchSha1 = resolveCommittish("git@github.com:Khan/webapp",
+         String branchSha1 = resolveCommittish(repoUrl,
                                                allRevisions[i]);
          if (i == 0) {
             // First, checkout the base revision. Even if there aren't
