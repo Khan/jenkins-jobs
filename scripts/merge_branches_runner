@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if ! command -v groovy >/dev/null 2>&1; then
+  echo "groovy is required to run merge_branches_runner (Jenkins harness mode)." >&2
+  exit 2
+fi
+
+MERGE_BRANCHES_REPO_ROOT="$REPO_ROOT" \
+  exec groovy "$SCRIPT_DIR/merge_branches_runner_jenkins_harness.groovy" "$@"
