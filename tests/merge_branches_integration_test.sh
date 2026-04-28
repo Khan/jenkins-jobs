@@ -25,16 +25,16 @@ assert_contains() {
 
 create_remote_fixture() {
   local dir="$1"
-  git init --bare --initial-branch=master "$dir/origin.git" >/dev/null
-  git clone -q "$dir/origin.git" "$dir/seed" >/dev/null
+  git init --quiet --bare --initial-branch=master "$dir/origin.git" >/dev/null 2>&1
+  git clone -q "$dir/origin.git" "$dir/seed" >/dev/null 2>&1
   (
     cd "$dir/seed"
     git config user.name tester
     git config user.email tester@example.com
     echo "base" > app.txt
     git add app.txt
-    git commit -m "base" >/dev/null
-    git push origin HEAD:master >/dev/null
+    git commit -q -m "base" >/dev/null 2>&1
+    git push --quiet origin HEAD:master >/dev/null 2>&1
   )
 }
 
@@ -66,17 +66,17 @@ test_happy_path_merge() {
 
   (
     cd "$dir/seed"
-    git checkout -b feature >/dev/null
+    git checkout -q -b feature >/dev/null 2>&1
     echo "feature" > feature.txt
     git add feature.txt
-    git commit -m "feature change" >/dev/null
-    git push origin feature >/dev/null
+    git commit -q -m "feature change" >/dev/null 2>&1
+    git push --quiet origin feature >/dev/null 2>&1
 
-    git checkout master >/dev/null
+    git checkout -q master >/dev/null 2>&1
     echo "master" > master.txt
     git add master.txt
-    git commit -m "master change" >/dev/null
-    git push origin master >/dev/null
+    git commit -q -m "master change" >/dev/null 2>&1
+    git push --quiet origin master >/dev/null 2>&1
   )
 
   : > "$dir/api.ndjson"
@@ -86,7 +86,7 @@ test_happy_path_merge() {
   sha="$(tail -n 1 "$dir/out.txt" | tr -d '\n')"
   [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || fail "runner did not output a sha"
 
-  git clone -q "$dir/origin.git" "$dir/verify" >/dev/null
+  git clone -q "$dir/origin.git" "$dir/verify" >/dev/null 2>&1
   local parent_count
   parent_count="$(cd "$dir/verify" && git rev-list --parents -n 1 "$sha" | awk '{print NF-1}')"
   assert_eq "$parent_count" "2" "happy path should produce a merge commit"
@@ -129,17 +129,17 @@ test_merge_conflict_failure() {
 
   (
     cd "$dir/seed"
-    git checkout -b feature >/dev/null
+    git checkout -q -b feature >/dev/null 2>&1
     echo "feature-value" > conflict.txt
     git add conflict.txt
-    git commit -m "feature adds conflict file" >/dev/null
-    git push origin feature >/dev/null
+    git commit -q -m "feature adds conflict file" >/dev/null 2>&1
+    git push --quiet origin feature >/dev/null 2>&1
 
-    git checkout master >/dev/null
+    git checkout -q master >/dev/null 2>&1
     echo "master-value" > conflict.txt
     git add conflict.txt
-    git commit -m "master adds conflict file" >/dev/null
-    git push origin master >/dev/null
+    git commit -q -m "master adds conflict file" >/dev/null 2>&1
+    git push --quiet origin master >/dev/null 2>&1
   )
 
   : > "$dir/api.ndjson"
