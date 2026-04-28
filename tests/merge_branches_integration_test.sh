@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNNER="$ROOT/scripts/merge_branches_runner"
 
+TEMP_DIRS=()
+cleanup() { [[ ${#TEMP_DIRS[@]} -gt 0 ]] && rm -rf "${TEMP_DIRS[@]}"; }
+trap cleanup EXIT
+
 fail() {
   echo "FAIL: $*" >&2
   exit 1
@@ -49,6 +53,7 @@ run_runner() {
   (
     cd "$dir"
     KA_WEBAPP_REPO_URL="$dir/origin.git" \
+    MERGE_BRANCHES_WORKDIR="$dir" \
     GAE_VERSION_NAME="test-gae-version" \
     MERGE_BRANCHES_API_LOG="$log_file" \
     "$RUNNER" \
@@ -62,6 +67,7 @@ run_runner() {
 test_happy_path_merge() {
   local dir
   dir="$(mktemp -d /tmp/merge-branches-happy.XXXXXX)"
+  TEMP_DIRS+=("$dir")
   create_remote_fixture "$dir"
 
   (
@@ -105,6 +111,7 @@ test_happy_path_merge() {
 test_invalid_committish_failure() {
   local dir
   dir="$(mktemp -d /tmp/merge-branches-invalid.XXXXXX)"
+  TEMP_DIRS+=("$dir")
   create_remote_fixture "$dir"
 
   : > "$dir/api.ndjson"
@@ -125,6 +132,7 @@ test_invalid_committish_failure() {
 test_merge_conflict_failure() {
   local dir
   dir="$(mktemp -d /tmp/merge-branches-conflict.XXXXXX)"
+  TEMP_DIRS+=("$dir")
   create_remote_fixture "$dir"
 
   (

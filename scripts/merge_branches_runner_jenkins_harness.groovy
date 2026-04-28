@@ -15,7 +15,7 @@ Map<String, String> parseArgs(String[] args) {
 Map runProcess(List<String> cmd, File cwd, boolean captureOutput = true) {
     ProcessBuilder pb = new ProcessBuilder(cmd)
     pb.directory(cwd)
-    pb.redirectErrorStream(true)
+    pb.redirectErrorStream(true) // stderr merged into stdout so exceptions carry full output
     Process p = pb.start()
     String out = captureOutput ? p.inputStream.getText("UTF-8").trim() : ""
     int rc = p.waitFor()
@@ -63,6 +63,7 @@ Closure dirStep = { String path, Closure body ->
 Closure echoStep = { String msg -> println(msg) }
 Closure errorStep = { String msg -> throw new RuntimeException(msg) }
 
+// Populated after shell.parse() so the classes defined in harnessPrelude are available.
 Class failedBuildClass = null
 Class execResultClass = null
 
