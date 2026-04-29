@@ -28,7 +28,7 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 2. Identify direct `build(job: ...)` chains and map each to:
 - Reusable workflow call (`workflow_call`) or
 - Explicit operator dispatch boundary (`workflow_dispatch`).
-3. Produce and confirm final in-scope job list for this batch.
+3. Write the Phase 1 output to a single source-of-truth file: `migration-matrix.md` at repository root, including disposition for every job (`migrate`, `skip`, `migrate-later`) and a scope-lock sign-off note.
 
 ## Phase 2: Platform Scaffolding in `webapp`
 1. Create/standardize reusable templates in `../webapp/.github/workflows` for:
@@ -124,7 +124,7 @@ For every migrated workflow before merge:
 
 ## Deliverables
 - `plan.md` (this file).
-- Migration matrix document (job-by-job source of truth).
+- `migration-matrix.md` (job-by-job migration source of truth).
 - New/updated workflows in `../webapp/.github/workflows`.
 - Cutover log (Jenkins-disabled jobs mapped to workflow runs).
 
