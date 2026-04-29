@@ -3,6 +3,18 @@
 ## Scope and Goal
 Migrate Jenkins jobs defined in this repository (`jobs/*.groovy` + shared helpers in `vars/*.groovy`) to GitHub Actions workflows hosted in `../webapp`.
 
+**First pass scope — bridge phase only.** The initial implementation will be a "bridge" phase: Jenkins jobs become thin wrappers that dispatch GitHub Actions workflows and wait for results. Jenkins continues to own `notify()` during this phase, which substantially simplifies the GitHub workflows (no need to communicate with Buildmaster from Actions). Full ownership transfer to GitHub Actions is a subsequent phase.
+
+Jobs in scope for this first pass:
+- `merge-branches`: merges the deployer's branch with master and, potentially, the first deployer in the queue.
+- `webapp-test`: runs unit tests and linters.
+- `build-webapp`: builds and deploys new Cloud Run revisions.
+- `e2e-test`: runs E2E tests on pre-prod and prod (already ported to GitHub Actions).
+- `deploy-webapp`: performs traffic migrations, deploys Fastly and other infrastructure.
+- `emergency-rollback`: handles rollbacks of bad regressions (rarely used).
+- `delete-versions`: keeps revision count healthy so deployments don't become blocked.
+- `deploy-znd`: not strictly required for deployment but sometimes needed for pre-queue verification.
+
 Reference implementations already in use:
 - `../webapp/.github/workflows/*` (notably `webapp-test.yml`, `gqlgen-update.yml`, `kubejob.yml`, `validate-workflows.yml`)
 - `../frontend/.github/workflows/*` (notably reusable workflows, deploy queue workflows, scheduled E2E workflows)
@@ -24,10 +36,11 @@ Reference implementations already in use:
 
 3. Preserve input parameterization.
 - Jenkins params (string/boolean/choice) must be represented as workflow inputs with defaults and validation.
-- Manual approval prompts (`input(...)`) must be replaced with GitHub-native controls (environment approvals, explicit second dispatch, or flag-based continuation).
+- Manual approval prompts (`input(...)`) do **not** need to be ported. They exist to handle unusual situations that won't apply to the new GitHub-based system.
 
 4. Preserve notifications and incident signals.
-- Slack notifications currently handled via `notify`/`withSecrets` and `alertlib` should be migrated to consistent Actions-based notification steps.
+- In the bridge phase, Jenkins continues to own `notify()` — GitHub Actions workflows do not need to implement their own notification steps.
+- Slack notifications currently handled via `notify`/`withSecrets` and `alertlib` should be migrated to consistent Actions-based notification steps in the post-bridge phase.
 
 5. Preserve test/build coverage behavior.
 - Jenkins `webapp-test` and related test fanout behavior must remain at least equivalent in coverage and failure reporting.
@@ -46,6 +59,7 @@ Reference implementations already in use:
 ### Reliability and operability requirements
 1. Add explicit `concurrency` groups where Jenkins had singleton/lock semantics.
 - Jenkins uses `singleton` and explicit lock behavior in places (e.g., traffic updates). Equivalent GH concurrency/serialization is required.
+- `delete-versions` must share a concurrency group with the traffic migration step (extracted from `deploy-webapp`) — it is not safe to delete versions while traffic is being migrated.
 
 2. Set timeouts and retries explicitly.
 - Port Jenkins `withTimeout` behavior to `timeout-minutes`.
@@ -120,8 +134,8 @@ Reference implementations already in use:
 - Use `cancel-in-progress` selectively (typically true for PR checks, false for deploy workflows).
 
 ### Notification model
-- Prefer direct `slackapi/slack-github-action` and/or existing internal scripts already used in `webapp`/`frontend` workflows.
-- Standardize failure/success reporting at workflow end with `if: always()` report jobs.
+- **Bridge phase**: Jenkins retains ownership of `notify()`. GitHub Actions workflows do not need notification steps — Jenkins wraps the dispatch and handles all alerting.
+- **Post-bridge**: Prefer direct `slackapi/slack-github-action` and/or existing internal scripts already used in `webapp`/`frontend` workflows. Standardize failure/success reporting at workflow end with `if: always()` report jobs.
 
 ### Shared implementation assets
 - Reuse patterns from:
@@ -134,21 +148,21 @@ Reference implementations already in use:
 
 ## Suggested Migration Grouping
 
+This grouping covers only the jobs in scope for the first pass (bridge phase). Other jobs are deferred.
+
 ### Group A: PR/CI checks
-- `webapp-test`, `go-codecoverage`, related fast feedback jobs.
-- Priority: highest (already partly migrated via `webapp-test.yml`).
+- `webapp-test` (already partly migrated via `webapp-test.yml`).
+- Priority: highest.
 
-### Group B: Scheduled maintenance and content automation
-- `webapp-maintenance`, `update-ownership-data`, `update-devserver-static-images`, `update-i18n-lite-videos`, `build-current-sqlite`, `find-failing-taskqueue-tasks`.
-- Priority: high; lower blast radius than deploy orchestration.
-
-### Group C: Deploy orchestration and rollback
-- `determine-webapp-services`, `build-webapp`, `deploy-webapp`, `deploy-znd`, `deploy-fastly`, `emergency-rollback`, `merge-branches`, `delete-version`.
+### Group B: Deploy orchestration and rollback
+- `merge-branches`, `build-webapp`, `deploy-webapp`, `emergency-rollback`, `delete-versions`, `deploy-znd`.
 - Priority: highest risk; migrate after platform primitives are stable.
+- Note: `deploy-webapp` must be structured as (at least) three separate jobs within a single workflow: `pre-set-default`, `set-default`, and `post-set-default`, executed in series.
+- Note: `delete-versions` and the traffic migration step of `deploy-webapp` must share a concurrency group.
 
-### Group D: Specialized/legacy jobs
-- `demo-district-update-pass`, `qa-metrics`, `test-buildmaster`, etc.
-- Priority: evaluate retain/replace/retire first.
+### Group C: E2E tests
+- `e2e-test` (already ported to GitHub Actions — verify integration with bridge pattern).
+- Priority: medium.
 
 ---
 
@@ -166,15 +180,7 @@ Option B: Multiple reusable workflows (`determine`, `build`, `deploy`, `verify`)
 Decision: We'll go with Option B, with the orchestrator to be built separately from this project.
 
 ### 2) How to replace Jenkins `input(...)` approvals?
-Option A: GitHub Environments with required reviewers.
-- Pros: Native audited approvals; clean UX.
-- Cons: Coarser-grained than arbitrary script prompts.
-
-Option B: Split workflow into two dispatchable steps (build then deploy) with explicit artifact/version input.
-- Pros: Very explicit operator control; easier rollback and replay.
-- Cons: More operational steps; risk of manual mismatch.
-
-Decision: Option B, managed by the external orchestrator (see question 1)
+Decision: No replacement needed. These prompts exist to handle unusual situations that won't apply in the new GitHub-based system. They will not be ported.
 
 ### 3) How to model Jenkins worker labels (special machines)?
 Option A: Standardize on github-hosted runners where possible.
