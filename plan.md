@@ -3,7 +3,7 @@
 ## Objective
 Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `../webapp/.github/workflows` while preserving behavior, security boundaries, and operational controls, using the decisions captured in `research.md`.
 
-## Ground Rules (from research decisions)
+## Migration Standards (apply to every migrated workflow)
 - Use modular reusable workflows (`workflow_call`) for deploy components; external orchestrator will call these.
 - Use `workflow_dispatch` with explicit inputs for operator-driven flows.
 - Use `ephemeral-runner` for all migrated jobs initially; annotate original Jenkins label in comments.
@@ -13,10 +13,10 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Keep multi-checkout behavior where currently required.
 - Preserve cron cadence exactly (translated to UTC cron).
 - Cut over each job immediately after merge (no dual-run default).
-- Skip migration of `make-allcheck.groovy`.
+- Skip migration of `demo-district-update-pass.groovy` and `make-allcheck.groovy`.
 - Migrate `qa-metrics.groovy`, with a TODO note to move ownership to `qa-tools` repo later.
 
-## Phase 1: Inventory and Mapping
+## Phase 1: Inventory and Scope Lock
 1. Build a migration matrix for every `jobs/*.groovy` file:
 - Job name and source file.
 - Trigger type (manual/schedule/PR/push/chained).
@@ -28,37 +28,24 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 2. Identify direct `build(job: ...)` chains and map each to:
 - Reusable workflow call (`workflow_call`) or
 - Explicit operator dispatch boundary (`workflow_dispatch`).
-3. Produce a final scope list for this migration batch and confirm skipped jobs are excluded.
+3. Produce and confirm final in-scope job list for this batch.
 
-## Phase 2: Workflow Scaffolding Standards
+## Phase 2: Platform Scaffolding in `webapp`
 1. Create/standardize reusable templates in `../webapp/.github/workflows` for:
 - CI/test reusable jobs.
 - Scheduled automation jobs.
 - Deploy component jobs (determine/build/deploy/verify/rollback primitives).
-2. Define required baseline blocks for all workflows:
+2. Define baseline workflow skeleton elements:
 - `permissions` least privilege.
 - `timeout-minutes`.
 - `concurrency` naming convention.
 - Runner selection (`runs-on: [ephemeral-runner]`).
 - Shared setup action usage (`../webapp/.github/actions/setup/action.yml`).
-3. Define standard notification/report pattern:
+3. Define standard report/notification skeleton:
 - Terminal report job with `if: always()`.
-- Slack success/failure notifications with consistent payload fields.
+- Slack success/failure notification pattern.
 
-## Phase 3: Security and Secret Migration
-1. Replace Jenkins secret-fetch shell patterns with GitHub-native auth:
-- OIDC + WIF via `google-github-actions/auth` for GCP access.
-- Repository/environment secrets only when non-cloud credentials are unavoidable.
-2. Set workflow/job `permissions` explicitly per workflow class:
-- Add `id-token: write` only where required.
-- Preserve `pull_request` safety boundary (no `pull_request_target` for untrusted code).
-3. Port network restrictions:
-- Reuse secure-network allowlist pattern from existing workflows.
-- Document any incremental domain exceptions required by migrated jobs.
-
-## Phase 4: Implement by Migration Group
-
-### Group A: PR/CI checks (highest priority)
+## Phase 3: Migrate Group A (PR/CI)
 1. Compare Jenkins `webapp-test`/coverage behavior with existing `webapp-test.yml`.
 2. Fill parity gaps:
 - Shard/fanout behavior.
@@ -66,8 +53,9 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Merge queue triggers (`merge_group`) where applicable.
 3. Migrate remaining CI check jobs to reusable workflows and wire entry workflows.
 4. Validate branch protection required checks align with new workflow names.
+5. Cut over Group A jobs by disabling Jenkins equivalents after merge.
 
-### Group B: Scheduled maintenance/content automation
+## Phase 4: Migrate Group B (Scheduled Automation)
 1. Migrate jobs one by one with exact UTC cron parity:
 - `webapp-maintenance`
 - `update-ownership-data`
@@ -77,9 +65,9 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - `find-failing-taskqueue-tasks`
 2. For writeback jobs, standardize on `KHAN_ACTIONS_BOT_TOKEN`.
 3. Preserve existing repo clone dependencies for now (with TODO comments for future reduction).
-4. Add per-workflow runbook notes in YAML comments for operational ownership.
+4. Cut over each job immediately after successful merge.
 
-### Group C: Deploy and rollback primitives (highest risk)
+## Phase 5: Migrate Group C (Deploy/Rollback Primitives)
 1. Implement reusable deploy component workflows owned by `webapp`:
 - Determine target services/versions.
 - Build artifact/image.
@@ -92,38 +80,35 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 3. Replace Jenkins approvals with operator-dispatch boundaries:
 - Build and deploy steps separated by explicit dispatch inputs.
 4. Retain Buildmaster signaling with TODO comments for future replacement.
-5. Keep manual guardrails for high-risk operations (`fastly`, rollback, traffic/version operations).
+5. Cut over deploy-related Jenkins jobs after parity checks and successful staged runs.
 
-### Group D: Specialized/legacy
-1. Skip `make-allcheck.groovy`.
-2. Migrate `qa-metrics.groovy` with minimal behavior change.
-3. Add ownership/TODO comment indicating target future migration to `qa-tools` repo.
-4. Review remaining low-frequency jobs and mark explicit disposition in migration matrix.
+## Phase 6: Migrate Group D and Closeout
+1. Skip `demo-district-update-pass.groovy` and `make-allcheck.groovy`.
+2. Migrate `qa-metrics.groovy` with minimal behavior change and TODO ownership note.
+3. Review remaining low-frequency jobs and mark explicit final disposition in migration matrix.
+4. Disable all migrated Jenkins jobs and verify no orphaned required jobs remain.
 
-## Phase 5: Validation and Cutover
-1. For each migrated workflow, run validation checklist before merge:
-- Trigger parity (manual/schedule/PR/push/merge_group).
-- Input parity (types/defaults/required/validation behavior).
-- Side-effect parity (deploy/upload/push/status updates).
+## Phase 7: Validation, Documentation, and Handoff
+1. Run parity checklist for every migrated job:
+- Trigger parity.
+- Input parity.
+- Side-effect parity.
 - Timeout/retry/concurrency parity.
 - Notification parity.
-2. Execute dry-runs or non-prod runs where possible, then merge.
-3. Cut over immediately per job after merge:
-- Disable Jenkins job.
-- Record cutover timestamp and workflow URL in tracking doc.
-4. Monitor first successful/failed run and resolve parity issues before next batch.
-
-## Phase 6: Documentation and Operational Handoff
-1. Add/update runbooks in `../webapp` for:
-- Manual dispatch procedures.
-- Rollback instructions.
-- Failure triage and Slack alert expectations.
-2. Add CODEOWNERS/owner metadata for each migrated workflow.
-3. Create a migration completion checklist by job family.
-4. Publish remaining technical-debt backlog:
+2. Publish runbooks in `../webapp` for manual dispatch, rollback, and failure triage.
+3. Assign ownership/oncall metadata for migrated workflows.
+4. Publish follow-up backlog:
 - Buildmaster API replacement.
 - Cross-repo dependency reduction.
-- Runner specialization (if needed beyond `ephemeral-runner`).
+- Runner specialization if `ephemeral-runner` is insufficient.
+
+## Security/Auth Gate (checked in each migration PR)
+For every migrated workflow before merge:
+1. Remove Jenkins-style ad hoc secret-fetch shell patterns.
+2. Add OIDC + WIF via `google-github-actions/auth` where GCP access is required.
+3. Use GitHub Secrets/Environments only for non-GCP credentials that cannot use WIF.
+4. Keep `pull_request` security boundaries (no `pull_request_target` for untrusted code).
+5. Set explicit least-privilege `permissions` and only add `id-token: write` where needed.
 
 ## Deliverables
 - `plan.md` (this file).
