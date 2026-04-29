@@ -13,7 +13,7 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Keep multi-checkout behavior where currently required.
 - Preserve cron cadence exactly (translated to UTC cron).
 - Cut over each job immediately after merge (no dual-run default).
-- Skip migration of `demo-district-update-pass.groovy` and `make-allcheck.groovy`.
+- Skip migration of `make-allcheck.groovy`.
 - Migrate `qa-metrics.groovy`, with a TODO note to move ownership to `qa-tools` repo later.
 
 ## Phase 1: Inventory and Scope Lock
@@ -83,10 +83,11 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 5. Cut over deploy-related Jenkins jobs after parity checks and successful staged runs.
 
 ## Phase 6: Migrate Group D and Closeout
-1. Skip `demo-district-update-pass.groovy` and `make-allcheck.groovy`.
-2. Migrate `qa-metrics.groovy` with minimal behavior change and TODO ownership note.
-3. Review remaining low-frequency jobs and mark explicit final disposition in migration matrix.
-4. Disable all migrated Jenkins jobs and verify no orphaned required jobs remain.
+1. Migrate `demo-district-update-pass.groovy` with current behavior parity, then document follow-up cleanup opportunities separately.
+2. Skip `make-allcheck.groovy`.
+3. Migrate `qa-metrics.groovy` with minimal behavior change and TODO ownership note.
+4. Review remaining low-frequency jobs and mark explicit final disposition in migration matrix.
+5. Disable all migrated Jenkins jobs and verify no orphaned required jobs remain.
 
 ## Phase 7: Validation, Documentation, and Handoff
 1. Run parity checklist for every migrated job:
