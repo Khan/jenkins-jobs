@@ -12,7 +12,7 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Use direct Slack notification steps (existing webapp/frontend patterns), not alertlib.
 - Keep multi-checkout behavior where currently required.
 - Preserve cron cadence exactly (translated to UTC cron).
-- Cut over each job immediately after merge (no dual-run default).
+- Use a 3-stage cutover by default: `jenkins` -> `bridge` (Jenkins dispatches Actions) -> `github` (GitHub-owned trigger).
 - Skip migration of `make-allcheck.groovy`.
 - Migrate `qa-metrics.groovy`, with a TODO note to move ownership to `qa-tools` repo later.
 
@@ -53,7 +53,7 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Merge queue triggers (`merge_group`) where applicable.
 3. Migrate remaining CI check jobs to reusable workflows and wire entry workflows.
 4. Validate branch protection required checks align with new workflow names.
-5. Cut over Group A jobs by disabling Jenkins equivalents after merge.
+5. Move Group A jobs to `bridge` mode first, then `github` mode after stability checks.
 
 ## Phase 4: Migrate Group B (Scheduled Automation)
 1. Migrate jobs one by one with exact UTC cron parity:
@@ -65,7 +65,7 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - `find-failing-taskqueue-tasks`
 2. For writeback jobs, standardize on `KHAN_ACTIONS_BOT_TOKEN`.
 3. Preserve existing repo clone dependencies for now (with TODO comments for future reduction).
-4. Cut over each job immediately after successful merge.
+4. Move each job through `bridge` mode before disabling Jenkins ownership.
 
 ## Phase 5: Migrate Group C (Deploy/Rollback Primitives)
 1. Implement reusable deploy component workflows owned by `webapp`:
@@ -80,14 +80,14 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 3. Replace Jenkins approvals with operator-dispatch boundaries:
 - Build and deploy steps separated by explicit dispatch inputs.
 4. Retain Buildmaster signaling with TODO comments for future replacement.
-5. Cut over deploy-related Jenkins jobs after parity checks and successful staged runs.
+5. Move deploy-related jobs through `bridge` mode with explicit rollback path before `github` mode.
 
 ## Phase 6: Migrate Group D and Closeout
 1. Migrate `demo-district-update-pass.groovy` with current behavior parity, then document follow-up cleanup opportunities separately.
 2. Skip `make-allcheck.groovy`.
 3. Migrate `qa-metrics.groovy` with minimal behavior change and TODO ownership note.
 4. Review remaining low-frequency jobs and mark explicit final disposition in migration matrix.
-5. Disable all migrated Jenkins jobs and verify no orphaned required jobs remain.
+5. Disable Jenkins jobs only after each has completed `bridge` -> `github` transition successfully.
 
 ## Phase 7: Validation, Documentation, and Handoff
 1. Run parity checklist for every migrated job:
@@ -102,6 +102,17 @@ Migrate Jenkins Groovy jobs in this repository to GitHub Actions workflows in `.
 - Buildmaster API replacement.
 - Cross-repo dependency reduction.
 - Runner specialization if `ephemeral-runner` is insufficient.
+
+## Cutover Modes (default per job)
+1. `jenkins`: Jenkins executes the original implementation.
+2. `bridge`: Jenkins is trigger/UI only and dispatches the GitHub workflow, then reports run status.
+3. `github`: GitHub owns trigger and execution; Jenkins job is disabled.
+
+Bridge-mode guardrails:
+- Add a per-job mode switch (for example `MIGRATION_MODE`) to allow fast rollback from `bridge` to `jenkins`.
+- Ensure only one scheduler is active for scheduled jobs while in transition.
+- Use deterministic `concurrency.group`/idempotency controls to avoid duplicate side effects.
+- For deploy surfaces, require environment protections/approvals before entering `github` mode.
 
 ## Security/Auth Gate (checked in each migration PR)
 For every migrated workflow before merge:

@@ -58,7 +58,7 @@ Reference implementations already in use:
 - Keep uploaded artifacts and structured summaries for debugging (pattern present in existing workflows).
 
 ### Migration execution requirements
-1. Incremental migration with dual-run validation where practical.
+1. Incremental migration using a staged cutover per job: `jenkins` -> `bridge` (Jenkins dispatches Actions) -> `github` (GitHub-owned trigger/execution).
 2. Feature parity checklist per job family before Jenkins disablement.
 3. Ownership and oncall routing defined per migrated workflow.
 
@@ -259,7 +259,8 @@ Decision: A for now, with comments indicating future work
 1. Build a per-job migration matrix (job -> trigger -> inputs -> secrets -> external systems -> target workflow path).
 2. Decide orchestration strategy for Group C (single orchestrator vs modular reusable workflows).
 3. Define lock/concurrency policy for deploy-critical operations.
-4. Pilot one scheduled automation migration (`update-ownership-data` or `gqlgen`-like job) and one deploy-adjacent migration before bulk porting.
+4. Define bridge-mode implementation pattern (dispatch, status reporting, rollback switch, scheduler ownership).
+5. Pilot one scheduled automation migration (`update-ownership-data` or `gqlgen`-like job) and one deploy-adjacent migration before bulk porting.
 
 ## Additional Open Questions (Pending Decisions)
 
@@ -319,12 +320,12 @@ Option B: Allow schedule adjustments during migration.
 Decision: A, with comments indicating alternatives that might be preferable
 
 ### 15) Cutover strategy per migrated job
-Option A: Dual-run window (Jenkins + Actions) before disabling Jenkins.
-- Pros: Lower cutover risk and easier parity verification.
-- Cons: Temporary duplicate load/noise and more coordination.
+Option A: Staged bridge migration (`jenkins` -> `bridge` -> `github`) with per-job rollback switch.
+- Pros: Lower risk, preserves existing operator entrypoint during transition, and provides clean fallback.
+- Cons: Adds temporary wrapper logic and requires explicit scheduler/duplication controls.
 
 Option B: Immediate switch per job once workflow is merged.
 - Pros: Faster migration and less temporary operational complexity.
-- Cons: Higher risk of unnoticed regressions at cutover.
+- Cons: Higher risk of unnoticed regressions at cutover and weaker rollback ergonomics.
 
-Decision: B
+Decision: A
