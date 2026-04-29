@@ -7,6 +7,10 @@ Migrate the jobs in this repo from Jenkins Groovy pipelines (`jobs/*.groovy`, sh
 
 This document captures requirements, current/target architecture, and open questions with options and pros/cons.
 
+## Additional Context Reviewed
+- `../frontend/.github/workflows/*` (existing GitHub Actions operating model).
+- `../actions/actions/*` and `../actions/README.md` (shared action patterns and versioning model).
+
 ## Current System Architecture (As-Is)
 
 ### Execution Model
@@ -109,6 +113,73 @@ Traits: primarily scheduled or wrapper-style; good early migration candidates.
 - Buildmaster adapter (if still required during transition).
 - Cloud deploy adapters (GAE/Cloud Run/Fastly/etc).
 
+## Observed GitHub Actions Patterns (From `../frontend`)
+
+### Runner Strategy Already in Use
+- Workflows commonly use:
+  - `runs-on: ${{ vars.USE_GITHUB_RUNNERS == 'true' && 'ubuntu-latest' || 'ephemeral-runner' }}`
+- This provides a runtime switch between GitHub-hosted and self-hosted ephemeral runners via org/repo vars, without editing workflows.
+
+Implication for migration:
+- Prefer this same runner-expression pattern for migrated jobs instead of hardcoding runner labels.
+
+### Reusable Workflow Composition
+- Strong use of `workflow_call` + wrapper workflows:
+  - Example structure: required-check workflow -> reusable implementation workflow.
+- `workflow_dispatch` is used alongside `workflow_call` for manual execution.
+
+Implication for migration:
+- Mirror this for Jenkins job equivalents:
+  - `*-internal.yml` reusable workflow for core logic.
+  - thin trigger workflows for `schedule`, `merge_group`, `pull_request`, and manual ops entry points.
+
+### Concurrency and Required-Check Pattern
+- Repository uses workflow/job-level concurrency groups with `cancel-in-progress` where appropriate.
+- Uses a final “required check” job that always runs and turns upstream outcomes into deterministic pass/fail.
+
+Implication for migration:
+- For Jenkins parity, include explicit final status jobs for deploy/test workflows.
+- Use non-canceling strategies where cancellation is harmful (example in E2E/Cypress sharding).
+
+### Identity, Permissions, and Secrets
+- `permissions` are explicitly scoped; `id-token: write` is set when cloud auth is needed.
+- OIDC + GCP is already standardized (`google-github-actions/auth`, `get-secretmanager-secrets`).
+- Secrets are passed through `workflow_call.secrets` explicitly.
+
+Implication for migration:
+- Align with this model as default, replacing Jenkins-style secret materialization files where possible.
+- Keep permissions minimal per job (contents/pull-requests/packages/id-token).
+
+### Deploy/E2E Operational Patterns
+- Existing deploy workflows already implement:
+  - setup -> execute -> finalize/report phases.
+  - PR comment updates for start/skip/failure/summaries.
+  - Slack failure notifications.
+  - sharded E2E via matrix and artifact merge.
+
+Implication for migration:
+- Reuse this phase model for migrated deploy-related Jenkins jobs to reduce operational cognitive load.
+- For `webapp-test`/`e2e-test` migration, copy matrix + artifact aggregation conventions where applicable.
+
+## Observed Shared Action Patterns (From `../actions`)
+
+### Shared Actions Are a Supported Platform
+- `Khan/actions` is a monorepo of reusable actions (composite + script-backed).
+- In consuming workflows, actions are typically pinned by commit SHA or published action tag variants.
+- Existing workflows already use shared actions like:
+  - `get-changed-files`
+  - `filter-files`
+
+Implication for migration:
+- Do not re-implement generic workflow logic in Go when a shared action already exists.
+- Favor composing migrated workflows with existing shared actions for changed-file detection, filtering, and argument plumbing.
+
+### Action Publication/Versioning Model
+- Actions are published from subdirs into isolated tags; release is changeset-driven.
+
+Implication for migration:
+- If new reusable workflow primitives are needed, prefer adding them to `../actions` (or local composite actions first, then upstream), not duplicating across many migrated workflows.
+
 ## Migration Requirements
 
 ### Functional Parity Requirements
@@ -151,12 +222,21 @@ Traits: primarily scheduled or wrapper-style; good early migration candidates.
 - `build(job: ...)` -> `workflow_call`, `repository_dispatch`, or `workflow_dispatch` API from Go/action step.
 - `notify` wrapper -> Go notifier package + standardized job summary output.
 - `withSecrets` -> OIDC auth + runtime secret retrieval in Go.
+- worker label routing -> existing `USE_GITHUB_RUNNERS` + `ephemeral-runner` switch pattern (or runner groups when strictly required).
 
 ## Recommended Migration Strategy
 
 ### Phase 0: Foundation
 - Build shared Go libraries first: config, logging, command exec, secrets, notifications, git helpers.
 - Establish standard reusable workflow templates (`workflow_call`) for auth, checkout, and Go runtime.
+- Start from conventions already in `frontend`:
+  - setup/execute/report job phases
+  - explicit permission blocks
+  - pinned third-party actions
+  - standard runner switch expression
+- Decide when to use `Khan/actions` directly vs. new Go code:
+  - workflow concerns (file filters, dispatch helpers): shared action
+  - business/domain logic (deploy orchestration decisions): Go CLI
 
 ### Phase 1: Low-risk jobs first
 - Migrate Tier 3 scheduled jobs and wrappers.
@@ -193,6 +273,11 @@ Option A: One-for-one workflow mapping.
 Option B: Fewer domain workflows with mode flags.
 - Pros: less duplication; centralized lifecycle updates.
 - Cons: larger blast radius per change; more complex input validation.
+
+Current-context note:
+- `frontend` already uses reusable workflow composition successfully; a hybrid is likely best:
+  - one public entry workflow per major job family
+  - one internal reusable workflow for the heavy implementation path.
 
 ### 3) How to implement manual approval gates?
 Option A: GitHub Environments with required reviewers.
@@ -266,6 +351,18 @@ Option B: Fully self-hosted runner groups mapped from current labels.
 - Pros: maximum control and closer behavioral parity.
 - Cons: higher operational overhead and capacity management.
 
+Current-context note:
+- Existing `frontend` workflows indicate `ephemeral-runner` is already the default self-hosted path with toggle to GitHub-hosted. Reusing this pattern should reduce migration friction.
+
+### 11) Where should reusable migration utilities live (Go vs shared actions)?
+Option A: Put workflow-level utilities in `Khan/actions`, domain logic in Go binaries.
+- Pros: maximizes reuse and consistency with existing workflows.
+- Cons: requires cross-repo coordination for action releases.
+
+Option B: Keep everything local to each migrated repo/workflow.
+- Pros: faster iteration early on.
+- Cons: duplicated logic and weaker long-term maintainability.
+
 ## Acceptance Criteria for Cutover
 - For each migrated job, at least N successful runs (define per job criticality) with expected side effects.
 - Alerting parity validated (channel, thread, severity, links).
@@ -274,8 +371,8 @@ Option B: Fully self-hosted runner groups mapped from current labels.
 - Rollback procedure documented and tested.
 
 ## Immediate Next Steps
-1. Decide ownership/location of Go runtime code (Open Question #1).
-2. Define canonical workflow template + Go CLI contract for parameters.
+1. Decide ownership/location of Go runtime code (Open Question #1) and utility split with `Khan/actions` (Open Question #11).
+2. Define canonical reusable workflow templates based on `frontend` patterns (`workflow_call`, setup/execute/report, required-check job, runner toggle).
 3. Pick 3 Tier 3 jobs for pilot migration and dual-run comparison.
-4. Implement auth baseline (OIDC to GCP) and secret retrieval pattern.
-5. Produce per-job parity checklist (inputs, side effects, alerts, rollback path).
+4. Implement auth baseline matching current standard (`id-token: write` + OIDC + Secret Manager retrieval).
+5. Produce per-job parity checklist (inputs, side effects, alerts, rollback path), including mapping to existing shared actions where possible.
