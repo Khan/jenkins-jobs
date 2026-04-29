@@ -229,7 +229,7 @@ Option B: Triage first into keep/replace/retire.
 - Pros: Better ROI and lower maintenance burden.
 - Cons: Requires stakeholder decisions up front.
 
-Decision: Feel free to skip this one, it's no longer needed. Are there any others?
+Decision: A
 
 ### 8) Notification strategy: alertlib parity vs direct Slack steps
 Option A: Keep alertlib usage in scripts.
@@ -260,3 +260,71 @@ Decision: A for now, with comments indicating future work
 2. Decide orchestration strategy for Group C (single orchestrator vs modular reusable workflows).
 3. Define lock/concurrency policy for deploy-critical operations.
 4. Pilot one scheduled automation migration (`update-ownership-data` or `gqlgen`-like job) and one deploy-adjacent migration before bulk porting.
+
+## Additional Open Questions (Pending Decisions)
+
+### 10) Should `make-allcheck.groovy` be skipped?
+Option A: Skip migration.
+- Pros: Avoids migrating a Jenkins-only orchestrator if equivalent orchestration already exists or will exist in the new system.
+- Cons: Could remove a familiar manual entrypoint unless replaced.
+
+Option B: Migrate as a lightweight GitHub Actions orchestrator wrapper.
+- Pros: Preserves operator workflow for running combined test suites from one trigger.
+- Cons: May duplicate orchestration responsibility with the external orchestrator.
+
+Decision: A
+
+### 11) Should `qa-metrics.groovy` be skipped?
+Option A: Skip migration.
+- Pros: Reduces scope for non-deploy-critical jobs with external repo dependencies.
+- Cons: Loss of automated QA metrics reporting unless replaced elsewhere.
+
+Option B: Migrate with minimal changes.
+- Pros: Preserves current behavior and reporting continuity.
+- Cons: Keeps cross-repo clone/runtime complexity and maintenance burden.
+
+Decision: B, with a note to move the workflow to the qa-tools repo
+
+### 12) Ownership boundary for deploy workflows vs external orchestrator
+Option A: `webapp` owns reusable deploy workflows; orchestrator repo only dispatches/calls them.
+- Pros: Deploy implementation stays close to app code and infra scripts.
+- Cons: Requires coordination across repos for orchestration changes.
+
+Option B: External orchestrator repo owns most deploy logic; `webapp` keeps only thin entrypoints.
+- Pros: Centralized orchestration logic and policy.
+- Cons: Logic drifts away from code it deploys; higher cross-repo coupling.
+
+Decision: A
+
+### 13) Canonical bot/token strategy for writeback workflows in `webapp`
+Option A: Standardize on `KHAN_ACTIONS_BOT_TOKEN` (same pattern as `frontend`).
+- Pros: Consistent implementation and easier reuse of existing patterns.
+- Cons: Requires confirming scopes and secret availability for all writeback cases.
+
+Option B: Use multiple purpose-specific tokens/secrets per workflow class.
+- Pros: Potentially tighter least-privilege partitioning.
+- Cons: More secret management overhead and configuration complexity.
+
+Decision: A
+
+### 14) Cron fidelity during migration
+Option A: Preserve exact Jenkins cadence (translated to UTC cron in Actions).
+- Pros: Behavioral parity and simpler stakeholder expectations.
+- Cons: May keep suboptimal schedule choices.
+
+Option B: Allow schedule adjustments during migration.
+- Pros: Opportunity to reduce contention/cost and align with new runner behavior.
+- Cons: Harder parity validation and possible expectation drift.
+
+Decision: A, with comments indicating alternatives that might be preferable
+
+### 15) Cutover strategy per migrated job
+Option A: Dual-run window (Jenkins + Actions) before disabling Jenkins.
+- Pros: Lower cutover risk and easier parity verification.
+- Cons: Temporary duplicate load/noise and more coordination.
+
+Option B: Immediate switch per job once workflow is merged.
+- Pros: Faster migration and less temporary operational complexity.
+- Cons: Higher risk of unnoticed regressions at cutover.
+
+Decision: B
