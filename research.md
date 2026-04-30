@@ -39,8 +39,8 @@ Reference implementations already in use:
 - Manual approval prompts (`input(...)`) do **not** need to be ported. They exist to handle unusual situations that won't apply to the new GitHub-based system.
 
 4. Preserve notifications and incident signals.
-- In the bridge phase, Jenkins continues to own `notify()` — GitHub Actions workflows do not need to implement their own notification steps.
-- Slack notifications currently handled via `notify`/`withSecrets` and `alertlib` should be migrated to consistent Actions-based notification steps in the post-bridge phase.
+- In the bridge phase, Jenkins continues to own `notify()` — GitHub Actions workflows do not need to re-implement those notification steps.
+- However, some jobs send Slack messages independently of `notify()`. These must be ported to GitHub Actions (using `slackapi/slack-github-action`) even in the bridge phase.
 
 5. Preserve test/build coverage behavior.
 - Jenkins `webapp-test` and related test fanout behavior must remain at least equivalent in coverage and failure reporting.
@@ -134,8 +134,8 @@ Reference implementations already in use:
 - Use `cancel-in-progress` selectively (typically true for PR checks, false for deploy workflows).
 
 ### Notification model
-- **Bridge phase**: Jenkins retains ownership of `notify()`. GitHub Actions workflows do not need notification steps — Jenkins wraps the dispatch and handles all alerting.
-- **Post-bridge**: Prefer direct `slackapi/slack-github-action` and/or existing internal scripts already used in `webapp`/`frontend` workflows. Standardize failure/success reporting at workflow end with `if: always()` report jobs.
+- **Bridge phase**: Jenkins retains ownership of `notify()`. GitHub Actions workflows do not need to re-implement those notification steps. However, any Slack messages sent outside of `notify()` directly from a job must be ported to `slackapi/slack-github-action` in the corresponding GitHub Actions workflow.
+- **Post-bridge**: Migrate remaining `notify()`-based alerts to `slackapi/slack-github-action` and/or existing internal scripts already used in `webapp`/`frontend` workflows. Standardize failure/success reporting at workflow end with `if: always()` report jobs.
 
 ### Shared implementation assets
 - Reuse patterns from:
