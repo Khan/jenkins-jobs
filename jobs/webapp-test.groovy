@@ -16,6 +16,7 @@ import org.khanacademy.Setup;
 //import vars.buildmaster
 //import vars.clean
 //import vars.exec
+//import vars.ghActions
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
@@ -119,6 +120,11 @@ the currently deploying branch, otherwise 6. Legal values are 1
 through 11. See https://jenkins.khanacademy.org/advanced-build-queue/
 for more information.""",
    "6"
+
+).addBooleanParam(
+   "USE_GITHUB_BRIDGE",
+   "If true, dispatch tests to GitHub Actions instead of running them here.",
+   false
 
 ).apply()
 
@@ -523,6 +529,11 @@ def analyzeResults() {
 }
 
 
+def _isSha(String rev) {
+   return rev ==~ /[0-9a-f]{40}/
+}
+
+
 onWorker('ka-test-ec2', '5h') {     // timeout
    // TODO(ebrown): Remove: onWorker logs, so not needed here too
    notify.log("Starting ${env.JOB_NAME} " +
@@ -541,23 +552,42 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                          what: 'webapp-test']]) {
       initializeGlobals();
 
-      try {
-         stage("Running tests") {
-            runTests();
-         }
-      } finally {
-         // If we determined there were no tests to run, we should skip
-         // analysis since it fails if there are no test results.
-         if (skipTestAnalysis) {
-            echo("Skipping Analysis - No tests run")
-            return
-         }
+      if (params.USE_GITHUB_BRIDGE && !_isSha(params.GIT_REVISION)) {
+         def runId = ghActions.dispatchGithubActionsWorkflow(
+            repo: "Khan/webapp",
+            workflow: "webapp-test.yml",
+            ref: params.GIT_REVISION,
+            headSha: GIT_SHA1,
+            inputs: [
+               git_revision:          params.GIT_REVISION,
+               base_revision:         params.BASE_REVISION,
+               slack_channel:         params.SLACK_CHANNEL,
+               slack_thread:          params.SLACK_THREAD,
+               deployer_username:     params.DEPLOYER_USERNAME,
+               revision_description:  REVISION_DESCRIPTION,
+               buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
+            ]
+         )
+         ghActions.waitForGithubActionsWorkflow(runId)
+      } else {
+         try {
+            stage("Running tests") {
+               runTests();
+            }
+         } finally {
+            // If we determined there were no tests to run, we should skip
+            // analysis since it fails if there are no test results.
+            if (skipTestAnalysis) {
+               echo("Skipping Analysis - No tests run")
+               return
+            }
 
-         // We want to analyze results even if -- especially if --
-         // there were failures; hence we're in the `finally`.
-         stage("Analyzing results") {
-            withVirtualenv.python3() {
-               analyzeResults();
+            // We want to analyze results even if -- especially if --
+            // there were failures; hence we're in the `finally`.
+            stage("Analyzing results") {
+               withVirtualenv.python3() {
+                  analyzeResults();
+               }
             }
          }
       }
