@@ -11,6 +11,16 @@ import groovy.transform.Field
 @Field _activeSlackAndStackdriverSecretsBlocks = 0;
 @Field _activeGithubSecretsBlocks = 0;
 
+// Fetches the GITHUB_TOKEN secret from GSM and exposes it as the
+// GITHUB_TOKEN env var for the duration of the closure.  Used by
+// runGithubAction to authenticate GitHub API calls and the gh CLI.
+def githubActionsDispatch(Closure body) {
+   def token = sh(script: "gcloud --project khan-academy secrets versions access latest --secret GITHUB_TOKEN", returnStdout: true).trim();
+   withEnv(["GITHUB_TOKEN=${token}"]) {
+      body();
+   }
+}
+
 // This must be called from workspace-root.  While this is in scope,
 // *only* the slack secret is available, even if there's a higher-up
 // call to withSecrets().

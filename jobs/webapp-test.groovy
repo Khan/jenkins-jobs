@@ -16,7 +16,7 @@ import org.khanacademy.Setup;
 //import vars.buildmaster
 //import vars.clean
 //import vars.exec
-//import vars.ghActions
+//import vars.runGithubAction
 //import vars.kaGit
 //import vars.notify
 //import vars.withTimeout
@@ -553,7 +553,7 @@ onWorker('ka-test-ec2', '5h') {     // timeout
       initializeGlobals();
 
       if (params.USE_GITHUB_BRIDGE && !_isSha(params.GIT_REVISION)) {
-         def runId = ghActions.dispatchGithubActionsWorkflow(
+         runGithubAction(
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
             ref: params.GIT_REVISION,
@@ -568,7 +568,6 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
             ]
          )
-         ghActions.waitForGithubActionsWorkflow(runId)
       } else {
          try {
             stage("Running tests") {

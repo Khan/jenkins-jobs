@@ -39,6 +39,7 @@ def runAllTests() {
              booleanParam(name: 'FORCE', value: params.FORCE),
              string(name: 'NUM_WORKER_MACHINES', value: "6"),
              string(name: 'CLIENTS_PER_WORKER', value: "2"),
+             booleanParam(name: 'USE_GITHUB_BRIDGE', value: true),
           ]);
 }
 
