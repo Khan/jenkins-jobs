@@ -11,6 +11,14 @@ import groovy.transform.Field
 @Field _activeSlackAndStackdriverSecretsBlocks = 0;
 @Field _activeGithubSecretsBlocks = 0;
 
+// Fetches the khan-actions-bot personal access token from GSM and
+// returns it.
+// Used by runGithubAction to authenticate GitHub API calls and the gh CLI.
+def getGithubActionsToken() {
+   def token = exec.outputOf(["gcloud", "--project", "khan-academy", "secrets", "versions", "access", "latest", "--secret", "khan_actions_bot_github_personal_access_token__Github_Action_Workflow__repo__workflow__read_org__read_discussion__"]).trim();
+   return token;
+}
+
 // This must be called from workspace-root.  While this is in scope,
 // *only* the slack secret is available, even if there's a higher-up
 // call to withSecrets().
@@ -97,4 +105,3 @@ def slackAndStackdriverAlertlibOnly(Closure body) {
       }
    }
 }
-

@@ -1,0 +1,11 @@
+Dispatches a GitHub Actions workflow from a Jenkins pipeline and waits
+for it to complete, failing the build if the workflow fails.
+
+Usage:
+   runGithubAction(
+       repo: "Khan/webapp",
+       workflow: "webapp-test.yml",
+       ref: params.GIT_REVISION,
+       headSha: GIT_SHA1,     // optional; used to identify the new run
+       inputs: [key: "val"],  // optional workflow_dispatch inputs
+   )
