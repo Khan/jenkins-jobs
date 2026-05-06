@@ -12,13 +12,11 @@ import groovy.transform.Field
 @Field _activeGithubSecretsBlocks = 0;
 
 // Fetches the khan-actions-bot personal access token from GSM and
-// exposes it as the GITHUB_TOKEN env var for the duration of the closure.
+// returns it.
 // Used by runGithubAction to authenticate GitHub API calls and the gh CLI.
-def githubActionsDispatch(Closure body) {
-   def token = sh(script: "gcloud --project khan-academy secrets versions access latest --secret khan_actions_bot_github_personal_access_token__Github_Action_Workflow__repo__workflow__read_org__read_discussion__", returnStdout: true).trim();
-   withEnv(["GITHUB_TOKEN=${token}"]) {
-      body();
-   }
+def getGithubActionsToken() {
+   def token = exec.outputOf(["gcloud", "--project", "khan-academy", "secrets", "versions", "access", "latest", "--secret", "khan_actions_bot_github_personal_access_token__Github_Action_Workflow__repo__workflow__read_org__read_discussion__"]).trim();
+   return token;
 }
 
 // This must be called from workspace-root.  While this is in scope,

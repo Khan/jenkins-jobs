@@ -9,6 +9,3 @@ Usage:
        headSha: GIT_SHA1,     // optional; used to identify the new run
        inputs: [key: "val"],  // optional workflow_dispatch inputs
    )
-
-Requires the GITHUB_TOKEN GSM secret to be accessible (via
-withSecrets.githubActionsDispatch).

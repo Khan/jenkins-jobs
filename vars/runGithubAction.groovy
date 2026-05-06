@@ -9,6 +9,7 @@ import groovy.json.JsonSlurper
 //   ref      - Branch name to run the workflow on
 //   headSha  - Resolved SHA for the ref (used to identify the new run)
 //   inputs   - Map of string→string workflow inputs (optional)
+//   token    - a github token, used to perform the workflow_dispatch
 //
 // Dispatches the workflow via the GitHub API, then polls for up to 30s
 // to locate the new run and return its ID.
@@ -16,7 +17,7 @@ def _dispatch(Map args) {
     def payload = JsonOutput.toJson([ref: args.ref, inputs: args.inputs ?: [:]])
 
     exec(["curl", "-sf", "-X", "POST",
-          "-H", "Authorization: token ${env.GITHUB_TOKEN}",
+          "-H", "Authorization: token ${args.token}",
           "-H", "Accept: application/vnd.github+json",
           "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/dispatches",
           "-d", payload])
@@ -29,7 +30,7 @@ def _dispatch(Map args) {
     for (def i = 0; i < 10; i++) {
         sleep(3)
         def runsOutput = exec.outputOf(["curl", "-sf",
-              "-H", "Authorization: token ${env.GITHUB_TOKEN}",
+              "-H", "Authorization: token ${args.token}",
               "-H", "Accept: application/vnd.github+json",
               "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}"])
         def runs = new JsonSlurper().parseText(runsOutput)
@@ -50,8 +51,10 @@ def _dispatch(Map args) {
 
 // Wait for a GitHub Actions workflow run to complete.
 // Blocks until the run finishes; fails the build if the run fails.
-def _wait(String runId) {
-    exec(["gh", "run", "watch", runId, "--exit-status"])
+def _wait(String runId, String githubToken) {
+    withEnv(["GITHUB_TOKEN=${githubToken}"]) {
+        exec(["gh", "run", "watch", runId, "--exit-status"])
+    }
 }
 
 // Dispatch a GitHub Actions workflow and wait for it to complete.
@@ -63,8 +66,7 @@ def _wait(String runId) {
 //   headSha  - Resolved SHA for the ref (used to identify the new run)
 //   inputs   - Map of string→string workflow inputs (optional)
 def call(Map args) {
-    withSecrets.githubActionsDispatch() {
-        def runId = _dispatch(args)
-        _wait(runId)
-    }
+    def token = withSecrets.getGithubActionsToken();
+    def runId = _dispatch(args + [token: token])
+    _wait(runId, token)
 }
