@@ -112,6 +112,12 @@ that are part of the same deploy.  Write-only; not used by this script.""",
    ""
 
 ).addStringParam(
+   "GIT_TAG",
+   """Set by the buildmaster to the git tag associated with GIT_REVISION.
+Defaults to empty if no tag is known.""",
+   ""
+
+).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs

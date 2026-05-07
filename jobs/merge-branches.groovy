@@ -103,7 +103,7 @@ onMaster('1h') {
                                          params.REVISION_DESCRIPTION);
          String gaeVersionName = getGaeVersionName();
          buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
-                                       sha1, gaeVersionName);
+                                       sha1, gaeVersionName, tagName);
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
