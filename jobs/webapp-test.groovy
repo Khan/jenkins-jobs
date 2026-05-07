@@ -552,11 +552,12 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                          what: 'webapp-test']]) {
       initializeGlobals();
 
-      if (params.USE_GITHUB_BRIDGE && !_isSha(params.GIT_REVISION)) {
+      if (params.USE_GITHUB_BRIDGE && (!_isSha(params.GIT_REVISION) || params.REVISION_DESCRIPTION)) {
+         def ref = _isSha(params.GIT_REVISION) ? params.REVISION_DESCRIPTION : params.GIT_REVISION
          runGithubAction(
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
-            ref: params.GIT_REVISION,
+            ref: ref,
             headSha: GIT_SHA1,
             inputs: [
                git_revision:          params.GIT_REVISION,
