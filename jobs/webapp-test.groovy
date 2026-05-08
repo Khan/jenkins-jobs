@@ -539,26 +539,25 @@ def _isSha(String rev) {
    return rev ==~ /[0-9a-f]{40}/
 }
 
-
-onWorker('ka-test-ec2', '5h') {     // timeout
+def run(Boolean useGithub) {
    // TODO(ebrown): Remove: onWorker logs, so not needed here too
    notify.log("Starting ${env.JOB_NAME} " +
               "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
    ]);
 
    notify([slack: [channel: params.SLACK_CHANNEL,
-                   thread: params.SLACK_THREAD,
-                   sender: 'Testing Turtle',
-                   emoji: ':turtle:',
-                   when: ['FAILURE', 'UNSTABLE']],
-           github: [sha: params.GIT_REVISION,
-                    context: 'webapp-test',
-                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-           buildmaster: [sha: params.GIT_REVISION,
-                         what: 'webapp-test']]) {
+                  thread: params.SLACK_THREAD,
+                  sender: 'Testing Turtle',
+                  emoji: ':turtle:',
+                  when: ['FAILURE', 'UNSTABLE']],
+         github: [sha: params.GIT_REVISION,
+                  context: 'webapp-test',
+                  when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+         buildmaster: [sha: params.GIT_REVISION,
+                        what: 'webapp-test']]) {
       initializeGlobals();
 
-      if (params.USE_GITHUB_BRIDGE && params.GIT_TAG) {
+      if (useGithub) {
          runGithubAction(
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
@@ -596,5 +595,16 @@ onWorker('ka-test-ec2', '5h') {     // timeout
             }
          }
       }
+   }
+}
+
+def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
+if (useGithub) {
+   onMaster {
+      run(true)
+   }
+} else {
+   onWorker('ka-test-ec2', '5h') {     // timeout
+      run(false)
    }
 }
