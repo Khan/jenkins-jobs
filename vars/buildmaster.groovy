@@ -123,7 +123,7 @@ def notifyStatus(job, result, sha1) {
    return _makeHttpRequestAndAlert("commits", "PATCH", params);
 }
 
-def notifyMergeResult(commitId, result, sha1, gae_version_name, git_tag=null) {
+def notifyMergeResult(commitId, result, sha1, gae_version_name, git_tag) {
    String shaToLog = sha1 ? sha1 : "No merged SHA"
    echo("Marking buildmaster commit #${commitId} as ${result}: ${shaToLog}");
    def params = [
