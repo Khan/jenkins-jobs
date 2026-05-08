@@ -112,6 +112,12 @@ that are part of the same deploy.  Write-only; not used by this script.""",
    ""
 
 ).addStringParam(
+   "GIT_TAG",
+   """Set by the buildmaster to the git tag associated with GIT_REVISION.
+Defaults to empty if no tag is known.""",
+   ""
+
+).addStringParam(
    "JOB_PRIORITY",
    """The priority of the job to be run (a lower priority means it is run
 sooner). The Priority Sorter plugin reads this parameter in to reorder jobs
@@ -552,11 +558,11 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                          what: 'webapp-test']]) {
       initializeGlobals();
 
-      if (params.USE_GITHUB_BRIDGE && !_isSha(params.GIT_REVISION)) {
+      if (params.USE_GITHUB_BRIDGE && params.GIT_TAG) {
          runGithubAction(
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
-            ref: params.GIT_REVISION,
+            ref: params.GIT_TAG,
             headSha: GIT_SHA1,
             inputs: [
                git_revision:          params.GIT_REVISION,
