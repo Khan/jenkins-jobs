@@ -546,15 +546,15 @@ def run(Boolean useGithub) {
    ]);
 
    notify([slack: [channel: params.SLACK_CHANNEL,
-                  thread: params.SLACK_THREAD,
-                  sender: 'Testing Turtle',
-                  emoji: ':turtle:',
-                  when: ['FAILURE', 'UNSTABLE']],
-         github: [sha: params.GIT_REVISION,
-                  context: 'webapp-test',
-                  when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
-         buildmaster: [sha: params.GIT_REVISION,
-                        what: 'webapp-test']]) {
+                   thread: params.SLACK_THREAD,
+                   sender: 'Testing Turtle',
+                   emoji: ':turtle:',
+                   when: ['FAILURE', 'UNSTABLE']],
+           github: [sha: params.GIT_REVISION,
+                    context: 'webapp-test',
+                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
+           buildmaster: [sha: params.GIT_REVISION,
+                         what: 'webapp-test']]) {
       initializeGlobals();
 
       if (useGithub) {
