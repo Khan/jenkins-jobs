@@ -539,8 +539,7 @@ def _isSha(String rev) {
    return rev ==~ /[0-9a-f]{40}/
 }
 
-
-onWorker('ka-test-ec2', '5h') {     // timeout
+def run(Boolean useGithub) {
    // TODO(ebrown): Remove: onWorker logs, so not needed here too
    notify.log("Starting ${env.JOB_NAME} " +
               "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
@@ -558,7 +557,7 @@ onWorker('ka-test-ec2', '5h') {     // timeout
                          what: 'webapp-test']]) {
       initializeGlobals();
 
-      if (params.USE_GITHUB_BRIDGE && params.GIT_TAG) {
+      if (useGithub) {
          runGithubAction(
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
@@ -596,5 +595,17 @@ onWorker('ka-test-ec2', '5h') {     // timeout
             }
          }
       }
+   }
+}
+
+def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
+if (useGithub) {
+   // No need to spin up a worker just to wait on github responding
+   onMaster {
+      run(true)
+   }
+} else {
+   onWorker('ka-test-ec2', '5h') {     // timeout
+      run(false)
    }
 }
