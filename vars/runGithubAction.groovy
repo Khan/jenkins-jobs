@@ -51,9 +51,9 @@ def _dispatch(Map args) {
 
 // Wait for a GitHub Actions workflow run to complete.
 // Blocks until the run finishes; fails the build if the run fails.
-def _wait(String runId, String githubToken) {
+def _wait(String repo, String runId, String githubToken) {
     withEnv(["GITHUB_TOKEN=${githubToken}"]) {
-        exec(["gh", "run", "watch", runId, "--exit-status"])
+        exec(["gh", "run", "watch", runId, "-R", repo, "--exit-status"])
     }
 }
 
@@ -68,5 +68,5 @@ def _wait(String runId, String githubToken) {
 def call(Map args) {
     def token = withSecrets.getGithubActionsToken();
     def runId = _dispatch(args + [token: token])
-    _wait(runId, token)
+    _wait(args.repo, runId, token)
 }
