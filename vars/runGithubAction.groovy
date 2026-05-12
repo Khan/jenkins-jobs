@@ -15,6 +15,12 @@ import groovy.json.JsonSlurper
 // to locate the new run and return its ID.
 def _dispatch(Map args) {
     def payload = JsonOutput.toJson([ref: args.ref, inputs: args.inputs ?: [:]])
+    notify.log("GitHub Actions dispatch payload", [
+        level: "INFO",
+        repo: args.repo,
+        workflow: args.workflow,
+        payload: payload,
+    ])
 
     exec(["curl", "-sf", "-X", "POST",
           "-H", "Authorization: token ${args.token}",
