@@ -601,7 +601,7 @@ def run(Boolean useGithub) {
 def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
 if (useGithub) {
    // No need to spin up a worker just to wait on github responding
-   onMaster {
+   onMaster('30m') {
       run(true)
    }
 } else {
