@@ -59,7 +59,14 @@ def _dispatch(Map args) {
 // Blocks until the run finishes; fails the build if the run fails.
 def _wait(String repo, String runId, String githubToken) {
     withEnv(["GITHUB_TOKEN=${githubToken}"]) {
-        exec(["gh", "run", "watch", runId, "-R", repo, "--exit-status"])
+        try {
+            exec(["gh", "run", "watch", runId, "-R", repo, "--exit-status"])
+        } catch (e) {
+            notify.rethrowIfAborted(e)
+            notify.fail("GitHub Actions workflow failed: " +
+                        "https://github.com/${repo}/actions/runs/${runId}\n\n" +
+                        e.getMessage(), e)
+        }
     }
 }
 
