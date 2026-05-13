@@ -2,33 +2,38 @@
 
 // Sending traffic to a version is a complex process, and this is a complex
 // script.  For more high-level information on deploys, see
-//    https://docs.google.com/document/d/1Zr0wwzbvPkmN_BFAsrMPZhccIb0HHJUgmLZfBUWYFvA/edit
+// https://khanacademy.atlassian.net/wiki/spaces/ENG/pages/360939604/User+s+Guide+to+the+Khan+Deployment+System
 // For more details on how this is used as a part of our build process, see the
-// buildmaster (github.com/Khan/buildmaster) and its design docs:
-//     https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
+// buildmaster (https://github.com/Khan/buildmaster2) and its design docs:
+// https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
 
-// By the time we run, a new version has already been uploaded to App Engine
-// and/or Google Cloud Storage with the relevant set of changes, end-to-end
-// tests have been run on it, and unit tests have been run on the corresponding
-// code.  Here's what we do, some of it in parallel:
+// By the time we run, new revisions(s) have already been uploaded to Cloud Run
+// with the relevant set of changes, end-to-end tests (aka first smoke) have
+// been run agains them, and unit tests have been run on the corresponding
+// code. Here's what we do, some of it in parallel:
 //
-// 1. Prompt the user to do manual testing and either continue or abort.
+// 1. Prompt the user to do manual testing and either continue to "set default"
+//    or abort. Unattended deploys proceed to set default automatically.
 //
-// 2. (Assuming 'continue')  "Prime" GAE to force it to start up
-//    a few thousand instances of the new version we deployed.
+// 2. Tell Google to make our new revision(s) of each service the
+//    default-serving revision (100% traffic allocation).
 //
-// 3. Tell google to make our new version the default-serving version.
+// 3. Start automated monitoring of our Cloud Run and StackDriver logs to check
+//    for an uptick in errors during or after the traffic migration to the new
+//    default.
 //
-// 4. Run end-to-end tests again on now that our new version is default.
-//    This can catch errors that only occur on a khanacdemy.org domain.
+// 4. After all traffic migrations to the new default have completed, run
+//    end-to-end tests again (aka second smoke) now that our new version(s) are
+//    default. This can catch errors that only occur on a khanacdemy.org
+//    domain.
 //
-// 5. Do automated monitoring of our appengine logs to check for an
-//    uptick in errors after the deploy.
+// 5. Prompt the user to either finish up or abort. Unattended deploys will
+//    automatically abort if there were failures and will automatically finish
+//    up if there were not (monitoring failures are ignored due to low
+//    signal-to-noise ratio).
 //
-// 6. Prompt the user to either finish up or abort.
-//
-// 7. (Assuming 'finish up')  Merge the deployed branch back into master,
-//    and git-tag Khan/webapp with the new release label.
+// 6. (Assuming 'finish up') Merge the deployed branch back into master, and
+//    git-tag Khan/webapp with the new release label.
 
 // TODO(benkraft): A lot of the initialization and alerting logic is duplicated
 // with build-webapp; share it instead.
@@ -643,12 +648,14 @@ def _promoteServices() {  // call from webapp-root
 def _promote() {
    dir("webapp") {
       try {
+         // Tell buildmaster that we are about to start traffic migration to
+         // the new default revision(s).
+         buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
+
          _promoteServices();
 
-         // Once we finish (successfully) promoting, we tell buildmaster
-         // that the default has been set.  (Currently this information
-         // is only used in status; in the future it may be used for slack
-         // messages as well.)
+         // Once we finish (successfully) promoting, we tell buildmaster that
+         // the default has been set.
          buildmaster.notifyDefaultSet(params.GIT_REVISION, "finished");
       } catch (e) {
          notify.rethrowIfAborted(e);
@@ -697,27 +704,6 @@ def _monitor() {
 }
 
 
-def _waitForSetDefaultStart() {
-   try {
-      withTimeout("1h") {
-         dir("webapp") {
-            exec(["deploy/wait_for_default.py", NEW_VERSION,
-                  "--services=${SERVICES.join(',')}"]);
-         }
-      }
-   } catch (e) {
-      notify.rethrowIfAborted(e);
-      echo("Failed to wait for new version: ${e}");
-      _alert(alertMsgs.VERSION_NOT_CHANGED, []);
-      return;
-   }
-
-   // Once we have started moving traffic, tell the buildmaster.
-   // (This starts smoke tests, as well as appearing in status,
-   // and perhaps more places in the future.)
-   buildmaster.notifyDefaultSet(params.GIT_REVISION, "started");
-}
-
 def setDefaultAndMonitor() {
    withTimeout('120m') {
       _alert(alertMsgs.SETTING_DEFAULT,
@@ -725,20 +711,16 @@ def setDefaultAndMonitor() {
               abortUrl: "${env.BUILD_URL}stop",
               logsUrl: logs.logViewerUrl(NEW_VERSION)]);
 
-      // Note that while we start these jobs at the same time, the
-      // monitor script has code to wait until well after the
-      // promotion has finished before declaring monitoring finished.
-      // The reason we do these in parallel -- and don't just do
-      // _monitor() after _promote() -- is that not all instances
-      // switch to the new version at the same time; we want to start
-      // monitoring as soon as the first instance switches, not after
-      // the last one does.  Similarly, we want to start notify the
-      // buildmaster that set-default is underway while waiting for
-      // it to finish.
+      // Note that while we start these jobs at the same time, the monitor
+      // script has code to wait until well after the promotion has finished
+      // before declaring monitoring finished. The reason we do these in
+      // parallel -- and don't just do _monitor() after _promote() -- is that
+      // not all instances switch to the new version at the same time; we want
+      // to start monitoring as soon as the first instance switches, not after
+      // the last one does.
       parallel(
          [ "promote": { _promote(); },
            "monitor": { _monitor(); },
-           "wait-and-start-tests": { _waitForSetDefaultStart(); },
          ]);
    }
 }
