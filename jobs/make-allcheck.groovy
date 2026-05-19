@@ -34,6 +34,7 @@ def runAllTests() {
     build(job: '../deploy/webapp-test',
           parameters: [
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+             string(name: 'GIT_TAG', value: "master"),
              string(name: 'BASE_REVISION', value: ""),
              string(name: 'SLACK_CHANNEL', value: "#backend"),
              booleanParam(name: 'FORCE', value: params.FORCE),
