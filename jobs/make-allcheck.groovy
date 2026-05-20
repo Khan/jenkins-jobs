@@ -13,7 +13,7 @@ new Setup(steps
 ).addStringParam(
    "GIT_TAG",
    """The git tag or branch name to be used to select the github actions workflow.
-Defaults to master if no tag is provided.""",
+If GIT_REVISION is a sha, leave this blank.""",
    "master"
 
 ).addStringParam(
