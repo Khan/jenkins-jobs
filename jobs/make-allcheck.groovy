@@ -11,6 +11,12 @@ import org.khanacademy.Setup;
 new Setup(steps
 
 ).addStringParam(
+   "GIT_TAG",
+   """The git tag or branch name to be used to select the github actions workflow.
+If GIT_REVISION is a sha, leave this blank.""",
+   "master"
+
+).addStringParam(
    "GIT_REVISION",
    """The git commit-hash to run tests at, or a symbolic name referring
 to such a commit-hash.""",
@@ -34,6 +40,7 @@ def runAllTests() {
     build(job: '../deploy/webapp-test',
           parameters: [
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
+             string(name: 'GIT_TAG', value: params.GIT_TAG),
              string(name: 'BASE_REVISION', value: ""),
              string(name: 'SLACK_CHANNEL', value: "#backend"),
              booleanParam(name: 'FORCE', value: params.FORCE),
