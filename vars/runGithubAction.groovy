@@ -79,7 +79,15 @@ def _wait(String repo, String runId, String githubToken) {
 //   headSha  - Resolved SHA for the ref (used to identify the new run)
 //   inputs   - Map of string→string workflow inputs (optional)
 def call(Map args) {
+    dispatchAndWait(args)
+}
+
+// Dispatch a GitHub Actions workflow, wait for it to complete, and return the
+// run ID.  Use this when the Jenkins job needs to fetch artifacts or other
+// metadata after the workflow finishes.
+def dispatchAndWait(Map args) {
     def token = withSecrets.getGithubActionsToken();
     def runId = _dispatch(args + [token: token])
     _wait(args.repo, runId, token)
+    return runId
 }
