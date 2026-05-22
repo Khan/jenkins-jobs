@@ -1,27 +1,29 @@
-// Upload a new version of (backend) webapp code to App Engine and/or Cloud Run.
+// Upload a new version of (backend) webapp code to Cloud Run.
 
 // Uploading a version is a complex process, and this is a complex script.
 // For more high-level information on deploys, see
-//    https://docs.google.com/document/d/1Zr0wwzbvPkmN_BFAsrMPZhccIb0HHJUgmLZfBUWYFvA/edit
+//    https://khanacademy.atlassian.net/wiki/spaces/ENG/pages/360939604/User+s+Guide+to+the+Khan+Deployment+System
 // For more details on how this is used as a part of our build process, see the
-// buildmaster (github.com/Khan/buildmaster) and its design docs:
+// buildmaster (https://github.com/Khan/buildmaster2) and its design docs:
 //     https://docs.google.com/document/d/1utyUMMBOQvt4o3W_yl_89KdlNdAZUYsnSN_2FjWL-wA/edit#heading=h.kzjq9eunc7bh
 
 // By the time this job is run, buildmaster has already merged master, the
-// branch to be deployed, and perhaps some translations updates, then passed
-// that merge commit as our GIT_REVISION. It's also running tests in parallel
-// (or already has). Here's what this job does, some of it in parallel:
+// branch to be deployed, then passed that merge commit as our GIT_REVISION.
+// It's also running tests in parallel (or already has). Here's what this job
+// does, some of it in parallel:
 //
 // 1. Determine what services we're are deploying to (or tools-only if no
 //    services will be deployed). This is determined by whether we have changed
-//    any files that affect a server running on GAE or Cloud Run, and whether we
+//    any files that affect a server running on Cloud Run, and whether we
 //    have any GraphQL schema updates to be deployed to GCS.
 //
 // 2. Build all the artifacts to be deployed (differs depending on deploy kind).
 //
-// 3. Deploy new server-related code to GAE and Cloud Run, if appropriate.
+// 3. Deploy new server-related code to Cloud Run, if appropriate.
 //
-// 4. Upload new GraphQL Schema to GCS.
+// 4. Upload any affected pubsub, tasks or cron yamls.
+//
+// 5. Upload new GraphQL Schema to GCS.
 //
 // Once this job reports success to buildmaster, buildmaster then kicks off
 // end-to-end tests on the newly deployed version.
@@ -38,6 +40,7 @@ import org.khanacademy.Setup;
 //import vars.logs
 //import vars.notify
 //import vars.onWorker
+//import vars.runGithubAction
 //import vars.withSecrets
 //import vars.withTimeout
 //import vars.withVirtualenv
@@ -100,28 +103,17 @@ know that we can do that at the right time.</p>
 
 ).addBooleanParam(
     "ALLOW_SUBMODULE_REVERTS",
-    """When set, do not give an error if the new version you're deploying has
-reverted one of the git submodules to an earlier state than what
-exists on the current default.  Usually such reverts are an accident
-(when someone ran \"git pull\" instead of \"git p\" for instance) so
-we don't allow it.  If you are purposefully reverting substate, to
-revert a bug for instance, you must set this flag.""",
+    """DEPRECATED.""",
     false
 
 ).addBooleanParam(
     "FORCE",
-    """When set, force a deploy to GAE (AppEngine) even if the version has
-already been deployed. Likewise, force a copy of <i>all</i> files to
-GCS (Cloud Storage), even those the md5 checksum indicate are already
-present on GCS.  Note that this does not override <code>SERVICES</code>;
-we only force to services we are actually deploying to.""",
+    """DEPRECATED.""",
     false
 
 ).addBooleanParam(
     "SKIP_PRIMING",
-    """If set to True, we won't try to prefill any caches when deploying the
-version.  This will likely cause the version to be unusable until such time as
-priming is run (perhaps in deploy-webapp, unless the same option is set).""",
+    """DEPRECATED.""",
     false
 
 ).addChoiceParam(
@@ -179,7 +171,18 @@ that are part of the same deploy.  Write-only; not used by this script.""",
     through 11. See https://jenkins.khanacademy.org/advanced-build-queue/ for
     more information.""",
     "6"
-).apply();
+).addStringParam(
+   "GIT_TAG",
+   """Set by the buildmaster to the git tag associated with GIT_REVISION.
+Defaults to empty if no tag is known.""",
+   ""
+
+).addBooleanParam(
+   "USE_GITHUB_BRIDGE",
+   "If true, dispatch build to GitHub Actions instead of running them here.",
+   false
+
+).apply()
 
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 
@@ -205,6 +208,9 @@ NEW_VERSION = null;
 
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
+
+// GIT_SHA1 is the sha1 for GIT_REVISION.
+GIT_SHA1 = null;
 
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
@@ -560,10 +566,12 @@ def finishWithFailure(why) {
    }
 }
 
+def run(Boolean useGithub) {
+   // TODO(ebrown): Remove: onWorker logs, so not needed here too
+   notify.log("Starting ${env.JOB_NAME} " +
+              "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
+   ]);
 
-// We use a build worker, because this is a very CPU-heavy job and we may want
-// to run several at a time.
-onWorker('build-worker', '4h') {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
@@ -576,37 +584,75 @@ onWorker('build-worker', '4h') {
            buildmaster: [sha: params.GIT_REVISION,
                          what: 'build-webapp']]) {
 
-      try {
-         stage("Merging in master") {
-             mergeFromMaster();
+      if (useGithub) {
+         withTimeout('5m') {
+            GIT_SHA1 = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                               params.GIT_REVISION);
          }
-         stage("Initializing globals") {
-            withVirtualenv.python3() {
-               initializeGlobals();
-             }
-         }
-         stage("Deploying") {
-            withTimeout('150m') {
+
+         runGithubAction(
+            repo: "Khan/webapp",
+            workflow: "build-webapp.yml",
+            ref: params.GIT_TAG,
+            headSha: GIT_SHA1,
+            inputs: [
+               git_revision:          params.GIT_REVISION,
+               base_revision:         params.BASE_REVISION,
+               services:              params.SERVICES,
+               slack_channel:         params.SLACK_CHANNEL,
+               slack_thread:          params.SLACK_THREAD,
+               deployer_username:     params.DEPLOYER_USERNAME,
+               revision_description:  REVISION_DESCRIPTION,
+               buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
+            ]
+         )
+      } else {
+         try {
+            stage("Merging in master") {
+               mergeFromMaster();
+            }
+            stage("Initializing globals") {
                withVirtualenv.python3() {
-                  deployAndReport();
+                  initializeGlobals();
                }
             }
-         }
-         // TODO(jacqueline): This may get spammy. Is there somewhere we can
-         // move this so that it doesn't send for every build?
-         stage("Send changelog") {
-            withVirtualenv.python3() {
-               sendChangelog();
+            stage("Deploying") {
+               withTimeout('150m') {
+                  withVirtualenv.python3() {
+                     deployAndReport();
+                  }
+               }
             }
+            // TODO(jacqueline): This may get spammy. Is there somewhere we can
+            // move this so that it doesn't send for every build?
+            stage("Send changelog") {
+               withVirtualenv.python3() {
+                  sendChangelog();
+               }
+            }
+         } catch (e) {
+            echo("FATAL ERROR deploying: ${e}");
+            // Don't send to Slack on abort; see the notify call above for why.
+            if (currentBuild.result != "ABORTED") {
+               currentBuild.result = "FAILURE";
+               finishWithFailure(e.toString());
+            }
+            throw e;
          }
-      } catch (e) {
-         echo("FATAL ERROR deploying: ${e}");
-         // Don't send to Slack on abort; see the notify call above for why.
-         if (currentBuild.result != "ABORTED") {
-            currentBuild.result = "FAILURE";
-            finishWithFailure(e.toString());
-         }
-         throw e;
       }
+   }
+}
+
+def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
+if (useGithub) {
+   // No need to spin up a worker just to wait on github responding
+   onMaster('4h') {     // timeout
+      run(true)
+   }
+} else {
+   // We use a build worker, because this is a very CPU-heavy job and we may want
+   // to run several at a time.
+   onWorker('build-worker', '4h') {     // timeout
+      run(false)
    }
 }
