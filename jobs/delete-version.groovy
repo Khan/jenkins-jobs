@@ -28,9 +28,14 @@ Example: {"serviceA": ["version1", "version2"], "serviceB": ["version3"]}""",
     ""
 
 ).addBooleanParam(
-   "USE_GITHUB_BRIDGE",
-   "If true, dispatch delete-version work to GitHub Actions instead of running it here.",
-   false
+    "USE_GITHUB_BRIDGE",
+    "If true, dispatch delete-version work to GitHub Actions instead of running it here.",
+    false
+
+).addBooleanParam(
+    "DRY_RUN",
+    "If true, print what would be deleted but do not actually delete anything. Only used when USE_GITHUB_BRIDGE is true.",
+    false
 
 ).apply();
 
@@ -135,7 +140,7 @@ def runInGithub() {
             headSha: masterSha,
             inputs: [
                service_versions: params.SERVICE_VERSIONS,
-               dry_run: "false",
+               dry_run: params.DRY_RUN.toString(),
             ]
          );
       }
