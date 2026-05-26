@@ -567,11 +567,6 @@ def finishWithFailure(why) {
 }
 
 def run(Boolean useGithub) {
-   // TODO(ebrown): Remove: onWorker logs, so not needed here too
-   notify.log("Starting ${env.JOB_NAME} " +
-              "${params.REVISION_DESCRIPTION} ${env.BUILD_NUMBER}", [
-   ]);
-
    notify([slack: [channel: params.SLACK_CHANNEL,
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
