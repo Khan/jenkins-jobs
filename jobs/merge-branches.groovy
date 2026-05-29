@@ -8,11 +8,14 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
+import groovy.json.JsonSlurper;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.buildmaster
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.runGithubAction
+//import vars.withSecrets
 //import vars.withTimeout
 
 new Setup(steps
@@ -66,6 +69,11 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.""",
 that are part of the same deploy.  Write-only; not used by this script.""",
    ""
 
+).addBooleanParam(
+   "USE_GITHUB_BRIDGE",
+   "If true, dispatch merge work to GitHub Actions instead of running it here.",
+   false
+
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS}) (${params.REVISION_DESCRIPTION})";
@@ -89,7 +97,60 @@ String getGaeVersionName() {
 }
 
 
-onMaster('1h') {
+def runInJenkins() {
+   String tagName = ("buildmaster-${params.COMMIT_ID}-" +
+                     "${new Date().format('yyyyMMdd-HHmmss')}");
+   String sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName,
+                                      params.REVISION_DESCRIPTION);
+   String gaeVersionName = getGaeVersionName();
+   buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
+                                 sha1, gaeVersionName, tagName);
+}
+
+
+def githubMergeResult(String runId) {
+   String resultDir = "merge-branches-github-result-${env.BUILD_NUMBER}";
+   dir(resultDir) {
+      deleteDir();
+   }
+
+   String token = withSecrets.getGithubActionsToken();
+   withEnv(["GITHUB_TOKEN=${token}"]) {
+      exec(["gh", "run", "download", runId,
+            "-R", "Khan/webapp",
+            "--name", "merge-branches-result",
+            "--dir", resultDir]);
+   }
+
+   String resultJson = readFile("${resultDir}/merge-branches-result.json");
+   return new JsonSlurper().parseText(resultJson);
+}
+
+
+def runInGithub() {
+   String masterSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                             "master");
+   String runId = runGithubAction.dispatchAndWait(
+      repo: "Khan/webapp",
+      workflow: "merge-branches.yml",
+      ref: "master",
+      headSha: masterSha,
+      inputs: [
+         git_revisions: params.GIT_REVISIONS,
+         commit_id: params.COMMIT_ID,
+         revision_description: params.REVISION_DESCRIPTION,
+         buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
+      ]
+   );
+   def result = githubMergeResult(runId);
+   buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
+                                 result.git_sha,
+                                 result.gae_version_name,
+                                 result.git_tag);
+}
+
+
+def run(Boolean useGithub) {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Mr Monkey',
@@ -97,13 +158,11 @@ onMaster('1h') {
                    when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
-         tagName = ("buildmaster-${params.COMMIT_ID}-" +
-                     "${new Date().format('yyyyMMdd-HHmmss')}");
-         String sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName, 
-                                         params.REVISION_DESCRIPTION);
-         String gaeVersionName = getGaeVersionName();
-         buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
-                                       sha1, gaeVersionName, tagName);
+         if (useGithub) {
+            runInGithub();
+         } else {
+            runInJenkins();
+         }
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
@@ -113,4 +172,9 @@ onMaster('1h') {
          throw e;
       }
    }
+}
+
+
+onMaster('1h') {
+   run(params.USE_GITHUB_BRIDGE);
 }
