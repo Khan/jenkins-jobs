@@ -34,7 +34,7 @@ Example: {"serviceA": ["version1", "version2"], "serviceB": ["version3"]}""",
 
 ).addBooleanParam(
     "DRY_RUN",
-    "If true, print what would be deleted but do not actually delete anything. Only used when USE_GITHUB_BRIDGE is true.",
+    "If true, print what would be deleted but do not actually delete anything.",
     false
 
 ).apply();
@@ -83,6 +83,9 @@ def deleteVersion() {
             def args = ["deploy/delete_gae_versions.py"]
             args += (versions as List);  // Ensure Groovy treats it as a list
             args += ["--services", service.trim()];
+            if (params.DRY_RUN) {
+               args += ["--dry_run"];
+            }
             exec(args);
          }
       }
