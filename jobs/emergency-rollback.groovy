@@ -17,6 +17,7 @@ import org.khanacademy.Setup;
 //import vars.exec
 //import vars.kaGit
 //import vars.notify
+//import vars.runGithubAction
 //import vars.withSecrets
 //import vars.withTimeout
 //import vars.withVirtualenv
@@ -54,6 +55,11 @@ is primarily useful for making sure the job has a recent checkout of webapp.
    look for the current live version. This is also a full version tag name,
    e.g. gae-181217-2111-5f05dc51cf56""",
    ""
+
+).addBooleanParam(
+   "USE_GITHUB_BRIDGE",
+   "If true, dispatch emergency rollback to GitHub Actions instead of running it here.",
+   false
 // NOTE(benkraft): This runs in a cron job started from the buildmaster,
 // instead of a jenkins cron job, because jenkins cron jobs can't pass
 // parameters and we need to pass DRY_RUN.
@@ -143,19 +149,44 @@ def doRollback() {
 }
 
 
-onMaster('1h') {
+def doGithubRollback() {
+   withTimeout('30m') {
+      def masterSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                              "master");
+      runGithubAction(
+         repo: "Khan/webapp",
+         workflow: "emergency-rollback.yml",
+         ref: "master",
+         headSha: masterSha,
+         inputs: [
+            dry_run: params.DRY_RUN.toString(),
+            rollback_to: params.ROLLBACK_TO,
+            bad_version: params.BAD_VERSION,
+         ]
+      );
+   }
+}
+
+
+def run(Boolean useGithub) {
    notify([slack: [channel: '#1s-and-0s-deploys',
                    failureChannel: '#infrastructure-platform',
                    sender: 'Mr Monkey',
                    emoji: ':monkey_face:',
                    when: ['BUILD START', 'SUCCESS',
                           'FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-      stage("setup") {
-         doSetup();
-      }
-      stage("rollback") {
-         withVirtualenv.python3() {
-            doRollback();
+      if (useGithub) {
+         stage("rollback") {
+            doGithubRollback();
+         }
+      } else {
+         stage("setup") {
+            doSetup();
+         }
+         stage("rollback") {
+            withVirtualenv.python3() {
+               doRollback();
+            }
          }
       }
    }
@@ -170,4 +201,9 @@ onMaster('1h') {
    } else {
       echo("Would run deploy/e2e-test job on master.");
    }
+}
+
+
+onMaster('1h') {
+   run(params.USE_GITHUB_BRIDGE);
 }
