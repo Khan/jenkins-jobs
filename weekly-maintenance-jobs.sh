@@ -82,6 +82,38 @@ clean_invalid_branches() {
 # The merge-branches jenkins job creates a git-tag to make sure the
 # merged code isn't gc-ed by Jenkins.  It only needs to survive for
 # the length of a deploy: maybe an hour or so.  We keep these tags
+# around a week.  Same goes for the deploy-znd jenkins job.
+prune_buildmaster_and_znd_tags() {
+    (
+        cd webapp
+        # We delete tags 100 at a time to avoid overwhelming github.
+        git tag -l 'buildmaster-*' \
+            | grep -v \
+                   -e buildmaster-'[0-9]*'-$(date -d "today" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -1 day" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -2 days" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -3 days" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -4 days" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -5 days" +%Y%m%d) \
+                   -e buildmaster-'[0-9]*'-$(date -d "today -6 days" +%Y%m%d) \
+            | xargs -n 100 git push --no-verify --delete origin
+
+        git tag -l 'znd-*' \
+            | grep -v \
+                   -e znd-$(date -d "today" +%Y%m%d) \
+                   -e znd-$(date -d "today -1 day" +%Y%m%d) \
+                   -e znd-$(date -d "today -2 days" +%Y%m%d) \
+                   -e znd-$(date -d "today -3 days" +%Y%m%d) \
+                   -e znd-$(date -d "today -4 days" +%Y%m%d) \
+                   -e znd-$(date -d "today -5 days" +%Y%m%d) \
+                   -e znd-$(date -d "today -6 days" +%Y%m%d) \
+            | xargs -n 100 git push --no-verify --delete origin
+    )
+}
+
+# The deploy-znd jenkins job creates a git-tag to make sure the
+# merged code isn't gc-ed by Jenkins.  It only needs to survive for
+# the length of a deploy: maybe an hour or so.  We keep these tags
 # around a week.
 prune_buildmaster_tags() {
     (
