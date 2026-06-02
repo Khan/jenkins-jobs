@@ -7,6 +7,7 @@
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
+//import vars.exec
 //import vars.kaGit
 //import vars.notify
 //import vars.onWorker
@@ -64,9 +65,12 @@ def runScript() {
          // and get the same effect.
          sh("docker exec webapp-datastore-emulator-1 dash -c 'kill 1'")
 
-         // Now upload the new database to gcs.
-         sh("gsutil cp ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak");
-         sh("docker exec webapp-datastore-emulator-1 dash -c 'gsutil cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz'");
+         // Now upload the new database to gcs.  We will need to copy over
+         // the gcloud service account token since the datastore container
+         // does not have access to it by default.
+         exec(["gsutil", "cp", "${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz", "${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak"]);
+         exec(["docker", "cp", "/root/.config/gcloud/legacy_credentials/jenkins-deploy@khan-academy.iam.gserviceaccount.com/adc.json", "webapp-datastore-emulator-1:/tmp/adc.json"]);
+         exec(["docker", "exec", "webapp-datastore-emulator-1", "dash", "-c", "gcloud auth activate-service-account --key-file=/tmp/adc.json; gcloud storage cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz"]);
       } finally {
           // No matter what, we stop the local webserver.
          sh("ssh-agent make stop-server");
