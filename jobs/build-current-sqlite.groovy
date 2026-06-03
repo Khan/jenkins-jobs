@@ -69,7 +69,7 @@ def runScript() {
          // the gcloud service account token since the datastore container
          // does not have access to it by default.
          exec(["gsutil", "cp", "${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz", "${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz.bak"]);
-         exec(["docker", "cp", "/root/.config/gcloud/legacy_credentials/jenkins-deploy@khan-academy.iam.gserviceaccount.com/adc.json", "webapp-datastore-emulator-1:/tmp/adc.json"]);
+         exec(["docker", "cp", "${env.HOME}/.config/gcloud/legacy_credentials/jenkins-deploy@khan-academy.iam.gserviceaccount.com/adc.json", "webapp-datastore-emulator-1:/tmp/adc.json"]);
          exec(["docker", "exec", "webapp-datastore-emulator-1", "dash", "-c", "gcloud auth activate-service-account --key-file=/tmp/adc.json; gcloud storage cp /var/datastore/dev_datastore.tar.gz ${params.CURRENT_SQLITE_BUCKET}/dev_datastore.tar.gz"]);
       } finally {
           // No matter what, we stop the local webserver.
