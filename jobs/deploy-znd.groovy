@@ -463,7 +463,11 @@ def run(Boolean useGithub) {
 // just to wait on GHA). Otherwise use a separate worker type, identical to
 // build-worker, so znds don't make a mess of our build caches for the main deploy.
 if (params.USE_GITHUB_BRIDGE) {
-   onMaster('3h') { run(true) }
+   onMaster('3h') {
+      run(true)
+   }
 } else {
-   onWorker('znd-worker', '3h') { run(false) }
+   onWorker('znd-worker', '3h') {
+      run(false)
+   }
 }
