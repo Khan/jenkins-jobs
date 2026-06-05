@@ -13,7 +13,9 @@ import org.khanacademy.Setup;
 //import vars.kaGit
 //import vars.logs
 //import vars.notify
+//import vars.onMaster
 //import vars.onWorker
+//import vars.runGithubAction
 //import vars.withSecrets
 //import vars.withTimeout
 //import vars.withVirtualenv
@@ -88,6 +90,11 @@ of a message link, with a period inserted before the last 6 digits, e.g.
 for the link,
 https://khanacademy.slack.com/archives/C013ANU53LK/p1631811224115400,
 the thread is 1631811224.115400.'""", ""
+
+).addBooleanParam(
+   "USE_GITHUB_BRIDGE",
+   "If true, dispatch the ZND deploy to GitHub Actions instead of running it here.",
+   false
 
 // Since we use build workers, there's no need to serialize znd deploys.
 ).allowConcurrentBuilds(
@@ -404,23 +411,63 @@ def deploy() {
 }
 
 
-// We use a separate worker type, identical to build-worker, so znds don't make
-// a mess of our build caches for the main deploy.
-onWorker('znd-worker', '3h') {
+def runInGithub() {
+   withTimeout('3h') {
+      def gitSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
+                                           params.GIT_REVISION);
+      // Pass the raw email prefix (untruncated); the workflow handles truncation.
+      def actor = wrap([$class: 'BuildUser']) { env.BUILD_USER_ID.split("@")[0] };
+      runGithubAction(
+         repo: "Khan/webapp",
+         workflow: "deploy-znd.yml",
+         ref: "master",
+         headSha: gitSha,
+         inputs: [
+            git_revision: params.GIT_REVISION,
+            version: params.VERSION,
+            services: params.SERVICES,
+            slack_channel: params.SLACK_CHANNEL,
+            slack_thread: params.SLACK_THREAD,
+            actor: actor,
+         ]
+      );
+   }
+}
+
+def run(Boolean useGithub) {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: CHAT_SENDER,
                    emoji: EMOJI,
-                   // We don't need to notify on success because deploy.sh does.
+                   // We don't need to notify on success because the deploy step does.
                    when: ['BUILD START','FAILURE', 'UNSTABLE', 'ABORTED']]]) {
-      determineVersion();
-      stage("Merging in master") {
-         mergeFromMaster();
-      }
-      stage("Deploying") {
-         withVirtualenv.python3() {
-            deploy();
+      if (useGithub) {
+         stage("deploy-znd") {
+            runInGithub();
+         }
+      } else {
+         determineVersion();
+         stage("Merging in master") {
+            mergeFromMaster();
+         }
+         stage("Deploying") {
+            withVirtualenv.python3() {
+               deploy();
+            }
          }
       }
+   }
+}
+
+// When USE_GITHUB_BRIDGE=true, run on master (no need to spin up a znd-worker
+// just to wait on GHA). Otherwise use a separate worker type, identical to
+// build-worker, so znds don't make a mess of our build caches for the main deploy.
+if (params.USE_GITHUB_BRIDGE) {
+   onMaster('3h') {
+      run(true)
+   }
+} else {
+   onWorker('znd-worker', '3h') {
+      run(false)
    }
 }
