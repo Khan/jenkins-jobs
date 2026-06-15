@@ -191,7 +191,7 @@ def _pullWebapp() {
 // Determines if we are running the first or second smoke test.
 IS_PRODUCTION = (E2E_URL == "https://www.khanacademy.org");
 E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
-E2E_MODE = IS_PRODUCTION ? "production" : "non-default";
+E2E_MODE = IS_PRODUCTION ? "prod-only" : "non-default";
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
    notify([slack: [channel: params.SLACK_CHANNEL,
