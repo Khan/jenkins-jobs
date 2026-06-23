@@ -328,8 +328,20 @@ def initializeGlobals() {
          // against the currently live version, and the consequences of doing
          // something else are greater, so we prohibit the dangerous thing.
          if (params.BASE_REVISION) {
+            // Log the exact SHAs we expect should_deploy to generate the git
+            // diff from.
+            from_sha = exec.outputOf(["git", "rev-parse", ${params.BASE_REVISION}])
+            to_sha = exec.outputOf(["git", "rev-parse", "HEAD"])
+            echo("Running should-deploy for the commit range ${from_sha}...${to_sha} ")
+
             shouldDeployArgs += [
                "--commit-range", "${params.BASE_REVISION}...HEAD"]
+         } else {
+            // Log the exact SHAs we expect should_deploy to generate the git
+            // diff from.
+            from_sha = exec.outputOf(["git", "rev-parse", "master"])
+            to_sha = exec.outputOf(["git", "rev-parse", "HEAD"])
+            echo("Running should-deploy for the commit range ${from_sha}...${to_sha} ")
          }
 
          if (params.SERVICES == "auto") {

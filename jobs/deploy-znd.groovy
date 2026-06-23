@@ -334,6 +334,12 @@ def deploy() {
       dir("webapp") {
          def shouldDeployArgs = ["deploy/should_deploy.py"];
 
+         // Log the exact SHAs we expect should_deploy to generate the git diff
+         // from.
+         from_sha = exec.outputOf(["git", "rev-parse", "master"])
+         to_sha = exec.outputOf(["git", "rev-parse", "HEAD"])
+         echo("Running should-deploy for the commit range ${from_sha}...${to_sha} ")
+
          if (params.SERVICES == "auto") {
             try {
                SERVICES = exec.outputOf(shouldDeployArgs).split("\n");
