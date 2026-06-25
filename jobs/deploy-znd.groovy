@@ -267,6 +267,7 @@ def uploadGraphqlSafelist() {
          exec([
             "deploy/upload_graphql_safelist.py",
             VERSION,
+            "--is-znd",
             "--prod",
          ])
       }
