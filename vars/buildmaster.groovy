@@ -58,27 +58,33 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
    stage("Talking to buildmaster") {
       initializeBuildmasterToken();
       try {
-         // We retry if the buildmaster fails.
+         // We retry if the buildmaster fails, giving it up to 1 minute to
+         // restart (3 inter-attempt sleeps × 20s = 60s).
          // TODO(benkraft): Skip retries on 4xx responses (e.g. invalid commit).
-         retry {
-            def response = httpRequest(
-               acceptType: "APPLICATION_JSON",
-               contentType: "APPLICATION_JSON",
-               customHeaders: [[name: 'X-Buildmaster-Token',
-                                value: BUILDMASTER_TOKEN,
-                                // Replace value with ***** when logging request.
-                                maskValue: true]],
-               httpMode: httpMode,
-               requestBody: new JsonBuilder(params).toString(),
-               url: "https://buildmaster-526011289882.us-central1.run.app/${resource}");
-            notify.log("Buildmaster request: ${resource}", [
-               resource: resource,
-               response: response,
-               params: params,
-               SEND_SLACK_COUNT: SEND_SLACK_COUNT,
-            ])
-            SEND_SLACK_COUNT = 0;
-            return response;
+         retry(4) {
+            try {
+               def response = httpRequest(
+                  acceptType: "APPLICATION_JSON",
+                  contentType: "APPLICATION_JSON",
+                  customHeaders: [[name: 'X-Buildmaster-Token',
+                                   value: BUILDMASTER_TOKEN,
+                                   // Replace value with ***** when logging request.
+                                   maskValue: true]],
+                  httpMode: httpMode,
+                  requestBody: new JsonBuilder(params).toString(),
+                  url: "https://buildmaster-526011289882.us-central1.run.app/${resource}");
+               notify.log("Buildmaster request: ${resource}", [
+                  resource: resource,
+                  response: response,
+                  params: params,
+                  SEND_SLACK_COUNT: SEND_SLACK_COUNT,
+               ])
+               SEND_SLACK_COUNT = 0;
+               return response;
+            } catch (e) {
+               sleep(20);
+               throw e;
+            }
          }
       } catch (e) {
          notify.rethrowIfAborted(e);
@@ -95,7 +101,7 @@ def _makeHttpRequestAndAlert(resource, httpMode, params) {
             alertMsgs = load("${pwd()}/jenkins-jobs/jobs/deploy-webapp_slackmsgs.groovy");
             SEND_SLACK_COUNT += 1;
 
-            echo("Failed 3 times, perhaps buildmaster is down.");
+            echo("Failed 4 times, perhaps buildmaster is down.");
             _sendSimpleInterpolatedMessage(
                alertMsgs.BUILDMASTER_OUTAGE,
                [step: "${resource} + ${httpMode}",
