@@ -1,5 +1,5 @@
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
 
 def _githubApiHeaders(String token) {
     return [[name: "Authorization",
@@ -48,7 +48,7 @@ def _dispatch(Map args) {
             customHeaders: _githubApiHeaders(args.token),
             httpMode: "GET",
             url: "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}")
-        def runs = new JsonSlurper().parseText(response.content)
+        def runs = new JsonSlurperClassic().parseText(response.content)
         for (run in runs.workflow_runs) {
             if (run.head_branch == args.ref) {
                 runId = run.id.toString()
