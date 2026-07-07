@@ -139,7 +139,6 @@ def runInGithub() {
          git_revisions: params.GIT_REVISIONS,
          commit_id: params.COMMIT_ID,
          revision_description: params.REVISION_DESCRIPTION,
-         buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
       ]
    );
    def result = githubMergeResult(runId);

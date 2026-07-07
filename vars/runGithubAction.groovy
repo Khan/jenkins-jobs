@@ -1,6 +1,14 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
+def _githubApiHeaders(String token) {
+    return [[name: "Authorization",
+             value: "token ${token}",
+             maskValue: true],
+            [name: "Accept",
+             value: "application/vnd.github+json"]]
+}
+
 // Dispatch a GitHub Actions workflow and return the run ID (string).
 //
 // args:
@@ -22,11 +30,12 @@ def _dispatch(Map args) {
         payload: payload,
     ])
 
-    exec(["curl", "-sf", "-X", "POST",
-          "-H", "Authorization: token ${args.token}",
-          "-H", "Accept: application/vnd.github+json",
-          "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/dispatches",
-          "-d", payload])
+    httpRequest(
+        contentType: "APPLICATION_JSON",
+        customHeaders: _githubApiHeaders(args.token),
+        httpMode: "POST",
+        requestBody: payload,
+        url: "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/dispatches")
 
     // Poll for up to 30s (10 attempts × 3s) to find the new run.
     // Filter by head_sha when available to avoid picking up a concurrent
@@ -35,11 +44,11 @@ def _dispatch(Map args) {
     def runId = null
     for (def i = 0; i < 10; i++) {
         sleep(3)
-        def runsOutput = exec.outputOf(["curl", "-sf",
-              "-H", "Authorization: token ${args.token}",
-              "-H", "Accept: application/vnd.github+json",
-              "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}"])
-        def runs = new JsonSlurper().parseText(runsOutput)
+        def response = httpRequest(
+            customHeaders: _githubApiHeaders(args.token),
+            httpMode: "GET",
+            url: "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}")
+        def runs = new JsonSlurper().parseText(response.content)
         for (run in runs.workflow_runs) {
             if (run.head_branch == args.ref) {
                 runId = run.id.toString()
