@@ -8,7 +8,7 @@
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
 import org.khanacademy.Setup;
-import groovy.json.JsonSlurper;
+import groovy.json.JsonSlurperClassic;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.buildmaster
 //import vars.exec
@@ -123,7 +123,7 @@ def githubMergeResult(String runId) {
    }
 
    String resultJson = readFile("${resultDir}/merge-branches-result.json");
-   return new JsonSlurper().parseText(resultJson);
+   return new JsonSlurperClassic().parseText(resultJson);
 }
 
 
