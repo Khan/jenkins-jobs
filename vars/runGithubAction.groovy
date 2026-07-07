@@ -22,7 +22,7 @@ def _dispatch(Map args) {
         payload: payload,
     ])
 
-    exec(["curl", "-sf", "-X", "POST",
+    exec(["curl", "-X", "POST",
           "-H", "Authorization: token ${args.token}",
           "-H", "Accept: application/vnd.github+json",
           "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/dispatches",
@@ -35,7 +35,7 @@ def _dispatch(Map args) {
     def runId = null
     for (def i = 0; i < 10; i++) {
         sleep(3)
-        def runsOutput = exec.outputOf(["curl", "-sf",
+        def runsOutput = exec.outputOf(["curl", "-sS",
               "-H", "Authorization: token ${args.token}",
               "-H", "Accept: application/vnd.github+json",
               "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}"])
