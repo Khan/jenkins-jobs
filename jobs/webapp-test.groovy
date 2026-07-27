@@ -550,9 +550,6 @@ def run(Boolean useGithub) {
                    sender: 'Testing Turtle',
                    emoji: ':turtle:',
                    when: ['FAILURE', 'UNSTABLE']],
-           github: [sha: params.GIT_REVISION,
-                    context: 'webapp-test',
-                    when: ['SUCCESS', 'FAILURE', 'UNSTABLE', 'ABORTED']],
            buildmaster: [sha: params.GIT_REVISION,
                          what: 'webapp-test']]) {
       initializeGlobals();
