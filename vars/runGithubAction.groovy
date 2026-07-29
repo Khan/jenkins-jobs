@@ -15,14 +15,24 @@ def _githubApiHeaders(String token) {
 //   repo     - GitHub repo, e.g. "Khan/webapp"
 //   workflow - Workflow filename, e.g. "webapp-test.yml"
 //   ref      - Branch name to run the workflow on
-//   headSha  - Resolved SHA for the ref (used to identify the new run)
 //   inputs   - Map of string→string workflow inputs (optional)
 //   token    - a github token, used to perform the workflow_dispatch
 //
-// Dispatches the workflow via the GitHub API, then polls for up to 30s
-// to locate the new run and return its ID.
+// Dispatches the workflow via the GitHub API, tagging the dispatch with a
+// unique dispatch_id input, then polls for up to 30s to locate the new run
+// and return its ID.
 def _dispatch(Map args) {
-    def payload = JsonOutput.toJson([ref: args.ref, inputs: args.inputs ?: [:]])
+    // A unique-per-call ID we can use to unambiguously identify our run once
+    // it's created. workflow_dispatch doesn't return a run ID synchronously,
+    // so we have to poll for it afterward; matching on head_sha/head_branch
+    // alone is ambiguous when a concurrent or still-running prior dispatch
+    // shares the same ref and SHA (e.g. concurrent merge-branches builds
+    // against an unmoved master). The dispatched workflow must template this
+    // into its `run-name:` (which GitHub surfaces as `display_title`) for the
+    // matching below to work.
+    def dispatchId = "${env.BUILD_TAG}-${UUID.randomUUID().toString()}"
+    def inputs = (args.inputs ?: [:]) + [dispatch_id: dispatchId]
+    def payload = JsonOutput.toJson([ref: args.ref, inputs: inputs])
     notify.log("GitHub Actions dispatch payload", [
         level: "INFO",
         repo: args.repo,
@@ -37,20 +47,18 @@ def _dispatch(Map args) {
         requestBody: payload,
         url: "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/dispatches")
 
-    // Poll for up to 30s (10 attempts × 3s) to find the new run.
-    // Filter by head_sha when available to avoid picking up a concurrent
-    // dispatch against the same branch.
-    def shaFilter = args.headSha ? "&head_sha=${args.headSha}" : ""
+    // Poll for up to 30s (10 attempts × 3s) to find the new run, scoped to
+    // this workflow file and matched by its unique dispatch_id.
     def runId = null
     for (def i = 0; i < 10; i++) {
         sleep(3)
         def response = httpRequest(
             customHeaders: _githubApiHeaders(args.token),
             httpMode: "GET",
-            url: "https://api.github.com/repos/${args.repo}/actions/runs?event=workflow_dispatch&per_page=10${shaFilter}")
+            url: "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/runs?event=workflow_dispatch&per_page=10")
         def runs = new JsonSlurperClassic().parseText(response.content)
         for (run in runs.workflow_runs) {
-            if (run.head_branch == args.ref) {
+            if (run.display_title == dispatchId) {
                 runId = run.id.toString()
                 break
             }
@@ -85,7 +93,6 @@ def _wait(String repo, String runId, String githubToken) {
 //   repo     - GitHub repo, e.g. "Khan/webapp"
 //   workflow - Workflow filename, e.g. "webapp-test.yml"
 //   ref      - Branch name to run the workflow on
-//   headSha  - Resolved SHA for the ref (used to identify the new run)
 //   inputs   - Map of string→string workflow inputs (optional)
 def call(Map args) {
     dispatchAndWait(args)

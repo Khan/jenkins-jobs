@@ -414,15 +414,12 @@ def deploy() {
 
 def runInGithub() {
    withTimeout('3h') {
-      def gitSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
-                                           params.GIT_REVISION);
       // Pass the raw email prefix (untruncated); the workflow handles truncation.
       def actor = wrap([$class: 'BuildUser']) { env.BUILD_USER_ID.split("@")[0] };
       runGithubAction(
          repo: "Khan/webapp",
          workflow: "deploy-znd.yml",
          ref: "master",
-         headSha: gitSha,
          inputs: [
             git_revision: params.GIT_REVISION,
             version: params.VERSION,
