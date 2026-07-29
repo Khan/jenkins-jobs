@@ -559,7 +559,6 @@ def run(Boolean useGithub) {
             repo: "Khan/webapp",
             workflow: "webapp-test.yml",
             ref: params.GIT_TAG,
-            headSha: GIT_SHA1,
             inputs: [
                git_revision:          params.GIT_REVISION,
                base_revision:         params.BASE_REVISION,
