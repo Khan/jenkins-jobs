@@ -47,6 +47,9 @@ def runAllTests() {
              string(name: 'NUM_WORKER_MACHINES', value: "6"),
              string(name: 'CLIENTS_PER_WORKER', value: "2"),
              booleanParam(name: 'USE_GITHUB_BRIDGE', value: true),
+             // We don't want to spam the #backend channel every time
+             // the nightly test succeeds like it's supposed to.
+             booleanParam(name: 'ONLY_POST_ON_ERROR', value: true),
           ]);
 }
 
