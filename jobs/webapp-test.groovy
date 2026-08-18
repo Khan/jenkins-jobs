@@ -63,7 +63,16 @@ If the empty string, run *all* tests.""",
    """The slack thread (must be in SLACK_CHANNEL) to which to send failure
 alerts.  By default we do not send in a thread.  Generally only set by the
 buildmaster, to the 'thread_ts' or 'timestamp' value returned by the Slack
-API.""", ""
+API.""",
+    ""
+
+).addBooleanParam(
+    "ONLY_POST_ON_ERROR",
+    """If true, only post to SLACK_CHANNEL if the tests actually fail.
+(A test exits with FAIL or ERROR, or a test does not run due to a framework
+error of some sort.)  This is intended to be used by the nightly "allcheck"
+run.""",
+    false
 
 ).addChoiceParam(
    "CLEAN",
@@ -565,6 +574,7 @@ def run(Boolean useGithub) {
                base_revision:         params.BASE_REVISION,
                slack_channel:         params.SLACK_CHANNEL,
                slack_thread:          params.SLACK_THREAD,
+               only_post_on_error:    params.ONLY_POST_ON_ERROR,
                deployer_username:     params.DEPLOYER_USERNAME,
                revision_description:  REVISION_DESCRIPTION,
                buildmaster_deploy_id: params.BUILDMASTER_DEPLOY_ID,
