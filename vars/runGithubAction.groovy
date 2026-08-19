@@ -30,7 +30,12 @@ def _dispatch(Map args) {
     // against an unmoved master). The dispatched workflow must template this
     // into its `run-name:` (which GitHub surfaces as `display_title`) for the
     // matching below to work.
-    def dispatchId = "${env.BUILD_TAG}-${UUID.randomUUID().toString()}"
+    //
+    // Built from the job name (without the Jenkins folder path), build
+    // number, and a millisecond-precision timestamp so it's also
+    // recognizable at a glance in the GitHub Actions run list.
+    def dispatchId = ("${env.JOB_NAME.tokenize('/').last()}-${env.BUILD_NUMBER}" +
+                       "-${new Date().format('yyyyMMdd-HHmmssSSS')}")
     def inputs = (args.inputs ?: [:]) + [dispatch_id: dispatchId]
     def payload = JsonOutput.toJson([ref: args.ref, inputs: inputs])
     notify.log("GitHub Actions dispatch payload", [
