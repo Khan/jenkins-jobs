@@ -63,7 +63,12 @@ def _dispatch(Map args) {
             url: "https://api.github.com/repos/${args.repo}/actions/workflows/${args.workflow}/runs?event=workflow_dispatch&per_page=10")
         def runs = new JsonSlurperClassic().parseText(response.content)
         for (run in runs.workflow_runs) {
-            if (run.display_title == dispatchId) {
+            // display_title is rendered from the workflow's own run-name:
+            // template, which is free to prefix it with the workflow name
+            // (e.g. "merge-branches <dispatch_id>") -- match on containment
+            // rather than exact equality so we don't have to know each
+            // workflow's chosen format.
+            if (run.display_title?.contains(dispatchId)) {
                 runId = run.id.toString()
                 break
             }
