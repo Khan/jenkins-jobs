@@ -134,13 +134,10 @@ def runInGithub() {
       // coordinates with deploy-webapp while traffic migration remains in
       // Jenkins.
       lock(resource: 'update-traffic-lock', priority: 10) {
-         String masterSha = kaGit.resolveCommittish(
-            "git@github.com:Khan/webapp", "master");
          runGithubAction.dispatchAndWait(
             repo: "Khan/webapp",
             workflow: "delete-versions.yml",
             ref: "master",
-            headSha: masterSha,
             inputs: [
                service_versions: params.SERVICE_VERSIONS,
                dry_run: params.DRY_RUN.toString(),

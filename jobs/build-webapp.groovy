@@ -209,9 +209,6 @@ NEW_VERSION = null;
 // This holds the arguments to _alert.  It a groovy struct imported at runtime.
 alertMsgs = null;
 
-// GIT_SHA1 is the sha1 for GIT_REVISION.
-GIT_SHA1 = null;
-
 @NonCPS     // for replaceAll()
 def _interpolateString(def s, def interpolationArgs) {
    // Arguments to replaceAll().  `all` is the entire regexp match,
@@ -580,16 +577,10 @@ def run(Boolean useGithub) {
                          what: 'build-webapp']]) {
 
       if (useGithub) {
-         withTimeout('5m') {
-            GIT_SHA1 = kaGit.resolveCommittish("git@github.com:Khan/webapp",
-                                               params.GIT_REVISION);
-         }
-
          runGithubAction(
             repo: "Khan/webapp",
             workflow: "build-webapp.yml",
             ref: params.GIT_TAG,
-            headSha: GIT_SHA1,
             inputs: [
                git_revision:          params.GIT_REVISION,
                base_revision:         params.BASE_REVISION,

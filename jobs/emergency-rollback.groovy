@@ -151,13 +151,10 @@ def doRollback() {
 
 def doGithubRollback() {
    withTimeout('30m') {
-      def masterSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
-                                              "master");
       runGithubAction(
          repo: "Khan/webapp",
          workflow: "emergency-rollback.yml",
          ref: "master",
-         headSha: masterSha,
          inputs: [
             dry_run: params.DRY_RUN.toString(),
             rollback_to: params.ROLLBACK_TO,

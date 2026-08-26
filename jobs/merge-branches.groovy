@@ -128,13 +128,10 @@ def githubMergeResult(String runId) {
 
 
 def runInGithub() {
-   String masterSha = kaGit.resolveCommittish("git@github.com:Khan/webapp",
-                                             "master");
    String runId = runGithubAction.dispatchAndWait(
       repo: "Khan/webapp",
       workflow: "merge-branches.yml",
       ref: "master",
-      headSha: masterSha,
       inputs: [
          git_revisions: params.GIT_REVISIONS,
          commit_id: params.COMMIT_ID,
