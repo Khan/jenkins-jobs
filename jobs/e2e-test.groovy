@@ -40,12 +40,12 @@ new Setup(steps
        the blocking second-smoke-test (e2e mode prod-only), anything
        else the first-smoke-test (e2e mode non-default). This is the
        longstanding default behavior. </li>
-  <li> <b>post-deploy-async</b>: the fire-and-forget per-deploy
+  <li> <b>post-deploy</b>: the fire-and-forget per-deploy
        verification run against production (the post-deploy target
        group). Does NOT report to buildmaster: nothing gates on it
        (INFRA-11174). </li>
 </ul>""",
-   ["auto", "post-deploy-async"]
+   ["auto", "post-deploy"]
 
 ).addChoiceParam(
    "TEST_TYPE",
@@ -207,10 +207,10 @@ def _pullWebapp() {
 // production means the blocking second smoke test, anything else the first
 // smoke test. The async run also targets production, so it can never be
 // derived from the URL and is requested explicitly via E2E_RUN_MODE.
-IS_ASYNC = (params.E2E_RUN_MODE == "post-deploy-async");
+IS_ASYNC = (params.E2E_RUN_MODE == "post-deploy");
 IS_PRODUCTION = (E2E_URL == "https://www.khanacademy.org");
 E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
-E2E_MODE = IS_ASYNC ? "post-deploy-async"
+E2E_MODE = IS_ASYNC ? "post-deploy"
                     : (IS_PRODUCTION ? "prod-only" : "non-default");
 
 // The async run is fire-and-forget: nothing in buildmaster gates on it, so it
