@@ -33,6 +33,21 @@ new Setup(steps
    "https://www.khanacademy.org"
 
 ).addChoiceParam(
+   "E2E_RUN_MODE",
+   """How this run participates in a deploy:
+<ul>
+  <li> <b>auto</b>: derive the run from URL — the production URL means
+       the blocking second-smoke-test (e2e mode prod-only), anything
+       else the first-smoke-test (e2e mode non-default). This is the
+       longstanding default behavior. </li>
+  <li> <b>post-deploy</b>: the fire-and-forget per-deploy
+       verification run against production (the post-deploy target
+       group). Does NOT report to buildmaster: nothing gates on it
+       (INFRA-11174). </li>
+</ul>""",
+   ["auto", "post-deploy"]
+
+).addChoiceParam(
    "TEST_TYPE",
    """IGNORE: This is a dummy parameter that is only here to avoid breaking the
    communication with buildmaster""",
@@ -132,7 +147,7 @@ for more information.""",
 // Override the build name by the info that is passed in (from buildmaster).
 REVISION_DESCRIPTION = params.REVISION_DESCRIPTION ?: params.GIT_REVISION;
 // Drop this part so the branches can be grouped in Cypress Cloud
-SHORT_REVISION_DESCRIPTION = REVISION_DESCRIPTION.replaceAll(/\s*\((now live|currently deploying)\)/, '');
+SHORT_REVISION_DESCRIPTION = REVISION_DESCRIPTION.replaceAll(/\s*\((now live( - async)?|currently deploying)\)/, '');
 BASE_URL = params.URL;
 E2E_URL = BASE_URL[-1] == '/' ? BASE_URL.substring(0, BASE_URL.length() - 1): BASE_URL;
 
@@ -188,19 +203,33 @@ def _pullWebapp() {
    kaGit.safeSyncToOrigin("git@github.com:Khan/webapp", GIT_SHA1, [], force=true);
 }
 
-// Determines if we are running the first or second smoke test.
+// Determines which run this is. In auto mode we derive it from the URL:
+// production means the blocking second smoke test, anything else the first
+// smoke test. The async run also targets production, so it can never be
+// derived from the URL and is requested explicitly via E2E_RUN_MODE.
+IS_ASYNC = (params.E2E_RUN_MODE == "post-deploy");
 IS_PRODUCTION = (E2E_URL == "https://www.khanacademy.org");
 E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
-E2E_MODE = IS_PRODUCTION ? "prod-only" : "non-default";
+E2E_MODE = IS_ASYNC ? "post-deploy"
+                    : (IS_PRODUCTION ? "prod-only" : "non-default");
+
+// The async run is fire-and-forget: nothing in buildmaster gates on it, so it
+// gets no buildmaster block at all. (It must not report as E2E_RUN_TYPE
+// either: buildmaster routes job results by `what` alone, and a
+// "second-smoke-test" report from this run would corrupt the blocking
+// smoke test's state machine. INFRA-11174.)
+NOTIFY_OPTIONS = [slack: [channel: params.SLACK_CHANNEL,
+                          thread: params.SLACK_THREAD,
+                          sender: 'Testing Turtle',
+                          emoji: ':turtle:',
+                          when: ['FAILURE', 'UNSTABLE']]];
+if (!IS_ASYNC) {
+   NOTIFY_OPTIONS.buildmaster = [sha: params.GIT_REVISION,
+                                 what: E2E_RUN_TYPE];
+}
 
 onWorker(WORKER_TYPE, '5h') {     // timeout
-   notify([slack: [channel: params.SLACK_CHANNEL,
-                  thread: params.SLACK_THREAD,
-                  sender: 'Testing Turtle',
-                  emoji: ':turtle:',
-                  when: ['FAILURE', 'UNSTABLE']],
-          buildmaster: [sha: params.GIT_REVISION,
-                        what: E2E_RUN_TYPE]]) {
+   notify(NOTIFY_OPTIONS) {
       initializeGlobals();
       _pullWebapp();
       stage("Run e2e tests") {
