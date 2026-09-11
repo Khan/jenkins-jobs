@@ -526,6 +526,12 @@ def analyzeResults() {
             if (params.SLACK_THREAD) {
                summarize_args += ["--slack-thread", params.SLACK_THREAD];
             }
+            // The github-actions path passes this along as a workflow
+            // input; pass it here too so ONLY_POST_ON_ERROR means the
+            // same thing whichever path the job takes.
+            if (params.ONLY_POST_ON_ERROR) {
+               summarize_args += ["--only-post-on-error"];
+            }
             // summarize-to-slack returns a non-zero rc if it detects
             // test failures.  We want to fail the entire job in that
             // case, but still keep on running the rest of this script!
