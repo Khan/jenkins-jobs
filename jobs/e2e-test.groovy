@@ -64,6 +64,20 @@ new Setup(steps
    "The slack channel to which to send failure alerts.",
    "#1s-and-0s-deploys"
 
+).addChoiceParam(
+   "POST_RESULTS_TO_SLACK",
+   """Whether the e2e test <i>results</i> (pass/fail summary) are posted to
+SLACK_CHANNEL by this job. Jenkins-level failure alerts (the job itself
+failing) are posted regardless.
+<ul>
+  <li> <b>auto</b>: post for the blocking smoke tests (E2E_RUN_MODE=auto),
+       but NOT for the post-deploy run — Cypress Cloud's own Slack
+       integration already reports that one, so posting here would
+       duplicate it (FEI-8269). </li>
+  <li> <b>always</b> / <b>never</b>: override the above. </li>
+</ul>""",
+   ["auto", "always", "never"]
+
 ).addStringParam(
    "SLACK_THREAD",
    """The slack thread (must be in SLACK_CHANNEL) to which to send failure
@@ -213,6 +227,14 @@ E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
 E2E_MODE = IS_ASYNC ? "post-deploy"
                     : (IS_PRODUCTION ? "prod-only" : "non-default");
 
+// Whether notify-workflow-status.ts posts the pass/fail summary to Slack.
+// The post-deploy run is already reported by Cypress Cloud's Slack
+// integration, so by default only the blocking runs post from here. If we
+// ever lose the Cypress Cloud integration (e.g. moving to Playwright, see
+// FEI-8221) flip the "auto" case to true for IS_ASYNC too.
+POST_RESULTS_TO_SLACK = (params.POST_RESULTS_TO_SLACK == "always"
+                         || (params.POST_RESULTS_TO_SLACK == "auto" && !IS_ASYNC));
+
 // The async run is fire-and-forget: nothing in buildmaster gates on it, so it
 // gets no buildmaster block at all. (It must not report as E2E_RUN_TYPE
 // either: buildmaster routes job results by `what` alone, and a
@@ -245,14 +267,20 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   "--build-name=${BUILD_NAME}",
                   "--base-url=${params.URL}",
                   // SummarizeOptions params
-                  "--channel=${params.SLACK_CHANNEL}",
                   "--build-url=${BUILD_URL}",  // This would be the Jenkins build URL
                   "--label=${params.REVISION_DESCRIPTION ?: params.GIT_REVISION}",
                   "--url=${params.URL}",
-                  "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
-                  "--thread=${params.SLACK_THREAD}",
                   "--ka-e2e-mode=${E2E_MODE}"
                ];
+               if (POST_RESULTS_TO_SLACK) {
+                  githubWorkflowArgs += [
+                     "--channel=${params.SLACK_CHANNEL}",
+                     "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
+                     "--thread=${params.SLACK_THREAD}",
+                  ];
+               } else {
+                  githubWorkflowArgs += ["--skip-slack"];
+               }
                dir("webapp/testing/e2e") {
                   exec(["pnpm", "install"]);
                   exec(githubWorkflowArgs);
