@@ -1,5 +1,18 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
+import groovy.transform.Field
+
+// How long we wait between polls while a run is in progress, in seconds.
+// `gh run watch` polls every 3s, which suits a terminal that redraws in
+// place; since we print to a log that only scrolls, we poll less often (and
+// only print on change).  The cost is up to this many seconds of latency
+// noticing a run has finished, which is nothing next to a run's runtime.
+@Field POLL_INTERVAL_SECONDS = 20
+
+// How many consecutive failed polls we tolerate before giving up on a run we
+// already dispatched.  The GitHub API blips from time to time, and the run
+// itself is generally fine when it does.
+@Field MAX_POLL_FAILURES = 5
 
 def _githubApiHeaders(String token) {
     return [[name: "Authorization",
@@ -128,18 +141,102 @@ def _dispatch(Map args) {
     return runId
 }
 
+// Fetch a run's own status/conclusion plus the status/conclusion of each of
+// its jobs.  Returns the parsed JSON: a map with `status`, `conclusion`, and
+// `jobs` (a list of maps with `name`, `status`, and `conclusion`).
+//
+// We go through `gh` rather than the API directly so we don't have to
+// paginate the jobs list ourselves.  Note that gh uses "" rather than null
+// for a conclusion that doesn't exist yet, so `?:` works on both.
+def _fetchRunState(String repo, String runId) {
+    def json = exec.outputOf(["gh", "run", "view", runId, "-R", repo,
+                              "--json", "status,conclusion,jobs"])
+    return new JsonSlurperClassic().parseText(json)
+}
+
+// Render a run's state as a header line plus one line per job.  This is both
+// what we print and the value we diff against the previous poll, so it must
+// not include anything that changes on its own (elapsed times, say) or we'd
+// print every time around the loop.
+String _renderRunState(String runId, def state) {
+    String rendered = "GitHub Actions run " + runId + ": " + state.status
+    if (state.conclusion) {
+        rendered += " (" + state.conclusion + ")"
+    }
+    for (job in (state.jobs ?: [])) {
+        // A finished job shows its conclusion (success/failure/...), one
+        // still going shows its status (queued/in_progress).
+        rendered += "\n  [" + (job.conclusion ?: job.status) + "] " + job.name
+    }
+    return rendered
+}
+
+// The jobs of a completed run that didn't succeed, as "name (conclusion)"
+// strings, so a failure message says what broke and not just that something
+// did.  Skipped jobs are normal (a matrix leg that wasn't needed), so they
+// don't count as failures here.
+def _failedJobs(def state) {
+    def failed = []
+    for (job in (state.jobs ?: [])) {
+        if (job.conclusion && job.conclusion != "success"
+                && job.conclusion != "skipped") {
+            failed += "${job.name} (${job.conclusion})"
+        }
+    }
+    return failed
+}
+
 // Wait for a GitHub Actions workflow run to complete.
 // Blocks until the run finishes; fails the build if the run fails.
+//
+// We poll ourselves instead of using `gh run watch` because watch redraws the
+// entire run -- every job, every few seconds -- which is what you want in a
+// terminal that can overwrite itself, and thousands of near-identical lines
+// in a Jenkins console log.  Instead we print the full state only when it
+// differs from the last state we printed.
 def _wait(String repo, String runId, String githubToken) {
     echo("Waiting on GitHub Actions run ${runUrl(repo, runId)}")
     withEnv(["GITHUB_TOKEN=${githubToken}"]) {
-        try {
-            exec(["gh", "run", "watch", runId, "-R", repo, "--exit-status"])
-        } catch (e) {
-            notify.rethrowIfAborted(e)
-            notify.fail("GitHub Actions workflow failed: " +
-                        runUrl(repo, runId) + "\n\n" +
-                        e.getMessage(), e)
+        String lastRendered = null
+        def failures = 0
+        while (true) {
+            def state = null
+            try {
+                state = _fetchRunState(repo, runId)
+            } catch (e) {
+                notify.rethrowIfAborted(e)
+                failures++
+                if (failures >= MAX_POLL_FAILURES) {
+                    notify.fail("Gave up polling GitHub Actions run " +
+                                runUrl(repo, runId) + " after ${failures} " +
+                                "failed attempts:\n\n" + e.getMessage(), e)
+                }
+                echo("Failed to fetch the state of GitHub Actions run " +
+                     "${runId} (attempt ${failures} of " +
+                     "${MAX_POLL_FAILURES}), retrying: ${e.getMessage()}")
+                sleep(POLL_INTERVAL_SECONDS)
+                continue
+            }
+            failures = 0
+
+            String rendered = _renderRunState(runId, state)
+            if (rendered != lastRendered) {
+                echo(rendered)
+                lastRendered = rendered
+            }
+
+            if (state.status == "completed") {
+                if (state.conclusion == "success") {
+                    return
+                }
+                def failed = _failedJobs(state)
+                notify.fail("GitHub Actions workflow ${state.conclusion}: " +
+                            runUrl(repo, runId) +
+                            (failed ? "\n\nFailed jobs:\n" + failed.join("\n")
+                                    : ""))
+            }
+
+            sleep(POLL_INTERVAL_SECONDS)
         }
     }
 }
