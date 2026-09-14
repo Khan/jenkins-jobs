@@ -64,6 +64,16 @@ new Setup(steps
    "The slack channel to which to send failure alerts.",
    "#1s-and-0s-deploys"
 
+).addBooleanParam(
+   "POST_RESULTS_TO_SLACK",
+   """If true, post the e2e test <i>results</i> (pass/fail summary) to
+SLACK_CHANNEL when the run finishes. Set false for runs that are already
+reported to Slack by another system (e.g. Cypress Cloud's own Slack
+integration reports the post-deploy run, so buildmaster passes false for
+it to avoid a duplicate message; FEI-8269). Jenkins-level failure alerts
+(the job itself failing) are posted regardless of this setting.""",
+   true
+
 ).addStringParam(
    "SLACK_THREAD",
    """The slack thread (must be in SLACK_CHANNEL) to which to send failure
@@ -245,14 +255,20 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   "--build-name=${BUILD_NAME}",
                   "--base-url=${params.URL}",
                   // SummarizeOptions params
-                  "--channel=${params.SLACK_CHANNEL}",
                   "--build-url=${BUILD_URL}",  // This would be the Jenkins build URL
                   "--label=${params.REVISION_DESCRIPTION ?: params.GIT_REVISION}",
                   "--url=${params.URL}",
-                  "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
-                  "--thread=${params.SLACK_THREAD}",
                   "--ka-e2e-mode=${E2E_MODE}"
                ];
+               if (params.POST_RESULTS_TO_SLACK) {
+                  githubWorkflowArgs += [
+                     "--channel=${params.SLACK_CHANNEL}",
+                     "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
+                     "--thread=${params.SLACK_THREAD}",
+                  ];
+               } else {
+                  githubWorkflowArgs += ["--skip-slack"];
+               }
                dir("webapp/testing/e2e") {
                   exec(["pnpm", "install"]);
                   exec(githubWorkflowArgs);
