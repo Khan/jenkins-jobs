@@ -70,10 +70,12 @@ new Setup(steps
 SLACK_CHANNEL by this job. Jenkins-level failure alerts (the job itself
 failing) are posted regardless.
 <ul>
-  <li> <b>auto</b>: post for the blocking smoke tests (E2E_RUN_MODE=auto),
-       but NOT for the post-deploy run — Cypress Cloud's own Slack
-       integration already reports that one, so posting here would
-       duplicate it (FEI-8269). </li>
+  <li> <b>auto</b>: identical to <b>always</b> for every run except
+       E2E_RUN_MODE=post-deploy, which does not post. That run is the only
+       one Cypress Cloud's own Slack integration also reports, so posting
+       it from here duplicated the message (FEI-8269). The blocking smoke
+       tests (E2E_RUN_MODE=auto) still post to SLACK_CHANNEL exactly as
+       before; Cypress Cloud does not post those anywhere. </li>
   <li> <b>always</b> / <b>never</b>: override the above. </li>
 </ul>""",
    ["auto", "always", "never"]
