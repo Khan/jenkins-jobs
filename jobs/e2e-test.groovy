@@ -64,21 +64,15 @@ new Setup(steps
    "The slack channel to which to send failure alerts.",
    "#1s-and-0s-deploys"
 
-).addChoiceParam(
+).addBooleanParam(
    "POST_RESULTS_TO_SLACK",
-   """Whether the e2e test <i>results</i> (pass/fail summary) are posted to
-SLACK_CHANNEL by this job. Jenkins-level failure alerts (the job itself
-failing) are posted regardless.
-<ul>
-  <li> <b>auto</b>: identical to <b>always</b> for every run except
-       E2E_RUN_MODE=post-deploy, which does not post. That run is the only
-       one Cypress Cloud's own Slack integration also reports, so posting
-       it from here duplicated the message (FEI-8269). The blocking smoke
-       tests (E2E_RUN_MODE=auto) still post to SLACK_CHANNEL exactly as
-       before; Cypress Cloud does not post those anywhere. </li>
-  <li> <b>always</b> / <b>never</b>: override the above. </li>
-</ul>""",
-   ["auto", "always", "never"]
+   """If true, post the e2e test <i>results</i> (pass/fail summary) to
+SLACK_CHANNEL when the run finishes. Set false for runs that are already
+reported to Slack by another system (e.g. Cypress Cloud's own Slack
+integration reports the post-deploy run, so buildmaster passes false for
+it to avoid a duplicate message; FEI-8269). Jenkins-level failure alerts
+(the job itself failing) are posted regardless of this setting.""",
+   true
 
 ).addStringParam(
    "SLACK_THREAD",
@@ -229,14 +223,6 @@ E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
 E2E_MODE = IS_ASYNC ? "post-deploy"
                     : (IS_PRODUCTION ? "prod-only" : "non-default");
 
-// Whether notify-workflow-status.ts posts the pass/fail summary to Slack.
-// The post-deploy run is already reported by Cypress Cloud's Slack
-// integration, so by default only the blocking runs post from here. If we
-// ever lose the Cypress Cloud integration (e.g. moving to Playwright, see
-// FEI-8221) flip the "auto" case to true for IS_ASYNC too.
-POST_RESULTS_TO_SLACK = (params.POST_RESULTS_TO_SLACK == "always"
-                         || (params.POST_RESULTS_TO_SLACK == "auto" && !IS_ASYNC));
-
 // The async run is fire-and-forget: nothing in buildmaster gates on it, so it
 // gets no buildmaster block at all. (It must not report as E2E_RUN_TYPE
 // either: buildmaster routes job results by `what` alone, and a
@@ -274,7 +260,7 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   "--url=${params.URL}",
                   "--ka-e2e-mode=${E2E_MODE}"
                ];
-               if (POST_RESULTS_TO_SLACK) {
+               if (params.POST_RESULTS_TO_SLACK) {
                   githubWorkflowArgs += [
                      "--channel=${params.SLACK_CHANNEL}",
                      "--deployer=${params.DEPLOYER_USERNAME ? "@${params.DEPLOYER_USERNAME}" : ""}",
