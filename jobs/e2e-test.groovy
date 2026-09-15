@@ -121,7 +121,9 @@ Defaults to GIT_REVISION.""",
 ).addStringParam(
    "BUILDMASTER_DEPLOY_ID",
    """Set by the buildmaster, can be used by scripts to associate jobs
-that are part of the same deploy.  Write-only; not used by this script.""",
+that are part of the same deploy.  For post-deploy runs it is added to
+the Cypress Cloud run's tags and title (deploy-<id>) so the run can be
+attributed to a deploy (INFRA-11185); other runs don't use it.""",
    ""
 
 ).addBooleanParam(
@@ -132,8 +134,10 @@ that are part of the same deploy.  Write-only; not used by this script.""",
 
 ).addStringParam(
    "EXPECTED_VERSION",
-   """IGNORE: This is a dummy parameter that is only here to avoid breaking the
-   communication with buildmaster""",
+   """The deploy version this run verifies (e.g. 260914-1027-57d195cd993d).
+The buildmaster sends it for post-deploy runs, where it becomes the
+Cypress Cloud run's title and a version-<version> tag (INFRA-11185);
+other runs ignore it.""",
    ""
 
 ).addStringParam(
@@ -223,6 +227,24 @@ E2E_RUN_TYPE = IS_PRODUCTION ? "second-smoke-test" : "first-smoke-test";
 E2E_MODE = IS_ASYNC ? "post-deploy"
                     : (IS_PRODUCTION ? "prod-only" : "non-default");
 
+// The post-deploy run gets tagged with the deploy and version it verifies,
+// and a title of "<version> <build#> deploy-<id>" (INFRA-11185). The
+// blocking smoke tests are left untouched. If EXPECTED_VERSION is empty
+// (buildmaster not yet sending it), the title keeps its default.
+E2E_TAGS = [];
+if (IS_ASYNC) {
+   if (params.BUILDMASTER_DEPLOY_ID) {
+      E2E_TAGS << "deploy-${params.BUILDMASTER_DEPLOY_ID}";
+   }
+   if (params.EXPECTED_VERSION) {
+      E2E_TAGS << "version-${params.EXPECTED_VERSION}";
+      BUILD_NAME = "${params.EXPECTED_VERSION} ${env.BUILD_NUMBER}";
+      if (params.BUILDMASTER_DEPLOY_ID) {
+         BUILD_NAME += " deploy-${params.BUILDMASTER_DEPLOY_ID}";
+      }
+   }
+}
+
 // The async run is fire-and-forget: nothing in buildmaster gates on it, so it
 // gets no buildmaster block at all. (It must not report as E2E_RUN_TYPE
 // either: buildmaster routes job results by `what` alone, and a
@@ -268,6 +290,10 @@ onWorker(WORKER_TYPE, '5h') {     // timeout
                   ];
                } else {
                   githubWorkflowArgs += ["--skip-slack"];
+               }
+               if (E2E_TAGS) {
+                  // Long form only: the webapp arg parser aliases -t to --thread.
+                  githubWorkflowArgs << "--cycloud-tags=${E2E_TAGS.join(',')}";
                }
                dir("webapp/testing/e2e") {
                   exec(["pnpm", "install"]);
