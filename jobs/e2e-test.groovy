@@ -121,9 +121,9 @@ Defaults to GIT_REVISION.""",
 ).addStringParam(
    "BUILDMASTER_DEPLOY_ID",
    """Set by the buildmaster, can be used by scripts to associate jobs
-that are part of the same deploy.  For post-deploy runs it is added to
+that are part of the same deploy. For post-deploy runs it is added to
 the Cypress Cloud run's tags and title (deploy-<id>) so the run can be
-attributed to a deploy (INFRA-11185); other runs don't use it.""",
+attributed to a deploy; other runs don't use it.""",
    ""
 
 ).addBooleanParam(
@@ -134,10 +134,9 @@ attributed to a deploy (INFRA-11185); other runs don't use it.""",
 
 ).addStringParam(
    "EXPECTED_VERSION",
-   """The deploy version this run verifies (e.g. 260914-1027-57d195cd993d).
-The buildmaster sends it for post-deploy runs, where it becomes the
-Cypress Cloud run's title and a version-<version> tag (INFRA-11185);
-other runs ignore it.""",
+   """The deploy version this run verifies. The buildmaster sends it
+for post-deploy runs, where it becomes the Cypress Cloud run's title
+and a version-<version> tag; other runs ignore it.""",
    ""
 
 ).addStringParam(
@@ -238,7 +237,7 @@ if (IS_ASYNC) {
    }
    if (params.EXPECTED_VERSION) {
       E2E_TAGS << "version-${params.EXPECTED_VERSION}";
-      BUILD_NAME = "${params.EXPECTED_VERSION} ${env.BUILD_NUMBER}";
+      BUILD_NAME = "${params.EXPECTED_VERSION} #${env.BUILD_NUMBER}";
       if (params.BUILDMASTER_DEPLOY_ID) {
          BUILD_NAME += " deploy-${params.BUILDMASTER_DEPLOY_ID}";
       }
