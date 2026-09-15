@@ -555,7 +555,13 @@ def call(options, Closure body) {
                // TODO(benkraft): Re-enable the timestamps block around
                // waitUntil once this issue gets fixed:
                //    https://issues.jenkins-ci.org/browse/JENKINS-57163
-               waitUntil({ abortState.complete || abortState.aborted });
+               // `quiet` suppresses waitUntil's "Will try again after
+               // <time>" line, which it would otherwise print on every
+               // poll -- four times a minute, for the whole build, since
+               // this condition is false until the build ends.
+               waitUntil(quiet: true) {
+                  abortState.complete || abortState.aborted
+               };
             } catch (e) {
                if (!abortState.complete) {
                   abortState.aborted = true;
