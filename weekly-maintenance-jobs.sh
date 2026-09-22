@@ -135,6 +135,10 @@ gc_all_repos() {
         echo "GC-ing in $dir"
         cd "$dir"
 
+        # I wouldn't think this would be necessary in the non-canonical
+        # repos, but apparently it does something!  It can't hurt.
+        git fetch --tags --prune --prune-tags --force --progress origin
+
         # We don't need reflogs in jenkins, and they can cause trouble
         # when gc-ing, so we remove them.  See
         #    https://feeding.cloud.geek.nz/posts/error-while-running-git-gc/
