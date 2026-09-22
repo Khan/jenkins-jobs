@@ -42,12 +42,12 @@ def runAllTests() {
              string(name: 'GIT_REVISION', value: params.GIT_REVISION),
              string(name: 'GIT_TAG', value: params.GIT_TAG),
              string(name: 'BASE_REVISION', value: ""),
-             string(name: 'SLACK_CHANNEL', value: "#backend"),
+             string(name: 'SLACK_CHANNEL', value: "#infrastructure-platform"),
              booleanParam(name: 'FORCE', value: params.FORCE),
              string(name: 'NUM_WORKER_MACHINES', value: "6"),
              string(name: 'CLIENTS_PER_WORKER', value: "2"),
              booleanParam(name: 'USE_GITHUB_BRIDGE', value: true),
-             // We don't want to spam the #backend channel every time
+             // We don't want to spam the #infra-platform channel every time
              // the nightly test succeeds like it's supposed to.
              booleanParam(name: 'ONLY_POST_ON_ERROR', value: true),
           ]);
@@ -73,7 +73,7 @@ onMaster('5h') {
    // individually.
    // TODO(csilvers): remove onMaster(), and just allocate
    // the executor in the notify clean-up steps.
-   notify([slack: [channel: '#backend', when: ['STARTED', 'ABORTED']]]) {
+   notify([slack: [channel: '#infrastructure-platform', when: ['STARTED', 'ABORTED']]]) {
       // We need this only to get the secrets to send to slack/asana/etc
       // when there are failures.
 
