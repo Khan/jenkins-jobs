@@ -258,11 +258,17 @@ def runTestServer() {
             // Only run the tests that are affected by files that were
             // changed between BASE_REVISION and GIT_REVISION.  We ignore
             // files where only sync tags have changed; those can't affect
-            // tests.
+            // tests (except for consistency tests, which we handle below).
             sh("deploy/trivial_diffs.py ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} > ../trivial_diffs.txt");
             sh("git diff --name-only --diff-filter=ACMRTUB ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py - > ../files_to_test.txt");
             // Sometimes we need to run some extra tests for deletd files.
             sh("git diff --name-only --diff-filter=D ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | fgrep -vx -f ../trivial_diffs.txt | testing/all_tests_for.py --deleted-mode - >> ../files_to_test.txt");
+            // Consistency tests, however, sometimes *do* care about
+            // trivial diffs (e.g. a test that checks sync tags), so we
+            // run the consistency tests triggered by the trivial-diff
+            // files too.  (We filter out all non-consistency tests.)
+            // The `|| true` is because grep fails when nothing matches.
+            sh("if [ -s ../trivial_diffs.txt ]; then testing/all_tests_for.py - < ../trivial_diffs.txt | grep '^dev/consistency_tests/' >> ../files_to_test.txt || true; fi");
             // Note that unlike for tests, we consider deleted files for linting.
             sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | testing/all_lint_for.py - > ../files_to_lint.txt");
          } else {
