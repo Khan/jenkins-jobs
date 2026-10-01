@@ -273,7 +273,7 @@ def runTestServer() {
             // which can end up mid-file after the appends above.
             // runtests-server treats a blank line as "" (the repo root)
             // and passes it to git, which fails, so remove them.
-            sh("sed -i '/^$/d' ../files_to_test.txt");
+            sh("sed -i '/^\$/d' ../files_to_test.txt");
             // Note that unlike for tests, we consider deleted files for linting.
             sh("git diff --name-only --diff-filter=ACMRTUBD ${exec.shellEscape(params.BASE_REVISION)}...${exec.shellEscape(GIT_SHA1)} | testing/all_lint_for.py - > ../files_to_lint.txt");
          } else {
