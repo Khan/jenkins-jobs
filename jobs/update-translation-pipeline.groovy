@@ -1,6 +1,6 @@
 // Pipeline job that creates a new dockerfile image for the translation-pipeline,
-// uploads it to our docker container-registry, and maybe refreshes crowdin-go
-// deployment in GKE.
+// uploads it to our artifact registry, and maybe refreshes the crowdin-go
+// deployment and cronjobs in GKE.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -29,8 +29,8 @@ indicate that this image does not derive from prod.""",
 
 ).addBooleanParam(
     "REFRESH_CROWDIN_GO",
-    """If set, (re-)start the crowdin-go deployment on GKE after pushing the
-new docker image.""",
+    """If set, (re-)start the crowdin-go deployment, and update the crowdin-go
+cronjobs, on GKE after pushing the new docker image.""",
     true
 
 ).apply();
@@ -47,10 +47,10 @@ def runScript() {
     dir("webapp/services/content-editing/translation_pipeline") {
        exec(["make", "push", "ZND_NAME=${params.ZND_NAME}"]);
        // TODO(csilvers): report the image version to slack?
-       echo("gcr.io/khan-internal-services/crowdin-go has been pushed");
+       echo("us-central1-docker.pkg.dev/khan-internal-services/content-editing/crowdin-go has been pushed");
        if (params.REFRESH_CROWDIN_GO) {
-          exec(["make", "crowdin-go"]);
-          echo("console.cloud.google.com/kubernetes/deployment/us-central1-b/internal-services/crowdin-go/crowdin-go/overview?project=khan-internal-services has been refreshed");
+          exec(["make", "refresh"]);
+          echo("https://console.cloud.google.com/kubernetes/deployment/us-central1-c/crowdin-go/crowdin-go/crowdin-go/overview?project=khan-internal-services and its cronjobs have been refreshed");
        } else {
           echo("Next step is to run `make -C services/content-editing/translation_pipeline refresh` or similar.");
        }

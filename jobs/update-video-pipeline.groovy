@@ -1,5 +1,5 @@
 // Pipeline job that creates a new dockerfile image for the video-pipeline,
-// uploads it to our docker container-registry, and maybe refreshes the GKE
+// uploads it to our artifact registry, and maybe refreshes the GKE
 // deployment.
 
 @Library("kautils")
@@ -41,7 +41,7 @@ def runScript() {
 
     dir("webapp/services/content-editing/cmd/video_pipeline") {
        exec(["make", "build-and-push"]);
-       echo("gcr.io/khan-internal-services/video-pipeline has been pushed:");
+       echo("us-central1-docker.pkg.dev/khan-internal-services/content-editing/video-pipeline has been pushed:");
        exec(["make", "show-version"]);
        if (params.REFRESH_VIDEO_PIPELINE) {
           exec(["make", "deploy-transcoder"]);
