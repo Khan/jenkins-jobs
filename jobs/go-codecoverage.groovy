@@ -87,11 +87,45 @@ def runTests(){
                 # without it sed's exit status would mask a test failure and
                 # the stage would look green.
                 set -eo pipefail
-                go list -f '{{.ImportPath}} {{.Name}}' ./services/... ./pkg/... \\
-                    | awk '$1 !~ /testutil|generated/' \\
-                    > packages.txt
-                awk '{print $1}' packages.txt > test-packages.txt
-                awk '$2 != "main" {print $1}' packages.txt > coverage-packages.txt
+
+                # What we skip comes from webapp's lint_ignorelist.txt, on the
+                # theory that code we don't lint is code we don't need coverage
+                # for -- rather than a hand-kept list here that nobody would
+                # think to update.  Its patterns are relative to the repo root,
+                # but git applies a pattern with no leading slash at any depth
+                # (so a bare `datastore/` would match pkg/gcloud/datastore), so
+                # anchor everything that isn't explicitly `**/` and then let git
+                # do the glob matching -- including the `!` negations, which it
+                # understands and we would not want to hand-roll.
+                awk '
+                  /^#/ || /^[[:space:]]*$/ { next }
+                  { neg = ""; line = $0
+                    if (substr(line, 1, 1) == "!") { neg = "!"; line = substr(line, 2) }
+                    if (substr(line, 1, 3) != "**/") line = "/" line
+                    print neg line }
+                ' lint_ignorelist.txt > coverage-ignore.txt
+
+                # Test helpers are linted, so they are deliberately not in
+                # lint_ignorelist.txt, but their own coverage is not something
+                # anyone would act on.  Same glob syntax, so git applies these
+                # the same way, and packages nested under one (testutil/evaltest
+                # and friends) are skipped along with it.
+                printf '%s\\n' '**/testutil/' '**/testutils/' >> coverage-ignore.txt
+
+                go list -f '{{.ImportPath}} {{.Name}} {{.Dir}}' ./services/... ./pkg/... \\
+                    | sed "s|$PWD/||" > packages.txt
+
+                # check-ignore exits 1 when nothing matched, which is not an
+                # error for us; anything above that is.
+                awk '{print $3}' packages.txt \\
+                    | git -c core.excludesFile="$PWD/coverage-ignore.txt" \\
+                          check-ignore --no-index --stdin > ignored-dirs.txt \\
+                    || [ $? -eq 1 ]
+
+                awk 'NR==FNR{ig[$0];next} !($3 in ig) {print $1}' \\
+                    ignored-dirs.txt packages.txt > test-packages.txt
+                awk 'NR==FNR{ig[$0];next} !($3 in ig) && $2 != "main" {print $1}' \\
+                    ignored-dirs.txt packages.txt > coverage-packages.txt
 
                 # Every `ok` line ends with `coverage: N% of statements in <every
                 # package in -coverpkg>`.  At 900+ packages that is a ~50KB
@@ -131,11 +165,6 @@ def publishCoverage() {
         // A per-function dump in the build log, handy for working out which
         // package moved the trend line.
         sh 'go tool cover -func coverage.txt'
-        // The Coverage plugin parses `go test -coverprofile` output natively
-        // via its GO_COV parser, so there is no conversion step and no
-        // intermediate XML.  (The old code-coverage-api plugin's
-        // publishCoverage/coberturaAdapter steps are deprecated.)
-        //
         // This gives line coverage only.  A go coverage profile records which
         // statements ran and nothing else, so neither branch coverage nor
         // cyclomatic complexity can come out of it -- reporting those means
@@ -146,7 +175,8 @@ def publishCoverage() {
             // webapp is about 1GB, so keep only the last build's sources.
             sourceCodeRetention: 'LAST_BUILD',
         )
-        sh 'rm -f coverage.txt packages.txt test-packages.txt coverage-packages.txt'
+        sh('''rm -f coverage.txt packages.txt test-packages.txt \\
+                     coverage-packages.txt coverage-ignore.txt ignored-dirs.txt''')
     }
 }
 
