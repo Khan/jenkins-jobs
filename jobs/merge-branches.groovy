@@ -1,4 +1,6 @@
 // Merge a number of branches of webapp, and push the merge commit to github.
+// The merge itself happens in webapp's merge-branches.yml GitHub Actions
+// workflow; this job dispatches it, waits for it, and reports the result.
 //
 // This is used by the buildmaster -- such that the rest of Jenkins, for the
 // most part, can only ever worry about fixed SHAs, and never have to worry
@@ -12,7 +14,6 @@ import groovy.json.JsonSlurperClassic;
 // Vars we use, under jenkins-jobs/vars/.  This is just for documentation.
 //import vars.buildmaster
 //import vars.exec
-//import vars.kaGit
 //import vars.notify
 //import vars.runGithubAction
 //import vars.withSecrets
@@ -69,11 +70,6 @@ of the GIT_REVISION, especially if it is a commit rather than a branch.""",
 that are part of the same deploy.  Write-only; not used by this script.""",
    ""
 
-).addBooleanParam(
-   "USE_GITHUB_BRIDGE",
-   "If true, dispatch merge work to GitHub Actions instead of running it here.",
-   false
-
 ).apply();
 
 currentBuild.displayName = "${currentBuild.displayName} (${params.COMMIT_ID}: ${params.GIT_REVISIONS}) (${params.REVISION_DESCRIPTION})";
@@ -85,26 +81,6 @@ def checkArgs() {
    } else if (!params.COMMIT_ID) {
       notify.fail("The COMMIT_ID parameter is required.");
    }
-}
-
-
-String getGaeVersionName() {
-   dir('webapp') {
-     String gaeVersionName = exec.outputOf(["make", "gae_version_name"]);
-     echo("Found gae version name: ${gaeVersionName}");
-     return gaeVersionName;
-   }
-}
-
-
-def runInJenkins() {
-   String tagName = ("buildmaster-${params.COMMIT_ID}-" +
-                     "${new Date().format('yyyyMMdd-HHmmss')}");
-   String sha1 = kaGit.mergeRevisions(params.GIT_REVISIONS, tagName,
-                                      params.REVISION_DESCRIPTION);
-   String gaeVersionName = getGaeVersionName();
-   buildmaster.notifyMergeResult(params.COMMIT_ID, 'success',
-                                 sha1, gaeVersionName, tagName);
 }
 
 
@@ -146,7 +122,7 @@ def runInGithub() {
 }
 
 
-def run(Boolean useGithub) {
+def run() {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Mr Monkey',
@@ -154,11 +130,7 @@ def run(Boolean useGithub) {
                    when: ['FAILURE', 'UNSTABLE']]]) {
       try {
          checkArgs();
-         if (useGithub) {
-            runInGithub();
-         } else {
-            runInJenkins();
-         }
+         runInGithub();
       } catch (e) {
          // We don't really care about the difference between aborted and failed;
          // we can't use notify because we want somewhat special semantics; and
@@ -172,5 +144,5 @@ def run(Boolean useGithub) {
 
 
 onMaster('1h') {
-   run(params.USE_GITHUB_BRIDGE);
+   run();
 }
