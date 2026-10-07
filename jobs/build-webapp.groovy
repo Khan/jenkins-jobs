@@ -478,13 +478,25 @@ def deployToGatewayConfig() {
 
 
 // This should be called from within a node().
+// The caller is responsible for setting up the slack-and-stackdriver
+// secrets (via withSecrets.slackAndStackdriverAlertlibOnly).
 def deployToService(service) {
-   withSecrets.slackAndStackdriverAlertlibOnly() {
-      dir("webapp") {
-         exec(["make", "-C", "services/${service}", "deploy",
-               "ALREADY_RAN_TESTS=1",
-               "DEPLOY_VERSION=${NEW_VERSION}"]);
-      }
+   dir("webapp") {
+      exec(["make", "-C", "services/${service}", "deploy",
+            "ALREADY_RAN_TESTS=1",
+            "DEPLOY_VERSION=${NEW_VERSION}"]);
+   }
+}
+
+// Every Cloud Run service deploy does `go run upload-images`.  If we
+// let them all do that in parallel, they each compile it at the same
+// time.  Instead, we compile it once up front, which populates the go
+// build cache so the per-service `go run`s can just use the binary.
+// (`--help` is a cheap no-op that doesn't build or upload anything.)
+// This should be called from within a node().
+def prebuildDeployTools() {
+   dir("webapp") {
+      exec(["go", "run", "./dev/deploy/cmd/upload-images", "--help"]);
    }
 }
 
@@ -513,7 +525,13 @@ def deployAndReport() {
             jobs["deploy-to-${serviceAgain}"] = { deployToService(serviceAgain); };
          }
       }
-      parallel(jobs);
+      prebuildDeployTools();
+
+      // We fetch the secrets once, here, rather than in each parallel
+      // branch: fetching them ~40 times at once is slow.
+      withSecrets.slackAndStackdriverAlertlibOnly() {
+         parallel(jobs);
+      }
 
       parallel([
          "update-graphql-safelist": { uploadGraphqlSafelist(); }
