@@ -122,7 +122,7 @@ def runInGithub() {
 }
 
 
-def run() {
+def mergeBranches() {
    notify([slack: [channel: params.SLACK_CHANNEL,
                    thread: params.SLACK_THREAD,
                    sender: 'Mr Monkey',
@@ -144,5 +144,5 @@ def run() {
 
 
 onMaster('1h') {
-   run();
+   mergeBranches();
 }
