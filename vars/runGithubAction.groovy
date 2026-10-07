@@ -15,6 +15,10 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 // itself is generally fine when it does.
 @Field MAX_POLL_FAILURES = 5
 
+// How many times we try `gh run cancel` when the Jenkins build is
+// interrupted while waiting on a run; see _cancelRun.
+@Field CANCEL_ATTEMPTS = 3
+
 def _githubApiHeaders(String token) {
     return [[name: "Authorization",
              value: "token ${token}",
@@ -227,9 +231,32 @@ def _wait(String repo, String runId, String githubToken) {
 // so this must never throw: a failure to cancel is logged, and the caller
 // goes on to rethrow the original interruption.  Expects GITHUB_TOKEN to be
 // set in the environment, as it is within _wait.
+//
+// We usually get interrupted twice: an abort interrupts every branch of
+// notify's `parallel`, and when its _watchdog branch then fails, failFast
+// interrupts our branch again -- typically right as we're running `gh run
+// cancel`.  So we retry a cancel attempt that throws.
 def _cancelRun(String repo, String runId) {
+    def status = null
+    for (def attempt = 1; attempt <= CANCEL_ATTEMPTS; attempt++) {
+        try {
+            status = exec.statusOf(["gh", "run", "cancel", runId, "-R", repo])
+            break
+        } catch (e) {
+            echo("Attempt ${attempt} of ${CANCEL_ATTEMPTS} to cancel GitHub " +
+                 "Actions run ${runId} failed: ${e.getMessage()}")
+        }
+    }
+
+    if (status == null) {
+        echo("Gave up cancelling GitHub Actions run ${runUrl(repo, runId)}; " +
+             "it may keep running.")
+        return
+    }
+
+    // notify.log rethrows when the build is aborted (as it is here) if its
+    // own logging fails, so guard it: the cancel has already happened.
     try {
-        def status = exec.statusOf(["gh", "run", "cancel", runId, "-R", repo])
         notify.log("Cancelled GitHub Actions run after Jenkins build was " +
                    "interrupted", [
             level: status == 0 ? "INFO" : "WARNING",
@@ -239,10 +266,8 @@ def _cancelRun(String repo, String runId) {
             gh_exit_status: status,
         ])
     } catch (e) {
-        // We're only here because the build is going down anyway, so just
-        // note that the run may be orphaned.
-        echo("Failed to cancel GitHub Actions run ${runUrl(repo, runId)}: " +
-             "${e.getMessage()}")
+        echo("Ran `gh run cancel` on ${runUrl(repo, runId)} (exit status " +
+             "${status}), but failed to log it: ${e.getMessage()}")
     }
 }
 
