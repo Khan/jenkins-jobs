@@ -49,10 +49,16 @@ def cloneRepo() {
 }
 
 // Install app dependencies.
+//
+// `make go_deps` is how the other webapp jobs do this.  It runs `go mod
+// download`, and when the Go version has changed since the last run on this
+// worker it also drops the test and lint caches that would otherwise be
+// stale -- which matters here, since `go test` would happily serve cached
+// results from the previous toolchain.
 def installDeps(){
     dir(WEBAPP_DIR) {
-        sh 'go mod download'
-   }
+        sh("make go_deps");
+    }
 }
 
 def runTests(){
