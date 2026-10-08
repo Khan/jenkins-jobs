@@ -623,8 +623,14 @@ def run(Boolean useGithub) {
 
 def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
 if (useGithub) {
-   // No need to spin up a worker just to wait on github responding
-   onMaster('30m') {
+   // No need to spin up a worker just to wait on github responding.  This
+   // timeout has to cover the whole GitHub run, not just the dispatch: if
+   // we time out first we report the tests as aborted (and cancel the
+   // GitHub run) even though they'd have finished.  Full webapp-test.yml
+   // runs take up to ~25 minutes, plus however long we queue for runners
+   // during the day.  But don't make it much longer than that: a hung run
+   // holds up the deploy queue until this fires.
+   onMaster('45m') {
       run(true)
    }
 } else {

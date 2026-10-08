@@ -1,6 +1,7 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 import groovy.transform.Field
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 
 // How long we wait between polls while a run is in progress, in seconds.
 // `gh run watch` polls every 3s, which suits a terminal that redraws in
@@ -13,6 +14,10 @@ import groovy.transform.Field
 // already dispatched.  The GitHub API blips from time to time, and the run
 // itself is generally fine when it does.
 @Field MAX_POLL_FAILURES = 5
+
+// How many times we try `gh run cancel` when the Jenkins build is
+// interrupted while waiting on a run; see _cancelRun.
+@Field CANCEL_ATTEMPTS = 3
 
 def _githubApiHeaders(String token) {
     return [[name: "Authorization",
@@ -194,50 +199,127 @@ def _failedJobs(def state) {
 // terminal that can overwrite itself, and thousands of near-identical lines
 // in a Jenkins console log.  Instead we print the full state only when it
 // differs from the last state we printed.
+//
+// If we're interrupted while waiting -- a user abort, buildmaster POSTing
+// /stop, or the enclosing timeout firing -- we cancel the GitHub run before
+// rethrowing, so it doesn't keep using runners (and posting to Slack) on
+// behalf of a build that no longer exists.
 def _wait(String repo, String runId, String githubToken) {
     echo("Waiting on GitHub Actions run ${runUrl(repo, runId)}")
     withEnv(["GITHUB_TOKEN=${githubToken}"]) {
-        String lastRendered = null
-        def failures = 0
-        while (true) {
-            def state = null
-            try {
-                state = _fetchRunState(repo, runId)
-            } catch (e) {
-                notify.rethrowIfAborted(e)
-                failures++
-                if (failures >= MAX_POLL_FAILURES) {
-                    notify.fail("Gave up polling GitHub Actions run " +
-                                runUrl(repo, runId) + " after ${failures} " +
-                                "failed attempts:\n\n" + e.getMessage(), e)
-                }
-                echo("Failed to fetch the state of GitHub Actions run " +
-                     "${runId} (attempt ${failures} of " +
-                     "${MAX_POLL_FAILURES}), retrying: ${e.getMessage()}")
-                sleep(POLL_INTERVAL_SECONDS)
-                continue
+        // `completed` is set once we've seen the run complete, so we never
+        // try to cancel a run that's already done (e.g. if the abort lands
+        // while we're reporting its failure).
+        def runState = [completed: false]
+        try {
+            _pollUntilComplete(repo, runId, runState)
+        } catch (e) {
+            // An abort usually reaches us as a FlowInterruptedException, but
+            // one that lands mid-`sh` can surface as the command failing
+            // instead; notify's watchdog marks the build ABORTED either way.
+            def interrupted = (e instanceof FlowInterruptedException ||
+                               currentBuild.result == "ABORTED")
+            if (interrupted && !runState.completed) {
+                _cancelRun(repo, runId)
             }
-            failures = 0
-
-            String rendered = _renderRunState(runId, state)
-            if (rendered != lastRendered) {
-                echo(rendered)
-                lastRendered = rendered
-            }
-
-            if (state.status == "completed") {
-                if (state.conclusion == "success") {
-                    return
-                }
-                def failed = _failedJobs(state)
-                notify.fail("GitHub Actions workflow ${state.conclusion}: " +
-                            runUrl(repo, runId) +
-                            (failed ? "\n\nFailed jobs:\n" + failed.join("\n")
-                                    : ""))
-            }
-
-            sleep(POLL_INTERVAL_SECONDS)
+            throw e
         }
+    }
+}
+
+// Cancel a GitHub Actions run.  Called while we're handling an interruption,
+// so this must never throw: a failure to cancel is logged, and the caller
+// goes on to rethrow the original interruption.  Expects GITHUB_TOKEN to be
+// set in the environment, as it is within _wait.
+//
+// We usually get interrupted twice: an abort interrupts every branch of
+// notify's `parallel`, and when its _watchdog branch then fails, failFast
+// interrupts our branch again -- typically right as we're running `gh run
+// cancel`.  So we retry a cancel attempt that throws.
+def _cancelRun(String repo, String runId) {
+    def status = null
+    for (def attempt = 1; attempt <= CANCEL_ATTEMPTS; attempt++) {
+        try {
+            status = exec.statusOf(["gh", "run", "cancel", runId, "-R", repo])
+            break
+        } catch (e) {
+            echo("Attempt ${attempt} of ${CANCEL_ATTEMPTS} to cancel GitHub " +
+                 "Actions run ${runId} failed: ${e.getMessage()}")
+        }
+    }
+
+    if (status == null) {
+        echo("Gave up cancelling GitHub Actions run ${runUrl(repo, runId)}; " +
+             "it may keep running.")
+        return
+    }
+
+    // notify.log rethrows when the build is aborted (as it is here) if its
+    // own logging fails, so guard it: the cancel has already happened.
+    try {
+        notify.log("Cancelled GitHub Actions run after Jenkins build was " +
+                   "interrupted", [
+            level: status == 0 ? "INFO" : "WARNING",
+            repo: repo,
+            run_id: runId,
+            run_url: runUrl(repo, runId),
+            gh_exit_status: status,
+        ])
+    } catch (e) {
+        echo("Ran `gh run cancel` on ${runUrl(repo, runId)} (exit status " +
+             "${status}), but failed to log it: ${e.getMessage()}")
+    }
+}
+
+// The polling loop for _wait: returns once the run succeeds, and fails the
+// build once it completes any other way.  Sets `runState.completed` as soon
+// as we see the run complete, before we report on it.
+def _pollUntilComplete(String repo, String runId, Map runState) {
+    String lastRendered = null
+    def failures = 0
+    while (true) {
+        def state = null
+        try {
+            state = _fetchRunState(repo, runId)
+        } catch (FlowInterruptedException e) {
+            // Don't treat an abort or timeout as a failed poll: the
+            // build is being interrupted, so let _wait cancel the run.
+            throw e
+        } catch (e) {
+            notify.rethrowIfAborted(e)
+            failures++
+            if (failures >= MAX_POLL_FAILURES) {
+                notify.fail("Gave up polling GitHub Actions run " +
+                            runUrl(repo, runId) + " after ${failures} " +
+                            "failed attempts:\n\n" + e.getMessage(), e)
+            }
+            echo("Failed to fetch the state of GitHub Actions run " +
+                 "${runId} (attempt ${failures} of " +
+                 "${MAX_POLL_FAILURES}), retrying: ${e.getMessage()}")
+            sleep(POLL_INTERVAL_SECONDS)
+            continue
+        }
+        failures = 0
+
+        String rendered = _renderRunState(runId, state)
+        if (rendered != lastRendered) {
+            echo(rendered)
+            lastRendered = rendered
+        }
+
+        if (state.status == "completed") {
+            runState.completed = true
+            if (state.conclusion == "success") {
+                return
+            }
+            def failed = _failedJobs(state)
+            notify.fail("GitHub Actions workflow ${state.conclusion}: " +
+                        runUrl(repo, runId) +
+                        (failed ? "\n\nFailed jobs:\n" + failed.join("\n")
+                                : ""))
+        }
+
+        sleep(POLL_INTERVAL_SECONDS)
     }
 }
 
