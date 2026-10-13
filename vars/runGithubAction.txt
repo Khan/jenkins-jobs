@@ -9,3 +9,10 @@ Usage:
        headSha: GIT_SHA1,     // optional; used to identify the new run
        inputs: [key: "val"],  // optional workflow_dispatch inputs
    )
+
+If the Jenkins build is interrupted while waiting on the run (a user
+abort, a buildmaster /stop, or an enclosing timeout), the GitHub run is
+cancelled with `gh run cancel` before the interruption is rethrown, so
+it doesn't keep using runners or reporting results for a build that is
+gone.  A run that has already completed is never cancelled, and a
+failure to cancel is logged but doesn't mask the interruption.
