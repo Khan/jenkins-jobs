@@ -16,6 +16,11 @@
 //    output so you can click on the "diff looks good" button
 // 4. Once you've verified everything is working ok here, set-default
 //    for your regular deploy
+//
+// This job is the only way to deploy the vcl services, to both test and
+// prod.  It can also deploy the Fastly Compute services, but only to
+// test.  To deploy a Compute service to prod, use the regular deploy
+// with `sun`.
 
 @Library("kautils")
 // Classes we use, under jenkins-jobs/src/.
@@ -30,11 +35,14 @@ import org.khanacademy.Setup;
 
 
 // Each SERVICE choice names a fastly service and the target to deploy
-// it to.  Fastly Compute services (in services/<dir>) are always deployed
-// to their no-prod-traffic "test" service here, since the regular webapp
-// deploy handles their prod deploys.  The vcl services (in
-// services/fastly/<service>) are deployed to prod, except for
-// khanacademy-org-vcl, which also has a test service.
+// it to, and its label ends in that target ("(TEST)" or "(PROD)") so
+// it's clear which one you're deploying.
+//
+// The vcl services (in services/fastly/<service>) can only be deployed
+// by this job.  They are all prod-only, except khanacademy-org-vcl,
+// which also has a test service.  Fastly Compute services (in
+// services/<dir>) can only be deployed to test by this job; the
+// regular deploy with `sun` is what deploys them to prod.
 def vclService(name, target) {
    return [name: name, target: target, dir: "services/fastly/${name}",
            compute: false];
@@ -45,21 +53,21 @@ def computeService(name, dir) {
 SERVICES = [
     "khanacademy-org-vcl (TEST)": vclService("khanacademy-org-vcl", "test"),
     "khanacademy-org-vcl (PROD)": vclService("khanacademy-org-vcl", "prod"),
-    "khanacademy-org-compute": computeService(
+    "khanacademy-org-compute (TEST)": computeService(
         "khanacademy-org-compute", "services/fastly-khanacademy-compute"),
-    "fastly-frontend-telemetry": computeService(
+    "fastly-frontend-telemetry (TEST)": computeService(
         "fastly-frontend-telemetry", "services/fastly-frontend-telemetry"),
-    "fastly-realtime": computeService(
+    "fastly-realtime (TEST)": computeService(
         "fastly-realtime", "services/fastly-realtime"),
-    "fastly-security-reports": computeService(
+    "fastly-security-reports (TEST)": computeService(
         "fastly-security-reports", "services/fastly-security-reports"),
-    "blog": vclService("blog", "prod"),
-    "content-property": vclService("content-property", "prod"),
-    "international": vclService("international", "prod"),
-    "kasandbox": vclService("kasandbox", "prod"),
-    "kastatic": vclService("kastatic", "prod"),
-    "khan-co": vclService("khan-co", "prod"),
-    "sendgrid": vclService("sendgrid", "prod"),
+    "blog (PROD)": vclService("blog", "prod"),
+    "content-property (PROD)": vclService("content-property", "prod"),
+    "international (PROD)": vclService("international", "prod"),
+    "kasandbox (PROD)": vclService("kasandbox", "prod"),
+    "kastatic (PROD)": vclService("kastatic", "prod"),
+    "khan-co (PROD)": vclService("khan-co", "prod"),
+    "sendgrid (PROD)": vclService("sendgrid", "prod"),
 ];
 
 
@@ -78,13 +86,17 @@ Deploying to test, you can use any branch/commit.""",
 ).addChoiceParam(
     "SERVICE",
     """\
-The fastly service to deploy to.
+The fastly service to deploy to, marked <b>(TEST)</b> or <b>(PROD)</b>
+for which copy of it you are deploying.
 <ul>
-  <li> <b>khanacademy-org-vcl (TEST)</b> / <b>(PROD)</b>: the test or prod
-       khanacademy-org-vcl service
-  <li> <b>compute services</b> (khanacademy-org-compute and fastly-*):
-       <b>test only</b>; prod deploys happen in the regular webapp deploy
-  <li> <b>all other vcl services</b>: <b>prod</b>
+  <li> <b>vcl services</b> can only be deployed by this job, for both
+       test and prod.  khanacademy-org-vcl has both a test and a prod
+       service; all other vcl services are <b>prod only</b>.  After
+       deploying <b>khanacademy-org-vcl (TEST)</b>, test your changes at
+       <a href="https://www-boxes.khanacademy.org">https://www-boxes.khanacademy.org</a>.
+  <li> <b>compute services</b> (khanacademy-org-compute and fastly-*) can
+       only be deployed to <b>test</b> by this job.  To deploy them to
+       prod, use the regular deploy with <code>sun</code>.
 </ul>
 """,
     SERVICES.keySet()
