@@ -35,7 +35,7 @@ import org.khanacademy.Setup;
 
 
 // Each SERVICE choice names a fastly service and the target to deploy
-// it to, and its label ends in that target ("(TEST)" or "(PROD)") so
+// it to, and its label ends in that target ("[TEST]" or "[PROD]") so
 // it's clear which one you're deploying.
 //
 // The vcl services (in services/fastly/<service>) can only be deployed
@@ -51,23 +51,23 @@ def computeService(name, dir) {
    return [name: name, target: "test", dir: dir, compute: true];
 }
 SERVICES = [
-    "khanacademy-org-vcl (TEST)": vclService("khanacademy-org-vcl", "test"),
-    "khanacademy-org-vcl (PROD)": vclService("khanacademy-org-vcl", "prod"),
-    "khanacademy-org-compute (TEST)": computeService(
+    "khanacademy-org-vcl [TEST]": vclService("khanacademy-org-vcl", "test"),
+    "khanacademy-org-vcl [PROD]": vclService("khanacademy-org-vcl", "prod"),
+    "khanacademy-org-compute [TEST]": computeService(
         "khanacademy-org-compute", "services/fastly-khanacademy-compute"),
-    "fastly-frontend-telemetry (TEST)": computeService(
+    "fastly-frontend-telemetry [TEST]": computeService(
         "fastly-frontend-telemetry", "services/fastly-frontend-telemetry"),
-    "fastly-realtime (TEST)": computeService(
+    "fastly-realtime [TEST]": computeService(
         "fastly-realtime", "services/fastly-realtime"),
-    "fastly-security-reports (TEST)": computeService(
+    "fastly-security-reports [TEST]": computeService(
         "fastly-security-reports", "services/fastly-security-reports"),
-    "blog (PROD)": vclService("blog", "prod"),
-    "content-property (PROD)": vclService("content-property", "prod"),
-    "international (PROD)": vclService("international", "prod"),
-    "kasandbox (PROD)": vclService("kasandbox", "prod"),
-    "kastatic (PROD)": vclService("kastatic", "prod"),
-    "khan-co (PROD)": vclService("khan-co", "prod"),
-    "sendgrid (PROD)": vclService("sendgrid", "prod"),
+    "blog [PROD]": vclService("blog", "prod"),
+    "content-property [PROD]": vclService("content-property", "prod"),
+    "international [PROD]": vclService("international", "prod"),
+    "kasandbox [PROD]": vclService("kasandbox", "prod"),
+    "kastatic [PROD]": vclService("kastatic", "prod"),
+    "khan-co [PROD]": vclService("khan-co", "prod"),
+    "sendgrid [PROD]": vclService("sendgrid", "prod"),
 ];
 
 
@@ -86,13 +86,13 @@ Deploying to test, you can use any branch/commit.""",
 ).addChoiceParam(
     "SERVICE",
     """\
-The fastly service to deploy to, marked <b>(TEST)</b> or <b>(PROD)</b>
+The fastly service to deploy to, marked <b>[TEST]</b> or <b>[PROD]</b>
 for which copy of it you are deploying.
 <ul>
   <li> <b>vcl services</b> can only be deployed by this job, for both
        test and prod.  khanacademy-org-vcl has both a test and a prod
        service; all other vcl services are <b>prod only</b>.  After
-       deploying <b>khanacademy-org-vcl (TEST)</b>, test your changes at
+       deploying <b>khanacademy-org-vcl [TEST]</b>, test your changes at
        <a href="https://www-boxes.khanacademy.org">https://www-boxes.khanacademy.org</a>.
   <li> <b>compute services</b> (khanacademy-org-compute and fastly-*) can
        only be deployed to <b>test</b> by this job.  To deploy them to
