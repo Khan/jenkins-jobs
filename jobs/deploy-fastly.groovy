@@ -29,6 +29,40 @@ import org.khanacademy.Setup;
 //import vars.withVirtualenv
 
 
+// Each SERVICE choice names a fastly service and the target to deploy
+// it to.  Fastly Compute services (in services/<dir>) are always deployed
+// to their no-prod-traffic "test" service here, since the regular webapp
+// deploy handles their prod deploys.  The vcl services (in
+// services/fastly/<service>) are deployed to prod, except for
+// khanacademy-org-vcl, which also has a test service.
+def vclService(name, target) {
+   return [name: name, target: target, dir: "services/fastly/${name}",
+           compute: false];
+}
+def computeService(name, dir) {
+   return [name: name, target: "test", dir: dir, compute: true];
+}
+SERVICES = [
+    "khanacademy-org-vcl (TEST)": vclService("khanacademy-org-vcl", "test"),
+    "khanacademy-org-vcl (PROD)": vclService("khanacademy-org-vcl", "prod"),
+    "khanacademy-org-compute": computeService(
+        "khanacademy-org-compute", "services/fastly-khanacademy-compute"),
+    "fastly-frontend-telemetry": computeService(
+        "fastly-frontend-telemetry", "services/fastly-frontend-telemetry"),
+    "fastly-realtime": computeService(
+        "fastly-realtime", "services/fastly-realtime"),
+    "fastly-security-reports": computeService(
+        "fastly-security-reports", "services/fastly-security-reports"),
+    "blog": vclService("blog", "prod"),
+    "content-property": vclService("content-property", "prod"),
+    "international": vclService("international", "prod"),
+    "kasandbox": vclService("kasandbox", "prod"),
+    "kastatic": vclService("kastatic", "prod"),
+    "khan-co": vclService("khan-co", "prod"),
+    "sendgrid": vclService("sendgrid", "prod"),
+];
+
+
 new Setup(steps
 
 ).addStringParam(
@@ -43,21 +77,17 @@ Deploying to test, you can use any branch/commit.""",
 
 ).addChoiceParam(
     "SERVICE",
-    """The fastly service to deploy to.""",
-    ["khanacademy-org-vcl", "khanacademy-org-compute",
-     "blog", "content-property", "international", "kasandbox", "kastatic",
-     "khan-co", "sendgrid"],
-
-).addChoiceParam(
-    "TARGET",
     """\
+The fastly service to deploy to.
 <ul>
-  <li> <b>test</b>: khanacademy-org-vcl and khanacademy-org-compute <b>only</b>
-  <li> <b>staging</b>: khanacademy-org-compute <b>only</b>
-  <li> <b>prod</b>: all services
+  <li> <b>khanacademy-org-vcl (TEST)</b> / <b>(PROD)</b>: the test or prod
+       khanacademy-org-vcl service
+  <li> <b>compute services</b> (khanacademy-org-compute and fastly-*):
+       <b>test only</b>; prod deploys happen in the regular webapp deploy
+  <li> <b>all other vcl services</b>: <b>prod</b>
 </ul>
 """,
-    ["test", "staging", "prod"]
+    SERVICES.keySet()
 
 ).addChoiceParam(
     "CLEAN",
@@ -71,13 +101,13 @@ Deploying to test, you can use any branch/commit.""",
 
 ).apply();
 
-SERVICE_DIR = [
-    // The special cases (that aren't "services/fastly/<service>") go here.
-    "khanacademy-org-compute": "services/fastly-khanacademy-compute",
-].get(params.SERVICE, "services/fastly/${params.SERVICE}")
+SERVICE = SERVICES[params.SERVICE].name;
+TARGET = SERVICES[params.SERVICE].target;
+SERVICE_DIR = SERVICES[params.SERVICE].dir;
+IS_COMPUTE = SERVICES[params.SERVICE].compute;
 
 currentBuild.displayName = ("${currentBuild.displayName} " +
-                            "(${params.TARGET} ${params.SERVICE})");
+                            "(${TARGET} ${SERVICE})");
 
 
 def installDeps() {
@@ -96,7 +126,7 @@ def installDeps() {
 
 def _activeVersion() {
    def cmd = ["make", "-s", "-C", "webapp/${SERVICE_DIR}",
-              "active-version-${params.TARGET}"];
+              "active-version-${TARGET}"];
    withTimeout('1m') {
       withVirtualenv.python3() {
          return exec.outputOf(cmd)
@@ -126,7 +156,7 @@ def deploy() {
                // `make deploy` uses vt100 escape codes to color its diffs,
                // let's make sure they show up properly.
                ansiColor('xterm') {
-                  exec(["make", "deploy-${params.TARGET}"]);
+                  exec(["make", "deploy-${TARGET}"]);
                }
             }
          }
@@ -139,7 +169,7 @@ def setDefault() {
       withVirtualenv.python3() {
          withSecrets.slackAlertlibOnly() { // report to #fastly, #whats-happening
             dir("webapp/${SERVICE_DIR}") {
-               exec(["make", "set-default-${params.TARGET}"]);
+               exec(["make", "set-default-${TARGET}"]);
             }
          }
       }
@@ -147,10 +177,10 @@ def setDefault() {
 }
 
 def notifyWithVersionInfo(oldActive, newActive) {
-   def subject = "fastly-${params.TARGET} (${params.SERVICE}) is now at version ${newActive}";
+   def subject = "fastly-${TARGET} (${SERVICE}) is now at version ${newActive}";
    // We don't use fastly-rollback with compute@edge, we use the normal
    // `emergency-rollback` jenkins job.
-   def body = params.SERVICE == "fastly-vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${params.TARGET} to ${oldActive}`": "";
+   def body = SERVICE == "fastly-vcl" ? "To roll back to the previous version, use `sun: fastly-rollback ${TARGET} to ${oldActive}`": "";
    def cmd = [
        "jenkins-jobs/alertlib/alert.py",
        "--slack=#fastly",
@@ -164,11 +194,9 @@ def notifyWithVersionInfo(oldActive, newActive) {
    }
 
    // Let's tell #whats-happening as well, at least for prod deploys.
-   // But we don't alert for fastly-compute, since that is deployed
-   // automatically as part of the normal deploy process, and gets
-   // alerted on #whats-happening via that mechanism.
-   if (params.TARGET == "prod" && params.SERVICE != "khanacademy-org-compute") {
-      subject = "Fastly service ${params.SERVICE} was modified.";
+   // (Only vcl services can get here: compute services are test-only.)
+   if (TARGET == "prod") {
+      subject = "Fastly service ${SERVICE} was modified.";
       body = "New version: ${newActive}";
       cmd = [
           "jenkins-jobs/alertlib/alert.py",
@@ -193,8 +221,8 @@ def notifyWithVersionInfo(oldActive, newActive) {
       // For this we need the id of the service.  This is in the yaml file.
       // Because we know we are prod-only, we know the yaml file to use is
       // <service-dir-basename>.yaml (and not <basename>-test.yaml).
-      // If we ever wanted to support this for staging or test, we'd have
-      // to modify the filename to add `-${params.TARGET}` to the filename
+      // If we ever wanted to support this for test, we'd have
+      // to modify the filename to add `-${TARGET}` to the filename
       // below.
       dir("webapp/${SERVICE_DIR}") {
          def serviceId = sh(
@@ -218,16 +246,6 @@ onMaster('30m') {
          notify.fail("Must specify a GIT_REVISION");
       }
 
-      if (params.TARGET == "test" &&
-          params.SERVICE != "khanacademy-org-vcl" &&
-          params.SERVICE != "khanacademy-org-compute") {
-         notify.fail("'test' mode is only supported for khanacademy-org services");
-      }
-      if (params.TARGET == "staging" &&
-          params.SERVICE != "khanacademy-org-compute") {
-         notify.fail("'test' mode is only supported for khanacademy-org-compute");
-      }
-
       stage("Installing deps") {
          installDeps();
       }
@@ -235,7 +253,7 @@ onMaster('30m') {
       def oldActive = _activeVersion();
 
       stage("Deploying") {
-         if (params.TARGET == "prod") {
+         if (TARGET == "prod") {
             ensureUpToDate();
          }
          deploy();
@@ -244,7 +262,7 @@ onMaster('30m') {
       // In vcl, we can read the diff, because we upload the source code.
       // So we do this and ask for confirmation as a double-check.  For
       // compute@edge we upload a binary so there's no diff we can do.
-      if (params.SERVICE != "khanacademy-org-compute") {
+      if (!IS_COMPUTE) {
          echo("NOTE: You may need to refresh this browser tab to see proper diff colorization");
          input("Diff looks good?");
       }
