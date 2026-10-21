@@ -53,8 +53,8 @@ def computeService(name, dir) {
 SERVICES = [
     "khanacademy-org-vcl [TEST]": vclService("khanacademy-org-vcl", "test"),
     "khanacademy-org-vcl [PROD]": vclService("khanacademy-org-vcl", "prod"),
-    "khanacademy-org-compute [TEST]": computeService(
-        "khanacademy-org-compute", "services/fastly-khanacademy-compute"),
+    "fastly-khanacademy-compute [TEST]": computeService(
+        "fastly-khanacademy-compute", "services/fastly-khanacademy-compute"),
     "fastly-frontend-telemetry [TEST]": computeService(
         "fastly-frontend-telemetry", "services/fastly-frontend-telemetry"),
     "fastly-realtime [TEST]": computeService(
@@ -94,9 +94,11 @@ for which copy of it you are deploying.
        service; all other vcl services are <b>prod only</b>.  After
        deploying <b>khanacademy-org-vcl [TEST]</b>, test your changes at
        <a href="https://www-boxes.khanacademy.org">https://www-boxes.khanacademy.org</a>.
-  <li> <b>compute services</b> (khanacademy-org-compute and fastly-*) can
-       only be deployed to <b>test</b> by this job.  To deploy them to
-       prod, use the regular deploy with <code>sun</code>.
+  <li> <b>compute services</b> (fastly-khanacademy-compute,
+       fastly-frontend-telemetry, fastly-realtime and
+       fastly-security-reports) can only be deployed to <b>test</b> by
+       this job.  To deploy them to prod, use the regular deploy with
+       <code>sun</code>.
 </ul>
 """,
     SERVICES.keySet()
