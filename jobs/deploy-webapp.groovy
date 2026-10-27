@@ -188,6 +188,10 @@ VERSION_DICT = [:];
 // The list of services to deploy.
 SERVICES = null;
 
+// Where we save the terraform plans that we post just before set-default,
+// and that set_default.py then applies.  Relative to webapp.
+TERRAFORM_PLANS_DIR = "genfiles/terraform-plans";
+
 // The git-tagname to roll back to if this deploy fails.  It
 // should be the git tag of the current-live deploy when this
 // script is first invoked.
@@ -618,10 +622,32 @@ def verifyPromptConfirmed(prompt, buildmasterFailures=0) {
    return;
 }
 
+// Plan every terraform root that the deploy manages, post the plan, and
+// save it in TERRAFORM_PLANS_DIR for set_default.py to apply.  We do this
+// just before set-default because deploys are serialized by now, so this
+// plan is accurate: it diffs against the state we will actually apply to.
+// (build-webapp already planned, but other deploys may have changed the
+// state since then.)  We plan every root, not just the ones this deploy
+// changes; see the "Plan terraform" stage for why.
+def planTerraform() {
+   withTimeout('30m') {
+      withVirtualenv.python3() {
+         withSecrets.slackAlertlibOnly() {
+            dir("webapp") {
+               exec(["deploy/upload_terraform.py", "plan",
+                     "--out=${TERRAFORM_PLANS_DIR}",
+                     "--slack-channel=${SLACK_CHANNEL}"]);
+            }
+         }
+      }
+   }
+}
+
 def _promoteServices() {  // call from webapp-root
     def cmd = ["deploy/set_default.py"];
 
     cmd += ["--previous-tag-name=${ROLLBACK_TO}",
+             "--terraform-plans-dir=${TERRAFORM_PLANS_DIR}",
              "--slack-channel=${SLACK_CHANNEL}",
              "--deployer-username=${DEPLOYER_USERNAME}",
              "--pretty-deployer-username=${PRETTY_DEPLOYER_USERNAME}"];
@@ -921,6 +947,20 @@ onMaster('4h') {
             // TODO(csilvers): figure out a way to handle this better.
             if (SERVICES) {
                verifySmokeTestResults('first-smoke-test');
+            }
+         }
+         stage("Plan terraform") {
+            // We plan (and, at set-default, apply) terraform for every
+            // deploy that sets default -- that is, every deploy that
+            // isn't tools-only -- not just the ones that change
+            // terraform.  That way each deploy also fixes any drift
+            // (changes made in the console, say, or an earlier apply
+            // that failed), so prod matches the deployed commit.  This
+            // must match set_default.py, which applies terraform on
+            // every set-default.  (Tools-only deploys, with no
+            // SERVICES, never set default, so they never apply.)
+            if (SERVICES) {
+               planTerraform();
             }
          }
          stage("set-default confirmation") {
