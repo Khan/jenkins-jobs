@@ -138,7 +138,8 @@ for more information.""",
 
 ).addBooleanParam(
    "USE_GITHUB_BRIDGE",
-   "If true, dispatch tests to GitHub Actions instead of running them here.",
+   """If true, dispatch tests to GitHub Actions instead of running them here.
+Ignored when the WEBAPP_TEST_GITHUB_BRIDGE Jenkins env var is set to on/off.""",
    false
 
 ).apply()
@@ -621,7 +622,27 @@ def run(Boolean useGithub) {
    }
 }
 
-def useGithub = params.USE_GITHUB_BRIDGE && params.GIT_TAG;
+// Support override: set the WEBAPP_TEST_GITHUB_BRIDGE global env var
+// (Manage Jenkins -> System -> Global properties) to "off" to run tests on
+// Jenkins workers, or "on" to use the GitHub bridge, regardless of the
+// USE_GITHUB_BRIDGE param.  Leave it unset to respect the param.  Even
+// "on" needs a GIT_TAG, since that's what the bridge dispatches.
+def bridgeOverride = env.WEBAPP_TEST_GITHUB_BRIDGE?.trim()?.toLowerCase();
+def wantGithub = params.USE_GITHUB_BRIDGE;
+if (bridgeOverride in ["on", "true"]) {
+   wantGithub = true;
+} else if (bridgeOverride in ["off", "false"]) {
+   wantGithub = false;
+} else if (bridgeOverride) {
+   echo("WARNING: ignoring unrecognized WEBAPP_TEST_GITHUB_BRIDGE=" +
+        "'${bridgeOverride}' (expected on/off)");
+}
+if (bridgeOverride in ["on", "true", "off", "false"]) {
+   echo("WEBAPP_TEST_GITHUB_BRIDGE=${bridgeOverride} overrides " +
+        "USE_GITHUB_BRIDGE=${params.USE_GITHUB_BRIDGE}");
+}
+
+def useGithub = wantGithub && params.GIT_TAG;
 if (useGithub) {
    // No need to spin up a worker just to wait on github responding.  This
    // timeout has to cover the whole GitHub run, not just the dispatch: if
