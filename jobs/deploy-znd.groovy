@@ -371,6 +371,14 @@ def deploy() {
                jobs["deploy-cron-yaml"] = { deployCronYaml(); };
                break;
 
+            case "terraform":
+               // A znd must never apply terraform: it would change prod
+               // infrastructure from an unmerged branch.  To znd code
+               // that needs new infrastructure, deploy the terraform
+               // change normally first.
+               echo("WARNING: not applying this znd's terraform changes (znds never apply terraform)");
+               break;
+
             case "fastly-khanacademy-compute":
                // We don't have the ability to deploy to a "staging"
                // fastly-ka-compute service at this time; if we _did_
