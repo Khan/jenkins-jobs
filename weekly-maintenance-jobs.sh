@@ -220,6 +220,13 @@ clean_graphql_gateway_schemas() {
     fi
 }
 
+clean_stale_fastly_versions() {
+    # Fastly keeps track of all live versions of our backend services.
+    # But a backend service can get deleted and not update the fastly
+    # store.  This script gets them in agreement again.
+    ( cd webapp; deploy/delete_stale_fastly_versions.py )
+}
+
 # TODO(FEI-4154): Fix this logic to be more robust.
 # We're disabling clean_ka_static() for the time
 # being to avoid deleting files we need by accident.
