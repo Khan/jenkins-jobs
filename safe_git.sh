@@ -209,9 +209,9 @@ clone() {
         # This is the magic that makes all our repos share an "objects" dir.
         echo "$repo_dir/.git/objects" > .git/objects/info/alternates
         # Now we need to "unshallow".
-        timeout 60m git gc                  # not sure if this is necessary
-        git remote set-branches origin '*'  # needed to see remote branches
-        timeout 60m git fetch --all         # fetch remote branches and tags
+        timeout 60m git gc                     # not sure if this is necessary
+        git remote set-branches origin '*'     # needed to see remote branches
+        timeout 60m git fetch --all --unshallow  # fetch remote branches, tags
         # And finally check out what we wanted to check out!
         timeout 10m git checkout -f "$commit"
     fi
