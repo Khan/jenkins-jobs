@@ -107,7 +107,7 @@ def runScript() {
 }
 
 onWorker("build-worker", "60m") {
-    notify([slack: [channel: '#cp-eng', when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
+    notify([slack: [channel: '#ctl-eng', when: ['SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE']]]) {
         stage("Initializing webapp") {
             setupWebapp();
         }

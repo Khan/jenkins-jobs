@@ -49,10 +49,10 @@ def runAndUpload() {
 
 
 onMaster('23h') {
-   notify([slack: [channel: '#cp-eng',
+   notify([slack: [channel: '#ctl-eng',
                    sender: 'I18N Imp',
                    emoji: ':smiling_imp:', emojiOnFailure: ':imp:',
-                   extraText: "@cp-support",
+                   extraText: "@ctl-support",
                    when: ['FAILURE', 'UNSTABLE', 'ABORTED']],
            email: [to: 'jenkins-admin+builds',
                    when: ['BACK TO NORMAL', 'FAILURE', 'UNSTABLE']]]) {
