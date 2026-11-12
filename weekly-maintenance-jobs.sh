@@ -82,7 +82,8 @@ clean_invalid_branches() {
 # The merge-branches jenkins job creates a git-tag to make sure the
 # merged code isn't gc-ed by Jenkins.  It only needs to survive for
 # the length of a deploy: maybe an hour or so.  We keep these tags
-# around a week.  Same goes for the deploy-znd jenkins job.
+# around a week.  Same goes for the znd-* tags the deploy-znd GitHub
+# Actions workflow in webapp creates.
 prune_buildmaster_and_znd_tags() {
     (
         cd webapp

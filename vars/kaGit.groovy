@@ -267,7 +267,7 @@ def safeMergeFromMaster(dir, commitToMergeInto, submodules=[]) {
 //   commit message.
 //
 // Notes:
-// - Used by merge-granches.groovy and deploy-znd.groovy.
+// - Used by merge-branches.groovy.
 String mergeRevisions(gitRevisions, tagName, description) {
    List<String> allRevisions = gitRevisions.split(/\+/);
 
