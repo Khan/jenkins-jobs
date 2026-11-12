@@ -94,7 +94,7 @@ the thread is 1631811224.115400.'""", ""
 ).addBooleanParam(
    "USE_GITHUB_BRIDGE",
    "If true, dispatch the ZND deploy to GitHub Actions instead of running it here.",
-   false
+   true
 
 // Since we use build workers, there's no need to serialize znd deploys.
 ).allowConcurrentBuilds(
