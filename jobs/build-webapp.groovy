@@ -430,6 +430,27 @@ def deployCronYaml() {
 }
 
 // This should be called from within a node().
+def planTerraform() {
+   if (!("terraform" in SERVICES)) {
+      return;
+   }
+   // Like ka-cron.yaml, terraform applies a whole desired state (add +
+   // delete), so we only ever apply it at set-default time (in
+   // deploy-webapp.groovy).  Here we just check that every root the
+   // deploy manages plans cleanly, so the deployer finds out about
+   // problems now rather than at set-default.  The plan takes no lock,
+   // so concurrent builds don't block each other.
+   dir("webapp") {
+      def cmd = ["deploy/upload_terraform.py", "plan", "--no-lock",
+                 "--slack-channel=${params.SLACK_CHANNEL}"];
+      if (params.SLACK_THREAD) {
+         cmd += ["--slack-thread=${params.SLACK_THREAD}"];
+      }
+      exec(cmd);
+   }
+}
+
+// This should be called from within a node().
 def uploadGraphqlSafelist() {
    // We don't upload queries from the frontend apps because their deployments
    // are handled by the frontend repo: https://github.com/Khan/frontend.
@@ -512,11 +533,12 @@ def deployAndReport() {
                   "deploy-queue-yaml": { deployQueueYaml(); },
                   "deploy-pubsub-yaml": { deployPubsubYaml(); },
                   "deploy-cron-yaml": { deployCronYaml(); },
+                  "plan-terraform": { planTerraform(); },
                  ];
       for (service in SERVICES) {
          if (!(service in [
                'index_yaml', 'queue_yaml', 'pubsub_yaml',
-               'cron_yaml'])) {
+               'cron_yaml', 'terraform'])) {
             // We need to define a new variable so that we don't pass the loop
             // variable into the closure: it may have changed before the
             // closure executes.  See for example
