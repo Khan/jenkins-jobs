@@ -122,19 +122,28 @@ def doRollback() {
    withTimeout('30m') {
       // rollback.py sends to slack and also to stackdriver for monitoring.
       withSecrets.slackAndStackdriverAlertlibOnly() {
-         cmd = ["deploy/rollback.py"];
-         if (params.DRY_RUN) {
-            cmd += ["-n"];
-         }
-
+         def goodArgs = [];
          if (params.ROLLBACK_TO && verifyValidTag(params.ROLLBACK_TO)) {
-            cmd += ["--good=${params.ROLLBACK_TO}"];
+            goodArgs = ["--good=${params.ROLLBACK_TO}"];
          }
+         def badArgs = [];
          if (params.BAD_VERSION && verifyValidTag(params.BAD_VERSION)) {
-            cmd += ["--bad=${params.BAD_VERSION}"];
+            badArgs = ["--bad=${params.BAD_VERSION}"];
          }
          try {
             dir("webapp") {
+               // rollback.py uploads some files (queue.yaml, pubsub.yaml,
+               // ka-cron, ...) from the current checkout, so we need to
+               // run it from the version we're rolling back to, just like
+               // deploy-webapp does.
+               def goodTag = exec.outputOf(
+                  ["deploy/rollback_to.py"] + goodArgs + badArgs);
+               exec(["git", "checkout", "tags/${goodTag}"]);
+
+               def cmd = ["deploy/rollback.py", "--good=${goodTag}"] + badArgs;
+               if (params.DRY_RUN) {
+                  cmd += ["-n"];
+               }
                exec(cmd);
             }
             _alert(":penguin_dance: Rollback is now complete! I'll run the e2e tests now to finish the job!");
