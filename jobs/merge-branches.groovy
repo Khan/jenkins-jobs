@@ -112,6 +112,10 @@ def runInGithub() {
          git_revisions: params.GIT_REVISIONS,
          commit_id: params.COMMIT_ID,
          revision_description: params.REVISION_DESCRIPTION,
+         // On a merge conflict, the workflow posts which files conflicted
+         // here, so the deployer sees what to resolve in their thread.
+         slack_channel: params.SLACK_CHANNEL,
+         slack_thread: params.SLACK_THREAD,
       ]
    );
    def result = githubMergeResult(runId);
