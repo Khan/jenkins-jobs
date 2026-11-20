@@ -83,9 +83,10 @@ all versions, good and bad.)
 ROLLBACK_FAILED = [
    "severity": "critical",
    "text": _textWrap("""\
-:ohnoes: :ohnoes: Auto-rollback failed!
-Roll back to %(rollbackToAsVersion)s manually by running
-`deploy/rollback.py --bad '%(gitTag)s' --good '%(rollbackTo)s'`
+:ohnoes: :ohnoes: Auto-rollback failed (%(why)s)!
+Prod may still be serving %(gitTag)s, including the graphql-gateway
+datagraph.  Roll back to %(rollbackToAsVersion)s by saying
+`sun: emergency rollback to %(rollbackTo)s`
 cc <!subteam^S05M3QU7WJE>
 """)];
 

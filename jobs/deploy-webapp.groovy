@@ -833,6 +833,7 @@ def finishWithFailure(why) {
    def rollbackToAsVersion = ROLLBACK_TO.substring("gae-".length());
 
    withTimeout('40m') {
+      def rolledBack = false;
       try {
          _alert(alertMsgs.ROLLING_BACK,
                 [rollbackToAsVersion: rollbackToAsVersion,
@@ -861,21 +862,32 @@ def finishWithFailure(why) {
                }
             }
          }
+         rolledBack = true;
       } catch (e) {
          echo("Auto-rollback failed: ${e}");
+         // If we were aborted, the build stays ABORTED in jenkins; this
+         // makes notify() tell buildmaster and slack that it failed, not
+         // that it was cleanly aborted, since prod may still be on this
+         // deploy.
+         notify.markAbortCleanupFailed();
          _alert(alertMsgs.ROLLBACK_FAILED,
                 [rollbackToAsVersion: rollbackToAsVersion,
                  gitTag: GIT_TAG,
-                 rollbackTo: ROLLBACK_TO]);
+                 rollbackTo: ROLLBACK_TO,
+                 why: e.toString()]);
          notify.rethrowIfAborted(e);
       }
 
-      _alert(alertMsgs.FAILED_WITH_ROLLBACK,
-             [combinedVersion: GIT_TAG,
-              branch: REVISION_DESCRIPTION,
-              rollbackToAsVersion: rollbackToAsVersion,
-              why: why]);
-      env.SENT_TO_SLACK = '1';
+      // If the rollback failed, ROLLBACK_FAILED (above) and notify()'s
+      // failure message say so; don't also claim we rolled back.
+      if (rolledBack) {
+         _alert(alertMsgs.FAILED_WITH_ROLLBACK,
+                [combinedVersion: GIT_TAG,
+                 branch: REVISION_DESCRIPTION,
+                 rollbackToAsVersion: rollbackToAsVersion,
+                 why: why]);
+         env.SENT_TO_SLACK = '1';
+      }
    }
 }
 
@@ -933,6 +945,10 @@ onMaster('4h') {
       }
 
       if (SERVICES) {
+         // From here on, a failure or abort means finishWithFailure has to
+         // roll back, so don't let an abort kill the job before that
+         // finishes.  (finishWithFailure's own timeout is 40m.)
+         notify.protectAbortCleanup('45m');
          try {
             stage("Promoting and monitoring") {
                withVirtualenv.python3() {
