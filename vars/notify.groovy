@@ -531,6 +531,65 @@ def rethrowIfAborted(e) {
 }
 
 
+// Call this from the body of notify() when the job was aborted but the
+// cleanup it does on abort (e.g. deploy-webapp's rollback) failed.  The
+// build stays ABORTED in jenkins (jenkins won't let a result go from
+// ABORTED to FAILURE), but notify() reports it everywhere as FAILURE, so
+// e.g. buildmaster treats the deploy as failed rather than cleanly aborted.
+def markAbortCleanupFailed() {
+   env.NOTIFY_ABORT_CLEANUP_FAILED = '1';
+}
+
+// The build status to report: currentBuild.result, except as described in
+// markAbortCleanupFailed().
+def _reportedStatus() {
+   if (currentBuild.result == "ABORTED" && env.NOTIFY_ABORT_CLEANUP_FAILED) {
+      return "FAILURE";
+   }
+   return currentBuild.result;
+}
+
+
+// Call this from the body of notify() when, from now on, an abort needs
+// cleanup that must not be cut short (e.g. once deploy-webapp starts
+// setting default, an abort has to roll back).  `gracePeriod` is in
+// withTimeout format, e.g. '45m'.
+//
+// By default, when the job is aborted, notify()'s _watchdog branch fails
+// right away, and `parallel`'s failFast then interrupts the body a second
+// time -- typically while the body is in the middle of its abort
+// cleanup.  After this call, the watchdog instead waits up to
+// `gracePeriod` for the body to finish.  The body still sees the abort
+// itself as an exception, and must catch it to clean up and then rethrow.
+// If the body is still running at the end of the grace period, or the
+// build is aborted a second time, the watchdog fails and failFast stops
+// the body as before.
+//
+// We only do this when asked, rather than always, because failFast is
+// also our backstop for a body that swallows the abort (say, because it
+// came in during an HTTP request) and keeps going.
+def protectAbortCleanup(String gracePeriod) {
+   env.NOTIFY_ABORT_GRACE_PERIOD = gracePeriod;
+}
+
+
+// Called by the _watchdog branch once it has noticed an abort, when
+// protectAbortCleanup() is in effect.
+def _waitForAbortCleanup(abortState, String gracePeriod) {
+   echo("Build aborted; giving it up to ${gracePeriod} to clean up. " +
+        "Abort again to stop it immediately.");
+   try {
+      withTimeout(gracePeriod) {
+         waitUntil(quiet: true) {
+            abortState.complete
+         };
+      }
+   } catch (e) {
+      echo("Done waiting for the abort cleanup: ${e}");
+   }
+}
+
+
 def call(options, Closure body) {
    def abortState = [complete: false, aborted: false];
    def failureText = '';
@@ -566,6 +625,10 @@ def call(options, Closure body) {
                if (!abortState.complete) {
                   abortState.aborted = true;
                   currentBuild.result = "ABORTED";
+                  if (env.NOTIFY_ABORT_GRACE_PERIOD) {
+                     _waitForAbortCleanup(abortState,
+                                          env.NOTIFY_ABORT_GRACE_PERIOD);
+                  }
                }
                throw e;
             } finally {
@@ -601,13 +664,13 @@ def call(options, Closure body) {
       // communicate with buildmaster can fail() the build
       if (options.buildmaster) {
          try {
-            sendToBuildmaster(options.buildmaster, currentBuild.result);
+            sendToBuildmaster(options.buildmaster, _reportedStatus());
          } catch (FailedBuild e) {
             failureText = emitFailureText(e);
          }
       }
 
-      def status = currentBuild.result;
+      def status = _reportedStatus();
 
       // If we are success and the previous build was a failure, then
       // we change the status to BACK TO NORMAL.
