@@ -531,6 +531,25 @@ def rethrowIfAborted(e) {
 }
 
 
+// Call this from the body of notify() when the job was aborted but the
+// cleanup it does on abort (e.g. deploy-webapp's rollback) failed.  The
+// build stays ABORTED in jenkins (jenkins won't let a result go from
+// ABORTED to FAILURE), but notify() reports it everywhere as FAILURE, so
+// e.g. buildmaster treats the deploy as failed rather than cleanly aborted.
+def markAbortCleanupFailed() {
+   env.NOTIFY_ABORT_CLEANUP_FAILED = '1';
+}
+
+// The build status to report: currentBuild.result, except as described in
+// markAbortCleanupFailed().
+def _reportedStatus() {
+   if (currentBuild.result == "ABORTED" && env.NOTIFY_ABORT_CLEANUP_FAILED) {
+      return "FAILURE";
+   }
+   return currentBuild.result;
+}
+
+
 def call(options, Closure body) {
    def abortState = [complete: false, aborted: false];
    def failureText = '';
@@ -601,13 +620,13 @@ def call(options, Closure body) {
       // communicate with buildmaster can fail() the build
       if (options.buildmaster) {
          try {
-            sendToBuildmaster(options.buildmaster, currentBuild.result);
+            sendToBuildmaster(options.buildmaster, _reportedStatus());
          } catch (FailedBuild e) {
             failureText = emitFailureText(e);
          }
       }
 
-      def status = currentBuild.result;
+      def status = _reportedStatus();
 
       // If we are success and the previous build was a failure, then
       // we change the status to BACK TO NORMAL.
